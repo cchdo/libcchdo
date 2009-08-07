@@ -20,10 +20,10 @@ require 'zip/zip'
 # Picks the correct file type to read a file with based on its extension
 def open_cchdo_file(filename)
   raise "#{filename} does not exist" unless FileTest.file? filename
-  datafile = case filename
-    when /zip$/: DataFileCollection.new
+  if filename =~ /zip$/: 
+    datafile = DataFileCollection.new
   else
-    DataFile.new
+    datafile = DataFile.new
   end
   case filename
     when /su\.txt$/: datafile.read_SUM_WOCE(filename)
@@ -176,6 +176,8 @@ end
 # in an array. The user can then handle the error to gather a list at the end or handle 
 # right away.
 # Store global data as duplicates in columns? like Bottles? or as a hash of globals like CTDS?
+# At the end of the IO method, all data is stored away in the columns in proper formats, e.g.
+# data values are floats, ExpoCodes are strings, flags are integers, etc.
 class DataFile # IO methods
   def read_Bottle_Exchange(handle)
     raise NotImplementedError
