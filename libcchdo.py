@@ -6,7 +6,7 @@
 # myshen 2009-08-06 Initial
 
 from __future__ import with_statement
-from datetime import date, datetime, now
+from datetime import date, datetime
 import MySQLdb
 from os import listdir, remove, rmdir
 from re import compile
@@ -15,18 +15,19 @@ from StringIO import StringIO
 from tempfile import mkdtemp
 from zipfile import ZipFile, ZipInfo
 
-from Scientific.IO import NetCDF
-from Numeric import *
-from NetCDF import *
+from netCDF4 import Dataset
 
-try:
-  connection = MySQLdb.connect(host='cchdo.ucsd.edu',
-                               user='cchdo_rails',
-                               passwd='((hd0hydr0d@t@',
-                               db='cchdo')
-except MySQLdb.Error, e:
-  print "Error %d: %s" % (e.args[0], e.args[1])
-  exit(1)
+def connect():
+  try:
+    return MySQLdb.connect(host='cchdo.ucsd.edu',
+                           user='cchdo_rails',
+                           passwd='((hd0hydr0d@t@',
+                           db='cchdo',
+                           unix_socket='/tmp/mysql.sock')
+  except MySQLdb.Error, e:
+    print "Database error %d: %s" % (e.args[0], e.args[1])
+    exit(1)
+connection = connect()
 
 class Parameter:
   def __init__(self, parameter_name):
@@ -34,7 +35,8 @@ class Parameter:
     cursor.execute("SELECT * FROM parameter_descriptions"+
                    "WHERE parameter = '"+parameter_name+"'"+
                    "LIMIT 1")
-    if row = cursor.fetchone():
+    row = cursor.fetchone()
+    if row:
       print 'the row:', row
       self.full_name = ""
       self.description = ""
@@ -50,8 +52,12 @@ class Parameter:
                       " is not in CCHDO's parameter list.")
 
 class Column:
-  def __init__(self, parameter_name):
-    self.parameter = parameter_name # Not really. Will change.
+  def __init__(self, parameter):
+    self.parameter = parameter
+    #if isinstance(parameter, Parameter):
+    #  self.parameter = parameter
+    #else:
+    #  self.parameter = Parameter(parameter)
     self.values = []
     self.flags_woce = []
     self.flags_igoss = []
@@ -75,6 +81,8 @@ class Column:
     return not (self.flags_woce is None or len(self.flags_woce) == 0)
   def is_flagged_igoss(self):
     return not (self.flags_igoss is None or len(self.flags_igoss) == 0)
+  def __str__(self):
+    return 'Column of '+self.parameter+':'+str(self.values)
   def __cmp__(self, other):
     return self.parameter.display_order - other.parameter.display_order
 
@@ -164,16 +172,34 @@ class DataFile:
     handle.write("END_DATA\n")
   def read_CTD_NetCDF(self, handle):
     '''How to read a CTD NetCDF file.'''
-    nc_file = NetCDFFile(handle, 'r')
-    print 'variable names for file: ', nc_file.variables.keys()
-    print 'variables: ', nc_file.variables.values()
+    nc_file = Dataset(handle, 'r')
+    # Create columns for all the variables and get all the data.
     for name, variable in nc_file.variables.items():
       self.columns[name] = Column(name)
-      self.columns[name].parameter = variable
-    global_attrs = dir(nc_file)
-    for attr in global_attrs:
-      print attr
+      self.columns[name].values = variable[:].tolist()
+    # Expand globals to columns
+    global_attrs = nc_file.__dict__
+    globals_to_expand_as = {'CAST_NUMBER': 'CASTNO',
+                            'STATION_NUMBER': 'STNNBR',
+                            'BOTTOM_DEPTH_METERS': 'DEPTH',
+                            'WOCE_ID': 'SECT_ID',
+                            'EXPOCODE': 'EXPOCODE',
+                           }
+    column_length = len(self.columns.values()[0])
+    for g, param in globals_to_expand_as.items():
+      self.columns[param] = Column(param)
+      self.columns[param].values = [global_attrs[g]] * column_length
+    # Get stamp
+    self.stamp = global_attrs['ORIGINAL_HEADER']
+
+    # Clean up
     nc_file.close()
+
+    print 'GLOBAL ATTRS:'
+    for attr, val in global_attrs.items():
+      print attr, '=', val
+    for column in self.columns.values():
+      print column
   def write_CTD_NetCDF(self, handle):
     '''How to write a CTD NetCDF file.'''
     pass
@@ -219,7 +245,8 @@ class DataFile:
     setattr(nc_file, 'BOTTLE_NUMBERS', ' '.join(self.columns['BTLNBR'].values))
     if self.columns['BTLNBR'].is_flagged_woce():
       setattr(nc_file, 'BOTTLE_QUALITY_CODES', ' '.join(self.columns['BTLNBR'].flags_woce))
-    setattr(nc_file, 'Creation_Time', str(now()))
+    now = date(1970, 1, 1).now()
+    setattr(nc_file, 'Creation_Time', str(now))
     header_filter = compile('BOTTLE|db_to_exbot|jjward|(Previous stamp)')
     header = '# Previous stamp: '+self.stamp+"\n"+"\n".join(filter(lambda x: not header_filter.match(x), self.header.split("\n")))
     setattr(nc_file, 'ORIGINAL_HEADER', header)
@@ -371,8 +398,9 @@ class DataFileCollection:
 connection.close()
 
 from sys import argv
-file = DataFileCollection()
-file.read_CTD_netCDF(argv[1]) # NetCDF is a special case. It wants to write its own files.
+#file = DataFileCollection()
+file = DataFile()
+file.read_CTD_NetCDF(argv[1]) # NetCDF is a special case. It wants to write its own files.
 #with open(argv[1], 'r') as in_file:
 #  file.read_CTDZip_ODEN(in_file)
 #with open(argv[2], 'w') as out_file:
