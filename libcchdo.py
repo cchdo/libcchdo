@@ -4,6 +4,11 @@
 #
 # Blame
 # myshen 2009-08-06 Initial
+#
+# Dependencies
+# numpy
+# NetCDF4 google code
+# 
 
 from __future__ import with_statement
 from datetime import date, datetime
