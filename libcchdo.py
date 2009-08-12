@@ -6,8 +6,9 @@
 # myshen 2009-08-06 Initial
 #
 # Dependencies
-# numpy
-# NetCDF4 google code
+# numpy - http://numpy.scipy.org/
+# netcdf4-python - http://code.google.com/p/netcdf4-python/
+# MySQLdb - http://sourceforge.net/projects/mysql-python/
 # 
 
 from __future__ import with_statement
@@ -34,12 +35,14 @@ def connect():
     exit(1)
 connection = connect()
 
+print dir(connection)
+
 class Parameter:
   def __init__(self, parameter_name):
     cursor = connection.cursor()
-    cursor.execute("SELECT * FROM parameter_descriptions"+
-                   "WHERE parameter = '"+parameter_name+"'"+
-                   "LIMIT 1")
+    cursor.execute("""SELECT Parameter,FullName,Alias,Unit_Mnemonic,RubyPrecision FROM parameter_descriptions
+                      WHERE parameter = %s
+                      LIMIT 1""", (parameter_name,))
     row = cursor.fetchone()
     if row:
       print 'the row:', row
@@ -58,11 +61,11 @@ class Parameter:
 
 class Column:
   def __init__(self, parameter):
-    self.parameter = parameter
-    #if isinstance(parameter, Parameter):
-    #  self.parameter = parameter
-    #else:
-    #  self.parameter = Parameter(parameter)
+    #self.parameter = parameter
+    if isinstance(parameter, Parameter):
+      self.parameter = parameter
+    else:
+      self.parameter = Parameter(parameter)
     self.values = []
     self.flags_woce = []
     self.flags_igoss = []
