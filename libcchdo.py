@@ -2,13 +2,10 @@
 
 # libcchdo Python
 #
-# Blame
-# myshen 2009-08-06 Initial
-#
 # Dependencies
 # numpy - http://numpy.scipy.org/
 # netcdf4-python - http://code.google.com/p/netcdf4-python/
-# MySQLdb - http://sourceforge.net/projects/mysql-python/
+# pygresql - http://www.pygresql.org/
 # 
 
 from __future__ import with_statement
@@ -36,7 +33,10 @@ connection = connect()
 class Parameter:
   def __init__(self, parameter_name):
     cursor = connection.cursor()
-    cursor.execute("""SELECT parameters.name,format,description,units,bound_lower,bound_upper,units.mnemonic_woce,parameters_orders.order
+    select = ','.join(['parameters.name', 'format', 'description', 'units',
+              'bound_lower', 'bound_upper', 'units.mnemonic_woce',
+              'parameters_orders.order'])
+    cursor.execute("SELECT "+select+"""
                       FROM parameters
                       INNER JOIN parameters_aliases ON parameters.id = parameters_aliases.parameter_id
                       LEFT JOIN parameters_orders ON parameters.id = parameters_orders.parameter_id
@@ -56,7 +56,7 @@ class Parameter:
       self.display_order = row[7] or -9999
       self.aliases = []
     else:
-      raise NameError(parameter_name+ " is not in CCHDO's parameter list.")
+      raise NameError(parameter_name+" is not in CCHDO's parameter list.")
   def __str__(self):
     return 'Parameter '+self.woce_mnemonic
 
@@ -108,7 +108,7 @@ class DataFile:
   def column_headers(self):
     return map(lambda column: column.parameter.woce_mnemonic, sorted(self.columns.values()))
   def expocodes(self):
-    def uniqify(seq): # Dave Kirby
+    def uniqify(seq): # Credit: Dave Kirby
       seen = set()
       return [x for x in seq if x not in seen and not seen.add(x)]
     return uniqify(columns['EXPOCODE'])
@@ -180,7 +180,9 @@ class DataFile:
     handle.write("END_DATA\n")
   def read_CTD_NetCDF(self, handle):
     '''How to read a CTD NetCDF file.'''
-    nc_file = Dataset(handle, 'r')
+    filename = handle.name
+    handle.close()
+    nc_file = Dataset(filename, 'r')
     # Create columns for all the variables and get all the data.
     nc_ctd_var_to_woce_param = {'cast': 'CASTNO',
                                 'temperature': 'CTDTMP',
@@ -231,51 +233,68 @@ class DataFile:
     pass
   def write_CTD_NetCDF_OceanSITES(self, handle):
     '''How to write a CTD NetCDF OceanSITES file.'''
-    nc_file = Dataset(handle, 'w')
+    filename = handle.name
+    handle.close()
+    nc_file = Dataset(filename, 'w')
     nc_file.data_type = 'OceanSITES time-series data'
     nc_file.format_version = '1.1'
     nc_file.platform_code = 'CIS-1'
-    nc_file.date_update = 'ISO-8861 time' # TODO
+    nc_file.date_update = str(date.today())
     nc_file.institution = 'Scripps Institution of Oceanography'
     nc_file.site_code = 'SIO'
     nc_file.wmo_platform_code = ''
     nc_file.source = 'Shipborne observation'
     nc_file.history = 'ISODATE data collected\nISODATE stuff happened.'
     nc_file.data_mode = 'D'
-    nc_file.quality_control_indicator = '' # TODO
+    nc_file.quality_control_indicator = 'TODO ' # TODO
     nc_file.quality_index = 'B'
-    nc_file.references = 'http://cchdo.ucsd.edu/data_access?ExpoCode='+'z'+',http://cchdo.ucsd.edu/data_history?ExpoCode='+'z' # TODO
+    nc_file.references = 'http://cchdo.ucsd.edu/data_access?ExpoCode='+self.globals['EXPOCODE']+',http://cchdo.ucsd.edu/data_history?ExpoCode='+self.globals['EXPOCODE']
     nc_file.comment = ''
     nc_file.conventions = 'OceanSITES Manual 1.1, CF-1.1'
     nc_file.netcdf_version = '3.5'
-    nc_file.title = 'filename? or ExpoCode' # TODO
-    nc_file.summary = 'describe this dataset' # TODO
+    nc_file.title = self.globals['EXPOCODE']
+    nc_file.summary = 'TODO describe this dataset' # TODO
     nc_file.naming_authority = 'CCHDO'
-    nc_file.id = 'filename without .nc' # TODO
-    nc_file.cdm_data_type = 'Station???' # TODO
-    nc_file.area = 'region' # http://vocab.ndg.nerc.ac.uk/client/vocabServer.jsp
+    nc_file.id = filename.rstrip('.nc')
+    nc_file.cdm_data_type = 'TODO Station???' # TODO
+    nc_file.area = 'TODO region' # TODO http://vocab.ndg.nerc.ac.uk/client/vocabServer.jsp
 
-    # TODO
-    nc_file.geospatial_lat_min = ''
-    nc_file.geospatial_lat_max = ""
-    nc_file.geospatial_lon_min = ""
-    nc_file.geospatial_lon_max = ""
-    nc_file.geospatial_vertical_min = ""
-    nc_file.geospatial_vertical_max = ""
+    nc_file.geospatial_lat_min = self.globals['LATITUDE']
+    nc_file.geospatial_lat_max = self.globals['LATITUDE']
+    nc_file.geospatial_lon_min = self.globals['LONGITUDE']
+    nc_file.geospatial_lon_max = self.globals['LONGITUDE']
+    nc_file.geospatial_vertical_min = self.globals['DEPTH']
+    nc_file.geospatial_vertical_max = 0
 
-    nc_file.time_coverage_start = 'UTC time' # TODO
-    nc_file.time_coverage_end = 'UTC time' # TODO
+    nc_file.time_coverage_start = self.globals['TIME']
+    nc_file.time_coverage_end = self.globals['TIME']
 
     nc_file.institution_references = 'SIO CCHDO'
-    nc_file.contact = 'Stephen Diggs'
     nc_file.contact = 'Stephen Diggs'
     nc_file.data_assembly_center = 'CCHDO'
     nc_file.pi_name = ''
 
-    nc_file.distribution_statement = 'NO WARRANTY NO LIABILITY' # TODO
-    nc_file.citation = 'CITATION.' # TODO
+    nc_file.distribution_statement = 'TODO NO WARRANTY NO LIABILITY' # TODO
+    nc_file.citation = 'TODO CITATION.' # TODO
     nc_file.update_interval = '-1'
     nc_file.qc_manual = "OceanSITES User's Manual"
+
+    nc_file.createDimension('DateTime', 1)
+    nc_file.createDimension('Pressure', len(self))
+    nc_file.createDimension('Latitude', 1)
+    nc_file.createDimension('Longitude', 1)
+
+    variables = {}
+    for column in self.columns.values():
+      name = column.parameter.description.lower().replace(' ', '_').replace('(', '_').replace(')', '_')
+      var = variables[column.parameter.woce_mnemonic] = nc_file.createVariable(name, 'f8', ('Latitude', 'Longitude', 'DateTime', 'Pressure'))
+      var.long_name = column.parameter.description
+      var.standard_name = column.parameter.full_name
+      var.units = column.parameter.units_mnemonic
+      var.valid_min = column.parameter.bound_lower
+      var.valid_max = column.parameter.bound_upper
+      var[:] = column.values
+
     nc_file.close()
   def read_Bottle_NetCDF(self, handle):
     '''How to read a Bottle NetCDF file.'''
@@ -474,14 +493,14 @@ if len(argv) < 2:
   exit(1)
 #file = DataFileCollection()
 file = DataFile()
-file.read_CTD_NetCDF(argv[1])
-#with open(argv[1], 'r') as in_file:
+with open(argv[1], 'r') as in_file:
+  file.read_CTD_NetCDF(in_file)
 #  file.read_CTDZip_ODEN(in_file)
-#with open(argv[2], 'w') as out_file:
+with open(argv[2], 'w') as out_file:
   #file.write_CTDZip_Exchange(out_file)
   #file.write_CTD_Exchange(out_file)
   #file.write_Bottle_NetCDF(out_file)
-file.write_CTD_NetCDF_OceanSITES(argv[2])
+  file.write_CTD_NetCDF_OceanSITES(out_file)
 
 # Closing the database connection
 connection.close()
