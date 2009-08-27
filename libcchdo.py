@@ -37,12 +37,12 @@ class Parameter:
               'bound_lower', 'bound_upper', 'units.mnemonic_woce',
               'parameters_orders.order'])
     cursor.execute("SELECT "+select+"""
-                      FROM parameters
-                      INNER JOIN parameters_aliases ON parameters.id = parameters_aliases.parameter_id
-                      LEFT JOIN parameters_orders ON parameters.id = parameters_orders.parameter_id
-                      LEFT JOIN units ON parameters.units = units.id
-                      WHERE parameters_aliases.name = %s
-                      LIMIT 1""", (parameter_name,))
+                    FROM parameters
+                    INNER JOIN parameters_aliases ON parameters.id = parameters_aliases.parameter_id
+                    LEFT JOIN parameters_orders ON parameters.id = parameters_orders.parameter_id
+                    LEFT JOIN units ON parameters.units = units.id
+                    WHERE parameters_aliases.name = %s
+                    LIMIT 1""", (parameter_name,))
     row = cursor.fetchone()
     if row:
       self.full_name = row[0]
@@ -205,6 +205,8 @@ class DataFile:
         name = nc_ctd_var_to_woce_param[name]
         self.columns[name] = Column(name)
         self.columns[name].values = variable[:].tolist()
+        if name == 'STNNBR' or name == 'CASTNO':
+          self.columns[name].values = [''.join(self.columns[name].values)]
         if len(self.columns[name].values) <= 1 or not self.columns[name].values[1]:
           self.globals[name] = self.columns[name].get(0)
           del self.columns[name]
@@ -236,28 +238,30 @@ class DataFile:
     filename = handle.name
     handle.close()
     nc_file = Dataset(filename, 'w')
-    nc_file.data_type = 'OceanSITES time-series data'
+    nc_file.data_type = 'OceanSITES time-series CTD data'
     nc_file.format_version = '1.1'
-    nc_file.platform_code = 'CIS-1'
+    nc_file.platform_code = 'BATS'
     nc_file.date_update = str(date.today())
-    nc_file.institution = 'Scripps Institution of Oceanography'
-    nc_file.site_code = 'SIO'
+    nc_file.institution = 'Bermuda Institute of Ocean Sciences'
+    nc_file.site_code = 'BIOS/BATS'
     nc_file.wmo_platform_code = ''
     nc_file.source = 'Shipborne observation'
-    nc_file.history = 'ISODATE data collected\nISODATE stuff happened.'
+    isowocedate = str(self.globals['DATE'])
+    isowocedate = isowocedate[:4]+'-'+isowocedate[4:6]+'-'+isowocedate[6:]
+    nc_file.history = isowocedate+" data collected\n"+str(date.today())+" date file translated/written"
     nc_file.data_mode = 'D'
-    nc_file.quality_control_indicator = 'TODO ' # TODO
+    nc_file.quality_control_indicator = '1'
     nc_file.quality_index = 'B'
-    nc_file.references = 'http://cchdo.ucsd.edu/data_access?ExpoCode='+self.globals['EXPOCODE']+',http://cchdo.ucsd.edu/data_history?ExpoCode='+self.globals['EXPOCODE']
-    nc_file.comment = ''
+    nc_file.references = 'http://cchdo.ucsd.edu/search?query=group:BATS'
+    nc_file.comment = 'BIOS/BATS CTD data from SIO, translated to OceanSITES NetCDF by SIO'
     nc_file.conventions = 'OceanSITES Manual 1.1, CF-1.1'
-    nc_file.netcdf_version = '3.5'
-    nc_file.title = self.globals['EXPOCODE']
-    nc_file.summary = 'TODO describe this dataset' # TODO
-    nc_file.naming_authority = 'CCHDO'
+    nc_file.netcdf_version = '4.0.1'
+    nc_file.title = 'BATS CTD Timeseries'
+    nc_file.summary = 'BIO/BATS CTD data Bermuda'
+    nc_file.naming_authority = 'OceanSITES'
     nc_file.id = filename.rstrip('.nc')
-    nc_file.cdm_data_type = 'TODO Station???' # TODO
-    nc_file.area = 'TODO region' # TODO http://vocab.ndg.nerc.ac.uk/client/vocabServer.jsp
+    nc_file.cdm_data_type = 'Station'
+    nc_file.area = 'Sargasso Sea'
 
     nc_file.geospatial_lat_min = self.globals['LATITUDE']
     nc_file.geospatial_lat_max = self.globals['LATITUDE']
@@ -269,31 +273,41 @@ class DataFile:
     nc_file.time_coverage_start = self.globals['TIME']
     nc_file.time_coverage_end = self.globals['TIME']
 
-    nc_file.institution_references = 'SIO CCHDO'
-    nc_file.contact = 'Stephen Diggs'
-    nc_file.data_assembly_center = 'CCHDO'
-    nc_file.pi_name = ''
+    nc_file.institution_references = 'http://bats.bios.edu/'
+    nc_file.contact = 'rodney.johnson@bios.edu'
+    nc_file.author = 'Shen/Diggs (Scripps)'
+    nc_file.data_assembly_center = 'SIO'
+    nc_file.pi_name = 'Rodney Johnson'
 
-    nc_file.distribution_statement = 'TODO NO WARRANTY NO LIABILITY' # TODO
-    nc_file.citation = 'TODO CITATION.' # TODO
-    nc_file.update_interval = '-1'
+    nc_file.distribution_statement = 'Follows CLIVAR (Climate Varibility and Predictability) standards, cf. http://www.clivar.org/data/data_policy.php. Data available free of charge. User assumes all risk for use of data. User must display citation in any publication or product using data. User must contact PI prior to any commercial use of data.'
+    nc_file.citation = 'These data were collected and made freely available by the OceanSITES project and the national programs that contribute to it.'
+    nc_file.update_interval = 'void'
     nc_file.qc_manual = "OceanSITES User's Manual"
 
     nc_file.createDimension('DateTime', 1)
     nc_file.createDimension('Pressure', len(self))
     nc_file.createDimension('Latitude', 1)
     nc_file.createDimension('Longitude', 1)
+    nc_file.createDimension('Global', 1)
 
-    variables = {}
+    Infinity = 1e10000
+    NaN = Infinity/Infinity
     for column in self.columns.values():
       name = column.parameter.description.lower().replace(' ', '_').replace('(', '_').replace(')', '_')
-      var = variables[column.parameter.woce_mnemonic] = nc_file.createVariable(name, 'f8', ('Latitude', 'Longitude', 'DateTime', 'Pressure'))
+      var = nc_file.createVariable(name, 'f8', ('Latitude', 'Longitude', 'DateTime', 'Pressure'))
       var.long_name = column.parameter.description
       var.standard_name = column.parameter.full_name
       var.units = column.parameter.units_mnemonic
+      var._FillValue = NaN
       var.valid_min = column.parameter.bound_lower
       var.valid_max = column.parameter.bound_upper
       var[:] = column.values
+
+    global_vars = {'STNNBR': 'Station_Number', 'CASTNO': 'Cast_Number', 'EXPOCODE': 'ExpoCode'}
+    for mnemonic, name in global_vars.items():
+      var = nc_file.createVariable(name, str, 'Global')
+      var.standard_name = name
+      var[0] = self.globals[mnemonic]
 
     nc_file.close()
   def read_Bottle_NetCDF(self, handle):
