@@ -10,7 +10,8 @@
 
 from __future__ import with_statement
 from datetime import date, datetime
-from netCDF4 import Dataset
+from netCDF3 import Dataset
+from numpy import dtype
 from os import listdir, remove, rmdir
 import pgdb
 from re import compile
@@ -237,13 +238,13 @@ class DataFile:
     '''How to write a CTD NetCDF OceanSITES file.'''
     filename = handle.name
     handle.close()
-    nc_file = Dataset(filename, 'w')
+    nc_file = Dataset(filename, 'w', format='NETCDF3_CLASSIC')
     nc_file.data_type = 'OceanSITES time-series CTD data'
     nc_file.format_version = '1.1'
     nc_file.platform_code = 'BATS'
     nc_file.date_update = str(date.today())
     nc_file.institution = 'Bermuda Institute of Ocean Sciences'
-    nc_file.site_code = 'BIOS/BATS'
+    nc_file.site_code = 'BIOS-BATS'
     nc_file.wmo_platform_code = ''
     nc_file.source = 'Shipborne observation'
     isowocedate = str(self.globals['DATE'])
@@ -253,29 +254,30 @@ class DataFile:
     nc_file.quality_control_indicator = '1'
     nc_file.quality_index = 'B'
     nc_file.references = 'http://cchdo.ucsd.edu/search?query=group:BATS'
-    nc_file.comment = 'BIOS/BATS CTD data from SIO, translated to OceanSITES NetCDF by SIO'
+    nc_file.comment = 'BIOS-BATS CTD data from SIO, translated to OceanSITES NetCDF by SIO'
     nc_file.conventions = 'OceanSITES Manual 1.1, CF-1.1'
-    nc_file.netcdf_version = '4.0.1'
+    nc_file.netcdf_version = '3.x'
     nc_file.title = 'BATS CTD Timeseries'
-    nc_file.summary = 'BIO/BATS CTD data Bermuda'
+    nc_file.summary = 'BIOS-BATS CTD data Bermuda'
     nc_file.naming_authority = 'OceanSITES'
     nc_file.id = filename.rstrip('.nc')
     nc_file.cdm_data_type = 'Station'
-    nc_file.area = 'Sargasso Sea'
+    nc_file.area = 'Atlantic - Sargasso Sea'
 
     nc_file.geospatial_lat_min = self.globals['LATITUDE']
     nc_file.geospatial_lat_max = self.globals['LATITUDE']
     nc_file.geospatial_lon_min = self.globals['LONGITUDE']
     nc_file.geospatial_lon_max = self.globals['LONGITUDE']
-    nc_file.geospatial_vertical_min = self.globals['DEPTH']
+    nc_file.geospatial_vertical_min = int(self.globals['DEPTH'])
     nc_file.geospatial_vertical_max = 0
 
-    nc_file.time_coverage_start = self.globals['TIME']
-    nc_file.time_coverage_end = self.globals['TIME']
+    julian_time = self.globals['TIME']*60 / 86440 + 2444239.5 # 2444239.5 = Julian for 1980-01-01T00:00:00
+    nc_file.time_coverage_start = julian_time
+    nc_file.time_coverage_end = julian_time
 
     nc_file.institution_references = 'http://bats.bios.edu/'
     nc_file.contact = 'rodney.johnson@bios.edu'
-    nc_file.author = 'Shen/Diggs (Scripps)'
+    nc_file.author = 'Shen:Diggs (Scripps)'
     nc_file.data_assembly_center = 'SIO'
     nc_file.pi_name = 'Rodney Johnson'
 
@@ -288,7 +290,7 @@ class DataFile:
     nc_file.createDimension('Pressure', len(self))
     nc_file.createDimension('Latitude', 1)
     nc_file.createDimension('Longitude', 1)
-    nc_file.createDimension('Global', 1)
+    nc_file.createDimension('OceanSITES_String', 30)
 
     Infinity = 1e10000
     NaN = Infinity/Infinity
@@ -305,9 +307,9 @@ class DataFile:
 
     global_vars = {'STNNBR': 'Station_Number', 'CASTNO': 'Cast_Number', 'EXPOCODE': 'ExpoCode'}
     for mnemonic, name in global_vars.items():
-      var = nc_file.createVariable(name, str, 'Global')
+      var = nc_file.createVariable(name, 'S1', 'OceanSITES_String')
       var.standard_name = name
-      var[0] = self.globals[mnemonic]
+      var[:] = list(self.globals[mnemonic].ljust(30, ' '))
 
     nc_file.close()
   def read_Bottle_NetCDF(self, handle):
