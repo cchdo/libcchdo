@@ -241,10 +241,7 @@ class DataFile:
     nc_file = Dataset(filename, 'w', format='NETCDF3_CLASSIC')
     nc_file.data_type = 'OceanSITES time-series CTD data'
     nc_file.format_version = '1.1'
-    nc_file.platform_code = 'BATS'
     nc_file.date_update = str(date.today())
-    nc_file.institution = 'Bermuda Institute of Ocean Sciences'
-    nc_file.site_code = 'BIOS-BATS'
     nc_file.wmo_platform_code = ''
     nc_file.source = 'Shipborne observation'
     isowocedate = str(self.globals['DATE'])
@@ -253,38 +250,54 @@ class DataFile:
     nc_file.data_mode = 'D'
     nc_file.quality_control_indicator = '1'
     nc_file.quality_index = 'B'
-    nc_file.references = 'http://cchdo.ucsd.edu/search?query=group:BATS'
-    nc_file.comment = 'BIOS-BATS CTD data from SIO, translated to OceanSITES NetCDF by SIO'
     nc_file.conventions = 'OceanSITES Manual 1.1, CF-1.1'
     nc_file.netcdf_version = '3.x'
-    nc_file.title = 'BATS CTD Timeseries'
-    nc_file.summary = 'BIOS-BATS CTD data Bermuda'
     nc_file.naming_authority = 'OceanSITES'
     nc_file.id = filename.rstrip('.nc')
     nc_file.cdm_data_type = 'Station'
-    nc_file.area = 'Atlantic - Sargasso Sea'
-
-    nc_file.geospatial_lat_min = self.globals['LATITUDE']
-    nc_file.geospatial_lat_max = self.globals['LATITUDE']
-    nc_file.geospatial_lon_min = self.globals['LONGITUDE']
-    nc_file.geospatial_lon_max = self.globals['LONGITUDE']
+    nc_file.geospatial_lat_min = str(self.globals['LATITUDE'])
+    nc_file.geospatial_lat_max = str(self.globals['LATITUDE'])
+    nc_file.geospatial_lon_min = str(self.globals['LONGITUDE'])
+    nc_file.geospatial_lon_max = str(self.globals['LONGITUDE'])
     nc_file.geospatial_vertical_min = int(self.globals['DEPTH'])
     nc_file.geospatial_vertical_max = 0
-
-    julian_time = self.globals['TIME']*60 / 86440 + 2444239.5 # 2444239.5 = Julian for 1980-01-01T00:00:00
-    nc_file.time_coverage_start = julian_time
-    nc_file.time_coverage_end = julian_time
-
-    nc_file.institution_references = 'http://bats.bios.edu/'
-    nc_file.contact = 'rodney.johnson@bios.edu'
     nc_file.author = 'Shen:Diggs (Scripps)'
     nc_file.data_assembly_center = 'SIO'
-    nc_file.pi_name = 'Rodney Johnson'
-
     nc_file.distribution_statement = 'Follows CLIVAR (Climate Varibility and Predictability) standards, cf. http://www.clivar.org/data/data_policy.php. Data available free of charge. User assumes all risk for use of data. User must display citation in any publication or product using data. User must contact PI prior to any commercial use of data.'
     nc_file.citation = 'These data were collected and made freely available by the OceanSITES project and the national programs that contribute to it.'
     nc_file.update_interval = 'void'
     nc_file.qc_manual = "OceanSITES User's Manual"
+    julian_time = self.globals['TIME']*60 / 86440 + 2444239.5 # 2444239.5 = Julian for 1980-01-01T00:00:00
+    nc_file.time_coverage_start = str(julian_time)
+    nc_file.time_coverage_end = str(julian_time)
+
+    # Timeseries variables
+
+    # BATS variables
+    #nc_file.platform_code = 'BATS'
+    #nc_file.institution = 'Bermuda Institute of Ocean Sciences'
+    #nc_file.site_code = 'BIOS-BATS'
+    #nc_file.references = 'http://cchdo.ucsd.edu/search?query=group:BATS'
+    #nc_file.comment = 'BIOS-BATS CTD data from SIO, translated to OceanSITES NetCDF by SIO'
+    #nc_file.title = 'BATS CTD Timeseries'
+    #nc_file.summary = 'BIOS-BATS CTD data Bermuda'
+    #nc_file.area = 'Atlantic - Sargasso Sea'
+    #nc_file.institution_references = 'http://bats.bios.edu/'
+    #nc_file.contact = 'rodney.johnson@bios.edu'
+    #nc_file.pi_name = 'Rodney Johnson'
+
+    # HOT variables
+    nc_file.platform_code = 'HOT'
+    nc_file.institution = 'Hawaii'
+    nc_file.site_code = 'BIOS-BATS'
+    nc_file.references = 'http://cchdo.ucsd.edu/search?query=group:BATS'
+    nc_file.comment = 'BIOS-BATS CTD data from SIO, translated to OceanSITES NetCDF by SIO'
+    nc_file.title = 'BATS CTD Timeseries'
+    nc_file.summary = 'BIOS-BATS CTD data Bermuda'
+    nc_file.area = 'Atlantic - Sargasso Sea'
+    nc_file.institution_references = 'http://bats.bios.edu/'
+    nc_file.contact = 'rodney.johnson@bios.edu'
+    nc_file.pi_name = 'Rodney Johnson'
 
     nc_file.createDimension('DateTime', 1)
     nc_file.createDimension('Pressure', len(self))
@@ -292,10 +305,18 @@ class DataFile:
     nc_file.createDimension('Longitude', 1)
     nc_file.createDimension('OceanSITES_String', 30)
 
+    param_to_oceansites = {
+      'ctd_pressure': 'PRES',
+      'ctd_temperature', 'TEMP',
+      'ctd_salinity', 'PSAL',
+      'ctd_oxygen', 'DOXY'
+    }
     Infinity = 1e10000
     NaN = Infinity/Infinity
     for column in self.columns.values():
       name = column.parameter.description.lower().replace(' ', '_').replace('(', '_').replace(')', '_')
+      if name in param_to_oceansites.keys():
+        name = param_to_oceansites[name]
       var = nc_file.createVariable(name, 'f8', ('Latitude', 'Longitude', 'DateTime', 'Pressure'))
       var.long_name = column.parameter.description
       var.standard_name = column.parameter.full_name
@@ -304,6 +325,9 @@ class DataFile:
       var.valid_min = column.parameter.bound_lower
       var.valid_max = column.parameter.bound_upper
       var[:] = column.values
+      if column.is_flagged_woce():
+        flag = nc_file.createVariable(name+'_QC', 'i', ('Quality_Code',))
+        flag[:] = column.flags_woce
 
     global_vars = {'STNNBR': 'Station_Number', 'CASTNO': 'Cast_Number', 'EXPOCODE': 'ExpoCode'}
     for mnemonic, name in global_vars.items():
