@@ -238,22 +238,24 @@ class DataFile:
     '''How to write a CTD NetCDF OceanSITES file.'''
     filename = handle.name
     handle.close()
+    Infinity = 1e10000
+    NaN = Infinity/Infinity
     nc_file = Dataset(filename, 'w', format='NETCDF3_CLASSIC')
     nc_file.data_type = 'OceanSITES time-series CTD data'
     nc_file.format_version = '1.1'
-    nc_file.date_update = str(date.today())
+    nc_file.date_update = datetime.utcnow().isoformat()+'Z'
     nc_file.wmo_platform_code = ''
     nc_file.source = 'Shipborne observation'
     isowocedate = str(self.globals['DATE'])
     isowocedate = isowocedate[:4]+'-'+isowocedate[4:6]+'-'+isowocedate[6:]
-    nc_file.history = isowocedate+" data collected\n"+str(date.today())+" date file translated/written"
+    nc_file.history = isowocedate+"T00:00:00Z data collected\n"+datetime.utcnow().isoformat()+"Z date file translated/written"
     nc_file.data_mode = 'D'
     nc_file.quality_control_indicator = '1'
     nc_file.quality_index = 'B'
     nc_file.conventions = 'OceanSITES Manual 1.1, CF-1.1'
     nc_file.netcdf_version = '3.x'
     nc_file.naming_authority = 'OceanSITES'
-    nc_file.id = filename.rstrip('.nc')
+    nc_file.id = '_'.join(['OS', 'BERMUDA', isowocedate.replace('-', ''), 'CSOT'])
     nc_file.cdm_data_type = 'Station'
     nc_file.geospatial_lat_min = str(self.globals['LATITUDE'])
     nc_file.geospatial_lat_max = str(self.globals['LATITUDE'])
@@ -266,75 +268,153 @@ class DataFile:
     nc_file.distribution_statement = 'Follows CLIVAR (Climate Varibility and Predictability) standards, cf. http://www.clivar.org/data/data_policy.php. Data available free of charge. User assumes all risk for use of data. User must display citation in any publication or product using data. User must contact PI prior to any commercial use of data.'
     nc_file.citation = 'These data were collected and made freely available by the OceanSITES project and the national programs that contribute to it.'
     nc_file.update_interval = 'void'
-    nc_file.qc_manual = "OceanSITES User's Manual"
-    julian_time = self.globals['TIME']*60 / 86440 + 2444239.5 # 2444239.5 = Julian for 1980-01-01T00:00:00
-    nc_file.time_coverage_start = str(julian_time)
-    nc_file.time_coverage_end = str(julian_time)
+    nc_file.qc_manual = "OceanSITES User's Manual v1.1"
+    #julian_time = self.globals['TIME']*60 / 86440 + 2444239.5 # 2444239.5 = Julian for 1980-01-01T00:00:00
+    nc_file.time_coverage_start = isowocedate+'T00:00:00Z'
+    nc_file.time_coverage_end = isowocedate+'T00:00:00Z'
 
-    # Timeseries variables
+    # Timeseries specific variables
+    def set_oceansites_timeseries_variables(timeseries):
+      nc_file.title = ' '.join([timeseries+' CTD Timeseries', 'ExpoCode='+self.globals['EXPOCODE'], 'Station='+self.globals['STNNBR'], 'Cast='+self.globals['CASTNO']])
+      if timeseries is 'BATS':
+        nc_file.platform_code = 'BATS'
+        nc_file.institution = 'Bermuda Institute of Ocean Sciences'
+        nc_file.institution_references = 'http://bats.bios.edu/'
+        nc_file.site_code = 'BIOS-BATS'
+        nc_file.references = 'http://cchdo.ucsd.edu/search?query=group:BATS'
+        nc_file.comment = 'BIOS-BATS CTD data from SIO, translated to OceanSITES NetCDF by SIO'
+        nc_file.summary = 'BIOS-BATS CTD data Bermuda'
+        nc_file.area = 'Atlantic - Sargasso Sea'
+        nc_file.institution_references = 'http://bats.bios.edu/'
+        nc_file.contact = 'rodney.johnson@bios.edu'
+        nc_file.pi_name = 'Rodney Johnson'
+      elif timeseries is 'HOT':
+        nc_file.platform_code = 'HOT'
+        nc_file.institution = "University of Hawai'i School of Ocean and Earth Science and Technology"
+        nc_file.site_code = 'ALOHA'
+        nc_file.references = 'http://cchdo.ucsd.edu/search?query=group:HOT'
+        nc_file.comment = 'HOT CTD data from SIO, translated to OceanSITES NetCDF by SIO'
+        nc_file.summary = "HOT CTD data Hawai'i"
+        nc_file.area = "Pacific - Hawai'i"
+        nc_file.institution_references = 'http://hahana.soest.hawaii.edu/hot/hot_jgofs.html'
+        nc_file.contact = ''
+        nc_file.pi_name = ''
+    set_oceansites_timeseries_variables('BATS')
 
-    # BATS variables
-    #nc_file.platform_code = 'BATS'
-    #nc_file.institution = 'Bermuda Institute of Ocean Sciences'
-    #nc_file.site_code = 'BIOS-BATS'
-    #nc_file.references = 'http://cchdo.ucsd.edu/search?query=group:BATS'
-    #nc_file.comment = 'BIOS-BATS CTD data from SIO, translated to OceanSITES NetCDF by SIO'
-    #nc_file.title = 'BATS CTD Timeseries'
-    #nc_file.summary = 'BIOS-BATS CTD data Bermuda'
-    #nc_file.area = 'Atlantic - Sargasso Sea'
-    #nc_file.institution_references = 'http://bats.bios.edu/'
-    #nc_file.contact = 'rodney.johnson@bios.edu'
-    #nc_file.pi_name = 'Rodney Johnson'
+    nc_file.createDimension('TIME')
+    nc_file.createDimension('PRES', len(self))
+    nc_file.createDimension('LATITUDE', 1)
+    nc_file.createDimension('LONGITUDE', 1)
+    nc_file.createDimension('POSITION', 1)
 
-    # HOT variables
-    nc_file.platform_code = 'HOT'
-    nc_file.institution = 'Hawaii'
-    nc_file.site_code = 'BIOS-BATS'
-    nc_file.references = 'http://cchdo.ucsd.edu/search?query=group:BATS'
-    nc_file.comment = 'BIOS-BATS CTD data from SIO, translated to OceanSITES NetCDF by SIO'
-    nc_file.title = 'BATS CTD Timeseries'
-    nc_file.summary = 'BIOS-BATS CTD data Bermuda'
-    nc_file.area = 'Atlantic - Sargasso Sea'
-    nc_file.institution_references = 'http://bats.bios.edu/'
-    nc_file.contact = 'rodney.johnson@bios.edu'
-    nc_file.pi_name = 'Rodney Johnson'
+    # OceanSITES coordinate variables
+    var_time = nc_file.createVariable('TIME', 'd', ('TIME',))
+    var_time.long_name = 'time'
+    var_time.standard_name = 'time'
+    var_time.units = 'days since 1950-01-01T00:00:00Z'
+    var_time._FillValue = 999999.0
+    var_time.valid_min = 0.0
+    var_time.valid_max = 90000.0
+    #var_time.QC_indicator = 
+    #var_time.QC_procedure = 
+    #var_time.uncertainty = 
+    var_time.axis = 'T'
 
-    nc_file.createDimension('DateTime', 1)
-    nc_file.createDimension('Pressure', len(self))
-    nc_file.createDimension('Latitude', 1)
-    nc_file.createDimension('Longitude', 1)
-    nc_file.createDimension('OceanSITES_String', 30)
+    var_latitude = nc_file.createVariable('LATITUDE', 'f', ('LATITUDE',))
+    var_latitude.long_name = 'Latitude of each location'
+    var_latitude.standard_name = 'latitude'
+    var_latitude.units = 'degrees_north'
+    var_latitude._FillValue = 99999.0
+    var_latitude.valid_min = -90.0
+    var_latitude.valid_max = 90.0
+    #var_latitude.QC_indicator = 
+    #var_latitude.QC_procedure = 
+    #var_latitude.uncertainty = 
+    var_latitude.axis = 'Y'
 
+    var_longitude = nc_file.createVariable('LONGITUDE', 'f', ('LONGITUDE',))
+    var_longitude.long_name = 'Longitude of each location'
+    var_longitude.standard_name = 'longitude'
+    var_longitude.units = 'degrees_east'
+    var_longitude._FillValue = 99999.0
+    var_longitude.valid_min = -180.0
+    var_longitude.valid_max = 180.0
+    #var_longitude.QC_indicator = 
+    #var_longitude.QC_procedure = 
+    #var_longitude.uncertainty = 
+    var_longitude.axis = 'X'
+
+    var_pressure = nc_file.createVariable('PRES', 'f', ('PRES',))
+    var_pressure.long_name = 'sea water pressure'
+    var_pressure.standard_name = 'sea_water_pressure'
+    var_pressure.units = 'decibar'
+    var_pressure._FillValue = NaN
+    var_pressure.valid_min = 0.0
+    var_pressure.valid_max = 12000.0
+    #var_pressure.QC_indicator = 
+    #var_pressure.QC_procedure = 
+    #var_pressure.uncertainty =
+    var_pressure.axis = 'Z'
+
+    var_time[:] = [10957 + self.globals['TIME']/60/24] # days since 1950-01-01
+    var_latitude[:] = [self.globals['LATITUDE']]
+    var_longitude[:] = [self.globals['LONGITUDE']]
+
+    # CTD variables
     param_to_oceansites = {
       'ctd_pressure': 'PRES',
-      'ctd_temperature', 'TEMP',
-      'ctd_salinity', 'PSAL',
-      'ctd_oxygen', 'DOXY'
+      'ctd_temperature': 'TEMP',
+      'ctd_oxygen': 'DOXY',
+      'ctd_salinity': 'PSAL'
     }
-    Infinity = 1e10000
-    NaN = Infinity/Infinity
+    oceansites_variables = {
+      'TEMP': {'long': 'sea water temperature', 'std': 'sea_water_temperature', 'units': 'degree_Celsius'},
+      'DOXY': {'long': 'dissolved oxygen', 'std': 'dissolved_oxygen', 'units': 'micromole/kg'},
+      'PSAL': {'long': 'sea water salinity', 'std': 'sea_water_salinity', 'units': 'psu'}
+    }
+
     for column in self.columns.values():
       name = column.parameter.description.lower().replace(' ', '_').replace('(', '_').replace(')', '_')
       if name in param_to_oceansites.keys():
         name = param_to_oceansites[name]
-      var = nc_file.createVariable(name, 'f8', ('Latitude', 'Longitude', 'DateTime', 'Pressure'))
-      var.long_name = column.parameter.description
-      var.standard_name = column.parameter.full_name
-      var.units = column.parameter.units_mnemonic
-      var._FillValue = NaN
-      var.valid_min = column.parameter.bound_lower
-      var.valid_max = column.parameter.bound_upper
-      var[:] = column.values
+      # Write variable
+      if not name is 'PRES':
+        var = nc_file.createVariable(name, 'f8', ('PRES',))
+        variable = oceansites_variables[name]
+        var.long_name = variable['long'] or ''
+        var.standard_name = variable['std'] or ''
+        var.units = variable['units'] or ''
+        var._FillValue = NaN # TODO ref table 3
+        var.QC_procedure = 0# TODO see table 2.1
+        var.valid_min = column.parameter.bound_lower
+        var.valid_max = column.parameter.bound_upper
+        var.sensor_depth = -999 # TODO nominal sensor depth in meters positive in direction of DEPTH:positive
+        var.uncertainty = 0.0
+        var[:] = column.values
+      else:
+        var_pressure[:] = column.values
+      # Write QC variable
       if column.is_flagged_woce():
-        flag = nc_file.createVariable(name+'_QC', 'i', ('Quality_Code',))
+        var.ancillary_variables = name+'_QC'
+        flag = nc_file.createVariable(name+'_QC', 'i', ('PRES',))
+        flag.long_name = 'quality flag'
+        flag.conventions = 'OceanSITES reference table 2'
+        flag._FillValue = -128
+        flag.valid_min = 0
+        flag.valid_max = 9
+        flag.flag_values = 0#, 1, 2, 3, 4, 5, 6, 7, 8, 9 TODO??
+        flag.flag_meanings = ' '.join(['no_qc_performed'
+                                       'good_data'
+                                       'probably_good_data'
+                                       'bad_data_that_are_potentially_correctable'
+                                       'bad_data'
+                                       'value_changed'
+                                       'not_used'
+                                       'nominal_value'
+                                       'interpolated_value'
+                                       'missing_value'
+                                      ])
         flag[:] = column.flags_woce
-
-    global_vars = {'STNNBR': 'Station_Number', 'CASTNO': 'Cast_Number', 'EXPOCODE': 'ExpoCode'}
-    for mnemonic, name in global_vars.items():
-      var = nc_file.createVariable(name, 'S1', 'OceanSITES_String')
-      var.standard_name = name
-      var[:] = list(self.globals[mnemonic].ljust(30, ' '))
-
     nc_file.close()
   def read_Bottle_NetCDF(self, handle):
     '''How to read a Bottle NetCDF file.'''
