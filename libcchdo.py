@@ -35,8 +35,8 @@ class Parameter:
   def __init__(self, parameter_name):
     cursor = connection.cursor()
     select = ','.join(['parameters.name', 'format', 'description', 'units',
-              'bound_lower', 'bound_upper', 'units.mnemonic_woce',
-              'parameters_orders.order'])
+                       'bound_lower', 'bound_upper', 'units.mnemonic_woce',
+                       'parameters_orders.order'])
     cursor.execute("SELECT "+select+"""
                     FROM parameters
                     INNER JOIN parameters_aliases ON parameters.id = parameters_aliases.parameter_id
@@ -213,7 +213,7 @@ class DataFile:
           del self.columns[name]
     # Second pass to put in flags
     for name, variable in qc_vars.items():
-      self.columns[name].flags = variable[:].tolist()
+      self.columns[name].flags_woce = variable[:].tolist()
     # Rename globals to CCHDO recognized ones
     global_attrs = nc_file.__dict__
     globals_to_rename_as = {'CAST_NUMBER': 'CASTNO',
@@ -240,22 +240,34 @@ class DataFile:
     handle.close()
     Infinity = 1e10000
     NaN = Infinity/Infinity
+    strdate = str(self.globals['DATE']) 
+    strtime = str(self.globals['TIME'])
+    isowocedate = datetime(int(strdate[0:4]), int(strdate[5:6]), int(strdate[7:8]),
+		           int(strtime[0:2]), int(strtime[3:5]))
+    WOCE_to_oceanSITES_flag = {
+      1: 3, # Not calibrated -> Bad data that are potentially correctable (re-calibration)
+      2: 1, # Acceptable measurement -> Good data
+      3: 2, # Questionable measurement -> Probably good data
+      4: 4, # Bad measurement -> Bad data
+      5: 9, # Not reported -> Missing value
+      6: 8, # Interpolated over >2 dbar interval -> Interpolated value
+      7: 5, # Despiked -> Value changed
+      9: 9  # Not sampled -> Missing value
+    }
+
     nc_file = Dataset(filename, 'w', format='NETCDF3_CLASSIC')
     nc_file.data_type = 'OceanSITES time-series CTD data'
     nc_file.format_version = '1.1'
     nc_file.date_update = datetime.utcnow().isoformat()+'Z'
     nc_file.wmo_platform_code = ''
     nc_file.source = 'Shipborne observation'
-    isowocedate = str(self.globals['DATE'])
-    isowocedate = isowocedate[:4]+'-'+isowocedate[4:6]+'-'+isowocedate[6:]
-    nc_file.history = isowocedate+"T00:00:00Z data collected\n"+datetime.utcnow().isoformat()+"Z date file translated/written"
+    nc_file.history = isowocedate.isoformat()+"Z data collected\n"+datetime.utcnow().isoformat()+"Z date file translated/written"
     nc_file.data_mode = 'D'
     nc_file.quality_control_indicator = '1'
     nc_file.quality_index = 'B'
     nc_file.conventions = 'OceanSITES Manual 1.1, CF-1.1'
     nc_file.netcdf_version = '3.x'
     nc_file.naming_authority = 'OceanSITES'
-    nc_file.id = '_'.join(['OS', 'BERMUDA', isowocedate.replace('-', ''), 'CSOT'])
     nc_file.cdm_data_type = 'Station'
     nc_file.geospatial_lat_min = str(self.globals['LATITUDE'])
     nc_file.geospatial_lat_max = str(self.globals['LATITUDE'])
@@ -269,13 +281,13 @@ class DataFile:
     nc_file.citation = 'These data were collected and made freely available by the OceanSITES project and the national programs that contribute to it.'
     nc_file.update_interval = 'void'
     nc_file.qc_manual = "OceanSITES User's Manual v1.1"
-    #julian_time = self.globals['TIME']*60 / 86440 + 2444239.5 # 2444239.5 = Julian for 1980-01-01T00:00:00
-    nc_file.time_coverage_start = isowocedate+'T00:00:00Z'
-    nc_file.time_coverage_end = isowocedate+'T00:00:00Z'
+    nc_file.time_coverage_start = isowocedate.isoformat()+'Z'
+    nc_file.time_coverage_end = isowocedate.isoformat()+'Z'
 
     # Timeseries specific variables
     def set_oceansites_timeseries_variables(timeseries):
       nc_file.title = ' '.join([timeseries+' CTD Timeseries', 'ExpoCode='+self.globals['EXPOCODE'], 'Station='+self.globals['STNNBR'], 'Cast='+self.globals['CASTNO']])
+      stringdate = isowocedate.date().isoformat().replace('-', '')
       if timeseries is 'BATS':
         nc_file.platform_code = 'BATS'
         nc_file.institution = 'Bermuda Institute of Ocean Sciences'
@@ -288,6 +300,7 @@ class DataFile:
         nc_file.institution_references = 'http://bats.bios.edu/'
         nc_file.contact = 'rodney.johnson@bios.edu'
         nc_file.pi_name = 'Rodney Johnson'
+        nc_file.id = '_'.join(['OS', 'BERMUDA', stringdate, 'SOT'])
       elif timeseries is 'HOT':
         nc_file.platform_code = 'HOT'
         nc_file.institution = "University of Hawai'i School of Ocean and Earth Science and Technology"
@@ -297,9 +310,10 @@ class DataFile:
         nc_file.summary = "HOT CTD data Hawai'i"
         nc_file.area = "Pacific - Hawai'i"
         nc_file.institution_references = 'http://hahana.soest.hawaii.edu/hot/hot_jgofs.html'
-        nc_file.contact = ''
-        nc_file.pi_name = ''
-    set_oceansites_timeseries_variables('BATS')
+        nc_file.contact = 'santiago@soest.hawaii.edu'
+        nc_file.pi_name = 'Roger Lukas'
+        nc_file.id = '_'.join(['OS', 'ALOHA', stringdate, 'SOT'])
+    set_oceansites_timeseries_variables('HOT')
 
     nc_file.createDimension('TIME')
     nc_file.createDimension('PRES', len(self))
@@ -356,7 +370,8 @@ class DataFile:
     #var_pressure.uncertainty =
     var_pressure.axis = 'Z'
 
-    var_time[:] = [10957 + self.globals['TIME']/60/24] # days since 1950-01-01
+    since_1950 = isowocedate - datetime(1950, 1, 1)
+    var_time[:] = [since_1950.days + since_1950.seconds/86400.0]
     var_latitude[:] = [self.globals['LATITUDE']]
     var_longitude[:] = [self.globals['LONGITUDE']]
 
@@ -396,25 +411,25 @@ class DataFile:
       # Write QC variable
       if column.is_flagged_woce():
         var.ancillary_variables = name+'_QC'
-        flag = nc_file.createVariable(name+'_QC', 'i', ('PRES',))
+        flag = nc_file.createVariable(name+'_QC', 'b', ('PRES',))
         flag.long_name = 'quality flag'
         flag.conventions = 'OceanSITES reference table 2'
         flag._FillValue = -128
         flag.valid_min = 0
         flag.valid_max = 9
         flag.flag_values = 0#, 1, 2, 3, 4, 5, 6, 7, 8, 9 TODO??
-        flag.flag_meanings = ' '.join(['no_qc_performed'
-                                       'good_data'
-                                       'probably_good_data'
-                                       'bad_data_that_are_potentially_correctable'
-                                       'bad_data'
-                                       'value_changed'
-                                       'not_used'
-                                       'nominal_value'
-                                       'interpolated_value'
+        flag.flag_meanings = ' '.join(['no_qc_performed',
+                                       'good_data',
+                                       'probably_good_data',
+                                       'bad_data_that_are_potentially_correctable',
+                                       'bad_data',
+                                       'value_changed',
+                                       'not_used',
+                                       'nominal_value',
+                                       'interpolated_value',
                                        'missing_value'
                                       ])
-        flag[:] = column.flags_woce
+        flag[:] = map(lambda x: WOCE_to_oceanSITES_flag[x], column.flags_woce)
     nc_file.close()
   def read_Bottle_NetCDF(self, handle):
     '''How to read a Bottle NetCDF file.'''
