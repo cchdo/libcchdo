@@ -187,7 +187,7 @@ class DataFile:
     # Create columns for all the variables and get all the data.
     nc_ctd_var_to_woce_param = {'cast': 'CASTNO',
                                 'temperature': 'CTDTMP',
-                                'woce_time': 'TIME',
+                                'time': 'drop',
                                 'woce_date': 'DATE',
                                 'oxygen': 'CTDOXY',
                                 'salinity': 'CTDSAL',
@@ -195,7 +195,7 @@ class DataFile:
                                 'station': 'STNNBR',
                                 'longitude': 'LONGITUDE',
                                 'latitude': 'LATITUDE',
-                                'time': 'TIME'
+                                'woce_time': 'TIME'
                                }
     qc_vars = {}
     # First pass to create columns
@@ -204,6 +204,8 @@ class DataFile:
         qc_vars[nc_ctd_var_to_woce_param[name[:-3]]] = variable
       else:
         name = nc_ctd_var_to_woce_param[name]
+        if name is 'drop':
+          continue
         self.columns[name] = Column(name)
         self.columns[name].values = variable[:].tolist()
         if name == 'STNNBR' or name == 'CASTNO':
@@ -241,7 +243,7 @@ class DataFile:
     Infinity = 1e10000
     NaN = Infinity/Infinity
     strdate = str(self.globals['DATE']) 
-    strtime = str(self.globals['TIME'])
+    strtime = str(self.globals['TIME']).rjust(4, '0')
     isowocedate = datetime(int(strdate[0:4]), int(strdate[5:6]), int(strdate[7:8]),
 		           int(strtime[0:2]), int(strtime[3:5]))
     WOCE_to_oceanSITES_flag = {
