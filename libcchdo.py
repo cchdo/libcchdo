@@ -24,7 +24,7 @@ def connect():
   try:
     return pgdb.connect(user='libcchdo',
                         password='((hd0hydr0d@t@',
-                        host='localhost',
+                        host='goship.ucsd.edu',
                         database='cchdotest')
   except pgdb.Error, e:
     print "Database error: %s" % e
