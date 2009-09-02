@@ -1,5 +1,3 @@
-#!/usr/bin/env python
-
 # libcchdo Python
 #
 # Dependencies
@@ -29,6 +27,8 @@ def connect():
   except pgdb.Error, e:
     print "Database error: %s" % e
     exit(1)
+def disconnect():
+  connection.close()
 connection = connect()
 
 class Parameter:
@@ -623,21 +623,3 @@ class DataFileCollection:
       remove(fullpath)
     rmdir(tempdir)
     zip.close()
-
-from sys import argv
-if len(argv) < 2:
-  print 'Need argument'
-  exit(1)
-#file = DataFileCollection()
-file = DataFile()
-with open(argv[1], 'r') as in_file:
-  file.read_CTD_NetCDF(in_file)
-#  file.read_CTDZip_ODEN(in_file)
-with open(argv[2], 'w') as out_file:
-  #file.write_CTDZip_Exchange(out_file)
-  #file.write_CTD_Exchange(out_file)
-  #file.write_Bottle_NetCDF(out_file)
-  file.write_CTD_NetCDF_OceanSITES(out_file)
-
-# Closing the database connection
-connection.close()
