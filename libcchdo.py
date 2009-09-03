@@ -244,8 +244,8 @@ class DataFile:
     NaN = Infinity/Infinity
     strdate = str(self.globals['DATE']) 
     strtime = str(self.globals['TIME']).rjust(4, '0')
-    isowocedate = datetime(int(strdate[0:4]), int(strdate[5:6]), int(strdate[7:8]),
-		           int(strtime[0:2]), int(strtime[3:5]))
+    isowocedate = datetime(int(strdate[0:4]), int(strdate[4:6]), int(strdate[6:8]),
+		           int(strtime[0:2]), int(strtime[2:4]))
     WOCE_to_oceanSITES_flag = {
       1: 3, # Not calibrated -> Bad data that are potentially correctable (re-calibration)
       2: 1, # Acceptable measurement -> Good data
@@ -315,7 +315,7 @@ class DataFile:
         nc_file.contact = 'santiago@soest.hawaii.edu'
         nc_file.pi_name = 'Roger Lukas'
         nc_file.id = '_'.join(['OS', 'ALOHA', stringdate, 'SOT'])
-    set_oceansites_timeseries_variables('HOT')
+    set_oceansites_timeseries_variables('BATS')
 
     nc_file.createDimension('TIME')
     nc_file.createDimension('PRES', len(self))
