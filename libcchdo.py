@@ -10,6 +10,7 @@ from __future__ import with_statement
 from datetime import date, datetime
 from netCDF3 import Dataset
 from numpy import dtype
+from math import cos
 from os import listdir, remove, rmdir
 import pgdb
 from re import compile
@@ -195,7 +196,7 @@ class DataFile:
                                 'station': 'STNNBR',
                                 'longitude': 'LONGITUDE',
                                 'latitude': 'LATITUDE',
-                                'woce_time': 'TIME'
+                                'woce_time': 'TIME',
                                }
     qc_vars = {}
     # First pass to create columns
@@ -244,8 +245,8 @@ class DataFile:
     NaN = Infinity/Infinity
     strdate = str(self.globals['DATE']) 
     strtime = str(self.globals['TIME']).rjust(4, '0')
-    isowocedate = datetime(int(strdate[0:4]), int(strdate[4:6]), int(strdate[6:8]),
-		           int(strtime[0:2]), int(strtime[2:4]))
+    isowocedate = datetime(int(strdate[0:4]), int(strdate[5:6]), int(strdate[7:8]),
+		           int(strtime[0:2]), int(strtime[3:5]))
     WOCE_to_oceanSITES_flag = {
       1: 3, # Not calibrated -> Bad data that are potentially correctable (re-calibration)
       2: 1, # Acceptable measurement -> Good data
@@ -315,7 +316,7 @@ class DataFile:
         nc_file.contact = 'santiago@soest.hawaii.edu'
         nc_file.pi_name = 'Roger Lukas'
         nc_file.id = '_'.join(['OS', 'ALOHA', stringdate, 'SOT'])
-    set_oceansites_timeseries_variables('BATS')
+    set_oceansites_timeseries_variables('HOT')
 
     nc_file.createDimension('TIME')
     nc_file.createDimension('PRES', len(self))
@@ -331,9 +332,9 @@ class DataFile:
     var_time._FillValue = 999999.0
     var_time.valid_min = 0.0
     var_time.valid_max = 90000.0
-    #var_time.QC_indicator = 
-    #var_time.QC_procedure = 
-    #var_time.uncertainty = 
+    var_time.QC_indicator = 7 # Matthias Lankhorst
+    var_time.QC_procedure = 5 # Matthias Lankhorst
+    var_time.uncertainty = 0.0417 # 1/24 assuming a typical cast lasts one hour Matthias Lankhorst
     var_time.axis = 'T'
 
     var_latitude = nc_file.createVariable('LATITUDE', 'f', ('LATITUDE',))
@@ -343,9 +344,9 @@ class DataFile:
     var_latitude._FillValue = 99999.0
     var_latitude.valid_min = -90.0
     var_latitude.valid_max = 90.0
-    #var_latitude.QC_indicator = 
-    #var_latitude.QC_procedure = 
-    #var_latitude.uncertainty = 
+    var_time.QC_indicator = 7 # Matthias Lankhorst
+    var_time.QC_procedure = 5 # Matthias Lankhorst
+    var_latitude.uncertainty = 0.0045 # Matthias Lankhorst
     var_latitude.axis = 'Y'
 
     var_longitude = nc_file.createVariable('LONGITUDE', 'f', ('LONGITUDE',))
@@ -355,9 +356,9 @@ class DataFile:
     var_longitude._FillValue = 99999.0
     var_longitude.valid_min = -180.0
     var_longitude.valid_max = 180.0
-    #var_longitude.QC_indicator = 
-    #var_longitude.QC_procedure = 
-    #var_longitude.uncertainty = 
+    var_time.QC_indicator = 7 # Matthias Lankhorst
+    var_time.QC_procedure = 5 # Matthias Lankhorst
+    var_longitude.uncertainty = 0.0045/cos(self.globals['LATITUDE']) # Matthias Lankhorst
     var_longitude.axis = 'X'
 
     var_pressure = nc_file.createVariable('PRES', 'f', ('PRES',))
@@ -367,9 +368,9 @@ class DataFile:
     var_pressure._FillValue = NaN
     var_pressure.valid_min = 0.0
     var_pressure.valid_max = 12000.0
-    #var_pressure.QC_indicator = 
-    #var_pressure.QC_procedure = 
-    #var_pressure.uncertainty =
+    var_pressure.QC_indicator = 7 # Matthias Lankhorst
+    var_pressure.QC_procedure = 5 # Matthias Lankhorst
+    var_pressure.uncertainty = 2.0
     var_pressure.axis = 'Z'
 
     since_1950 = isowocedate - datetime(1950, 1, 1)
@@ -389,6 +390,12 @@ class DataFile:
       'DOXY': {'long': 'dissolved oxygen', 'std': 'dissolved_oxygen', 'units': 'micromole/kg'},
       'PSAL': {'long': 'sea water salinity', 'std': 'sea_water_salinity', 'units': 'psu'}
     }
+    oceansites_uncertainty = {
+      'TEMP': 0.002,
+      'PSAL': 0.005,
+      'DOXY': Infinity,
+      'PRES': Infinity
+    }
 
     for column in self.columns.values():
       name = column.parameter.description.lower().replace(' ', '_').replace('(', '_').replace(')', '_')
@@ -402,11 +409,13 @@ class DataFile:
         var.standard_name = variable['std'] or ''
         var.units = variable['units'] or ''
         var._FillValue = NaN # TODO ref table 3
-        var.QC_procedure = 0# TODO see table 2.1
+        var.QC_procedure = 5 # Data manually reviewed
+        var.QC_indicator = 2 # Probably good data
         var.valid_min = column.parameter.bound_lower
         var.valid_max = column.parameter.bound_upper
         var.sensor_depth = -999 # TODO nominal sensor depth in meters positive in direction of DEPTH:positive
-        var.uncertainty = 0.0
+        var.cell_methods = 'TIME: point DEPTH: average LATITUDE: point LONGITUDE: point'
+        var.uncertainty = oceansites_uncertainty[name]
         var[:] = column.values
       else:
         var_pressure[:] = column.values
