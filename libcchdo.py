@@ -1,18 +1,28 @@
 # libcchdo Python
 #
 # Dependencies
-# numpy - http://numpy.scipy.org/
 # netcdf4-python - http://code.google.com/p/netcdf4-python/
+#   netcdf
+#   numpy - http://numpy.scipy.org/
 # pygresql - http://www.pygresql.org/
+#   postgresql server binaries
 # 
 
 from __future__ import with_statement
+try:
+  from netCDF3 import Dataset
+except ImportError, e:
+  print e, "\n", 'You should get netcdf4-python from http://code.google.com/p/netcdf4-python and install the NetCDF 3 module as directed by the README.'
+  exit(1)
+try:
+  import pgdb
+except ImportError, e:
+  print e, "\n", 'You should get pygresql from http://www.pygresql.org/readme.html#where-to-get. You will need Postgresql with server binaries installed already.'
+  exit(1)
 from datetime import date, datetime
-from netCDF3 import Dataset
 from numpy import dtype
 from math import cos
 from os import listdir, remove, rmdir
-import pgdb
 from re import compile
 from sys import exit
 from StringIO import StringIO
@@ -287,37 +297,6 @@ class DataFile:
     nc_file.time_coverage_start = isowocedate.isoformat()+'Z'
     nc_file.time_coverage_end = isowocedate.isoformat()+'Z'
 
-    # Timeseries specific variables
-    def set_oceansites_timeseries_variables(timeseries):
-      nc_file.title = ' '.join([timeseries+' CTD Timeseries', 'ExpoCode='+self.globals['EXPOCODE'], 'Station='+self.globals['STNNBR'], 'Cast='+self.globals['CASTNO']])
-      stringdate = isowocedate.date().isoformat().replace('-', '')
-      if timeseries is 'BATS':
-        nc_file.platform_code = 'BATS'
-        nc_file.institution = 'Bermuda Institute of Ocean Sciences'
-        nc_file.institution_references = 'http://bats.bios.edu/'
-        nc_file.site_code = 'BIOS-BATS'
-        nc_file.references = 'http://cchdo.ucsd.edu/search?query=group:BATS'
-        nc_file.comment = 'BIOS-BATS CTD data from SIO, translated to OceanSITES NetCDF by SIO'
-        nc_file.summary = 'BIOS-BATS CTD data Bermuda'
-        nc_file.area = 'Atlantic - Sargasso Sea'
-        nc_file.institution_references = 'http://bats.bios.edu/'
-        nc_file.contact = 'rodney.johnson@bios.edu'
-        nc_file.pi_name = 'Rodney Johnson'
-        nc_file.id = '_'.join(['OS', 'BERMUDA', stringdate, 'SOT'])
-      elif timeseries is 'HOT':
-        nc_file.platform_code = 'HOT'
-        nc_file.institution = "University of Hawai'i School of Ocean and Earth Science and Technology"
-        nc_file.site_code = 'ALOHA'
-        nc_file.references = 'http://cchdo.ucsd.edu/search?query=group:HOT'
-        nc_file.comment = 'HOT CTD data from SIO, translated to OceanSITES NetCDF by SIO'
-        nc_file.summary = "HOT CTD data Hawai'i"
-        nc_file.area = "Pacific - Hawai'i"
-        nc_file.institution_references = 'http://hahana.soest.hawaii.edu/hot/hot_jgofs.html'
-        nc_file.contact = 'santiago@soest.hawaii.edu'
-        nc_file.pi_name = 'Roger Lukas'
-        nc_file.id = '_'.join(['OS', 'ALOHA', stringdate, 'SOT'])
-    set_oceansites_timeseries_variables('HOT')
-
     nc_file.createDimension('TIME')
     nc_file.createDimension('PRES', len(self))
     nc_file.createDimension('LATITUDE', 1)
@@ -402,7 +381,7 @@ class DataFile:
       if name in param_to_oceansites.keys():
         name = param_to_oceansites[name]
       # Write variable
-      if not name is 'PRES':
+      if name is not 'PRES':
         var = nc_file.createVariable(name, 'f8', ('PRES',))
         variable = oceansites_variables[name]
         var.long_name = variable['long'] or ''
@@ -441,6 +420,51 @@ class DataFile:
                                        'missing_value'
                                       ])
         flag[:] = map(lambda x: WOCE_to_oceanSITES_flag[x], column.flags_woce)
+    nc_file.close()
+  def write_CTD_NetCDF_OceanSITES_BATS(self, handle):
+    '''How to write a CTD NetCDF OceanSITES BATS file.'''
+    self.write_CTD_NetCDF_OceanSITES(handle)
+    filename = handle.name
+    nc_file = Dataset(filename, 'a', format='NETCDF3_CLASSIC')
+    nc_file.title = ' '.join(['BATS CTD Timeseries', 'ExpoCode='+self.globals['EXPOCODE'],
+                              'Station='+self.globals['STNNBR'], 'Cast='+self.globals['CASTNO']])
+    strdate = str(self.globals['DATE']) 
+    isodate = datetime(int(strdate[0:4]), int(strdate[5:6]), int(strdate[7:8]), 0, 0)
+    stringdate = isodate.date().isoformat().replace('-', '')
+    nc_file.platform_code = 'BATS'
+    nc_file.institution = 'Bermuda Institute of Ocean Sciences'
+    nc_file.institution_references = 'http://bats.bios.edu/'
+    nc_file.site_code = 'BIOS-BATS'
+    nc_file.references = 'http://cchdo.ucsd.edu/search?query=group:BATS'
+    nc_file.comment = 'BIOS-BATS CTD data from SIO, translated to OceanSITES NetCDF by SIO'
+    nc_file.summary = 'BIOS-BATS CTD data Bermuda'
+    nc_file.area = 'Atlantic - Sargasso Sea'
+    nc_file.institution_references = 'http://bats.bios.edu/'
+    nc_file.contact = 'rodney.johnson@bios.edu'
+    nc_file.pi_name = 'Rodney Johnson'
+    nc_file.id = '_'.join(['OS', 'BERMUDA', stringdate, 'SOT'])
+    nc_file.close()
+  def write_CTD_NetCDF_OceanSITES_HOT(self, handle):
+    '''How to write a CTD NetCDF OceanSITES HOT file.'''
+    self.write_CTD_NetCDF_OceanSITES(handle)
+    filename = handle.name
+    nc_file = Dataset(filename, 'a', format='NETCDF3_CLASSIC')
+    nc_file.title = ' '.join(['HOT CTD Timeseries', 'ExpoCode='+self.globals['EXPOCODE'],
+                              'Station='+self.globals['STNNBR'], 'Cast='+self.globals['CASTNO']])
+    strdate = str(self.globals['DATE']) 
+    isodate = datetime(int(strdate[0:4]), int(strdate[5:6]), int(strdate[7:8]), 0, 0)
+    stringdate = isodate.date().isoformat().replace('-', '')
+    nc_file.platform_code = 'HOT'
+    nc_file.institution = "University of Hawai'i School of Ocean and Earth Science and Technology"
+    nc_file.site_code = 'ALOHA'
+    nc_file.references = 'http://cchdo.ucsd.edu/search?query=group:HOT'
+    nc_file.comment = 'HOT CTD data from SIO, translated to OceanSITES NetCDF by SIO'
+    nc_file.summary = "HOT CTD data Hawai'i"
+    nc_file.area = "Pacific - Hawai'i"
+    nc_file.institution_references = 'http://hahana.soest.hawaii.edu/hot/hot_jgofs.html'
+    nc_file.contact = 'santiago@soest.hawaii.edu'
+    nc_file.pi_name = 'Roger Lukas'
+    nc_file.id = '_'.join(['OS', 'ALOHA', stringdate, 'SOT'])
     nc_file.close()
   def read_Bottle_NetCDF(self, handle):
     '''How to read a Bottle NetCDF file.'''
