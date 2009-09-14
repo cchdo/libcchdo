@@ -42,6 +42,26 @@ def disconnect():
   connection.close()
 connection = connect()
 
+# Functions
+
+def depth_unesco(pres, lat):
+  '''
+  Depth (meters) from pressure (decibars) using Saunders and Fofonoff's method.
+  Deep-sea Res., 1976, 23, 109-111.
+  Formula refitted for 1980 equation of state
+  Ported from Unesco 1983
+  Units:
+    pressure  p     decibars
+    latitude  lat   degrees
+    depth     depth meters
+  Checkvalue: depth = 9712.653 M for P=10000 decibars, latitude=30 deg above
+    for standard ocean: T=0 deg celsius; S=35 (PSS-78)
+  '''
+  x = pow(sin(lat/57.29578), 2)
+  gr = 9.780318*(1.0+(5.2788e-3 + 2.36e-5 * x) * x) + 1.092e-6 * pres
+  return ((((-1.82e-15 * pres + 2.279e-10) * pres - 2.2512e-5)
+           * pres + 9.72659) * pres) / gr
+
 class Parameter:
   def __init__(self, parameter_name):
     cursor = connection.cursor()
