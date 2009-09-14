@@ -21,13 +21,18 @@ except ImportError, e:
   exit(1)
 from datetime import date, datetime
 from numpy import dtype
-from math import cos
+from math import sin, cos, pow
 from os import listdir, remove, rmdir
 from re import compile
 from sys import exit
 from StringIO import StringIO
 from tempfile import mkdtemp
 from zipfile import ZipFile, ZipInfo
+try:
+  from math import isnan
+except ImportError:
+  def isnan(n):
+    return n != n
 
 def connect():
   try:
@@ -43,6 +48,38 @@ def disconnect():
 connection = connect()
 
 # Functions
+
+PARTIAL_PRES_WATER = 2.184e-6
+
+def depth(grav, p, rho, depth):
+  '''
+  Calculate depth by integration of insitu density.
+    grav - local gravity (m/sec^2) @ 0.0 db
+    p - pressure series (decibars)
+    rho - insitu density series (kg/m^3)
+    depth - depth series (meters)
+  '''
+  num_intervals = len(p)
+  if not (num_intervals is len(rho) is len(depth)):
+    raise ValueError("The number of series intervals must be the same.")
+
+  # When calling depth() repeatedly with a two-element
+  # series, the first call should be with a one-element series to
+  # initialize the starting value (see depth_(), below).
+
+  # Initialize the series
+  if num_intervals is not 2:
+    # If the integration starts from > 15 db, calculate depth relative to
+    # starting place. Otherwise, calculate from surface.
+    if p[0] > 15.0:
+      depth[0] = 0.0
+    else:
+      depth[0] = p[0]/(rho[0]*10000.0*(grav+PARTIAL_PRES_WATER*p[0]))
+  # Calculate the rest of the series.
+  for i in range(0, num_intervals-2):
+    j = i+1
+    # depth in meters
+    depth[j] = depth[i] + (p[j]-p[i]) / ((rho[j]+rho[i])*5000.0*(grav+PARTIAL_PRES_WATER*p[j]))
 
 def depth_unesco(pres, lat):
   '''
