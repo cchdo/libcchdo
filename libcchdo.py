@@ -163,6 +163,115 @@ class Column:
   def __cmp__(self, other):
     return self.parameter.display_order - other.parameter.display_order
 
+class SummaryColumn(Column):
+  def __init__(self, parameter):
+    self.parameter = parameter
+    self.values = []
+
+class SummaryFile:
+  def __init__(self):
+    self.columns = {}
+    self.header = ''
+    columns = ['EXPOCODE', 'SECT_ID', 'STNNBR', 'CASTNO', 'DATE', 'TIME',
+               'LATITUDE', 'LONGITUDE', 'DEPTH', '_CAST_TYPE', '_CODE',
+               '_NAV', '_ABOVE_BOTTOM', '_MAX_PRESSURE', '_NUM_BOTTLES',
+               '_PARAMETERS', '_COMMENTS']
+    for column in columns:
+      self.columns[column] = SummaryColumn(column)
+  def __len__(self):
+    if not self.columns.values():
+      return 0
+    return len(self.columns.values()[0])
+  def woce_lat_to_dec_lat(self, lattoks):
+    lat = int(lattoks[0]) + float(lattoks[1])/60.0
+    if lattoks[2] is not 'N':
+      lat *= -1
+    return lat
+  def woce_lng_to_dec_lng(self, lngtoks):
+    lng = int(lngtoks[0]) + float(lngtoks[1])/60.0
+    if lngtoks[2] is not 'E':
+      lng *= -1
+    return lng
+  def read_HOT(self, handle):
+    '''How to read a HOT Summary file.'''
+    header = True
+    header_delimiter = compile('^-+$')
+    for line in handle:
+      if header:
+        if header_delimiter.match(line):
+          header = False
+        else:
+          self.header += line
+      else:
+        if len(line) is 0: continue
+        tokens = line.split()
+        self.columns['EXPOCODE'].values.append(tokens[0].replace('/', '_'))
+        self.columns['SECT_ID'].values.append(tokens[1])
+        self.columns['STNNBR'].values.append(int(tokens[2]))
+        self.columns['CASTNO'].values.append(int(tokens[3]))
+        self.columns['_CAST_TYPE'].values.append(tokens[4])
+        date = datetime.strptime(tokens[5], '%m%d%y')
+        self.columns['DATE'].values.append('%4d%02d%02d' % (date.year, date.month, date.day))
+        self.columns['TIME'].values.append(int(tokens[6]))
+        self.columns['_CODE'].values.append(tokens[7])
+        lat = self.woce_lat_to_dec_lat(tokens[8:11])
+        self.columns['LATITUDE'].values.append(lat)
+        lng = self.woce_lng_to_dec_lng(tokens[11:14])
+        self.columns['LONGITUDE'].values.append(lng)
+        self.columns['_NAV'].values.append(tokens[14])
+        self.columns['DEPTH'].values.append(int(tokens[15]))
+        self.columns['_ABOVE_BOTTOM'].values.append(int(tokens[16]))
+        self.columns['_MAX_PRESSURE'].values.append(int(tokens[17]))
+        self.columns['_NUM_BOTTLES'].values.append(int(tokens[18]))
+        self.columns['_PARAMETERS'].values.append(tokens[19])
+        self.columns['_COMMENTS'].values.append(' '.join(tokens[20:]))
+  def dec_lat_to_woce_lat(self, lat):
+    lat_deg = int(lat)
+    lat_dec = abs(lat-lat_deg) * 60
+    lat_deg = abs(lat_deg)
+    lat_hem = 'S'
+    if lat > 0:
+      lat_hem = 'N'
+    return '%2d %05.2f %1s' % (lat_deg, lat_dec, lat_hem)
+  def dec_lng_to_woce_lng(self, lng):
+    lng_deg = int(lng)
+    lng_dec = abs(lng-lng_deg) * 60
+    lng_deg = abs(lng_deg)
+    lng_hem = 'W'
+    if lng > 0 :
+      lng_hem = 'E'
+    return '%3d %05.2f %1s' % (lng_deg, lng_dec, lng_hem)
+  def write(self, handle):
+    '''How to write a CCHDO Summary file.'''
+    today = date.today()
+    handle.write('R/V <SHIP> LEG <#> WHP-ID <SECT_IDs>'+str(today.year)+str(today.month)+str(today.day)+"SIOCCHDOLIB\n")
+    header_one = 'SHIP/CRS       WOCE               CAST         UTC           POSITION                UNC   COR ABOVE  WIRE   MAX  NO. OF\n'
+    header_two = 'EXPOCODE       SECT STNNBR CASTNO TYPE DATE   TIME CODE LATITUDE   LONGITUDE   NAV DEPTH DEPTH BOTTOM  OUT PRESS BOTTLES PARAMETERS      COMMENTS            \n'
+    header_sep = ('-' * (len(header_two)-1)) + '\n'
+    handle.write(header_one)
+    handle.write(header_two)
+    handle.write(header_sep)
+    for i in range(0, len(self)):
+      exdate = self.columns['DATE'][i]
+      date_str = exdate[4:6]+exdate[6:8]+exdate[2:4]
+      row = ('%-14s %-5s %5s    %3d  %3s %-6s %04d   %2s %-10s %-11s %3s %5d       %-6d      %5d %7d %-15s %-20s' %
+        ( self.columns['EXPOCODE'][i], self.columns['SECT_ID'][i],
+          self.columns['STNNBR'][i], self.columns['CASTNO'][i],
+          self.columns['_CAST_TYPE'][i], date_str,
+          self.columns['TIME'][i], self.columns['_CODE'][i],
+          self.dec_lat_to_woce_lat(self.columns['LATITUDE'][i]),
+          self.dec_lng_to_woce_lng(self.columns['LONGITUDE'][i]),
+          self.columns['_NAV'][i], self.columns['DEPTH'][i],
+          self.columns['_ABOVE_BOTTOM'][i], self.columns['_MAX_PRESSURE'][i],
+          self.columns['_NUM_BOTTLES'][i], self.columns['_PARAMETERS'][i],
+          self.columns['_COMMENTS'][i] ))
+      handle.write(row+'\n')
+  def write_nav(self, handle):
+    for i in range(0, len(self)):
+      lat = self.columns['LATITUDE'][i]
+      lng = self.columns['LONGITUDE'][i]
+      handle.write('%3.3f %3.3f\n' % (lng, lat))
+
 class DataFile:
   def __init__(self):
     self.columns = {}
