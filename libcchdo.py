@@ -241,10 +241,14 @@ class SummaryFile:
     if lng > 0 :
       lng_hem = 'E'
     return '%3d %05.2f %1s' % (lng_deg, lng_dec, lng_hem)
+  def uniquify(self, list):
+    seen = set()
+    return [x for x in list if x not in seen and not seen.add(x)]
   def write(self, handle):
-    '''How to write a CCHDO Summary file.'''
+    '''How to write a WOCE Summary file.'''
     today = date.today()
-    handle.write('R/V <SHIP> LEG <#> WHP-ID <SECT_IDs>'+str(today.year)+str(today.month)+str(today.day)+"SIOCCHDOLIB\n")
+    uniq_sects = self.uniquify(self.columns['SECT_ID'].values)
+    handle.write('R/V _SHIP LEG _# WHP-ID '+','.join(uniq_sects)+' %04d%02d%02d' % (today.year, today.month, today.day)+"SIOCCHDOLIB\n")
     header_one = 'SHIP/CRS       WOCE               CAST         UTC           POSITION                UNC   COR ABOVE  WIRE   MAX  NO. OF\n'
     header_two = 'EXPOCODE       SECT STNNBR CASTNO TYPE DATE   TIME CODE LATITUDE   LONGITUDE   NAV DEPTH DEPTH BOTTOM  OUT PRESS BOTTLES PARAMETERS      COMMENTS            \n'
     header_sep = ('-' * (len(header_two)-1)) + '\n'
