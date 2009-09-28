@@ -6,6 +6,8 @@
 #   numpy - http://numpy.scipy.org/
 # pygresql - http://www.pygresql.org/
 #   postgresql server binaries
+# MySQLdb - http://sourceforge.net/projects/mysql-python
+#   MySQL server binaries
 # 
 
 from __future__ import with_statement
@@ -18,6 +20,11 @@ try:
   import pgdb
 except ImportError, e:
   print e, "\n", 'You should get pygresql from http://www.pygresql.org/readme.html#where-to-get. You will need Postgresql with server binaries installed already.'
+  exit(1)
+try:
+  import MySQLdb
+except ImportError, e:
+  print e, "\n", 'You should get MySQLdb from http://sourceforge.net/projects/mysql-python. You will need MySQL with server binaries installed already.'
   exit(1)
 from datetime import date, datetime
 from numpy import dtype
@@ -43,11 +50,23 @@ def connect():
   except pgdb.Error, e:
     print "Database error: %s" % e
     exit(1)
+def connect_mysql():
+  try:
+    return MySQLdb.connect(user='libcchdo',
+                           passwd='((hd0hydr0d@t@',
+                           host='watershed.ucsd.edu',
+                           db='cchdo')
+  except MySQLdb.Error, e:
+    print "Database error: %s" % e
+    exit(1)
 def disconnect():
   connection.close()
 connection = connect()
 
 # Functions
+def uniqify(seq): # Credit: Dave Kirby
+  seen = set()
+  return [x for x in seq if x not in seen and not seen.add(x)]
 
 PARTIAL_PRES_WATER = 2.184e-6
 
@@ -125,7 +144,7 @@ class Parameter:
       self.display_order = row[7] or -9999
       self.aliases = []
     else:
-      raise NameError(parameter_name+" is not in CCHDO's parameter list.")
+      raise NameError("'"+parameter_name+"' is not in CCHDO's parameter list.")
   def __str__(self):
     return 'Parameter '+self.woce_mnemonic
 
@@ -146,6 +165,12 @@ class Column:
       self.flags_woce.insert(index, flag_woce)
     if flag_igoss:
       self.flags_igoss.insert(index, flag_igoss)
+  def append(self, value, flag_woce=None, flag_igoss=None):
+    self.values.append(value)
+    if flag_woce:
+      self.flags_woce.append(flag_woce)
+    if flag_igoss:
+      self.flags_igoss.append(flag_igoss)
   def __getitem__(self, key):
     return self.get(key)
   def __setitem__(self, key, value):
@@ -241,13 +266,10 @@ class SummaryFile:
     if lng > 0 :
       lng_hem = 'E'
     return '%3d %05.2f %1s' % (lng_deg, lng_dec, lng_hem)
-  def uniquify(self, list):
-    seen = set()
-    return [x for x in list if x not in seen and not seen.add(x)]
   def write(self, handle):
     '''How to write a WOCE Summary file.'''
     today = date.today()
-    uniq_sects = self.uniquify(self.columns['SECT_ID'].values)
+    uniq_sects = uniqify(self.columns['SECT_ID'].values)
     handle.write('R/V _SHIP LEG _# WHP-ID '+','.join(uniq_sects)+' %04d%02d%02d' % (today.year, today.month, today.day)+"SIOCCHDOLIB\n")
     header_one = 'SHIP/CRS       WOCE               CAST         UTC           POSITION                UNC   COR ABOVE  WIRE   MAX  NO. OF\n'
     header_two = 'EXPOCODE       SECT STNNBR CASTNO TYPE DATE   TIME CODE LATITUDE   LONGITUDE   NAV DEPTH DEPTH BOTTOM  OUT PRESS BOTTLES PARAMETERS      COMMENTS            \n'
@@ -280,20 +302,32 @@ class DataFile:
   def __init__(self):
     self.columns = {}
     self.stamp = None
-    self.header = None
+    self.header = ''
     self.footer = None
     self.globals = {}
   def read_db(self):
     pass
   def write_db(self):
     pass
+  def write_track_lines(self):
+    '''How to write a trackline entry to the MySQL database'''
+    connection = connect_mysql()
+    cursor = connection.cursor()
+    expocodes = self.columns['EXPOCODE'].values
+    for expocode in self.expocodes():
+      indices = [i for i, x in enumerate(expocodes) if x == expocode]
+      lngs = [self.columns['LONGITUDE'][i] for i in indices]
+      lats = [self.columns['LATITUDE'][i] for i in indices]
+      points = zip(lngs, lats)
+      linestring = 'LINESTRING('+','.join(map(lambda p: ' '.join(p), points))+')'
+      sql = 'SET @g = LineStringFromText("'+linestring+'"); INSERT IGNORE INTO track_lines VALUES(DEFAULT,"'+expocode+'",@g,"Default") ON DUPLICATE KEY UPDATE Track = @g'
+      cursor.execute(sql)
+    cursor.close()
+    connection.close()
   def column_headers(self):
     return map(lambda column: column.parameter.woce_mnemonic, sorted(self.columns.values()))
   def expocodes(self):
-    def uniqify(seq): # Credit: Dave Kirby
-      seen = set()
-      return [x for x in seq if x not in seen and not seen.add(x)]
-    return uniqify(columns['EXPOCODE'])
+    return uniqify(self.columns['EXPOCODE'])
   def __len__(self):
     if not self.columns.values():
       return 0
@@ -636,6 +670,69 @@ class DataFile:
     nc_file.pi_name = 'Roger Lukas'
     nc_file.id = '_'.join(['OS', 'ALOHA', stringdate, 'SOT'])
     nc_file.close()
+  def read_Bottle_Exchange(self, handle):
+    '''How to read a Bottle Exchange file.'''
+    # Read identifier and stamp
+    stamp = compile('BOTTLE,(\d{8}\w+)')
+    m = stamp.match(handle.readline())
+    if m:
+      self.stamp = m.group(1)
+    else:
+      raise ValueError("Expected identifier line with stamp (e.g. #BOTTLE,YYYYMMDDIIIDDDNNN)")
+    # Read comments
+    l = handle.readline()
+    while l and l.startswith('#'):
+      self.header += l
+      l = handle.readline()
+    # Read columns and units
+    columns = l.strip().split(',')
+    units = handle.readline().strip().split(',')
+    
+    # Check columns and units to match length
+    if len(columns) is not len(units):
+      raise ValueError("Expected as many columns as units in file. Found %d columns and %d units." % (len(columns), len(units)))
+
+    # Check for unique identifer
+    identifier = []
+    if 'EXPOCODE' in columns and 'STNNBR' in columns and 'CASTNO' in columns:
+      identifier = ['STNNBR', 'CASTNO']
+      if 'SAMPNO' in columns:
+        identifier.append('SAMPNO')
+        if 'BTLNBR' in columns:
+          identifier.append('BTLNBR')
+      elif 'BTLNBR' in columns:
+        identifier.append('BTLNBR')
+      else:
+        raise ValueError('No unique identifer found for file. (STNNBR,CASTNO,SAMPNO,BTLNBR),(STNNBR,CASTNO,SAMPNO),(STNNBR,CASTNO,BTLNBR)')
+
+    # Create internal columns and check units
+    for column, unit in zip(columns, units):
+      if column.endswith('FLAG_W') or column.endswith('FLAG_I'): continue
+      self.columns[column] = Column(column)
+      if self.columns[column].parameter.units != unit:
+        pass # TODO warn about mismatched units line with CCHDO units or do conversion
+
+    # Read data
+    l = handle.readline().strip()
+    while l:
+      if l == 'END_DATA': break
+      values = l.split(',')
+      
+      # Check columns and values to match length
+      if len(columns) is not len(values):
+        raise ValueError("Expected as many columns as values in file. Found %d columns and %d values at data line %d" % (len(columns), len(values), len(self)+1))
+      for column, value in zip(columns, values):
+        value = value.strip()
+        if column.endswith('_FLAG_W'):
+          self.columns[column[:-7]].flags_woce.append(value)
+        elif column.endswith('_FLAG_I'):
+          self.columns[column[:-7]].flags_igoss.append(value)
+        else:
+          self.columns[column].values.append(value)
+      l = handle.readline().strip()
+  def write_Bottle_Exchange(self, handle):
+    '''How to write a Bottle Exchange file.'''
+    pass
   def read_Bottle_NetCDF(self, handle):
     '''How to read a Bottle NetCDF file.'''
     pass
