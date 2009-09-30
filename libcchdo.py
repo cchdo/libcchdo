@@ -224,6 +224,10 @@ class Column:
   def get(self, index):
     return self.values[index]
   def set(self, index, value, flag_woce=None, flag_igoss=None):
+    while index > len(self.values):
+      self.values.append(None)
+      self.flags_woce.append(None)
+      self.flags_igoss.append(None)
     self.values.insert(index, value)
     if flag_woce:
       self.flags_woce.insert(index, flag_woce)
@@ -239,7 +243,7 @@ class Column:
   def __getitem__(self, key):
     return self.get(key)
   def __setitem__(self, key, value):
-    self.values.insert(key, value)
+    self.set(key, value)
   def __len__(self):
     return len(self.values)
   def is_flagged(self):
