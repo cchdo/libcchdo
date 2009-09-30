@@ -1,11 +1,9 @@
-"""Unit test for libcchdo.Column"""
+""" TestCase for libcchdo.Column """
 
-import sys
-sys.path = ['/'.join(sys.path[0].split('/')[:-1])]+sys.path
 import libcchdo
-from unittest import TestCase,main
+from unittest import TestCase
 
-class Columns(TestCase):
+class TestColumn(TestCase):
   def setUp(self):
     self.column = libcchdo.Column("EXPOCODE")
 
@@ -13,8 +11,9 @@ class Columns(TestCase):
     self.assertRaises(NameError, libcchdo.Column, "NotAParameter")
 
   def test_initialization(self):
+    parameter = libcchdo.Parameter("EXPOCODE")
+    self.assertTrue(parameter == self.column.parameter)
     self.assertEqual(self.column.parameter.woce_mnemonic, "EXPOCODE") # The column did not initialize to the correct parameter
-    # TODO This should compare with a parameter object when we have a db.
     self.assertEqual(self.column.values, []) # Missing values array.
     self.assertEqual(self.column.flags_woce, []) # Missing WOCE flags array
     self.assertEqual(self.column.flags_igoss, []) # Missing IGOSS flags array
@@ -54,6 +53,3 @@ class Columns(TestCase):
     self.assertFalse(self.column.is_flagged_igoss()) # Column has IGOSS flags when there should not be
     self.column.set(0, 1, 2, 3)
     self.assertTrue(self.column.is_flagged_igoss()) # Column did not have IGOSS flags when there should have been
-
-if __name__ == '__main__':
-  main()

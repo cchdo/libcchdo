@@ -209,6 +209,8 @@ class Parameter:
       connection.close()
       raise NameError("'"+parameter_name+"' is not in CCHDO's parameter list.")
     connection.close()
+  def __eq__(self, other):
+    return self.woce_mnemonic == other.woce_mnemonic
   def __str__(self):
     return 'Parameter '+self.woce_mnemonic
 
