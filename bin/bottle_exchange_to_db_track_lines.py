@@ -1,8 +1,9 @@
 #!/usr/bin/env python
 
 from __future__ import with_statement
-from .. import libcchdo
-from sys import argv, exit
+from sys import argv, exit, path
+path.insert(0, '/'.join(path[0].split('/')[:-1]))
+import libcchdo
 
 if len(argv) < 2:
   print 'Usage:', argv[0], '<exbot file>'

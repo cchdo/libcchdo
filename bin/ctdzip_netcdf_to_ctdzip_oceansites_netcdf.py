@@ -1,8 +1,9 @@
 #!/usr/bin/env python
 
 from __future__ import with_statement
-from .. import libcchdo
-from sys import argv
+from sys import argv, path
+path.insert(0, '/'.join(path[0].split('/')[:-1]))
+import libcchdo
 
 if len(argv) < 3:
   print 'Usage:', argv[0], '<cchdo_netcdf> <oceansites_destination> [timeseries name]'
