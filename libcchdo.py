@@ -129,15 +129,24 @@ def dec_lng_to_woce_lng(lng):
     lng_hem = 'E'
   return '%3d %05.2f %1s' % (lng_deg, lng_dec, lng_hem)
 
+# Following two functions ports of
+# $Id: depth.c,v 11589a696ce7 2008/10/15 22:56:57 fdelahoyde $
+# depth.c	1.1	Solaris 2.3 Unix	940906	SIO/ODF	fmd
+
 PARTIAL_PRES_WATER = 2.184e-6 # TODO confirm this with Jim
 
 def depth(grav, p, rho, depth):
   '''
   Calculate depth by integration of insitu density.
-    grav - local gravity (m/sec^2) @ 0.0 db
-    p - pressure series (decibars)
-    rho - insitu density series (kg/m^3)
-    depth - depth series (meters)
+
+  Sverdrup, H. U.,Johnson, M. W., and Fleming, R. H., 1942.
+  The Oceans, Their Physics, Chemistry and General Biology.
+  Prentice-Hall, Inc., Englewood Cliff, N.J.
+
+  grav - local gravity (m/sec^2) @ 0.0 db
+  p - pressure series (decibars)
+  rho - insitu density series (kg/m^3)
+  depth - depth series (meters)
   '''
   num_intervals = len(p)
   if not (num_intervals is len(rho) is len(depth)):
@@ -164,6 +173,11 @@ def depth(grav, p, rho, depth):
 def depth_unesco(pres, lat):
   '''
   Depth (meters) from pressure (decibars) using Saunders and Fofonoff's method.
+
+  Saunders, P. M., 1981. Practical Conversion of Pressure to Depth.
+  Journal of Physical Oceanography 11, 573-574.
+  Mantyla, A. W., 1982-1983. Private correspondence.
+
   Deep-sea Res., 1976, 23, 109-111.
   Formula refitted for 1980 equation of state
   Ported from Unesco 1983
