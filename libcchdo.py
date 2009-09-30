@@ -30,6 +30,7 @@ from datetime import date, datetime
 from numpy import dtype
 from math import sin, cos, pow
 from os import listdir, remove, rmdir
+from os.path import exists
 from re import compile
 from sys import exit
 from StringIO import StringIO
@@ -76,6 +77,30 @@ WOCE_to_OceanSITES_flag = {
 def uniqify(seq): # Credit: Dave Kirby
   seen = set()
   return [x for x in seq if x not in seen and not seen.add(x)]
+
+def read_arbitrary(filename):
+  if not exists(filename): raise ValueError("The file '%s' does not exist" % filename)
+  if filename.endswith('zip'):
+    datafile = DataFileCollection()
+  else:
+    datafile = DataFile()
+  if filename.endswith('su.txt'):
+    datafile.read_SUM_WOCE(handle)
+  elif filename.endswith('hy.txt'):
+    datafile.read_Bottle_WOCE(handle)
+  elif filename.endswith('hy1.csv'):
+    datafile.read_Bottle_Exchange(handle)
+  elif filename.endswith('nc_hyd.zip'):
+    datafile.read_BottleZip_NetCDF(handle)
+  elif filename.endswith('ct.zip'):
+    datafile.read_CTDZip_WOCE(handle)
+  elif filename.endswith('ct1.zip'):
+    datafile.read_CTDZip_Exchange(handle)
+  elif filename.endswith('nc_ctd.zip'):
+    datafile.read_CTDZip_NetCDF(handle)
+  else:
+    raise ValueError('Unrecognized file type for %s' % filename)
+  return datafile
 
 def woce_lat_to_dec_lat(self, lattoks):
   lat = int(lattoks[0]) + float(lattoks[1])/60.0
@@ -1002,7 +1027,7 @@ class DataFileCollection:
     '''How to read CTD Exchange files from a Zip.'''
     zip = ZipFile(handle, 'r')
     for file in zip.namelist():
-      if '.csv' is not in file: continue
+      if '.csv' not in file: continue
       tempstream = StringIO(zip.read(file))
       ctdfile = DataFile()
       ctdfile.read_CTD_Exchange(tempstream)
@@ -1043,7 +1068,7 @@ class DataFileCollection:
     '''How to read Bottle NetCDF files from a Zip.'''
     zip = ZipFile(handle, 'r')
     for file in zip.namelist():
-      if '.csv' is not in file: continue
+      if '.csv' not in file: continue
       tempstream = StringIO(zip.read(file))
       ctdfile = DataFile()
       ctdfile.read_Bottle_NetCDF(tempstream)
@@ -1067,3 +1092,26 @@ class DataFileCollection:
       remove(fullpath)
     rmdir(tempdir)
     zip.close()
+
+# TODO Regions...maybe break this out into different parts of the library?
+
+class Location:
+  def __init__(self, coordinate, datetime=None, depth=None):
+    self.coordinate = coordinate
+    self.datetime = datetime
+    self.depth = depth
+    # TODO nil axis magnitudes should be matched as a wildcard
+
+class Region:
+  def __init__(self, name, *locations):
+    self.name = name
+    self.locations = locations
+  def include (location):
+    raise NotImplementedError
+
+BASINS = REGIONS = {
+  'Pacific': Region('Pacific', Location([1.111, 2.222]), Location([-1.111, -2.222])),
+  'East_Pacific': Region('East Pacific', Location([0, 0]), Location([1, 1]), Location([3, 3]))
+  # TODO define the rest of the basins...maybe define bounds for other groupings
+}
+
