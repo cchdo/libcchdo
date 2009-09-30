@@ -41,7 +41,7 @@ except ImportError:
   def isnan(n):
     return n != n
 
-def connect():
+def connect_postgresql():
   try:
     return pgdb.connect(user='libcchdo',
                         password='((hd0hydr0d@t@',
@@ -59,9 +59,6 @@ def connect_mysql():
   except MySQLdb.Error, e:
     print "Database error: %s" % e
     exit(1)
-def disconnect():
-  connection.close()
-connection = connect()
 
 # Functions
 def uniqify(seq): # Credit: Dave Kirby
@@ -120,6 +117,7 @@ def depth_unesco(pres, lat):
 
 class Parameter:
   def __init__(self, parameter_name):
+    connection = connect_postgresql()
     cursor = connection.cursor()
     select = ','.join(['parameters.name', 'format', 'description', 'units',
                        'bound_lower', 'bound_upper', 'units.mnemonic_woce',
@@ -144,7 +142,9 @@ class Parameter:
       self.display_order = row[7] or -9999
       self.aliases = []
     else:
+      connection.close()
       raise NameError("'"+parameter_name+"' is not in CCHDO's parameter list.")
+    connection.close()
   def __str__(self):
     return 'Parameter '+self.woce_mnemonic
 
@@ -266,7 +266,7 @@ class SummaryFile:
     if lng > 0 :
       lng_hem = 'E'
     return '%3d %05.2f %1s' % (lng_deg, lng_dec, lng_hem)
-  def write(self, handle):
+  def write_WOCE_Summary(self, handle):
     '''How to write a WOCE Summary file.'''
     today = date.today()
     uniq_sects = uniqify(self.columns['SECT_ID'].values)
@@ -292,7 +292,7 @@ class SummaryFile:
           self.columns['_NUM_BOTTLES'][i], self.columns['_PARAMETERS'][i],
           self.columns['_COMMENTS'][i] ))
       handle.write(row+'\n')
-  def write_nav(self, handle):
+  def write_nav(self, handle): # TODO consolidate with DataFile?
     for i in range(0, len(self)):
       lat = self.columns['LATITUDE'][i]
       lng = self.columns['LONGITUDE'][i]
@@ -338,6 +338,17 @@ class DataFile:
     pass # TODO
 
   # IO methods
+  def write_nav(self, handle):
+    for i in range(0, len(self)):
+      lat = self.columns['LATITUDE'][i]
+      lng = self.columns['LONGITUDE'][i]
+      handle.write('%3.3f %3.3f\n' % (lng, lat))
+  def read_CTD_WOCE(self, handle):
+    '''How to read a CTD WOCE file.'''
+    pass # TODO
+  def write_CTD_WOCE(self, handle):
+    '''How to write a CTD WOCE file.'''
+    pass # TODO
   def read_CTD_ODEN(self, handle):
     '''How to read a CTD ODEN file.'''
     lineno = 1
@@ -382,6 +393,11 @@ class DataFile:
         self.columns['CTDSAL'][row] = data[3]
         self.columns['POTTMP'][row] = data[4]
       lineno += 1
+  def write_CTD_ODEN(self,handle):
+    pass # OMIT
+  def read_CTD_Exchange(self, handle):
+    '''How to read a CTD Exchange file.'''
+    pass # TODO
   def write_CTD_Exchange(self, handle):
     '''How to write a CTD Exchange file.'''
     today = date.today()
@@ -447,10 +463,10 @@ class DataFile:
     nc_file.close()
   def write_CTD_NetCDF(self, handle):
     '''How to write a CTD NetCDF file.'''
-    pass
+    pass # TODO
   def read_CTD_NetCDF_OceanSITES(self, handle):
     '''How to read a CTD NetCDF OceanSITES file.'''
-    pass
+    pass # TODO
   def write_CTD_NetCDF_OceanSITES(self, handle):
     '''How to write a CTD NetCDF OceanSITES file.'''
     filename = handle.name
@@ -670,6 +686,12 @@ class DataFile:
     nc_file.pi_name = 'Roger Lukas'
     nc_file.id = '_'.join(['OS', 'ALOHA', stringdate, 'SOT'])
     nc_file.close()
+  def read_Bottle_WOCE(self, handle):
+    '''How to read a Bottle WOCE file.'''
+    pass # TODO
+  def write_Bottle_WOCE(self, handle):
+    '''How to write a Bottle WOCE file.'''
+    pass # TODO
   def read_Bottle_Exchange(self, handle):
     '''How to read a Bottle Exchange file.'''
     # Read identifier and stamp
@@ -879,18 +901,17 @@ class DataFileCollection:
   def stamps(self):
     return map(lambda file: file.stamp, self.files.values())
   # IO methods
-  def read_CTDZip_ODEN(self, handle):
-    zip = ZipFile(handle, 'r')
-    for file in zip.namelist():
-      if 'DOC' in file or 'README' in file:
-        continue
-      tempstream = StringIO(zip.read(file))
-      ctdfile = DataFile()
-      ctdfile.read_CTD_ODEN(tempstream)
-      self.files.append(ctdfile)
-      tempstream.close()
-    zip.close()
+  def read_CTDZip_WOCE(self, handle):
+    '''How to read CTD WOCE files from a Zip.'''
+    pass # TODO
+  def write_CTDZip_WOCE(self, handle):
+    '''How to write CTD WOCE files to a Zip.'''
+    pass # TODO
+  def read_CTDZip_Exchange(self, handle):
+    '''How to read CTD Exchange files from a Zip.'''
+    pass # TODO
   def write_CTDZip_Exchange(self, handle):
+    '''How to write CTD Exchange files to a Zip.'''
     zip = ZipFile(handle, 'w')
     for file in self.files:
       tempstream = StringIO()
@@ -902,9 +923,26 @@ class DataFileCollection:
       zip.writestr(info, tempstream.getvalue())
       tempstream.close()
     zip.close()
+  def read_CTDZip_ODEN(self, handle):
+    '''How to read CTD ODEN files from a Zip.'''
+    zip = ZipFile(handle, 'r')
+    for file in zip.namelist():
+      if 'DOC' in file or 'README' in file:
+        continue
+      tempstream = StringIO(zip.read(file))
+      ctdfile = DataFile()
+      ctdfile.read_CTD_ODEN(tempstream)
+      self.files.append(ctdfile)
+      tempstream.close()
+    zip.close()
+  def write_CTDZip_ODEN(self, handle):
+    '''How to write CTD ODEN files to a Zip.'''
+    pass # OMIT
+  # WOCE does not specify a BottleZip.
+  # WHP-Exchange does not specify a BottleZip.
   def read_BottleZip_NetCDF(self, handle):
     '''How to read Bottle NetCDF files from a Zip.'''
-    pass
+    pass # TODO
   def write_BottleZip_NetCDF(self, handle):
     '''How to write Bottle NetCDF files to a Zip.'''
     # NetCDF libraries seem to like to write to a file themselves. We have to

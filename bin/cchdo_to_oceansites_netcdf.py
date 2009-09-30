@@ -21,4 +21,3 @@ with open(argv[2], 'w') as out_file:
   else:
     print 'Printing an ambiguous OceanSITES NetCDF'
     file.write_CTD_NetCDF_OceanSITES(out_file)
-libcchdo.disconnect()

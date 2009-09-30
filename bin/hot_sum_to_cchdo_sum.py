@@ -12,8 +12,7 @@ file = libcchdo.SummaryFile()
 with open(argv[1], 'r') as in_file:
   file.read_HOT(in_file)
 with open(argv[2], 'w') as out_file:
-  file.write(out_file)
+  file.write_WOCE_Summary(out_file)
 if len(argv) is 4:
   with open(argv[3], 'w') as out_file:
     file.write_nav(out_file)
-libcchdo.disconnect()
