@@ -60,12 +60,51 @@ def connect_mysql():
     print "Database error: %s" % e
     exit(1)
 
+# Globals
+WOCE_to_OceanSITES_flag = {
+  1: 3, # Not calibrated -> Bad data that are potentially correctable (re-calibration)
+  2: 1, # Acceptable measurement -> Good data
+  3: 2, # Questionable measurement -> Probably good data
+  4: 4, # Bad measurement -> Bad data
+  5: 9, # Not reported -> Missing value
+  6: 8, # Interpolated over >2 dbar interval -> Interpolated value
+  7: 5, # Despiked -> Value changed
+  9: 9  # Not sampled -> Missing value
+}
+
 # Functions
 def uniqify(seq): # Credit: Dave Kirby
   seen = set()
   return [x for x in seq if x not in seen and not seen.add(x)]
 
-PARTIAL_PRES_WATER = 2.184e-6
+def woce_lat_to_dec_lat(self, lattoks):
+  lat = int(lattoks[0]) + float(lattoks[1])/60.0
+  if lattoks[2] is not 'N':
+    lat *= -1
+  return lat
+def woce_lng_to_dec_lng(self, lngtoks):
+  lng = int(lngtoks[0]) + float(lngtoks[1])/60.0
+  if lngtoks[2] is not 'E':
+    lng *= -1
+  return lng
+def dec_lat_to_woce_lat(self, lat):
+  lat_deg = int(lat)
+  lat_dec = abs(lat-lat_deg) * 60
+  lat_deg = abs(lat_deg)
+  lat_hem = 'S'
+  if lat > 0:
+    lat_hem = 'N'
+  return '%2d %05.2f %1s' % (lat_deg, lat_dec, lat_hem)
+def dec_lng_to_woce_lng(self, lng):
+  lng_deg = int(lng)
+  lng_dec = abs(lng-lng_deg) * 60
+  lng_deg = abs(lng_deg)
+  lng_hem = 'W'
+  if lng > 0 :
+    lng_hem = 'E'
+  return '%3d %05.2f %1s' % (lng_deg, lng_dec, lng_hem)
+
+PARTIAL_PRES_WATER = 2.184e-6 # TODO confirm this with Jim
 
 def depth(grav, p, rho, depth):
   '''
@@ -165,8 +204,9 @@ class Column:
       self.flags_woce.insert(index, flag_woce)
     if flag_igoss:
       self.flags_igoss.insert(index, flag_igoss)
-  def append(self, value, flag_woce=None, flag_igoss=None):
-    self.values.append(value)
+  def append(self, value=None, flag_woce=None, flag_igoss=None):
+    if value:
+      self.values.append(value)
     if flag_woce:
       self.flags_woce.append(flag_woce)
     if flag_igoss:
@@ -207,16 +247,6 @@ class SummaryFile:
     if not self.columns.values():
       return 0
     return len(self.columns.values()[0])
-  def woce_lat_to_dec_lat(self, lattoks):
-    lat = int(lattoks[0]) + float(lattoks[1])/60.0
-    if lattoks[2] is not 'N':
-      lat *= -1
-    return lat
-  def woce_lng_to_dec_lng(self, lngtoks):
-    lng = int(lngtoks[0]) + float(lngtoks[1])/60.0
-    if lngtoks[2] is not 'E':
-      lng *= -1
-    return lng
   def read_HOT(self, handle):
     '''How to read a HOT Summary file.'''
     header = True
@@ -230,42 +260,26 @@ class SummaryFile:
       else:
         if len(line) is 0: continue
         tokens = line.split()
-        self.columns['EXPOCODE'].values.append(tokens[0].replace('/', '_'))
-        self.columns['SECT_ID'].values.append(tokens[1])
-        self.columns['STNNBR'].values.append(int(tokens[2]))
-        self.columns['CASTNO'].values.append(int(tokens[3]))
-        self.columns['_CAST_TYPE'].values.append(tokens[4])
+        self.columns['EXPOCODE'].append(tokens[0].replace('/', '_'))
+        self.columns['SECT_ID'].append(tokens[1])
+        self.columns['STNNBR'].append(int(tokens[2]))
+        self.columns['CASTNO'].append(int(tokens[3]))
+        self.columns['_CAST_TYPE'].append(tokens[4])
         date = datetime.strptime(tokens[5], '%m%d%y')
-        self.columns['DATE'].values.append('%4d%02d%02d' % (date.year, date.month, date.day))
-        self.columns['TIME'].values.append(int(tokens[6]))
-        self.columns['_CODE'].values.append(tokens[7])
-        lat = self.woce_lat_to_dec_lat(tokens[8:11])
-        self.columns['LATITUDE'].values.append(lat)
-        lng = self.woce_lng_to_dec_lng(tokens[11:14])
-        self.columns['LONGITUDE'].values.append(lng)
-        self.columns['_NAV'].values.append(tokens[14])
-        self.columns['DEPTH'].values.append(int(tokens[15]))
-        self.columns['_ABOVE_BOTTOM'].values.append(int(tokens[16]))
-        self.columns['_MAX_PRESSURE'].values.append(int(tokens[17]))
-        self.columns['_NUM_BOTTLES'].values.append(int(tokens[18]))
-        self.columns['_PARAMETERS'].values.append(tokens[19])
-        self.columns['_COMMENTS'].values.append(' '.join(tokens[20:]))
-  def dec_lat_to_woce_lat(self, lat):
-    lat_deg = int(lat)
-    lat_dec = abs(lat-lat_deg) * 60
-    lat_deg = abs(lat_deg)
-    lat_hem = 'S'
-    if lat > 0:
-      lat_hem = 'N'
-    return '%2d %05.2f %1s' % (lat_deg, lat_dec, lat_hem)
-  def dec_lng_to_woce_lng(self, lng):
-    lng_deg = int(lng)
-    lng_dec = abs(lng-lng_deg) * 60
-    lng_deg = abs(lng_deg)
-    lng_hem = 'W'
-    if lng > 0 :
-      lng_hem = 'E'
-    return '%3d %05.2f %1s' % (lng_deg, lng_dec, lng_hem)
+        self.columns['DATE'].append('%4d%02d%02d' % (date.year, date.month, date.day))
+        self.columns['TIME'].append(int(tokens[6]))
+        self.columns['_CODE'].append(tokens[7])
+        lat = woce_lat_to_dec_lat(tokens[8:11])
+        self.columns['LATITUDE'].append(lat)
+        lng = woce_lng_to_dec_lng(tokens[11:14])
+        self.columns['LONGITUDE'].append(lng)
+        self.columns['_NAV'].append(tokens[14])
+        self.columns['DEPTH'].append(int(tokens[15]))
+        self.columns['_ABOVE_BOTTOM'].append(int(tokens[16]))
+        self.columns['_MAX_PRESSURE'].append(int(tokens[17]))
+        self.columns['_NUM_BOTTLES'].append(int(tokens[18]))
+        self.columns['_PARAMETERS'].append(tokens[19])
+        self.columns['_COMMENTS'].append(' '.join(tokens[20:]))
   def write_WOCE_Summary(self, handle):
     '''How to write a WOCE Summary file.'''
     today = date.today()
@@ -285,14 +299,14 @@ class SummaryFile:
           self.columns['STNNBR'][i], self.columns['CASTNO'][i],
           self.columns['_CAST_TYPE'][i], date_str,
           self.columns['TIME'][i], self.columns['_CODE'][i],
-          self.dec_lat_to_woce_lat(self.columns['LATITUDE'][i]),
-          self.dec_lng_to_woce_lng(self.columns['LONGITUDE'][i]),
+          dec_lat_to_woce_lat(self.columns['LATITUDE'][i]),
+          dec_lng_to_woce_lng(self.columns['LONGITUDE'][i]),
           self.columns['_NAV'][i], self.columns['DEPTH'][i],
           self.columns['_ABOVE_BOTTOM'][i], self.columns['_MAX_PRESSURE'][i],
           self.columns['_NUM_BOTTLES'][i], self.columns['_PARAMETERS'][i],
           self.columns['_COMMENTS'][i] ))
       handle.write(row+'\n')
-  def write_nav(self, handle): # TODO consolidate with DataFile?
+  def write_nav(self, handle): # TODO consolidate with DataFile's write_nav? Same code.
     for i in range(0, len(self)):
       lat = self.columns['LATITUDE'][i]
       lng = self.columns['LONGITUDE'][i]
@@ -305,6 +319,27 @@ class DataFile:
     self.header = ''
     self.footer = None
     self.globals = {}
+  def expocodes(self):
+    return uniqify(self.columns['EXPOCODE'])
+  def __len__(self):
+    if not self.columns.values():
+      return 0
+    return len(self.columns.values()[0])
+  def sorted_columns(self):
+    return sorted(self.columns.values())
+  def get_property_for_columns(self, property_getter):
+    return map(property_getter, self.sorted_columns())
+  def column_headers(self):
+    return self.get_column_property(lambda column: column.parameter.woce_mnemonic)
+  def precisions(self):
+    return self.get_column_property(lambda column: column.parameter.precision)
+  def to_hash(self):
+    hash = {}
+    for column in self.columns:
+      hash[column.parameter.woce_mnemonic] = column.values
+    return hash
+
+  # IO methods
   def read_db(self):
     pass
   def write_db(self):
@@ -324,20 +359,6 @@ class DataFile:
       cursor.execute(sql)
     cursor.close()
     connection.close()
-  def column_headers(self):
-    return map(lambda column: column.parameter.woce_mnemonic, sorted(self.columns.values()))
-  def expocodes(self):
-    return uniqify(self.columns['EXPOCODE'])
-  def __len__(self):
-    if not self.columns.values():
-      return 0
-    return len(self.columns.values()[0])
-  def precisions(self):
-    return map(lambda column: column.parameter.precision, sort(self.columns.values))
-  def to_hash(self):
-    pass # TODO
-
-  # IO methods
   def write_nav(self, handle):
     for i in range(0, len(self)):
       lat = self.columns['LATITUDE'][i]
@@ -349,55 +370,81 @@ class DataFile:
   def write_CTD_WOCE(self, handle):
     '''How to write a CTD WOCE file.'''
     pass # TODO
-  def read_CTD_ODEN(self, handle):
-    '''How to read a CTD ODEN file.'''
-    lineno = 1
-    for line in handle:
-      if lineno == 1:
-        self.globals['SECT_ID'] = line[3:5] # Leg
-        self.globals['STNNBR'] = line[7:10] # Station
-        self.globals['CASTNO'] = line[13:15] # Cast
-        self.globals['DATE'] = '19'+line[19:21]+line[17:19]+line[15:17]
-        self.globals['TIME'] = line[41:45] # GMT Time(hhmm)
-        #self.globals['cast_type'] = line[23:26]
-        lat_deg = int(line[26:28])
-        lat_min = float(line[28:32])
-        lat_hem = line[32]
-        if lat_hem == 'N':
-          self.globals['LATITUDE'] = str(lat_deg+lat_min/60)
-        elif lat_hem == 'S':
-          self.globals['LATITUDE'] = str(-(lat_deg+lat_min/60))
-
-        lng_deg = int(line[34:36])
-        lng_min = float(line[36:40])
-        lng_hem = line[40]
-        if lng_hem == 'E':
-          self.globals['LONGITUDE'] = str(lng_deg+lng_min/60)
-        elif lng_hem == 'W':
-          self.globals['LONGITUDE'] = str(-(lng_deg+lng_min/60))
-
-        self.globals['DEPTH'] = line[45:50] # PDR Bottom Depth
-        #self.globals['remarks'] = line[50:-1]
-
-        self.columns['CTDPRS'] = Column('CTDPRS')
-        self.columns['CTDTMP'] = Column('CTDTMP')
-        self.columns['CTDCND'] = Column('CTDCND')
-        self.columns['CTDSAL'] = Column('CTDSAL')
-        self.columns['POTTMP'] = Column('POTTMP')
-      else:
-        data = line.split()
-        row = lineno-2
-        self.columns['CTDPRS'][row] = data[0]
-        self.columns['CTDTMP'][row] = data[1] # need conversion from ITPS-68 to ITS-90?
-        self.columns['CTDCND'][row] = data[2]
-        self.columns['CTDSAL'][row] = data[3]
-        self.columns['POTTMP'][row] = data[4]
-      lineno += 1
-  def write_CTD_ODEN(self,handle):
-    pass # OMIT
   def read_CTD_Exchange(self, handle):
     '''How to read a CTD Exchange file.'''
-    pass # TODO
+    # Read identifier and stamp
+    stamp = compile('CTD,(\d{8}\w+)')
+    m = stamp.match(handle.readline())
+    if m:
+      self.stamp = m.group(1)
+    else:
+      raise ValueError('Expected identifier line with stamp (e.g. #BOTTLE,YYYYMMDDdivINSwho)')
+    # Read comments
+    l = handle.readline()
+    while l and l.startswith('#'):
+      self.header += l
+      l = handle.readline()
+    # Read NUMBER_HEADERS
+    num_headers = compile('NUMBER_HEADERS\s+=\s+(\d+)')
+    m = num_headers.match(handle.readline())
+    if m:
+      num_headers = int(m.group(1))-1 # NUMBER_HEADERS counts itself as a header
+    else:
+      raise ValueError('Expected NUMBER_HEADERS as the second line in the file.')
+    header = compile('(\w+)\s*=\s*(-?\w+)')
+    for i in range(0, num_headers):
+      m = header.match(handle.readline())
+      if m:
+        self.globals[m.group(1)] = m.group(2)
+      else:
+        raise ValueError('Expected %d continuous headers but only saw %d' % (num_headers, i))
+    # Read parameters and units
+    columns = handle.readline().strip().split(',')
+    units = handle.readline().strip().split(',')
+    
+    # Check columns and units to match length
+    if len(columns) is not len(units):
+      raise ValueError("Expected as many columns as units in file. Found %d columns and %d units." % (len(columns), len(units)))
+
+    # Check for unique identifer
+    identifier = []
+    global_keys = self.globals.keys()
+    if 'EXPOCODE' in global_keys and 'STNNBR' in global_keys and 'CASTNO' in global_keys:
+      identifier = ['STNNBR', 'CASTNO']
+      if 'SAMPNO' in global_keys:
+        identifier.append('SAMPNO')
+        if 'BTLNBR' in global_keys:
+          identifier.append('BTLNBR')
+      elif 'BTLNBR' in global_keys:
+        identifier.append('BTLNBR')
+      else:
+        raise ValueError('No unique identifer found for file. (STNNBR,CASTNO,SAMPNO,BTLNBR),(STNNBR,CASTNO,SAMPNO),(STNNBR,CASTNO,BTLNBR)')
+
+    # Create internal columns and check units
+    for column, unit in zip(columns, units):
+      if column.endswith('FLAG_W') or column.endswith('FLAG_I'): continue
+      self.columns[column] = Column(column)
+      if self.columns[column].parameter.units != unit:
+        pass # TODO warn about mismatched units line with CCHDO units or do conversion
+
+    # Read data
+    l = handle.readline().strip()
+    while l:
+      if l == 'END_DATA': break
+      values = l.split(',')
+      
+      # Check columns and values to match length
+      if len(columns) is not len(values):
+        raise ValueError("Expected as many columns as values in file. Found %d columns and %d values at data line %d" % (len(columns), len(values), len(self)+1))
+      for column, value in zip(columns, values):
+        value = value.strip()
+        if column.endswith('_FLAG_W'):
+          self.columns[column[:-7]].flags_woce.append(value)
+        elif column.endswith('_FLAG_I'):
+          self.columns[column[:-7]].flags_igoss.append(value)
+        else:
+          self.columns[column].append(value)
+      l = handle.readline().strip()
   def write_CTD_Exchange(self, handle):
     '''How to write a CTD Exchange file.'''
     today = date.today()
@@ -476,17 +523,7 @@ class DataFile:
     strdate = str(self.globals['DATE']) 
     strtime = str(self.globals['TIME']).rjust(4, '0')
     isowocedate = datetime(int(strdate[0:4]), int(strdate[5:6]), int(strdate[7:8]),
-		           int(strtime[0:2]), int(strtime[3:5]))
-    WOCE_to_oceanSITES_flag = {
-      1: 3, # Not calibrated -> Bad data that are potentially correctable (re-calibration)
-      2: 1, # Acceptable measurement -> Good data
-      3: 2, # Questionable measurement -> Probably good data
-      4: 4, # Bad measurement -> Bad data
-      5: 9, # Not reported -> Missing value
-      6: 8, # Interpolated over >2 dbar interval -> Interpolated value
-      7: 5, # Despiked -> Value changed
-      9: 9  # Not sampled -> Missing value
-    }
+		                       int(strtime[0:2]), int(strtime[3:5]))
 
     nc_file = Dataset(filename, 'w', format='NETCDF3_CLASSIC')
     nc_file.data_type = 'OceanSITES time-series CTD data'
@@ -639,7 +676,7 @@ class DataFile:
                                        'interpolated_value',
                                        'missing_value'
                                       ])
-        flag[:] = map(lambda x: WOCE_to_oceanSITES_flag[x], column.flags_woce)
+        flag[:] = map(lambda x: WOCE_to_OceanSITES_flag[x], column.flags_woce)
     nc_file.close()
   def write_CTD_NetCDF_OceanSITES_BATS(self, handle):
     '''How to write a CTD NetCDF OceanSITES BATS file.'''
@@ -686,6 +723,52 @@ class DataFile:
     nc_file.pi_name = 'Roger Lukas'
     nc_file.id = '_'.join(['OS', 'ALOHA', stringdate, 'SOT'])
     nc_file.close()
+  def read_CTD_ODEN(self, handle):
+    '''How to read a CTD ODEN file.'''
+    lineno = 1
+    for line in handle:
+      if lineno == 1:
+        self.globals['SECT_ID'] = line[3:5] # Leg
+        self.globals['STNNBR'] = line[7:10] # Station
+        self.globals['CASTNO'] = line[13:15] # Cast
+        self.globals['DATE'] = '19'+line[19:21]+line[17:19]+line[15:17]
+        self.globals['TIME'] = line[41:45] # GMT Time(hhmm)
+        #self.globals['cast_type'] = line[23:26]
+        lat_deg = int(line[26:28])
+        lat_min = float(line[28:32])
+        lat_hem = line[32]
+        if lat_hem == 'N':
+          self.globals['LATITUDE'] = str(lat_deg+lat_min/60)
+        elif lat_hem == 'S':
+          self.globals['LATITUDE'] = str(-(lat_deg+lat_min/60))
+
+        lng_deg = int(line[34:36])
+        lng_min = float(line[36:40])
+        lng_hem = line[40]
+        if lng_hem == 'E':
+          self.globals['LONGITUDE'] = str(lng_deg+lng_min/60)
+        elif lng_hem == 'W':
+          self.globals['LONGITUDE'] = str(-(lng_deg+lng_min/60))
+
+        self.globals['DEPTH'] = line[45:50] # PDR Bottom Depth
+        #self.globals['remarks'] = line[50:-1]
+
+        self.columns['CTDPRS'] = Column('CTDPRS')
+        self.columns['CTDTMP'] = Column('CTDTMP')
+        self.columns['CTDCND'] = Column('CTDCND')
+        self.columns['CTDSAL'] = Column('CTDSAL')
+        self.columns['POTTMP'] = Column('POTTMP')
+      else:
+        data = line.split()
+        row = lineno-2
+        self.columns['CTDPRS'][row] = data[0]
+        self.columns['CTDTMP'][row] = data[1] # need conversion from ITPS-68 to ITS-90?
+        self.columns['CTDCND'][row] = data[2]
+        self.columns['CTDSAL'][row] = data[3]
+        self.columns['POTTMP'][row] = data[4]
+      lineno += 1
+  def write_CTD_ODEN(self,handle):
+    pass # OMIT
   def read_Bottle_WOCE(self, handle):
     '''How to read a Bottle WOCE file.'''
     pass # TODO
@@ -700,7 +783,7 @@ class DataFile:
     if m:
       self.stamp = m.group(1)
     else:
-      raise ValueError("Expected identifier line with stamp (e.g. #BOTTLE,YYYYMMDDIIIDDDNNN)")
+      raise ValueError("Expected identifier line with stamp (e.g. #BOTTLE,YYYYMMDDdivINSwho)")
     # Read comments
     l = handle.readline()
     while l and l.startswith('#'):
@@ -750,7 +833,7 @@ class DataFile:
         elif column.endswith('_FLAG_I'):
           self.columns[column[:-7]].flags_igoss.append(value)
         else:
-          self.columns[column].values.append(value)
+          self.columns[column].append(value)
       l = handle.readline().strip()
   def write_Bottle_Exchange(self, handle):
     '''How to write a Bottle Exchange file.'''
@@ -903,13 +986,29 @@ class DataFileCollection:
   # IO methods
   def read_CTDZip_WOCE(self, handle):
     '''How to read CTD WOCE files from a Zip.'''
-    pass # TODO
+    zip = ZipFile(handle, 'r')
+    for file in zip.namelist():
+      if 'README' in file or 'DOC' in file: continue
+      tempstream = StringIO(zip.read(file))
+      ctdfile = DataFile()
+      ctdfile.read_CTD_WOCE(tempstream)
+      self.files.append(ctdfile)
+      tempstream.close()
+    zip.close()
   def write_CTDZip_WOCE(self, handle):
     '''How to write CTD WOCE files to a Zip.'''
     pass # TODO
   def read_CTDZip_Exchange(self, handle):
     '''How to read CTD Exchange files from a Zip.'''
-    pass # TODO
+    zip = ZipFile(handle, 'r')
+    for file in zip.namelist():
+      if '.csv' is not in file: continue
+      tempstream = StringIO(zip.read(file))
+      ctdfile = DataFile()
+      ctdfile.read_CTD_Exchange(tempstream)
+      self.files.append(ctdfile)
+      tempstream.close()
+    zip.close()
   def write_CTDZip_Exchange(self, handle):
     '''How to write CTD Exchange files to a Zip.'''
     zip = ZipFile(handle, 'w')
@@ -942,11 +1041,18 @@ class DataFileCollection:
   # WHP-Exchange does not specify a BottleZip.
   def read_BottleZip_NetCDF(self, handle):
     '''How to read Bottle NetCDF files from a Zip.'''
-    pass # TODO
+    zip = ZipFile(handle, 'r')
+    for file in zip.namelist():
+      if '.csv' is not in file: continue
+      tempstream = StringIO(zip.read(file))
+      ctdfile = DataFile()
+      ctdfile.read_Bottle_NetCDF(tempstream)
+      self.files.append(ctdfile)
+      tempstream.close()
+    zip.close()
   def write_BottleZip_NetCDF(self, handle):
     '''How to write Bottle NetCDF files to a Zip.'''
-    # NetCDF libraries seem to like to write to a file themselves. We have to
-    # work around that by determining a temp directory.
+    # NetCDF libraries like to write to a file. Work around by giving temp dir.
     tempdir = mkdtemp()
 
     # The collection should already be split apart based on station cast.
