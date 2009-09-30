@@ -1,4 +1,4 @@
-""" TestCase for libcchdo.Column """
+""" Test case for libcchdo.Column """
 
 import libcchdo
 from unittest import TestCase
