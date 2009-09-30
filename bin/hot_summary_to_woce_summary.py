@@ -1,8 +1,8 @@
 #!/usr/bin/env python
 
+from __future__ import with_statement
 import sys
 sys.path.insert(0, '/'.join(sys.path[0].split('/')[:-1]))
-from __future__ import with_statement
 import libcchdo
 from sys import argv, exit, stdout
 

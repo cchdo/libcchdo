@@ -102,17 +102,17 @@ def read_arbitrary(filename):
     raise ValueError('Unrecognized file type for %s' % filename)
   return datafile
 
-def woce_lat_to_dec_lat(self, lattoks):
+def woce_lat_to_dec_lat(lattoks):
   lat = int(lattoks[0]) + float(lattoks[1])/60.0
   if lattoks[2] is not 'N':
     lat *= -1
   return lat
-def woce_lng_to_dec_lng(self, lngtoks):
+def woce_lng_to_dec_lng(lngtoks):
   lng = int(lngtoks[0]) + float(lngtoks[1])/60.0
   if lngtoks[2] is not 'E':
     lng *= -1
   return lng
-def dec_lat_to_woce_lat(self, lat):
+def dec_lat_to_woce_lat(lat):
   lat_deg = int(lat)
   lat_dec = abs(lat-lat_deg) * 60
   lat_deg = abs(lat_deg)
@@ -120,7 +120,7 @@ def dec_lat_to_woce_lat(self, lat):
   if lat > 0:
     lat_hem = 'N'
   return '%2d %05.2f %1s' % (lat_deg, lat_dec, lat_hem)
-def dec_lng_to_woce_lng(self, lng):
+def dec_lng_to_woce_lng(lng):
   lng_deg = int(lng)
   lng_dec = abs(lng-lng_deg) * 60
   lng_deg = abs(lng_deg)
@@ -338,10 +338,8 @@ class SummaryFile:
           self.columns['_COMMENTS'][i] ))
       handle.write(row+'\n')
   def write_nav(self, handle): # TODO consolidate with DataFile's write_nav? Same code.
-    for i in range(0, len(self)):
-      lat = self.columns['LATITUDE'][i]
-      lng = self.columns['LONGITUDE'][i]
-      handle.write('%3.3f %3.3f\n' % (lng, lat))
+    nav = uniqify(map(lambda coord: '%3.3f %3.3f\n' % coord, zip(self.columns['LONGITUDE'], self.columns['LATITUDE'].values)))
+    handle.write(''.join(nav))
 
 class DataFile:
   def __init__(self):
@@ -391,10 +389,8 @@ class DataFile:
     cursor.close()
     connection.close()
   def write_nav(self, handle):
-    for i in range(0, len(self)):
-      lat = self.columns['LATITUDE'][i]
-      lng = self.columns['LONGITUDE'][i]
-      handle.write('%3.3f %3.3f\n' % (lng, lat))
+    nav = uniqify(map(lambda coord: '%3.3f %3.3f\n' % coord, zip(self.columns['LONGITUDE'], self.columns['LATITUDE'].values)))
+    handle.write(''.join(nav))
   def read_CTD_WOCE(self, handle):
     '''How to read a CTD WOCE file.'''
     pass # TODO
@@ -866,6 +862,9 @@ class DataFile:
         else:
           self.columns[column].append(value)
       l = handle.readline().strip()
+    # Format all data to be what it is
+    self.columns['LATITUDE'].values = map(lambda x: float(x), self.columns['LATITUDE'].values)
+    self.columns['LONGITUDE'].values = map(lambda x: float(x), self.columns['LONGITUDE'].values)
   def write_Bottle_Exchange(self, handle):
     '''How to write a Bottle Exchange file.'''
     pass

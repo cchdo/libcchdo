@@ -1,4 +1,4 @@
-"""Unit test for libcchdo/Column"""
+"""Unit test for libcchdo.Column"""
 
 import sys
 sys.path = ['/'.join(sys.path[0].split('/')[:-1])]+sys.path
