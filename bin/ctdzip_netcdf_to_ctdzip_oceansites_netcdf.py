@@ -1,5 +1,7 @@
 #!/usr/bin/env python
 
+import sys
+sys.path.insert(0, '/'.join(sys.path[0].split('/')[:-1]))
 from __future__ import with_statement
 import libcchdo
 
@@ -21,3 +23,4 @@ with open(argv[2], 'w') as out_file:
   else:
     print 'Printing an ambiguous OceanSITES NetCDF'
     file.write_CTD_NetCDF_OceanSITES(out_file)
+

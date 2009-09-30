@@ -276,7 +276,7 @@ class SummaryFile:
     if not self.columns.values():
       return 0
     return len(self.columns.values()[0])
-  def read_HOT(self, handle):
+  def read_HOT_Summary(self, handle):
     '''How to read a HOT Summary file.'''
     header = True
     header_delimiter = compile('^-+$')
@@ -309,6 +309,8 @@ class SummaryFile:
         self.columns['_NUM_BOTTLES'].append(int(tokens[18]))
         self.columns['_PARAMETERS'].append(tokens[19])
         self.columns['_COMMENTS'].append(' '.join(tokens[20:]))
+  def read_WOCE_Summary(self, handle):
+    pass # TODO
   def write_WOCE_Summary(self, handle):
     '''How to write a WOCE Summary file.'''
     today = date.today()
