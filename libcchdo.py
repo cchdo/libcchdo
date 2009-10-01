@@ -32,15 +32,38 @@ from math import sin, cos, pow
 from os import listdir, remove, rmdir
 from os.path import exists
 from re import compile
+from struct import unpack
 from sys import exit
 from StringIO import StringIO
 from tempfile import mkdtemp
+from warnings import warn
 from zipfile import ZipFile, ZipInfo
 try:
   from math import isnan
 except ImportError:
   def isnan(n):
     return n != n
+
+# Globals
+Infinity = 1e10000
+NaN = Infinity/Infinity
+WOCE_to_OceanSITES_flag = {
+  1: 3, # Not calibrated -> Bad data that are potentially correctable (re-calibration)
+  2: 1, # Acceptable measurement -> Good data
+  3: 2, # Questionable measurement -> Probably good data
+  4: 4, # Bad measurement -> Bad data
+  5: 9, # Not reported -> Missing value
+  6: 8, # Interpolated over >2 dbar interval -> Interpolated value
+  7: 5, # Despiked -> Value changed
+  9: 9  # Not sampled -> Missing value
+}
+
+# Functions
+def uniqify(seq): # Credit: Dave Kirby
+  seen = set()
+  return [x for x in seq if x not in seen and not seen.add(x)]
+def strip_all(list):
+  return map(lambda x: x.strip, list)
 
 def connect_postgresql():
   try:
@@ -60,23 +83,6 @@ def connect_mysql():
   except MySQLdb.Error, e:
     print "Database error: %s" % e
     exit(1)
-
-# Globals
-WOCE_to_OceanSITES_flag = {
-  1: 3, # Not calibrated -> Bad data that are potentially correctable (re-calibration)
-  2: 1, # Acceptable measurement -> Good data
-  3: 2, # Questionable measurement -> Probably good data
-  4: 4, # Bad measurement -> Bad data
-  5: 9, # Not reported -> Missing value
-  6: 8, # Interpolated over >2 dbar interval -> Interpolated value
-  7: 5, # Despiked -> Value changed
-  9: 9  # Not sampled -> Missing value
-}
-
-# Functions
-def uniqify(seq): # Credit: Dave Kirby
-  seen = set()
-  return [x for x in seq if x not in seen and not seen.add(x)]
 
 def read_arbitrary(filename):
   if not exists(filename): raise ValueError("The file '%s' does not exist" % filename)
@@ -128,6 +134,10 @@ def dec_lng_to_woce_lng(lng):
   if lng > 0 :
     lng_hem = 'E'
   return '%3d %05.2f %1s' % (lng_deg, lng_dec, lng_hem)
+def strftime_iso(datetime):
+  return datetime.isoformat()+'Z'
+def strftime_woce_date_time(datetime)
+  return (datetime.strftime('%Y%m%d'), datetime.strftime('%H%M'))
 
 # Following two functions ports of
 # $Id: depth.c,v 11589a696ce7 2008/10/15 22:56:57 fdelahoyde $
@@ -292,40 +302,7 @@ class SummaryFile:
     if not self.columns.values():
       return 0
     return len(self.columns.values()[0])
-  def read_HOT_Summary(self, handle):
-    '''How to read a HOT Summary file.'''
-    header = True
-    header_delimiter = compile('^-+$')
-    for line in handle:
-      if header:
-        if header_delimiter.match(line):
-          header = False
-        else:
-          self.header += line
-      else:
-        if len(line) is 0: continue
-        tokens = line.split()
-        self.columns['EXPOCODE'].append(tokens[0].replace('/', '_'))
-        self.columns['SECT_ID'].append(tokens[1])
-        self.columns['STNNBR'].append(int(tokens[2]))
-        self.columns['CASTNO'].append(int(tokens[3]))
-        self.columns['_CAST_TYPE'].append(tokens[4])
-        date = datetime.strptime(tokens[5], '%m%d%y')
-        self.columns['DATE'].append('%4d%02d%02d' % (date.year, date.month, date.day))
-        self.columns['TIME'].append(int(tokens[6]))
-        self.columns['_CODE'].append(tokens[7])
-        lat = woce_lat_to_dec_lat(tokens[8:11])
-        self.columns['LATITUDE'].append(lat)
-        lng = woce_lng_to_dec_lng(tokens[11:14])
-        self.columns['LONGITUDE'].append(lng)
-        self.columns['_NAV'].append(tokens[14])
-        self.columns['DEPTH'].append(int(tokens[15]))
-        self.columns['_ABOVE_BOTTOM'].append(int(tokens[16]))
-        self.columns['_MAX_PRESSURE'].append(int(tokens[17]))
-        self.columns['_NUM_BOTTLES'].append(int(tokens[18]))
-        self.columns['_PARAMETERS'].append(tokens[19])
-        self.columns['_COMMENTS'].append(' '.join(tokens[20:]))
-  def read_WOCE_Summary(self, handle):
+  def read_Summary_WOCE(self, handle):
     '''How to read a WOCE Summary file.'''
     header = True
     header_delimiter = compile('^-+$')
@@ -336,6 +313,8 @@ class SummaryFile:
         else:
           self.header += line
       else:
+        # TODO Reimplement by finding ASCII column edges in header and reading that way.
+        # Spacing is unreliable.
         if len(line) is 0: continue
         tokens = line.split()
         self.columns['EXPOCODE'].append(tokens[0].replace('/', '_'))
@@ -384,6 +363,43 @@ class SummaryFile:
           self.columns['_NUM_BOTTLES'][i], self.columns['_PARAMETERS'][i],
           self.columns['_COMMENTS'][i] ))
       handle.write(row+'\n')
+  def read_Summary_HOT(self, handle):
+    '''How to read a HOT Summary file.'''
+    header = True
+    header_delimiter = compile('^-+$')
+    for line in handle:
+      if header:
+        if header_delimiter.match(line):
+          header = False
+        else:
+          self.header += line
+      else:
+        # TODO Reimplement by finding ASCII column edges in header and reading that way.
+        # Spacing is unreliable.
+        if len(line) is 0: continue
+        tokens = line.split()
+        self.columns['EXPOCODE'].append(tokens[0].replace('/', '_'))
+        self.columns['SECT_ID'].append(tokens[1])
+        self.columns['STNNBR'].append(int(tokens[2]))
+        self.columns['CASTNO'].append(int(tokens[3]))
+        self.columns['_CAST_TYPE'].append(tokens[4])
+        date = datetime.strptime(tokens[5], '%m%d%y')
+        self.columns['DATE'].append('%4d%02d%02d' % (date.year, date.month, date.day))
+        self.columns['TIME'].append(int(tokens[6]))
+        self.columns['_CODE'].append(tokens[7])
+        lat = woce_lat_to_dec_lat(tokens[8:11])
+        self.columns['LATITUDE'].append(lat)
+        lng = woce_lng_to_dec_lng(tokens[11:14])
+        self.columns['LONGITUDE'].append(lng)
+        self.columns['_NAV'].append(tokens[14])
+        self.columns['DEPTH'].append(int(tokens[15]))
+        self.columns['_ABOVE_BOTTOM'].append(int(tokens[16]))
+        self.columns['_MAX_PRESSURE'].append(int(tokens[17]))
+        self.columns['_NUM_BOTTLES'].append(int(tokens[18]))
+        self.columns['_PARAMETERS'].append(tokens[19])
+        self.columns['_COMMENTS'].append(' '.join(tokens[20:]))
+  def write_Summary_HOT(self, handle):
+    pass # OMIT
   def write_nav(self, handle): # TODO consolidate with DataFile's write_nav? Same code.
     nav = uniqify(map(lambda coord: '%3.3f %3.3f\n' % coord, zip(self.columns['LONGITUDE'], self.columns['LATITUDE'].values)))
     handle.write(''.join(nav))
@@ -415,11 +431,72 @@ class DataFile:
       hash[column.parameter.woce_mnemonic] = column.values
     return hash
 
+  # Refactored common code
+  def create_columns(parameters, units):
+    if column.endswith('FLAG_W') or column.endswith('FLAG_I'): continue
+    self.columns[column] = Column(column)
+    expected_units = self.columns[column].parameter.units
+    if expected_units != unit:
+      warn("Mismatched given unit '%s' with expected '%s'" % (expected_units, unit))
+  def read_WOCE_data(handle, parameters_line, units_line, asterisk_line):
+    column_width = 8
+    safe_column_width = column_width-1
+    num_quality_flags = len(asterisk_line.split(' ')) # i.e. the number of asterisk-marked columns
+    num_quality_words = len(parameters_line.split('QUALT'))-1
+    quality_length = num_quality_words * (num_quality_flags+1) # The extra 1 is for spacing between the columns
+    num_param_columns = int((len(parameters_line) - quality_length) / column_width)
+
+    # Unpack the column headers
+    unpack_str = "a8" * num_param_columns
+    parameters = strip_all(unpack(unpack_str, parameters_line))
+    units = strip_all(unpack(unpack_str, units_line))
+    asterisks = strip_all(unpack(unpack_str, asterisk_line))
+
+    # Warn if the header lines break 8 character column rules
+    for parameter in parameters:
+      if len(parameter) > safe_column_width:
+        warn("Parameter '%s' has too many characters (>%d)." % (parameter, safe_column_width))
+    for unit in units:
+      if len(unit) > safe_column_width:
+        warn("Unit '%s' has too many characters (>%d)." % (parameter, safe_column_width))
+    for asterisk in asterisks:
+      if len(asterisk) > safe_column_width:
+        warn("Asterisks '%s' has too many characters (>%d)." % (parameter, safe_column_width))
+
+    # Die if parameters are not unique
+    if not parameters == uniqify(parameters):
+      raise ValueError('There were duplicate parameters in the file; cannot continue without data corruption.')
+
+    self.create_columns(parameters, units)
+
+    # Get each data line
+    unpack_str += ('a'+str(num_quality_flags)) * num_quality_flags # Add on quality to unpack string
+    for line in handle:
+      unpacked = unpack(unpack_str, line)
+
+      # QUALT1 takes precedence
+      quality_flags = unpacked[-num_quality_flags:]
+
+      # Build up the columns for the line
+      flag_i = 0
+      for i, parameter in enumerate(parameters):
+        datum = float(unpacked[i])
+        if datum is -9.0: datum = NaN
+        if not asterisks[i].strip() == '': # Only assign flag if column is flagged.
+          woce_flag = int(quality_flags[0][flag_i])
+          flag_i += 1
+        self.columns[parameter].set(i, datum, woce_flag)
+
+    # Expand globals into columns
+    #@header.each_pair do |header, value|
+    #  column = @column_hash[header] = Column.new(header)
+    #  column.values = Array.new(num_entries) {|i| value}
+
   # IO methods
   def read_db(self):
-    pass
+    pass # TODO
   def write_db(self):
-    pass
+    pass # TODO
   def write_track_lines(self):
     '''How to write a trackline entry to the MySQL database'''
     connection = connect_mysql()
@@ -440,10 +517,41 @@ class DataFile:
     handle.write(''.join(nav))
   def read_CTD_WOCE(self, handle):
     '''How to read a CTD WOCE file.'''
-    pass # TODO
+    # Get the stamp
+    stamp = compile('EXPOCODE\s*([\w/]+)\s*WHP.?IDS?\s*([\w/]+(,[\w/]+)?)\s*DATE\s*(\d{6})', re.IGNORECASE)
+    m = stamp.match(handle.readline())
+    if m:
+      self.globals['EXPOCODE'] = m.group(1)
+      self.globals['SECT_ID'] = m.group(2)
+      self.globals['DATE'], self.globals['TIME'] = strftime_woce_date_time(datetime.strptime(m.group(3), '%m%d%y'))
+    else:
+      raise ValueError("Expected stamp. Invalid record 1 in WOCE CTD file.")
+    # Get identifier line
+    identifier = compile('STNNBR\s*(\d+)\s*CASTNO\s*(\d+)\s*NO\. Records=\s*(\d+)')
+    m = identifier.match(handle.readline())
+    if m:
+      self.globals['STNNBR'] = m.group(1)
+      self.globals['CASTNO'] = m.group(2)
+    else:
+      raise ValueError("Expected identifiers. Invalid record 2 in WOCE CTD file.")
+
+    # Get instrument line
+    instrument.compile('INSTRUMENT NO.\s*(\d+)\s*SAMPLING RATE\s*(\d+.\d+\s*HZ)')
+    m = instrument.match(handle.readline())
+    if m:
+      self.globals['_INSTRUMENT_NO'] = m.group(1)
+      self.globals['_SAMPLING_RATE'] = m.group(2)
+    else:
+      raise ValueError("Expected instrument information. Invalid record 3 in WOCE CTD file.")
+    
+    parameters_line = handle.readline()
+    units_line = handle.readline()
+    asterisk_line = handle.readline()
+
+    self.read_WOCE_data(handle, parameters_line, units_line, asterisk_line)
   def write_CTD_WOCE(self, handle):
     '''How to write a CTD WOCE file.'''
-    pass # TODO
+    pass # TODO write NaN as -999.0000
   def read_CTD_Exchange(self, handle):
     '''How to read a CTD Exchange file.'''
     # Read identifier and stamp
@@ -494,12 +602,7 @@ class DataFile:
       else:
         raise ValueError('No unique identifer found for file. (STNNBR,CASTNO,SAMPNO,BTLNBR),(STNNBR,CASTNO,SAMPNO),(STNNBR,CASTNO,BTLNBR)')
 
-    # Create internal columns and check units
-    for column, unit in zip(columns, units):
-      if column.endswith('FLAG_W') or column.endswith('FLAG_I'): continue
-      self.columns[column] = Column(column)
-      if self.columns[column].parameter.units != unit:
-        pass # TODO warn about mismatched units line with CCHDO units or do conversion
+    self.create_columns(columns, units)
 
     # Read data
     l = handle.readline().strip()
@@ -592,8 +695,6 @@ class DataFile:
     '''How to write a CTD NetCDF OceanSITES file.'''
     filename = handle.name
     handle.close()
-    Infinity = 1e10000
-    NaN = Infinity/Infinity
     strdate = str(self.globals['DATE']) 
     strtime = str(self.globals['TIME']).rjust(4, '0')
     isowocedate = datetime(int(strdate[0:4]), int(strdate[5:6]), int(strdate[7:8]),
@@ -845,7 +946,31 @@ class DataFile:
     pass # OMIT
   def read_Bottle_WOCE(self, handle):
     '''How to read a Bottle WOCE file.'''
-    pass # TODO
+    # Read Woce Bottle header
+    try:
+      stamp_line = handle.readline()
+      parameters_line = handle.readline()
+      units_line = handle.readline()
+      asterisk_line = handle.readline()
+      self.header.append([stamp_line, parameters_line, units_line, asterisk_line])
+    except:
+      raise ValueError('Unexpected WOCE header in Bottle file')
+    # Get stamp
+    stamp = compile('EXPOCODE\s*([\w/]+)\s*WHP.?ID\s*([\w/]+(,[\w/]+))\s*CRUISE DATES\s*(\d{6}) TO (\d{6})\s*(\d{8}\w+)')
+    m = stamp.match(handle.readline())
+    if m:
+      self.globals['EXPOCODE'] = m.group(1)
+      self.globals['SECT_ID'] = strip_all(m.group(2).split(','))
+      self.globals['_BEGIN_DATE'] = m.group(3)
+      self.globals['_END_DATE'] = m.group(4)
+      self.stamp = m.group(5)
+    else
+      raise ValueError('Expected ExpoCode, SectIDs, dates, and a stamp. Invalide WOCE record 1.')
+    # Validate the parameter line
+    if 'STNNBR' not in parameters_line or 'CASTNO' not in parameters_line:
+      raise ValueError('Expected STNNBR and CASTNO in parameters record')
+
+    self.read_WOCE_data(handle, parameters_line, units_line, asterisk_line)
   def write_Bottle_WOCE(self, handle):
     '''How to write a Bottle WOCE file.'''
     pass # TODO
@@ -884,12 +1009,7 @@ class DataFile:
       else:
         raise ValueError('No unique identifer found for file. (STNNBR,CASTNO,SAMPNO,BTLNBR),(STNNBR,CASTNO,SAMPNO),(STNNBR,CASTNO,BTLNBR)')
 
-    # Create internal columns and check units
-    for column, unit in zip(columns, units):
-      if column.endswith('FLAG_W') or column.endswith('FLAG_I'): continue
-      self.columns[column] = Column(column)
-      if self.columns[column].parameter.units != unit:
-        pass # TODO warn about mismatched units line with CCHDO units or do conversion
+    self.create_columns(columns, units)
 
     # Read data
     l = handle.readline().strip()
