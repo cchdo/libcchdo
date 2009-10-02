@@ -349,8 +349,8 @@ class SummaryFile:
       else:
         # TODO Reimplement by finding ASCII column edges in header and reading that way.
         # Spacing is unreliable.
-        if len(line) is 0: continue
         tokens = line.split()
+        if len(tokens) is 0: continue
         self.columns['EXPOCODE'].append(tokens[0].replace('/', '_'))
         self.columns['SECT_ID'].append(tokens[1])
         self.columns['STNNBR'].append(int(tokens[2]))
@@ -410,8 +410,8 @@ class SummaryFile:
       else:
         # TODO Reimplement by finding ASCII column edges in header and reading that way.
         # Spacing is unreliable.
-        if len(line) is 0: continue
         tokens = line.split()
+        if len(tokens) is 0: continue
         self.columns['EXPOCODE'].append(tokens[0].replace('/', '_'))
         self.columns['SECT_ID'].append(tokens[1])
         self.columns['STNNBR'].append(int(tokens[2]))
