@@ -1,6 +1,7 @@
 # libcchdo Python
 #
 # Dependencies
+# ------------
 # netcdf4-python - http://code.google.com/p/netcdf4-python/
 #   netcdf
 #   numpy - http://numpy.scipy.org/
@@ -8,6 +9,11 @@
 #   postgresql server binaries
 # MySQLdb - http://sourceforge.net/projects/mysql-python
 #   MySQL server binaries
+#
+# Internal Data Specification
+# ---------------------------
+# Any unreported values must be represented as None. This includes -9,
+# -999.000, unspecified dates, times, etc.
 # 
 
 from __future__ import with_statement
@@ -28,7 +34,7 @@ except ImportError, e:
   exit(1)
 from datetime import date, datetime
 from numpy import dtype
-from math import sin, cos, pow
+from math import sin, cos, pow, pi
 from os import listdir, remove, rmdir
 from os.path import exists
 from re import compile
@@ -47,6 +53,7 @@ except ImportError:
 # Globals
 Infinity = 1e10000
 NaN = Infinity/Infinity
+RADIUS_EARTH = 6371.01 #km
 WOCE_to_OceanSITES_flag = {
   1: 3, # Not calibrated -> Bad data that are potentially correctable (re-calibration)
   2: 1, # Acceptable measurement -> Good data
@@ -59,7 +66,7 @@ WOCE_to_OceanSITES_flag = {
 }
 
 # Functions
-def uniqify(seq): # Credit: Dave Kirby
+def uniquify(seq): # Credit: Dave Kirby
   seen = set()
   return [x for x in seq if x not in seen and not seen.add(x)]
 def strip_all(list):
@@ -108,6 +115,31 @@ def read_arbitrary(filename):
     raise ValueError('Unrecognized file type for %s' % filename)
   return datafile
 
+def great_circle_distance(lat_stand, lng_stand, lat_fore, lng_fore):
+  delta_lng = lng_fore - lng_stand
+  cos_lat_fore = cos(lat_fore)
+  cos_lat_stand = cos(lat_stand)
+  cos_lat_fore_cos_delta_lon = cos_lat_fore * cos(delta_lon)
+  sin_lat_stand = sin(lat_stand)
+  sin_lat_fore = sin(lat_fore)
+
+  # Vicenty formula from Wikipedia
+  # fraction_top = sqrt( (cos_lat_fore * sin(delta_lon)) ** 2 +
+  #                      (cos_lat_stand * sin_lat_fore -
+  #                       sin_lat_stand * cos_lat_fore_cos_delta_lon) ** 2)
+  # fraction_bottom = sin_lat_stand * sin_lat_fore + cos_lat_stand * cos_lat_fore_cos_delta_lon
+  # central_angle = atan2(1.0, fraction_top/fraction_bottom)
+
+  # simple formula from wikipedia
+  central_angle = acos(cos_lat_stand * cos_lat_fore * cos(delta_lon) +
+                       sin_lat_stand * sin_lat_fore)
+
+  arc_length = RADIUS_EARTH * central_angle
+  return arc_length
+
+def deg_to_rad(deg):
+  return deg * pi / 180.0
+
 def woce_lat_to_dec_lat(lattoks):
   lat = int(lattoks[0]) + float(lattoks[1])/60.0
   if lattoks[2] is not 'N':
@@ -134,9 +166,11 @@ def dec_lng_to_woce_lng(lng):
   if lng > 0 :
     lng_hem = 'E'
   return '%3d %05.2f %1s' % (lng_deg, lng_dec, lng_hem)
+
 def strftime_iso(datetime):
   return datetime.isoformat()+'Z'
-def strftime_woce_date_time(datetime)
+
+def strftime_woce_date_time(datetime):
   return (datetime.strftime('%Y%m%d'), datetime.strftime('%H%M'))
 
 # Following two functions ports of
@@ -220,7 +254,7 @@ class Parameter:
     row = cursor.fetchone()
     if row:
       self.full_name = row[0]
-      self.format = row[1]
+      self.format = row[1].strip()
       self.description = row[2]
       self.units = row[3]
       self.bound_lower = row[4]
@@ -303,7 +337,7 @@ class SummaryFile:
       return 0
     return len(self.columns.values()[0])
   def read_Summary_WOCE(self, handle):
-    '''How to read a WOCE Summary file.'''
+    '''How to read a Summary file for WOCE.'''
     header = True
     header_delimiter = compile('^-+$')
     for line in handle:
@@ -337,10 +371,10 @@ class SummaryFile:
         self.columns['_NUM_BOTTLES'].append(int(tokens[18]))
         self.columns['_PARAMETERS'].append(tokens[19])
         self.columns['_COMMENTS'].append(' '.join(tokens[20:]))
-  def write_WOCE_Summary(self, handle):
-    '''How to write a WOCE Summary file.'''
+  def write_Summary_WOCE(self, handle):
+    '''How to write a Summary file for WOCE.'''
     today = date.today()
-    uniq_sects = uniqify(self.columns['SECT_ID'].values)
+    uniq_sects = uniquify(self.columns['SECT_ID'].values)
     handle.write('R/V _SHIP LEG _# WHP-ID '+','.join(uniq_sects)+' %04d%02d%02d' % (today.year, today.month, today.day)+"SIOCCHDOLIB\n")
     header_one = 'SHIP/CRS       WOCE               CAST         UTC           POSITION                UNC   COR ABOVE  WIRE   MAX  NO. OF\n'
     header_two = 'EXPOCODE       SECT STNNBR CASTNO TYPE DATE   TIME CODE LATITUDE   LONGITUDE   NAV DEPTH DEPTH BOTTOM  OUT PRESS BOTTLES PARAMETERS      COMMENTS            \n'
@@ -364,7 +398,7 @@ class SummaryFile:
           self.columns['_COMMENTS'][i] ))
       handle.write(row+'\n')
   def read_Summary_HOT(self, handle):
-    '''How to read a HOT Summary file.'''
+    '''How to read a Summary file for HOT.'''
     header = True
     header_delimiter = compile('^-+$')
     for line in handle:
@@ -401,7 +435,7 @@ class SummaryFile:
   def write_Summary_HOT(self, handle):
     pass # OMIT
   def write_nav(self, handle): # TODO consolidate with DataFile's write_nav? Same code.
-    nav = uniqify(map(lambda coord: '%3.3f %3.3f\n' % coord, zip(self.columns['LONGITUDE'], self.columns['LATITUDE'].values)))
+    nav = uniquify(map(lambda coord: '%3.3f %3.3f\n' % coord, zip(self.columns['LONGITUDE'], self.columns['LATITUDE'].values)))
     handle.write(''.join(nav))
 
 class DataFile:
@@ -412,7 +446,7 @@ class DataFile:
     self.footer = None
     self.globals = {}
   def expocodes(self):
-    return uniqify(self.columns['EXPOCODE'])
+    return uniquify(self.columns['EXPOCODE'])
   def __len__(self):
     if not self.columns.values():
       return 0
@@ -422,9 +456,9 @@ class DataFile:
   def get_property_for_columns(self, property_getter):
     return map(property_getter, self.sorted_columns())
   def column_headers(self):
-    return self.get_column_property(lambda column: column.parameter.woce_mnemonic)
-  def precisions(self):
-    return self.get_column_property(lambda column: column.parameter.precision)
+    return self.get_property_for_columns(lambda column: column.parameter.woce_mnemonic)
+  def formats(self):
+    return self.get_property_for_columns(lambda column: column.parameter.format)
   def to_hash(self):
     hash = {}
     for column in self.columns:
@@ -432,12 +466,13 @@ class DataFile:
     return hash
 
   # Refactored common code
-  def create_columns(parameters, units):
-    if column.endswith('FLAG_W') or column.endswith('FLAG_I'): continue
-    self.columns[column] = Column(column)
-    expected_units = self.columns[column].parameter.units
-    if expected_units != unit:
-      warn("Mismatched given unit '%s' with expected '%s'" % (expected_units, unit))
+  def create_columns(self, parameters, units):
+    for parameter, unit in zip(parameters, units):
+      if parameter.endswith('FLAG_W') or parameter.endswith('FLAG_I'): continue
+      self.columns[parameter] = Column(parameter)
+      expected_units = self.columns[parameter].parameter.units_mnemonic
+      if expected_units != unit:
+        warn("Mismatched expected units '%s' with given units '%s'" % (expected_units, unit))
   def read_WOCE_data(handle, parameters_line, units_line, asterisk_line):
     column_width = 8
     safe_column_width = column_width-1
@@ -464,7 +499,7 @@ class DataFile:
         warn("Asterisks '%s' has too many characters (>%d)." % (parameter, safe_column_width))
 
     # Die if parameters are not unique
-    if not parameters == uniqify(parameters):
+    if not parameters == uniquify(parameters):
       raise ValueError('There were duplicate parameters in the file; cannot continue without data corruption.')
 
     self.create_columns(parameters, units)
@@ -513,9 +548,9 @@ class DataFile:
     cursor.close()
     connection.close()
   def write_nav(self, handle):
-    nav = uniqify(map(lambda coord: '%3.3f %3.3f\n' % coord, zip(self.columns['LONGITUDE'], self.columns['LATITUDE'].values)))
+    nav = uniquify(map(lambda coord: '%3.3f %3.3f\n' % coord, zip(self.columns['LONGITUDE'], self.columns['LATITUDE'].values)))
     handle.write(''.join(nav))
-  def read_CTD_WOCE(self, handle):
+  def read_CTD_WOCE(self, handle): # TODO Out of band values should be converted to None
     '''How to read a CTD WOCE file.'''
     # Get the stamp
     stamp = compile('EXPOCODE\s*([\w/]+)\s*WHP.?IDS?\s*([\w/]+(,[\w/]+)?)\s*DATE\s*(\d{6})', re.IGNORECASE)
@@ -551,7 +586,25 @@ class DataFile:
     self.read_WOCE_data(handle, parameters_line, units_line, asterisk_line)
   def write_CTD_WOCE(self, handle):
     '''How to write a CTD WOCE file.'''
-    pass # TODO write NaN as -999.0000
+    # We can only write the CTD file if there is a unique EXPOCODE, STNNBR, and CASTNO in the file.
+    expocodes = self.expocodes()
+    sections = uniquify(self.columns['SECT_ID'].values)
+    stations = uniquify(self.columns['STNNBR'].values)
+    casts = uniquify(self.columns['CASTNO'].values)
+    if len(expocodes) is not len(sections) is not len(stations) is not len(casts) is not 1:
+      raise ValueError('Cannot write a multi-ExpoCode, section, station, or cast WOCE CTD file.')
+    else:
+      expocode = expocodes[0]
+      section = sections[0]
+      station = stations[0]
+      cast = casts[0]
+    handle.write('EXPOCODE %14s WHP-ID %5s DATE %6d' % (expocode, section, date))
+    handle.write('STNNBR %8s CASTNO %3d NO. RECORDS=%5d%s2') # 2 denotes record 2
+    handle.write('INSTRUMENT NO. %5s SAMPLING RATE %6.2f HZ%s3') # 3 denotes record 3
+    handle.write('  CTDPRS  CTDTMP  CTDSAL  CTDOXY  NUMBER QUALT1') # TODO
+    handle.write('    DBAR  ITS-90  PSS-78 UMOL/KG    OBS.      *') # TODO
+    handle.write(' ******* ******* ******* *******              *') # TODO
+    handle.write('     3.0 28.7977 31.8503   209.5      42   2222') # TODO
   def read_CTD_Exchange(self, handle):
     '''How to read a CTD Exchange file.'''
     # Read identifier and stamp
@@ -964,7 +1017,7 @@ class DataFile:
       self.globals['_BEGIN_DATE'] = m.group(3)
       self.globals['_END_DATE'] = m.group(4)
       self.stamp = m.group(5)
-    else
+    else:
       raise ValueError('Expected ExpoCode, SectIDs, dates, and a stamp. Invalide WOCE record 1.')
     # Validate the parameter line
     if 'STNNBR' not in parameters_line or 'CASTNO' not in parameters_line:
