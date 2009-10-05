@@ -14,6 +14,11 @@
 # ---------------------------
 # Any unreported values must be represented as None. This includes -9,
 # -999.000, unspecified dates, times, etc.
+#
+# Known unknown parameters have mnemonics that start with '_'. e.g. MAX
+# PRESSURE exists in certain files but there is no parameter defined for it. By
+# prefixing MAX_PRESSURE with a '_', the library will not retrive the parameter
+# definition from the database (there is none anyway).
 # 
 
 from __future__ import with_statement
@@ -34,7 +39,7 @@ except ImportError, e:
   exit(1)
 from datetime import date, datetime
 from numpy import dtype
-from math import sin, cos, pow, pi
+from math import sin, cos, acos, pow, pi
 from os import listdir, remove, rmdir
 from os.path import exists
 from re import compile
@@ -70,7 +75,7 @@ def uniquify(seq): # Credit: Dave Kirby
   seen = set()
   return [x for x in seq if x not in seen and not seen.add(x)]
 def strip_all(list):
-  return map(lambda x: x.strip, list)
+  return map(lambda x: x.strip(), list)
 
 def connect_postgresql():
   try:
@@ -119,19 +124,19 @@ def great_circle_distance(lat_stand, lng_stand, lat_fore, lng_fore):
   delta_lng = lng_fore - lng_stand
   cos_lat_fore = cos(lat_fore)
   cos_lat_stand = cos(lat_stand)
-  cos_lat_fore_cos_delta_lon = cos_lat_fore * cos(delta_lon)
+  cos_lat_fore_cos_delta_lng = cos_lat_fore * cos(delta_lng)
   sin_lat_stand = sin(lat_stand)
   sin_lat_fore = sin(lat_fore)
 
   # Vicenty formula from Wikipedia
-  # fraction_top = sqrt( (cos_lat_fore * sin(delta_lon)) ** 2 +
+  # fraction_top = sqrt( (cos_lat_fore * sin(delta_lng)) ** 2 +
   #                      (cos_lat_stand * sin_lat_fore -
-  #                       sin_lat_stand * cos_lat_fore_cos_delta_lon) ** 2)
-  # fraction_bottom = sin_lat_stand * sin_lat_fore + cos_lat_stand * cos_lat_fore_cos_delta_lon
+  #                       sin_lat_stand * cos_lat_fore_cos_delta_lng) ** 2)
+  # fraction_bottom = sin_lat_stand * sin_lat_fore + cos_lat_stand * cos_lat_fore_cos_delta_lng
   # central_angle = atan2(1.0, fraction_top/fraction_bottom)
 
   # simple formula from wikipedia
-  central_angle = acos(cos_lat_stand * cos_lat_fore * cos(delta_lon) +
+  central_angle = acos(cos_lat_stand * cos_lat_fore * cos(delta_lng) +
                        sin_lat_stand * sin_lat_fore)
 
   arc_length = RADIUS_EARTH * central_angle
@@ -239,34 +244,45 @@ def depth_unesco(pres, lat):
 
 class Parameter:
   def __init__(self, parameter_name):
-    connection = connect_postgresql()
-    cursor = connection.cursor()
-    select = ','.join(['parameters.name', 'format', 'description', 'units',
-                       'bound_lower', 'bound_upper', 'units.mnemonic_woce',
-                       'parameters_orders.order'])
-    cursor.execute("SELECT "+select+"""
-                    FROM parameters
-                    INNER JOIN parameters_aliases ON parameters.id = parameters_aliases.parameter_id
-                    LEFT JOIN parameters_orders ON parameters.id = parameters_orders.parameter_id
-                    LEFT JOIN units ON parameters.units = units.id
-                    WHERE parameters_aliases.name = %s
-                    LIMIT 1""", (parameter_name,))
-    row = cursor.fetchone()
-    if row:
-      self.full_name = row[0]
-      self.format = row[1].strip()
-      self.description = row[2]
-      self.units = row[3]
-      self.bound_lower = row[4]
-      self.bound_upper = row[5]
-      self.units_mnemonic = row[6]
+    if parameter_name.startswith('_'):
+      self.full_name = parameter_name
+      self.format = '11s'
+      self.units = 0
+      self.bound_lower = None
+      self.bound_upper = None
+      self.units_mnemonic = ''
       self.woce_mnemonic = parameter_name
-      self.display_order = row[7] or -9999
+      self.display_order = -9999
       self.aliases = []
     else:
+      connection = connect_postgresql()
+      cursor = connection.cursor()
+      select = ','.join(['parameters.name', 'format', 'description', 'units',
+                         'bound_lower', 'bound_upper', 'units.mnemonic_woce',
+                         'parameters_orders.order'])
+      cursor.execute("SELECT "+select+"""
+                      FROM parameters
+                      INNER JOIN parameters_aliases ON parameters.id = parameters_aliases.parameter_id
+                      LEFT JOIN parameters_orders ON parameters.id = parameters_orders.parameter_id
+                      LEFT JOIN units ON parameters.units = units.id
+                      WHERE parameters_aliases.name = %s
+                      LIMIT 1""", (parameter_name,))
+      row = cursor.fetchone()
+      if row:
+        self.full_name = row[0]
+        self.format = row[1].strip()
+        self.description = row[2]
+        self.units = row[3]
+        self.bound_lower = row[4]
+        self.bound_upper = row[5]
+        self.units_mnemonic = row[6]
+        self.woce_mnemonic = parameter_name
+        self.display_order = row[7] or -9999
+        self.aliases = []
+      else:
+        connection.close()
+        raise NameError("'"+parameter_name+"' is not in CCHDO's parameter list.")
       connection.close()
-      raise NameError("'"+parameter_name+"' is not in CCHDO's parameter list.")
-    connection.close()
   def __eq__(self, other):
     return self.woce_mnemonic == other.woce_mnemonic
   def __str__(self):
@@ -317,11 +333,6 @@ class Column:
   def __cmp__(self, other):
     return self.parameter.display_order - other.parameter.display_order
 
-class SummaryColumn(Column):
-  def __init__(self, parameter):
-    self.parameter = parameter
-    self.values = []
-
 class SummaryFile:
   def __init__(self):
     self.columns = {}
@@ -331,7 +342,7 @@ class SummaryFile:
                '_NAV', '_ABOVE_BOTTOM', '_MAX_PRESSURE', '_NUM_BOTTLES',
                '_PARAMETERS', '_COMMENTS']
     for column in columns:
-      self.columns[column] = SummaryColumn(column)
+      self.columns[column] = Column(column)
   def __len__(self):
     if not self.columns.values():
       return 0

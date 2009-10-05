@@ -1,10 +1,10 @@
-""" Test case for libcchdo.SummaryFile.read_Summary_HOT """
+""" Test case for libcchdo.SummaryFile """
 
 import libcchdo
 from unittest import TestCase
 from io import StringIO
 
-class TestReadSummaryHot(TestCase):
+class TestSummaryFile(TestCase):
   sample = """
                                        Hawaii Ocean Time-Series   Cruise HOT-134
    Ship  Section Sta Cast Cast  Date     Time            Position               Depth   Pres. Number  Parameters Comments
@@ -15,7 +15,7 @@ class TestReadSummaryHot(TestCase):
 33KI134/1  PRS2    2  15   ROS 011702 0856  BE  22 44.97 N  158 00.01 W  GPS  4720   -3 4806     12          1,2    Dual T, C sensors
   """
 
-  def test_read(self):
+  def test_read_summary_hot(self):
     self.file = libcchdo.SummaryFile()
     self.buff = StringIO(self.sample)
     self.file.read_Summary_HOT(self.buff)
