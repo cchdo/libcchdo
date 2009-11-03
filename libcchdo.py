@@ -1234,6 +1234,20 @@ class DataFile:
     var_time[:] = (time_from_epoch - cchdo_epoch_offset)
 
     nc_file.close()
+  def write_Google_Wire(self, handle):
+    '''How to write a Google Wire Protocol Javascript object literal'''
+    global_headers = sorted(self.globals.keys())
+    column_headers = self.column_headers()
+    columns = global_headers + column_headers
+    wire_columns = ["{id:'"+col+"',label:'"+col+"',type:'number'}"
+      for col in columns]
+    global_values = [self.globals[key] for key in global_headers]
+    def wire_row(i):
+      raw_values = global_values + [self.columns[hdr][i] for hdr in column_headers]
+      row_values = ["{v:'"+str(raw)+"'}" for raw in raw_values]
+      return '{c:['+','.join(row_values)+']}'
+    wire_rows = [wire_row(i) for i in range(len(self))]
+    handle.write("{cols:["+','.join(wire_columns)+"],rows:["+','.join(wire_rows)+"]}")
 
 class DataFileCollection:
   def __init__(self):
