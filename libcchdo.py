@@ -47,6 +47,7 @@ from struct import unpack
 from sys import exit
 from StringIO import StringIO
 from tempfile import mkdtemp
+from types import FloatType
 from warnings import warn
 from zipfile import ZipFile, ZipInfo
 try:
@@ -178,6 +179,17 @@ def strftime_iso(datetime):
 def strftime_woce_date_time(datetime):
   return (datetime.strftime('%Y%m%d'), datetime.strftime('%H%M'))
 
+def out_of_band(value):
+  try:
+    number = float(value)
+  except (ValueError):
+    return False
+  oob = -999
+  tolerance = 0.1
+  if abs(oob-number) < tolerance:
+    return True
+  return False
+
 # Following two functions ports of
 # $Id: depth.c,v 11589a696ce7 2008/10/15 22:56:57 fdelahoyde $
 # depth.c	1.1	Solaris 2.3 Unix	940906	SIO/ODF	fmd
@@ -298,6 +310,8 @@ class Column:
     self.flags_woce = []
     self.flags_igoss = []
   def get(self, index):
+    if index >= len(self.values):
+      return None
     return self.values[index]
   def set(self, index, value, flag_woce=None, flag_igoss=None):
     while index > len(self.values):
@@ -310,7 +324,7 @@ class Column:
     if flag_igoss:
       self.flags_igoss.insert(index, flag_igoss)
   def append(self, value=None, flag_woce=None, flag_igoss=None):
-    if value:
+    if value is not None:
       self.values.append(value)
     if flag_woce:
       self.flags_woce.append(flag_woce)
@@ -473,7 +487,9 @@ class DataFile:
   def to_hash(self):
     hash = {}
     for column in self.columns:
-      hash[column.parameter.woce_mnemonic] = column.values
+      hash[self.columns[column].parameter.woce_mnemonic] = self.columns[column].values
+      hash[self.columns[column].parameter.woce_mnemonic+'_FLAG_W'] = self.columns[column].flags_woce
+      hash[self.columns[column].parameter.woce_mnemonic+'_FLAG_I'] = self.columns[column].flags_igoss
     return hash
 
   # Refactored common code
@@ -1046,7 +1062,7 @@ class DataFile:
     if m:
       self.stamp = m.group(1)
     else:
-      raise ValueError("Expected identifier line with stamp (e.g. #BOTTLE,YYYYMMDDdivINSwho)")
+      raise ValueError("Expected identifier line with stamp (e.g. BOTTLE,YYYYMMDDdivINSwho)")
     # Read comments
     l = handle.readline()
     while l and l.startswith('#'):
@@ -1084,8 +1100,14 @@ class DataFile:
       # Check columns and values to match length
       if len(columns) is not len(values):
         raise ValueError("Expected as many columns as values in file. Found %d columns and %d values at data line %d" % (len(columns), len(values), len(self)+1))
-      for column, value in zip(columns, values):
-        value = value.strip()
+      for column, raw in zip(columns, values):
+        value = raw.strip()
+        if out_of_band(value):
+          value = NaN
+        try:
+          value = float(value)
+        except:
+          pass
         if column.endswith('_FLAG_W'):
           self.columns[column[:-7]].flags_woce.append(value)
         elif column.endswith('_FLAG_I'):
@@ -1244,7 +1266,15 @@ class DataFile:
     global_values = [self.globals[key] for key in global_headers]
     def wire_row(i):
       raw_values = global_values + [self.columns[hdr][i] for hdr in column_headers]
-      row_values = ["{v:'"+str(raw)+"'}" for raw in raw_values]
+      def raw_to_str(raw):
+        if isnan(raw):
+          return '-Infinity'
+        else:
+          if type(raw) is FloatType:
+            return str(raw)
+          else:
+            return "'"+str(raw)+"'"
+      row_values = ["{v:"+raw_to_str(raw)+"}" for raw in raw_values]
       return '{c:['+','.join(row_values)+']}'
     wire_rows = [wire_row(i) for i in range(len(self))]
     handle.write("{cols:["+','.join(wire_columns)+"],rows:["+','.join(wire_rows)+"]}")

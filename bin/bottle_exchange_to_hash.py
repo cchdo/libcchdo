@@ -6,9 +6,9 @@ path.insert(0, '/'.join(path[0].split('/')[:-1]))
 import libcchdo
 
 if len(argv) < 2:
-  print 'Usage:', argv[0], '<WOCE Summary file>'
+  print 'Usage:', argv[0], '<exbot file>'
   exit(1)
-file = libcchdo.SummaryFile()
+file = libcchdo.DataFile()
 with open(argv[1], 'r') as in_file:
-  file.read_Summary_WOCE(in_file)
-file.write_nav(stdout)
+  file.read_Bottle_Exchange(in_file)
+print file.to_hash()
