@@ -301,10 +301,12 @@ class Parameter:
     return 'Parameter '+self.woce_mnemonic
 
 class Column:
-  def __init__(self, parameter):
+  def __init__(self, parameter, contrived=False):
     if isinstance(parameter, Parameter):
       self.parameter = parameter
     else:
+      if contrived:
+        parameter = '_'+parameter
       self.parameter = Parameter(parameter)
     self.values = []
     self.flags_woce = []
@@ -1118,6 +1120,10 @@ class DataFile:
     # Format all data to be what it is
     self.columns['LATITUDE'].values = map(lambda x: float(x), self.columns['LATITUDE'].values)
     self.columns['LONGITUDE'].values = map(lambda x: float(x), self.columns['LONGITUDE'].values)
+    self.columns['_DATETIME'] = Column('_DATETIME')
+    self.columns['_DATETIME'].values = [datetime.strptime(str(int(d))+('%04d' % int(t)), '%Y%m%d%H%M') for d,t in zip(self.columns['DATE'].values, self.columns['TIME'].values)]
+    del self.columns['DATE']
+    del self.columns['TIME']
   def write_Bottle_Exchange(self, handle):
     '''How to write a Bottle Exchange file.'''
     pass
@@ -1261,8 +1267,8 @@ class DataFile:
     global_headers = sorted(self.globals.keys())
     column_headers = self.column_headers()
     columns = global_headers + column_headers
-    wire_columns = ["{id:'"+col+"',label:'"+col+"',type:'number'}"
-      for col in columns]
+    wire_columns = ["{id:%s,label:%s,type:'number'" % (col, col)
+                    for col in columns]
     global_values = [self.globals[key] for key in global_headers]
     def wire_row(i):
       raw_values = global_values + [self.columns[hdr][i] for hdr in column_headers]
@@ -1270,14 +1276,16 @@ class DataFile:
         if isnan(raw):
           return '-Infinity'
         else:
-          if type(raw) is FloatType:
+          if isinstance(raw, float):
             return str(raw)
+          if isinstance(raw, datetime):
+            return 'new Date(%s)' % raw.strftime('%Y,%m,%d,%H,%M')
           else:
-            return "'"+str(raw)+"'"
-      row_values = ["{v:"+raw_to_str(raw)+"}" for raw in raw_values]
-      return '{c:['+','.join(row_values)+']}'
+            return "'%s'" % str(raw)
+      row_values = ['{v:%s}' % raw_to_str(raw) for raw in raw_values]
+      return '{c:[%s]}' % ','.join(row_values)
     wire_rows = [wire_row(i) for i in range(len(self))]
-    handle.write("{cols:["+','.join(wire_columns)+"],rows:["+','.join(wire_rows)+"]}")
+    handle.write("{cols:[%s],rows:[%s]" % (','.join(wire_columns), ','.join(wire_rows)))
 
 class DataFileCollection:
   def __init__(self):
