@@ -1268,11 +1268,13 @@ class DataFile:
     column_headers = self.column_headers()
     columns = global_headers + column_headers
     def column_type(col):
-      if col == '_DATETIME':
+      if col == 'EXPOCODE' or col == 'SECT_ID':
+        return 'string'
+      elif col == '_DATETIME':
         return 'datetime'
       else:
         return 'number'
-    wire_columns = ["{id:%s,label:%s,type:'%s'" % (col, col, column_type(col))
+    wire_columns = ["{id:'%s',label:'%s',type:'%s'}" % (col, col, column_type(col))
                     for col in columns]
     global_values = [self.globals[key] for key in global_headers]
     def wire_row(i):
@@ -1290,7 +1292,7 @@ class DataFile:
       row_values = ['{v:%s}' % raw_to_str(raw) for raw in raw_values]
       return '{c:[%s]}' % ','.join(row_values)
     wire_rows = [wire_row(i) for i in range(len(self))]
-    handle.write("{cols:[%s],rows:[%s]" % (','.join(wire_columns), ','.join(wire_rows)))
+    handle.write("{cols:[%s],rows:[%s]}" % (','.join(wire_columns), ','.join(wire_rows)))
 
 class DataFileCollection:
   def __init__(self):
