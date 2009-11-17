@@ -1267,7 +1267,12 @@ class DataFile:
     global_headers = sorted(self.globals.keys())
     column_headers = self.column_headers()
     columns = global_headers + column_headers
-    wire_columns = ["{id:%s,label:%s,type:'number'" % (col, col)
+    def column_type(col):
+      if col == '_DATETIME':
+        return 'datetime'
+      else:
+        return 'number'
+    wire_columns = ["{id:%s,label:%s,type:'%s'" % (col, col, column_type(col))
                     for col in columns]
     global_values = [self.globals[key] for key in global_headers]
     def wire_row(i):
