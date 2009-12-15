@@ -19,12 +19,12 @@ class TestColumn(TestCase):
     self.assertEqual(self.column.flags_igoss, []) # Missing IGOSS flags array
   
   def test_get(self):
-    self.assertRaises(IndexError, self.column.get, 0)
+    self.assertEqual(None, self.column.get(0))
     self.column[0] = 1
     self.assertEqual(self.column.get(0), 1)
     self.assertEqual(self.column[0], 1)
-    self.assertRaises(IndexError, self.column.get, 1)
-    self.assertRaises(IndexError, self.column.__getitem__, 1)
+    self.assertEqual(None, self.column.get(1))
+    self.assertEqual(None, self.column.__getitem__(1))
   
   def test_length(self):
     self.assertEqual(len(self.column), 0)

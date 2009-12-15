@@ -17,7 +17,7 @@ class TestCommand(Command):
     pass
   def run(self):
     '''Finds all the tests modules in tests/, and runs them.'''
-    testfiles = [ ]
+    testfiles = []
     for t in glob(pjoin(self._dir, 'tests', '*.py')):
       if not t.endswith('__init__.py'):
         testfiles.append('.'.join(

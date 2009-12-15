@@ -89,8 +89,8 @@ def connect_postgresql():
     exit(1)
 def connect_mysql():
   try:
-    return MySQLdb.connect(user='libcchdo',
-                           passwd='((hd0hydr0d@t@',
+    return MySQLdb.connect(user='jfields',
+                           passwd='c@keandc00kies',
                            host='watershed.ucsd.edu',
                            db='cchdo')
   except MySQLdb.Error, e:
@@ -477,7 +477,7 @@ class DataFile:
     self.footer = None
     self.globals = {}
   def expocodes(self):
-    return uniquify(self.columns['EXPOCODE'])
+    return uniquify(self.columns['EXPOCODE'].values)
   def __len__(self):
     if not self.columns.values():
       return 0
