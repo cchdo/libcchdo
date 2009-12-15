@@ -53,8 +53,8 @@ EXPOCODE     SECT   STNNBR CASTNO TYPE DATE   TIME  CODE LATITUDE   LONGITUDE   
 
     self.assertEqual(['GPS'] * 3, cs['_NAV'].values)
     self.assertEqual([450, 450, 1257], cs['DEPTH'].values)
-    self.assertEqual([None, 16, None], cs['_NUM_BOTTLES'].values)
     self.assertEqual([None, 439, None], cs['_MAX_PRESSURE'].values)
+    self.assertEqual([None, 16, None], cs['_NUM_BOTTLES'].values)
     self.assertEqual(['test', '1-8,23-24,27,43,104-112', None], cs['_PARAMETERS'].values)
     self.assertEqual([None] * 3, cs['_COMMENTS'].values)
 

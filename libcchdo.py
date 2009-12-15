@@ -326,8 +326,7 @@ class Column:
     if flag_igoss:
       self.flags_igoss.insert(index, flag_igoss)
   def append(self, value=None, flag_woce=None, flag_igoss=None):
-    if value is not None:
-      self.values.append(value)
+    self.values.append(value)
     if flag_woce:
       self.flags_woce.append(flag_woce)
     if flag_igoss:
@@ -355,8 +354,8 @@ class SummaryFile:
     self.header = ''
     columns = ['EXPOCODE', 'SECT_ID', 'STNNBR', 'CASTNO', 'DATE', 'TIME',
                'LATITUDE', 'LONGITUDE', 'DEPTH', '_CAST_TYPE', '_CODE',
-               '_NAV', '_ABOVE_BOTTOM', '_MAX_PRESSURE', '_NUM_BOTTLES',
-               '_PARAMETERS', '_COMMENTS']
+               '_NAV', '_WIRE_OUT', '_ABOVE_BOTTOM', '_MAX_PRESSURE',
+               '_NUM_BOTTLES', '_PARAMETERS', '_COMMENTS']
     for column in columns:
       self.columns[column] = Column(column)
   def __len__(self):
@@ -367,16 +366,30 @@ class SummaryFile:
     '''How to read a Summary file for WOCE.'''
     header = True
     header_delimiter = compile('^-+$')
+    column_starts = []
+    column_widths = []
     for line in handle:
       if header:
         if header_delimiter.match(line):
           header = False
+          stops = self.header.split('\n')[-2].split(' ')
+          current_char = 0
+          for stop in stops:
+            if stop == '':
+              current_char += 1
+              column_widths[-1] += 1
+            else:
+              column_starts.append(current_char)
+              column_widths.append(len(stop))
+              current_char += len(stop)+1 # Account for splitted ' '. It gets destroyed in the split.
         else:
           self.header += line
       else:
-        # TODO Reimplement by finding ASCII column edges in header and reading that way.
-        # Spacing is unreliable.
-        tokens = line.split()
+        tokens = []
+        for s, w in zip(column_starts, column_widths):
+          tokens.append(line[:-1][s:s+w].strip())
+        def identity_or_none(x):
+          return x if x else None
         if len(tokens) is 0: continue
         self.columns['EXPOCODE'].append(tokens[0].replace('/', '_'))
         self.columns['SECT_ID'].append(tokens[1])
@@ -387,17 +400,18 @@ class SummaryFile:
         self.columns['DATE'].append('%4d%02d%02d' % (date.year, date.month, date.day))
         self.columns['TIME'].append(int(tokens[6]))
         self.columns['_CODE'].append(tokens[7])
-        lat = woce_lat_to_dec_lat(tokens[8:11])
+        lat = woce_lat_to_dec_lat(tokens[8].split(' '))
         self.columns['LATITUDE'].append(lat)
-        lng = woce_lng_to_dec_lng(tokens[11:14])
+        lng = woce_lng_to_dec_lng(tokens[9].split(' '))
         self.columns['LONGITUDE'].append(lng)
-        self.columns['_NAV'].append(tokens[14])
-        self.columns['DEPTH'].append(int(tokens[15]))
-        self.columns['_ABOVE_BOTTOM'].append(int(tokens[16]))
-        self.columns['_MAX_PRESSURE'].append(int(tokens[17]))
-        self.columns['_NUM_BOTTLES'].append(int(tokens[18]))
-        self.columns['_PARAMETERS'].append(tokens[19])
-        self.columns['_COMMENTS'].append(' '.join(tokens[20:]))
+        self.columns['_NAV'].append(tokens[10])
+        self.columns['DEPTH'].append(int(tokens[11]))
+        self.columns['_ABOVE_BOTTOM'].append(int(tokens[12]) if tokens[12] else None)
+        self.columns['_WIRE_OUT'].append(int(tokens[13]) if tokens[13] else None)
+        self.columns['_MAX_PRESSURE'].append(int(tokens[14]) if tokens[14] else None)
+        self.columns['_NUM_BOTTLES'].append(int(tokens[15]) if tokens[15] else None)
+        self.columns['_PARAMETERS'].append(identity_or_none(tokens[16]))
+        self.columns['_COMMENTS'].append(identity_or_none(tokens[17]))
   def write_Summary_WOCE(self, handle):
     '''How to write a Summary file for WOCE.'''
     today = date.today()
