@@ -462,7 +462,11 @@ class SummaryFile:
   def write_Summary_HOT(self, handle):
     raise NotImplementedError # OMIT
   def write_nav(self, handle): # TODO consolidate with DataFile's write_nav? Same code.
-    nav = uniquify(map(lambda coord: '%3.3f %3.3f\n' % coord, zip(self.columns['LONGITUDE'], self.columns['LATITUDE'].values)))
+    nav = uniquify(map(lambda coord: '%3.3f %3.3f %d %s %s\n' % coord, zip(self.columns['LONGITUDE'].values,
+                                                                           self.columns['LATITUDE'].values,
+                                                                           self.columns['STNNBR'].values,
+                                                                           self.columns['DATE'].values,
+                                                                           self.columns['_CODE'].values)))
     handle.write(''.join(nav))
 
 class DataFile:
@@ -577,7 +581,12 @@ class DataFile:
     cursor.close()
     connection.close()
   def write_nav(self, handle):
-    nav = uniquify(map(lambda coord: '%3.3f %3.3f\n' % coord, zip(self.columns['LONGITUDE'], self.columns['LATITUDE'].values)))
+    print 'haha!', len(self), self.columns['_DATETIME'].values
+    nav = uniquify(map(lambda coord: '%3.3f %3.3f %d %s %s\n' % coord, zip(self.columns['LONGITUDE'].values,
+                                                                           self.columns['LATITUDE'].values,
+                                                                           self.columns['STNNBR'].values,
+                                                                           map(lambda d: d.strftime('%Y-%m-%d'), self.columns['_DATETIME'].values),
+                                                                           ['BO'] * len(self))))
     handle.write(''.join(nav))
   def read_CTD_WOCE(self, handle): # TODO Out of band values should be converted to None
     '''How to read a CTD WOCE file.'''
@@ -1120,12 +1129,12 @@ class DataFile:
     # Format all data to be what it is
     self.columns['LATITUDE'].values = map(lambda x: float(x), self.columns['LATITUDE'].values)
     self.columns['LONGITUDE'].values = map(lambda x: float(x), self.columns['LONGITUDE'].values)
-    self.columns['_DATETIME'] = Column('_DATETIME')
     try:
       self.columns['TIME']
     except KeyError:
       self.columns['TIME'] = Column('TIME')
       self.columns['TIME'].values = ['0000'] * len(self)
+    self.columns['_DATETIME'] = Column('_DATETIME')
     self.columns['_DATETIME'].values = [datetime.strptime(str(int(d))+('%04d' % int(t)), '%Y%m%d%H%M') for d,t in zip(self.columns['DATE'].values, self.columns['TIME'].values)]
     del self.columns['DATE']
     del self.columns['TIME']
