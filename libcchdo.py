@@ -460,7 +460,7 @@ class SummaryFile:
         self.columns['_PARAMETERS'].append(tokens[19])
         self.columns['_COMMENTS'].append(' '.join(tokens[20:]))
   def write_Summary_HOT(self, handle):
-    pass # OMIT
+    raise NotImplementedError # OMIT
   def write_nav(self, handle): # TODO consolidate with DataFile's write_nav? Same code.
     nav = uniquify(map(lambda coord: '%3.3f %3.3f\n' % coord, zip(self.columns['LONGITUDE'], self.columns['LATITUDE'].values)))
     handle.write(''.join(nav))
@@ -558,9 +558,9 @@ class DataFile:
 
   # IO methods
   def read_db(self):
-    pass # TODO
+    raise NotImplementedError # TODO
   def write_db(self):
-    pass # TODO
+    raise NotImplementedError # TODO
   def write_track_lines(self):
     '''How to write a trackline entry to the MySQL database'''
     connection = connect_mysql()
@@ -769,10 +769,10 @@ class DataFile:
     nc_file.close()
   def write_CTD_NetCDF(self, handle):
     '''How to write a CTD NetCDF file.'''
-    pass # TODO
+    raise NotImplementedError # TODO
   def read_CTD_NetCDF_OceanSITES(self, handle):
     '''How to read a CTD NetCDF OceanSITES file.'''
-    pass # TODO
+    raise NotImplementedError # TODO
   def write_CTD_NetCDF_OceanSITES(self, handle):
     '''How to write a CTD NetCDF OceanSITES file.'''
     filename = handle.name
@@ -1025,7 +1025,7 @@ class DataFile:
         self.columns['POTTMP'][row] = data[4]
       lineno += 1
   def write_CTD_ODEN(self,handle):
-    pass # OMIT
+    raise NotImplementedError # OMIT
   def read_Bottle_WOCE(self, handle):
     '''How to read a Bottle WOCE file.'''
     # Read Woce Bottle header
@@ -1055,7 +1055,7 @@ class DataFile:
     self.read_WOCE_data(handle, parameters_line, units_line, asterisk_line)
   def write_Bottle_WOCE(self, handle):
     '''How to write a Bottle WOCE file.'''
-    pass # TODO
+    raise NotImplementedError # TODO
   def read_Bottle_Exchange(self, handle):
     '''How to read a Bottle Exchange file.'''
     # Read identifier and stamp
@@ -1126,10 +1126,10 @@ class DataFile:
     del self.columns['TIME']
   def write_Bottle_Exchange(self, handle):
     '''How to write a Bottle Exchange file.'''
-    pass
+    raise NotImplementedError
   def read_Bottle_NetCDF(self, handle):
     '''How to read a Bottle NetCDF file.'''
-    pass
+    raise NotImplementedError
   def write_Bottle_NetCDF(self, handle):
     '''How to write a Bottle NetCDF file.'''
     # This time, the handle is actually a path to a tempdir to give to the
@@ -1298,9 +1298,9 @@ class DataFileCollection:
   def __init__(self):
     self.files = []
   def merge(datafile):
-    pass # TODO
+    raise NotImplementedError # TODO
   def split(self):
-    pass # TODO
+    raise NotImplementedError # TODO
   def stamps(self):
     return map(lambda file: file.stamp, self.files.values())
 
@@ -1318,7 +1318,7 @@ class DataFileCollection:
     zip.close()
   def write_CTDZip_WOCE(self, handle):
     '''How to write CTD WOCE files to a Zip.'''
-    pass # TODO
+    raise NotImplementedError # TODO
   def read_CTDZip_Exchange(self, handle):
     '''How to read CTD Exchange files from a Zip.'''
     zip = ZipFile(handle, 'r')
@@ -1357,7 +1357,7 @@ class DataFileCollection:
     zip.close()
   def write_CTDZip_ODEN(self, handle):
     '''How to write CTD ODEN files to a Zip.'''
-    pass # OMIT
+    raise NotImplementedError # OMIT
   # WOCE does not specify a BottleZip.
   # WHP-Exchange does not specify a BottleZip.
   def read_BottleZip_NetCDF(self, handle):
