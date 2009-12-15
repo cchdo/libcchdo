@@ -1121,6 +1121,11 @@ class DataFile:
     self.columns['LATITUDE'].values = map(lambda x: float(x), self.columns['LATITUDE'].values)
     self.columns['LONGITUDE'].values = map(lambda x: float(x), self.columns['LONGITUDE'].values)
     self.columns['_DATETIME'] = Column('_DATETIME')
+    try:
+      self.columns['TIME']
+    except KeyError:
+      self.columns['TIME'] = Column('TIME')
+      self.columns['TIME'].values = ['0000'] * len(self)
     self.columns['_DATETIME'].values = [datetime.strptime(str(int(d))+('%04d' % int(t)), '%Y%m%d%H%M') for d,t in zip(self.columns['DATE'].values, self.columns['TIME'].values)]
     del self.columns['DATE']
     del self.columns['TIME']
