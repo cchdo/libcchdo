@@ -1,26 +1,10 @@
 #!/usr/bin/env python
-# tracks_db_to_kml
+# nav_to_kml
+
+
+#TODO TODO TODO
 
 from __future__ import with_statement
-try:
-  import MySQLdb
-except ImportError, e:
-  print e, "\n", 'You should get MySQLdb from http://sourceforge.net/projects/mysql-python. You will need MySQL with server binaries installed already.'
-  exit(1)
-from datetime import datetime
-from os import path, makedirs
-from sys import exit
-from string import translate, maketrans
-
-def connect_mysql():
-  try:
-    return MySQLdb.connect(user='cchdo_server',
-                           passwd='((hd0hydr0d@t@',
-                           host='cchdo.ucsd.edu',
-                           db='cchdo')
-  except MySQLdb.Error, e:
-    print "Database error: %s" % e
-    exit(1)
 
 def color_arr_to_str(color):
   return 'ff'+''.join(map(lambda x: '%02x' % x, color[::-1]))
