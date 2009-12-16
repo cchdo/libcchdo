@@ -1,4 +1,4 @@
-# libcchdo Python
+# libcchd oPython
 #
 # Dependencies
 # ------------
@@ -42,7 +42,7 @@ from numpy import dtype
 from math import sin, cos, acos, pow, pi
 from os import listdir, remove, rmdir
 from os.path import exists
-from re import compile
+from re import compile, findall
 from struct import unpack
 from sys import exit
 from StringIO import StringIO
@@ -390,26 +390,28 @@ class SummaryFile:
           tokens.append(line[:-1][s:s+w].strip())
         def identity_or_none(x):
           return x if x else None
+        def int_or_none(x):
+          return int(x) if x and x.isdigit() else None
         if len(tokens) is 0: continue
         self.columns['EXPOCODE'].append(tokens[0].replace('/', '_'))
         self.columns['SECT_ID'].append(tokens[1])
-        self.columns['STNNBR'].append(int(tokens[2]))
-        self.columns['CASTNO'].append(int(tokens[3]))
+        self.columns['STNNBR'].append(int_or_none(tokens[2]))
+        self.columns['CASTNO'].append(int_or_none(tokens[3]))
         self.columns['_CAST_TYPE'].append(tokens[4])
         date = datetime.strptime(tokens[5], '%m%d%y')
         self.columns['DATE'].append('%4d%02d%02d' % (date.year, date.month, date.day))
-        self.columns['TIME'].append(int(tokens[6]))
+        self.columns['TIME'].append(int_or_none(tokens[6]))
         self.columns['_CODE'].append(tokens[7])
-        lat = woce_lat_to_dec_lat(tokens[8].split(' '))
+        lat = woce_lat_to_dec_lat(tokens[8].split())
         self.columns['LATITUDE'].append(lat)
-        lng = woce_lng_to_dec_lng(tokens[9].split(' '))
+        lng = woce_lng_to_dec_lng(tokens[9].split())
         self.columns['LONGITUDE'].append(lng)
         self.columns['_NAV'].append(tokens[10])
-        self.columns['DEPTH'].append(int(tokens[11]))
-        self.columns['_ABOVE_BOTTOM'].append(int(tokens[12]) if tokens[12] else None)
-        self.columns['_WIRE_OUT'].append(int(tokens[13]) if tokens[13] else None)
-        self.columns['_MAX_PRESSURE'].append(int(tokens[14]) if tokens[14] else None)
-        self.columns['_NUM_BOTTLES'].append(int(tokens[15]) if tokens[15] else None)
+        self.columns['DEPTH'].append(int_or_none(tokens[11]))
+        self.columns['_ABOVE_BOTTOM'].append(int_or_none(tokens[12]))
+        self.columns['_WIRE_OUT'].append(int_or_none(tokens[13]))
+        self.columns['_MAX_PRESSURE'].append(int_or_none(tokens[14]))
+        self.columns['_NUM_BOTTLES'].append(int_or_none(tokens[15]))
         self.columns['_PARAMETERS'].append(identity_or_none(tokens[16]))
         self.columns['_COMMENTS'].append(identity_or_none(tokens[17]))
   def write_Summary_WOCE(self, handle):
@@ -520,19 +522,19 @@ class DataFile:
       expected_units = self.columns[parameter].parameter.units_mnemonic
       if expected_units != unit:
         warn("Mismatched expected units '%s' with given units '%s'" % (expected_units, unit))
-  def read_WOCE_data(handle, parameters_line, units_line, asterisk_line):
+  def read_WOCE_data(self, handle, parameters_line, units_line, asterisk_line):
     column_width = 8
     safe_column_width = column_width-1
-    num_quality_flags = len(asterisk_line.split(' ')) # i.e. the number of asterisk-marked columns
+    num_quality_flags = len(findall('\*{7,8}', asterisk_line)) # i.e. the number of asterisk-marked columns
     num_quality_words = len(parameters_line.split('QUALT'))-1
     quality_length = num_quality_words * (num_quality_flags+1) # The extra 1 is for spacing between the columns
     num_param_columns = int((len(parameters_line) - quality_length) / column_width)
 
     # Unpack the column headers
-    unpack_str = "a8" * num_param_columns
-    parameters = strip_all(unpack(unpack_str, parameters_line))
-    units = strip_all(unpack(unpack_str, units_line))
-    asterisks = strip_all(unpack(unpack_str, asterisk_line))
+    unpack_str = '8s' * num_param_columns
+    parameters = strip_all(unpack(unpack_str, parameters_line[:num_param_columns*8]))
+    units = strip_all(unpack(unpack_str, units_line[:num_param_columns*8]))
+    asterisks = strip_all(unpack(unpack_str, asterisk_line[:num_param_columns*8]))
 
     # Warn if the header lines break 8 character column rules
     for parameter in parameters:
@@ -552,18 +554,19 @@ class DataFile:
     self.create_columns(parameters, units)
 
     # Get each data line
-    unpack_str += ('a'+str(num_quality_flags)) * num_quality_flags # Add on quality to unpack string
+    unpack_str += ('x'+str(num_quality_flags)+'s') * num_quality_words # Add on quality to unpack string
     for line in handle:
-      unpacked = unpack(unpack_str, line)
+      unpacked = unpack(unpack_str, line.rstrip())
 
       # QUALT1 takes precedence
-      quality_flags = unpacked[-num_quality_flags:]
+      quality_flags = unpacked[-num_quality_words:]
 
       # Build up the columns for the line
       flag_i = 0
       for i, parameter in enumerate(parameters):
         datum = float(unpacked[i])
         if datum is -9.0: datum = NaN
+        woce_flag = None
         if not asterisks[i].strip() == '': # Only assign flag if column is flagged.
           woce_flag = int(quality_flags[0][flag_i])
           flag_i += 1
@@ -595,7 +598,6 @@ class DataFile:
     cursor.close()
     connection.close()
   def write_nav(self, handle):
-    print 'haha!', len(self), self.columns['_DATETIME'].values
     nav = uniquify(map(lambda coord: '%3.3f %3.3f %d %s %s\n' % coord, zip(self.columns['LONGITUDE'].values,
                                                                            self.columns['LATITUDE'].values,
                                                                            self.columns['STNNBR'].values,
@@ -673,7 +675,7 @@ class DataFile:
       l = handle.readline()
     # Read NUMBER_HEADERS
     num_headers = compile('NUMBER_HEADERS\s+=\s+(\d+)')
-    m = num_headers.match(handle.readline())
+    m = num_headers.match(l)
     if m:
       num_headers = int(m.group(1))-1 # NUMBER_HEADERS counts itself as a header
     else:
@@ -1057,12 +1059,12 @@ class DataFile:
       parameters_line = handle.readline()
       units_line = handle.readline()
       asterisk_line = handle.readline()
-      self.header.append([stamp_line, parameters_line, units_line, asterisk_line])
-    except:
-      raise ValueError('Unexpected WOCE header in Bottle file')
+      self.header+='\n'.join([stamp_line, parameters_line, units_line, asterisk_line])
+    except Exception, e:
+      raise ValueError('Malformed WOCE header in WOCE Bottle file: %s' % e)
     # Get stamp
-    stamp = compile('EXPOCODE\s*([\w/]+)\s*WHP.?ID\s*([\w/]+(,[\w/]+))\s*CRUISE DATES\s*(\d{6}) TO (\d{6})\s*(\d{8}\w+)')
-    m = stamp.match(handle.readline())
+    stamp = compile('EXPOCODE\s*([\w/]+)\s*WHP.?ID\s*([\w/]+(,[\w/]+)*)\s*CRUISE DATES\s*(\d{6}) TO (\d{6})\s*(\d{8}\w+)')
+    m = stamp.match(stamp_line)
     if m:
       self.globals['EXPOCODE'] = m.group(1)
       self.globals['SECT_ID'] = strip_all(m.group(2).split(','))
@@ -1070,12 +1072,25 @@ class DataFile:
       self.globals['_END_DATE'] = m.group(4)
       self.stamp = m.group(5)
     else:
-      raise ValueError('Expected ExpoCode, SectIDs, dates, and a stamp. Invalide WOCE record 1.')
+      raise ValueError('Expected ExpoCode, SectIDs, dates, and a stamp. Invalid WOCE record 1.')
     # Validate the parameter line
     if 'STNNBR' not in parameters_line or 'CASTNO' not in parameters_line:
       raise ValueError('Expected STNNBR and CASTNO in parameters record')
-
     self.read_WOCE_data(handle, parameters_line, units_line, asterisk_line)
+    try:
+      self.columns['DATE']
+    except KeyError:
+      self.columns['DATE'] = Column('DATE')
+      self.columns['DATE'].values = ['0000-00-00'] * len(self)
+    try:
+      self.columns['TIME']
+    except KeyError:
+      self.columns['TIME'] = Column('TIME')
+      self.columns['TIME'].values = ['0000'] * len(self)
+    self.columns['_DATETIME'] = Column('_DATETIME')
+    self.columns['_DATETIME'].values = [datetime.strptime(str(int(d))+('%04d' % int(t)), '%Y%m%d%H%M') for d,t in zip(self.columns['DATE'].values, self.columns['TIME'].values)]
+    del self.columns['DATE']
+    del self.columns['TIME']
   def write_Bottle_WOCE(self, handle):
     '''How to write a Bottle WOCE file.'''
     raise NotImplementedError # TODO
@@ -1134,15 +1149,26 @@ class DataFile:
         except:
           pass
         if column.endswith('_FLAG_W'):
-          self.columns[column[:-7]].flags_woce.append(value)
+          try:
+            self.columns[column[:-7]].flags_woce.append(value)
+          except KeyError:
+            warn('Flag WOCE column exists for parameter %s but parameter column does not exist.' % column[:-7])
         elif column.endswith('_FLAG_I'):
-          self.columns[column[:-7]].flags_igoss.append(value)
+          try:
+            self.columns[column[:-7]].flags_igoss.append(value)
+          except KeyError:
+            warn('Flag IGOSS column exists for parameter %s but parameter column does not exist.' % column[:-7])
         else:
           self.columns[column].append(value)
       l = handle.readline().strip()
     # Format all data to be what it is
     self.columns['LATITUDE'].values = map(lambda x: float(x), self.columns['LATITUDE'].values)
     self.columns['LONGITUDE'].values = map(lambda x: float(x), self.columns['LONGITUDE'].values)
+    try:
+      self.columns['DATE']
+    except KeyError:
+      self.columns['DATE'] = Column('DATE')
+      self.columns['DATE'].values = ['0000-00-00'] * len(self)
     try:
       self.columns['TIME']
     except KeyError:
@@ -1386,6 +1412,12 @@ class DataFileCollection:
   def write_CTDZip_ODEN(self, handle):
     '''How to write CTD ODEN files to a Zip.'''
     raise NotImplementedError # OMIT
+  def read_CTDZip_NetCDF(self, handle):
+    '''How to read CTD NetCDF files from a Zip.'''
+    raise NotImplementedError
+  def write_CTDZip_NetCDF(self, handle):
+    '''How to write CTD NetCDF files to a Zip.'''
+    raise NotImplementedError
   # WOCE does not specify a BottleZip.
   # WHP-Exchange does not specify a BottleZip.
   def read_BottleZip_NetCDF(self, handle):
