@@ -1334,15 +1334,14 @@ class DataFile:
     def wire_row(i):
       raw_values = global_values + [self.columns[hdr][i] for hdr in column_headers]
       def raw_to_str(raw):
-        if isnan(raw):
-          return '-Infinity'
+        if isinstance(raw, float):
+          if isnan(raw):
+            return '-Infinity'
+          return str(raw)
+        if isinstance(raw, datetime):
+          return 'new Date(%s)' % raw.strftime('%Y,%m,%d,%H,%M')
         else:
-          if isinstance(raw, float):
-            return str(raw)
-          if isinstance(raw, datetime):
-            return 'new Date(%s)' % raw.strftime('%Y,%m,%d,%H,%M')
-          else:
-            return "'%s'" % str(raw)
+          return "'%s'" % str(raw)
       row_values = ['{v:%s}' % raw_to_str(raw) for raw in raw_values]
       return '{c:[%s]}' % ','.join(row_values)
     wire_rows = [wire_row(i) for i in range(len(self))]
