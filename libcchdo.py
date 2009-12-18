@@ -478,7 +478,7 @@ class SummaryFile:
   def write_Summary_HOT(self, handle):
     raise NotImplementedError # OMIT
   def write_nav(self, handle): # TODO consolidate with DataFile's write_nav? Same code.
-    nav = uniquify(map(lambda coord: '%3.3f %3.3f %d %s %s\n' % coord, zip(self.columns['LONGITUDE'].values,
+    nav = uniquify(map(lambda coord: '%3.3f\t%3.3f\t%d\t%s\t%s\n' % coord, zip(self.columns['LONGITUDE'].values,
                                                                            self.columns['LATITUDE'].values,
                                                                            self.columns['STNNBR'].values,
                                                                            self.columns['DATE'].values,
@@ -598,7 +598,7 @@ class DataFile:
     cursor.close()
     connection.close()
   def write_nav(self, handle):
-    nav = uniquify(map(lambda coord: '%3.3f %3.3f %d %s %s\n' % coord, zip(self.columns['LONGITUDE'].values,
+    nav = uniquify(map(lambda coord: '%3.3f\t%3.3f\t%d\t%s\t%s\n' % coord, zip(self.columns['LONGITUDE'].values,
                                                                            self.columns['LATITUDE'].values,
                                                                            self.columns['STNNBR'].values,
                                                                            map(lambda d: d.strftime('%Y-%m-%d'), self.columns['_DATETIME'].values),
