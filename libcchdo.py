@@ -25,18 +25,15 @@ from __future__ import with_statement
 try:
   from netCDF3 import Dataset
 except ImportError, e:
-  print e, "\n", 'You should get netcdf4-python from http://code.google.com/p/netcdf4-python and install the NetCDF 3 module as directed by the README.'
-  exit(1)
+  raise ImportError('%s\n%s' % (e, 'You should get netcdf4-python from http://code.google.com/p/netcdf4-python and install the NetCDF 3 module as directed by the README.'))
 try:
   import pgdb
 except ImportError, e:
-  print e, "\n", 'You should get pygresql from http://www.pygresql.org/readme.html#where-to-get. You will need Postgresql with server binaries installed already.'
-  exit(1)
+  raise ImportError('%s\n%s' % (e, 'You should get pygresql from http://www.pygresql.org/readme.html#where-to-get. You will need Postgresql with server binaries installed already.'))
 try:
   import MySQLdb
 except ImportError, e:
-  print e, "\n", 'You should get MySQLdb from http://sourceforge.net/projects/mysql-python. You will need MySQL with server binaries installed already.'
-  exit(1)
+  raise ImportError('%s\n%s' % (e, 'You should get MySQLdb from http://sourceforge.net/projects/mysql-python. You will need MySQL with server binaries installed already.'))
 from datetime import date, datetime
 from numpy import dtype
 from math import sin, cos, acos, pow, pi
@@ -44,7 +41,6 @@ from os import listdir, remove, rmdir
 from os.path import exists
 from re import compile, findall
 from struct import unpack
-from sys import exit
 from StringIO import StringIO
 from tempfile import mkdtemp
 from types import FloatType
@@ -85,8 +81,7 @@ def connect_postgresql():
                         host='goship.ucsd.edu',
                         database='cchdotest')
   except pgdb.Error, e:
-    print "Database error: %s" % e
-    exit(1)
+    raise IOError("Database error: %s" % e)
 def connect_mysql():
   try:
     return MySQLdb.connect(user='jfields',
@@ -94,8 +89,7 @@ def connect_mysql():
                            host='watershed.ucsd.edu',
                            db='cchdo')
   except MySQLdb.Error, e:
-    print "Database error: %s" % e
-    exit(1)
+    raise IOError("Database error: %s" % e)
 
 def read_arbitrary(filename):
   if not exists(filename): raise ValueError("The file '%s' does not exist" % filename)
