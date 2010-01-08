@@ -486,6 +486,7 @@ class DataFile:
     self.header = ''
     self.footer = None
     self.globals = {}
+    self.allow_contrived = False
   def expocodes(self):
     return uniquify(self.columns['EXPOCODE'].values)
   def __len__(self):
@@ -512,7 +513,11 @@ class DataFile:
   def create_columns(self, parameters, units):
     for parameter, unit in zip(parameters, units):
       if parameter.endswith('FLAG_W') or parameter.endswith('FLAG_I'): continue
-      self.columns[parameter] = Column(parameter)
+      try:
+        self.columns[parameter] = Column(parameter)
+      except NameError:
+        if self.allow_contrived:
+          self.columns[parameter] = Column(parameter, True);
       expected_units = self.columns[parameter].parameter.units_mnemonic
       if expected_units != unit:
         warn("Mismatched expected units '%s' with given units '%s'" % (expected_units, unit))

@@ -9,6 +9,7 @@ if len(argv) < 2:
   print 'Usage:', argv[0], '<exbot file>'
   exit(1)
 file = libcchdo.DataFile()
+file.allow_contrived = True
 with open(argv[1], 'r') as in_file:
   file.read_Bottle_Exchange(in_file)
 file.write_Google_Wire(stdout)
