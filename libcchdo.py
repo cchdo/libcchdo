@@ -188,7 +188,8 @@ def out_of_band(value):
 # $Id: depth.c,v 11589a696ce7 2008/10/15 22:56:57 fdelahoyde $
 # depth.c	1.1	Solaris 2.3 Unix	940906	SIO/ODF	fmd
 
-PARTIAL_PRES_WATER = 2.184e-6 # TODO confirm this with Jim
+DGRAV_DPRES = 2.184e-6 # Correction for gravity as pressure increases (closer
+                       # to center of Earth
 
 def depth(grav, p, rho, depth):
   '''
@@ -218,12 +219,12 @@ def depth(grav, p, rho, depth):
     if p[0] > 15.0:
       depth[0] = 0.0
     else:
-      depth[0] = p[0]/(rho[0]*10000.0*(grav+PARTIAL_PRES_WATER*p[0]))
+      depth[0] = p[0]/(rho[0]*10000.0*(grav+DGRA_DPRES*p[0]))
   # Calculate the rest of the series.
   for i in range(0, num_intervals-2):
     j = i+1
     # depth in meters
-    depth[j] = depth[i] + (p[j]-p[i]) / ((rho[j]+rho[i])*5000.0*(grav+PARTIAL_PRES_WATER*p[j]))
+    depth[j] = depth[i] + (p[j]-p[i]) / ((rho[j]+rho[i])*5000.0*(grav+DGRA_DPRES*p[j]))
 
 def depth_unesco(pres, lat):
   '''
