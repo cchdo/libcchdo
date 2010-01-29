@@ -1,4 +1,4 @@
-# libcchd oPython
+# libcchdo Python
 #
 # Dependencies
 # ------------
@@ -136,9 +136,6 @@ def great_circle_distance(lat_stand, lng_stand, lat_fore, lng_fore):
 
   arc_length = RADIUS_EARTH * central_angle
   return arc_length
-
-def deg_to_rad(deg):
-  return deg * pi / 180.0
 
 def woce_lat_to_dec_lat(lattoks):
   lat = int(lattoks[0]) + float(lattoks[1])/60.0
