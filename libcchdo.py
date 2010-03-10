@@ -39,7 +39,7 @@ from numpy import dtype
 from math import sin, cos, acos, pow, pi
 from os import listdir, remove, rmdir
 from os.path import exists
-from re import compile, findall
+from re import compile, findall, finditer
 from struct import unpack
 from StringIO import StringIO
 from tempfile import mkdtemp
@@ -364,16 +364,14 @@ class SummaryFile:
       if header:
         if header_delimiter.match(line):
           header = False
-          stops = self.header.split('\n')[-2].split(' ')
-          current_char = 0
+          # Stops are tuples (beginning of column, end of column)
+          # This is to delimit the columns of the sumfile
+          stops = finditer('\w+\s*', self.header.split('\n')[-2])
           for stop in stops:
-            if stop == '':
-              current_char += 1
-              column_widths[-1] += 1
-            else:
-              column_starts.append(current_char)
-              column_widths.append(len(stop))
-              current_char += len(stop)+1 # Account for splitted ' '. It gets destroyed in the split.
+            start = stop[0]
+            if len(column_starts) is 0:
+              column_starts.append(0)
+            column_widths.append(stop[1]-start)
         else:
           self.header += line
       else:
