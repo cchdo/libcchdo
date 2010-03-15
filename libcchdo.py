@@ -259,34 +259,67 @@ class Parameter:
       self.display_order = -9999
       self.aliases = []
     else:
-      connection = connect_postgresql()
-      cursor = connection.cursor()
-      select = ','.join(['parameters.name', 'format', 'description', 'units',
-                         'bound_lower', 'bound_upper', 'units.mnemonic_woce',
-                         'parameters_orders.order'])
-      cursor.execute("SELECT "+select+"""
-                      FROM parameters
-                      INNER JOIN parameters_aliases ON parameters.id = parameters_aliases.parameter_id
-                      LEFT JOIN parameters_orders ON parameters.id = parameters_orders.parameter_id
-                      LEFT JOIN units ON parameters.units = units.id
-                      WHERE parameters_aliases.name = %s
-                      LIMIT 1""", (parameter_name,))
-      row = cursor.fetchone()
-      if row:
-        self.full_name = row[0]
-        self.format = row[1].strip()
-        self.description = row[2]
-        self.units = row[3]
-        self.bound_lower = row[4]
-        self.bound_upper = row[5]
-        self.units_mnemonic = row[6]
-        self.woce_mnemonic = parameter_name
-        self.display_order = row[7] or -9999
-        self.aliases = []
-      else:
-        connection.close()
-        raise NameError("'"+parameter_name+"' is not in CCHDO's parameter list.")
+      try:
+        self.init_from_postgresql()
+      except pgdb.Error:
+        try:
+          self.init_from_mysql()
+        except MySQLdb.Error:
+          raise EnvironmentError("No databases could be used for parameter verification")
+  def init_from_postgresql(self):
+    connection = connect_postgresql()
+    cursor = connection.cursor()
+    select = ','.join(['parameters.name', 'format', 'description', 'units',
+                       'bound_lower', 'bound_upper', 'units.mnemonic_woce',
+                       'parameters_orders.order'])
+    cursor.execute("SELECT "+select+"""
+                    FROM parameters
+                    INNER JOIN parameters_aliases ON parameters.id = parameters_aliases.parameter_id
+                    LEFT JOIN parameters_orders ON parameters.id = parameters_orders.parameter_id
+                    LEFT JOIN units ON parameters.units = units.id
+                    WHERE parameters_aliases.name = %s
+                    LIMIT 1""", (parameter_name,))
+    row = cursor.fetchone()
+    if row:
+      self.full_name = row[0]
+      self.format = row[1].strip()
+      self.description = row[2]
+      self.units = row[3]
+      self.bound_lower = row[4]
+      self.bound_upper = row[5]
+      self.units_mnemonic = row[6]
+      self.woce_mnemonic = parameter_name
+      self.display_order = row[7] or -9999
+      self.aliases = []
+    else:
       connection.close()
+      raise NameError("'"+parameter_name+"' is not in CCHDO's parameter list.")
+    connection.close()
+  def init_from_mysql(self):
+    connection = connect_mysql()
+    cursor = connection.cursor()
+    select = ','.join(['FullName', 'RubyPrecision', 'Description', 'Units',
+                       'Range', 'Unit_Mnemonic', 'Alias'])
+    cursor.execute("SELECT "+select+"""
+                    FROM parameter_descriptions
+                    WHERE Parameter LIKE %s
+                    LIMIT 1""", (parameter_name,))
+    row = cursor.fetchone()
+    if row:
+      self.full_name = row[0]
+      self.format = row[1].strip()
+      self.description = row[2]
+      self.units = row[3]
+      self.bound_lower = row[4].split(',')[0]
+      self.bound_upper = row[4].split(',')[1]
+      self.units_mnemonic = row[5]
+      self.woce_mnemonic = parameter_name
+      self.display_order = -9999
+      self.aliases = row[6].split(',')
+    else:
+      connection.close()
+      raise NameError("'"+parameter_name+"' is not in CCHDO's parameter list.")
+    connection.close()
   def __eq__(self, other):
     return self.woce_mnemonic == other.woce_mnemonic
   def __str__(self):
