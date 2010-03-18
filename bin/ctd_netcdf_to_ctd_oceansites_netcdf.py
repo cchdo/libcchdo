@@ -12,7 +12,8 @@ file = libcchdo.DataFile()
 with open(argv[1], 'r') as in_file:
   file.read_CTD_NetCDF(in_file)
 with open(argv[2], 'w') as out_file:
-  argv[3] = argv[3].strip()
+  if argv[3]:
+    argv[3] = argv[3].strip()
   if argv[3] == 'BATS':
     print 'Printing a BATS OceanSITES NetCDF'
     file.write_CTD_NetCDF_OceanSITES_BATS(out_file)
