@@ -39,7 +39,7 @@ from numpy import dtype
 from math import sin, cos, acos, pow, pi
 from os import listdir, remove, rmdir
 from os.path import exists
-from re import compile, findall
+from re import compile, findall, finditer
 from struct import unpack
 from StringIO import StringIO
 from tempfile import mkdtemp
@@ -397,16 +397,14 @@ class SummaryFile:
       if header:
         if header_delimiter.match(line):
           header = False
-          stops = self.header.split('\n')[-2].split(' ')
-          current_char = 0
+          # Stops are tuples (beginning of column, end of column)
+          # This is to delimit the columns of the sumfile
+          stops = finditer('\w+\s*', self.header.split('\n')[-2])
           for stop in stops:
-            if stop == '':
-              current_char += 1
-              column_widths[-1] += 1
-            else:
-              column_starts.append(current_char)
-              column_widths.append(len(stop))
-              current_char += len(stop)+1 # Account for splitted ' '. It gets destroyed in the split.
+            start = stop[0]
+            if len(column_starts) is 0:
+              column_starts.append(0)
+            column_widths.append(stop[1]-start)
         else:
           self.header += line
       else:
@@ -779,6 +777,7 @@ class DataFile:
     handle.close()
     nc_file = Dataset(filename, 'r')
     # Create columns for all the variables and get all the data.
+    # Map the nc_ctd variable to drop to skip the variable.
     nc_ctd_var_to_woce_param = {'cast': 'CASTNO',
                                 'temperature': 'CTDTMP',
                                 'time': 'drop',
@@ -802,14 +801,25 @@ class DataFile:
           continue
         self.columns[name] = Column(name)
         self.columns[name].values = variable[:].tolist()
-        if name == 'STNNBR' or name == 'CASTNO':
+        # CCHDO NetCDFs have STNNBR and CASTNO as an array of characters.
+        # Collapse them into a string.
+        if name in ['STNNBR', 'CASTNO']:
           self.columns[name].values = [''.join(self.columns[name].values)]
-        if len(self.columns[name].values) <= 1 or not self.columns[name].values[1]:
+        # Translate string date YYYYMMDD to date object
+        if name in ['DATE']:
+          string = str(self.columns[name].values[0])
+          self.columns[name].values[0] = '%s-%s-%s' % (string[0:4], string[4:6], string[6:8])
+        # If the column has only one data point it should be in the globals
+        if len(self.columns[name].values) <= 1:
           self.globals[name] = self.columns[name].get(0)
           del self.columns[name]
     # Second pass to put in flags
     for name, variable in qc_vars.items():
-      self.columns[name].flags_woce = variable[:].tolist()
+      if name in self.columns:
+        self.columns[name].flags_woce = variable[:].tolist()
+      else:
+        # The column is probably a global
+        pass
     # Rename globals to CCHDO recognized ones
     global_attrs = nc_file.__dict__
     globals_to_rename_as = {'CAST_NUMBER': 'CASTNO',
@@ -836,9 +846,8 @@ class DataFile:
     handle.close()
     strdate = str(self.globals['DATE']) 
     strtime = str(self.globals['TIME']).rjust(4, '0')
-    isowocedate = datetime(int(strdate[0:4]), int(strdate[5:6]), int(strdate[7:8]),
+    isowocedate = datetime(int(strdate[0:4]), int(strdate[5:7]), int(strdate[8:10]),
 		                       int(strtime[0:2]), int(strtime[3:5]))
-
     nc_file = Dataset(filename, 'w', format='NETCDF3_CLASSIC')
     nc_file.data_type = 'OceanSITES time-series CTD data'
     nc_file.format_version = '1.1'
@@ -869,7 +878,7 @@ class DataFile:
     nc_file.time_coverage_end = isowocedate.isoformat()+'Z'
 
     nc_file.createDimension('TIME')
-    nc_file.createDimension('PRES', len(self))
+    nc_file.createDimension('DEPTH', len(self))
     nc_file.createDimension('LATITUDE', 1)
     nc_file.createDimension('LONGITUDE', 1)
     nc_file.createDimension('POSITION', 1)
@@ -911,17 +920,17 @@ class DataFile:
     var_longitude.uncertainty = 0.0045/cos(self.globals['LATITUDE']) # Matthias Lankhorst
     var_longitude.axis = 'X'
 
-    var_pressure = nc_file.createVariable('PRES', 'f', ('PRES',))
-    var_pressure.long_name = 'sea water pressure'
-    var_pressure.standard_name = 'sea_water_pressure'
-    var_pressure.units = 'decibar'
-    var_pressure._FillValue = NaN
-    var_pressure.valid_min = 0.0
-    var_pressure.valid_max = 12000.0
-    var_pressure.QC_indicator = 7 # Matthias Lankhorst
-    var_pressure.QC_procedure = 5 # Matthias Lankhorst
-    var_pressure.uncertainty = 2.0
-    var_pressure.axis = 'Z'
+    var_depth = nc_file.createVariable('DEPTH', 'f', ('DEPTH',))
+    var_depth.long_name = 'Depth of each measurement'
+    var_depth.standard_name = 'depth'
+    var_depth.units = 'meters'
+    var_depth._FillValue = -99999.0
+    var_depth.valid_min = 0.0
+    var_depth.valid_max = 12000.0
+    var_depth.QC_indicator = 8 # Subject: OceanSITES: more on QC flags, uncertainty, depth Interpolated from latitude and pressure.
+    var_depth.QC_procedure = 2 # See above
+    var_depth.uncertainty = 1.0 # A decibar
+    var_depth.axis = 'down' # oceanic
 
     since_1950 = isowocedate - datetime(1950, 1, 1)
     var_time[:] = [since_1950.days + since_1950.seconds/86400.0]
@@ -933,18 +942,19 @@ class DataFile:
       'ctd_pressure': 'PRES',
       'ctd_temperature': 'TEMP',
       'ctd_oxygen': 'DOXY',
-      'ctd_salinity': 'PSAL'
+      'ctd_salinity': 'PSAL',
     }
     oceansites_variables = {
       'TEMP': {'long': 'sea water temperature', 'std': 'sea_water_temperature', 'units': 'degree_Celsius'},
       'DOXY': {'long': 'dissolved oxygen', 'std': 'dissolved_oxygen', 'units': 'micromole/kg'},
-      'PSAL': {'long': 'sea water salinity', 'std': 'sea_water_salinity', 'units': 'psu'}
+      'PSAL': {'long': 'sea water salinity', 'std': 'sea_water_salinity', 'units': 'psu'},
+      'PRES': {'long': 'sea water pressure', 'std': 'sea_water_pressure', 'units': 'decibars'}, # valid_min 0.0, valid_max 12000.0, QC_indicator =7, QC_procedure = 5, uncertainty 2.0
     }
     oceansites_uncertainty = {
       'TEMP': 0.002,
       'PSAL': 0.005,
       'DOXY': Infinity,
-      'PRES': Infinity
+      'PRES': Infinity,
     }
 
     for column in self.columns.values():
@@ -952,8 +962,7 @@ class DataFile:
       if name in param_to_oceansites.keys():
         name = param_to_oceansites[name]
       # Write variable
-      if name is not 'PRES':
-        var = nc_file.createVariable(name, 'f8', ('PRES',))
+        var = nc_file.createVariable(name, 'f8', ('DEPTH',))
         variable = oceansites_variables[name]
         var.long_name = variable['long'] or ''
         var.standard_name = variable['std'] or ''
@@ -967,12 +976,27 @@ class DataFile:
         var.cell_methods = 'TIME: point DEPTH: average LATITUDE: point LONGITUDE: point'
         var.uncertainty = oceansites_uncertainty[name]
         var[:] = column.values
-      else:
-        var_pressure[:] = column.values
+      if name is 'PRES':
+        ## Fun using Sverdrup's depth integration with density.
+        ## TODO ask Jim how to calculate density here rho(T,S,p) or rho(T,S,0)
+        #def density(temp, salinity):
+        #  '''Density in (kg/m^3) from temp (C) and salinity (PSU)     sigma-t+1000'''
+        #  return (999.842594)+(0.06793952*temp)-(9.09529e-3*temp ** 2)+(1.001685e-4*temp ** 3)-(1.120083e-6*temp ** 4)+
+        #         (6.536332e-9*temp ** 5)+(0.824493*salinity)-(4.0899e-3*temp*salinity)+(7.6438e-5*temp ** 2*salinity)-
+        #         (8.2467e-7*temp ** 3*salinity)+(5.3875e-9*temp ** 4*salinity)-(5.72466e-3*salinity ** (3/2))+
+        #         (1.0226e-4*temp*salinity ** (3/2))-(1.6546e-6*temp ** 2*salinity ** (3/2))+(4.8314e-4*salinity ** 2)
+        #def grav_ocean_surface_wrt_latitude(latitude):
+        #  return 9.780318*(1.0 + 5.2788e-3 * sin(latitude) ** 2 + 2.35e-5 * sin(latitude) ** 4)
+        #localgrav = grav_ocean_surface_wrt_latitude(latitude)
+        #density_series = [] #????????
+        #depth_series = []
+        #depth(localgrav, column.values, density_series, depth_series)
+        depth_series = map(lambda pres: depth_unesco(pres, self.globals['LATITUDE']), self.columns['CTDPRS'].values)
+        var_depth[:] = depth_series
       # Write QC variable
       if column.is_flagged_woce():
         var.ancillary_variables = name+'_QC'
-        flag = nc_file.createVariable(name+'_QC', 'b', ('PRES',))
+        flag = nc_file.createVariable(name+'_QC', 'b', ('DEPTH',))
         flag.long_name = 'quality flag'
         flag.conventions = 'OceanSITES reference table 2'
         flag._FillValue = -128
@@ -1000,7 +1024,7 @@ class DataFile:
     nc_file.title = ' '.join(['BATS CTD Timeseries', 'ExpoCode='+self.globals['EXPOCODE'],
                               'Station='+self.globals['STNNBR'], 'Cast='+self.globals['CASTNO']])
     strdate = str(self.globals['DATE']) 
-    isodate = datetime(int(strdate[0:4]), int(strdate[5:6]), int(strdate[7:8]), 0, 0)
+    isodate = datetime(int(strdate[0:4]), int(strdate[5:7]), int(strdate[8:10]), 0, 0)
     stringdate = isodate.date().isoformat().replace('-', '')
     nc_file.platform_code = 'BATS'
     nc_file.institution = 'Bermuda Institute of Ocean Sciences'
