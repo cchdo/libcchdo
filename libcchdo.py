@@ -260,13 +260,13 @@ class Parameter:
       self.aliases = []
     else:
       try:
-        self.init_from_postgresql()
+        self.init_from_postgresql(parameter_name)
       except pgdb.Error:
         try:
-          self.init_from_mysql()
+          self.init_from_mysql(parameter_name)
         except MySQLdb.Error:
           raise EnvironmentError("No databases could be used for parameter verification")
-  def init_from_postgresql(self):
+  def init_from_postgresql(self, parameter_name):
     connection = connect_postgresql()
     cursor = connection.cursor()
     select = ','.join(['parameters.name', 'format', 'description', 'units',
@@ -295,7 +295,7 @@ class Parameter:
       connection.close()
       raise NameError("'"+parameter_name+"' is not in CCHDO's parameter list.")
     connection.close()
-  def init_from_mysql(self):
+  def init_from_mysql(self, parameter_name):
     connection = connect_mysql()
     cursor = connection.cursor()
     select = ','.join(['FullName', 'RubyPrecision', 'Description', 'Units',
@@ -546,9 +546,11 @@ class DataFile:
       if parameter.endswith('FLAG_W') or parameter.endswith('FLAG_I'): continue
       try:
         self.columns[parameter] = Column(parameter)
-      except NameError:
+      except NameError, e:
         if self.allow_contrived:
           self.columns[parameter] = Column(parameter, True);
+        else:
+          raise e
       expected_units = self.columns[parameter].parameter.units_mnemonic
       if expected_units != unit:
         warn("Mismatched expected units '%s' with given units '%s'" % (expected_units, unit))
@@ -1125,92 +1127,11 @@ class DataFile:
     '''How to write a Bottle WOCE file.'''
     raise NotImplementedError # TODO
   def read_Bottle_Exchange(self, handle):
-    '''How to read a Bottle Exchange file.'''
-    # Read identifier and stamp
-    stamp = compile('BOTTLE,(\d{8}\w+)')
-    m = stamp.match(handle.readline())
-    if m:
-      self.stamp = m.group(1)
-    else:
-      raise ValueError("Expected identifier line with stamp (e.g. BOTTLE,YYYYMMDDdivINSwho)")
-    # Read comments
-    l = handle.readline()
-    while l and l.startswith('#'):
-      self.header += l
-      l = handle.readline()
-    # Read columns and units
-    columns = l.strip().split(',')
-    units = handle.readline().strip().split(',')
-    
-    # Check columns and units to match length
-    if len(columns) is not len(units):
-      raise ValueError("Expected as many columns as units in file. Found %d columns and %d units." % (len(columns), len(units)))
-
-    # Check for unique identifer
-    identifier = []
-    if 'EXPOCODE' in columns and 'STNNBR' in columns and 'CASTNO' in columns:
-      identifier = ['STNNBR', 'CASTNO']
-      if 'SAMPNO' in columns:
-        identifier.append('SAMPNO')
-        if 'BTLNBR' in columns:
-          identifier.append('BTLNBR')
-      elif 'BTLNBR' in columns:
-        identifier.append('BTLNBR')
-      else:
-        raise ValueError('No unique identifer found for file. (STNNBR,CASTNO,SAMPNO,BTLNBR),(STNNBR,CASTNO,SAMPNO),(STNNBR,CASTNO,BTLNBR)')
-
-    self.create_columns(columns, units)
-
-    # Read data
-    l = handle.readline().strip()
-    while l:
-      if l == 'END_DATA': break
-      values = l.split(',')
-      
-      # Check columns and values to match length
-      if len(columns) is not len(values):
-        raise ValueError("Expected as many columns as values in file. Found %d columns and %d values at data line %d" % (len(columns), len(values), len(self)+1))
-      for column, raw in zip(columns, values):
-        value = raw.strip()
-        if out_of_band(value):
-          value = NaN
-        try:
-          value = float(value)
-        except:
-          pass
-        if column.endswith('_FLAG_W'):
-          try:
-            self.columns[column[:-7]].flags_woce.append(value)
-          except KeyError:
-            warn('Flag WOCE column exists for parameter %s but parameter column does not exist.' % column[:-7])
-        elif column.endswith('_FLAG_I'):
-          try:
-            self.columns[column[:-7]].flags_igoss.append(value)
-          except KeyError:
-            warn('Flag IGOSS column exists for parameter %s but parameter column does not exist.' % column[:-7])
-        else:
-          self.columns[column].append(value)
-      l = handle.readline().strip()
-    # Format all data to be what it is
-    self.columns['LATITUDE'].values = map(lambda x: float(x), self.columns['LATITUDE'].values)
-    self.columns['LONGITUDE'].values = map(lambda x: float(x), self.columns['LONGITUDE'].values)
-    try:
-      self.columns['DATE']
-    except KeyError:
-      self.columns['DATE'] = Column('DATE')
-      self.columns['DATE'].values = ['0000-00-00'] * len(self)
-    try:
-      self.columns['TIME']
-    except KeyError:
-      self.columns['TIME'] = Column('TIME')
-      self.columns['TIME'].values = ['0000'] * len(self)
-    self.columns['_DATETIME'] = Column('_DATETIME')
-    self.columns['_DATETIME'].values = [datetime.strptime(str(int(d))+('%04d' % int(t)), '%Y%m%d%H%M') for d,t in zip(self.columns['DATE'].values, self.columns['TIME'].values)]
-    del self.columns['DATE']
-    del self.columns['TIME']
+    from libcchdo.bottle.exchange import exchange
+    return exchange(self).read(handle)
   def write_Bottle_Exchange(self, handle):
-    '''How to write a Bottle Exchange file.'''
-    raise NotImplementedError
+    from libcchdo.bottle.exchange import exchange
+    return exchange(self).write(handle)
   def read_Bottle_NetCDF(self, handle):
     '''How to read a Bottle NetCDF file.'''
     raise NotImplementedError
