@@ -35,13 +35,6 @@ class TestFunctions(TestCase):
     self.assertEqual(14095.0562929323, libcchdo.great_circle_distance(0, 0, 0, 180))
     # TODO check this value
 
-  def test_deg_to_rad(self):
-    self.assertEqual(0, libcchdo.deg_to_rad(0))
-    self.assertEqual(pi/2, libcchdo.deg_to_rad(90))
-    self.assertEqual(pi, libcchdo.deg_to_rad(180))
-    self.assertEqual(3*pi/2, libcchdo.deg_to_rad(270))
-    self.assertEqual(2*pi, libcchdo.deg_to_rad(360))
-
   def test_woce_lat_to_dec_lat(self):
     toks = ['12', '34.567', 'N']
     self.assertAlmostEqual(12.57611666667, libcchdo.woce_lat_to_dec_lat(toks))

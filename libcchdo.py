@@ -181,6 +181,9 @@ def out_of_band(value):
     return True
   return False
 
+def grav_ocean_surface_wrt_latitude(latitude):
+  return 9.780318*(1.0 + 5.2788e-3 * sin(latitude) ** 2 + 2.35e-5 * sin(latitude) ** 4)
+
 # Following two functions ports of
 # $Id: depth.c,v 11589a696ce7 2008/10/15 22:56:57 fdelahoyde $
 # depth.c	1.1	Solaris 2.3 Unix	940906	SIO/ODF	fmd
@@ -188,7 +191,7 @@ def out_of_band(value):
 DGRAV_DPRES = 2.184e-6 # Correction for gravity as pressure increases (closer
                        # to center of Earth
 
-def depth(grav, p, rho, depth):
+def depth(grav, p, rho):
   '''
   Calculate depth by integration of insitu density.
 
@@ -199,10 +202,13 @@ def depth(grav, p, rho, depth):
   grav - local gravity (m/sec^2) @ 0.0 db
   p - pressure series (decibars)
   rho - insitu density series (kg/m^3)
-  depth - depth series (meters)
+
+  Returns depth - depth series (meters)
   '''
+  depth = []
+
   num_intervals = len(p)
-  if not (num_intervals is len(rho) is len(depth)):
+  if not (num_intervals is len(rho)):
     raise ValueError("The number of series intervals must be the same.")
 
   # When calling depth() repeatedly with a two-element
@@ -214,14 +220,64 @@ def depth(grav, p, rho, depth):
     # If the integration starts from > 15 db, calculate depth relative to
     # starting place. Otherwise, calculate from surface.
     if p[0] > 15.0:
-      depth[0] = 0.0
+      depth.insert(0, 0.0)
     else:
-      depth[0] = p[0]/(rho[0]*10000.0*(grav+DGRA_DPRES*p[0]))
+      depth.insert(0, p[0]/(rho[0]*10000.0*(grav+DGRAV_DPRES*p[0])))
   # Calculate the rest of the series.
-  for i in range(0, num_intervals-2):
+  for i in range(0, num_intervals-1):
     j = i+1
     # depth in meters
-    depth[j] = depth[i] + (p[j]-p[i]) / ((rho[j]+rho[i])*5000.0*(grav+DGRA_DPRES*p[j]))
+    depth.insert(j, depth[i] + (p[j]-p[i]) / ((rho[j]+rho[i])*5000.0*(grav+DGRAV_DPRES*p[j]))*1e8)
+  return depth
+
+def polynomial(x, coeffs):
+  '''Gives the result of calculating coeffs[n]*x**n + coeffs[n-1]*x**n-1 + ... + coeffs[0]'''
+  if len(coeffs) <= 0:
+    return 0
+  sum = coeffs[0]
+  degreed = x
+  for coef in coeffs[1:]:
+    sum += coef * degreed
+    degreed *= x
+  return sum
+
+def secant_bulk_modulus(salinity, temperature, pressure):
+  '''Obtained from EOS80 according to Fofonoff Millard 1983 pg 15
+     Parameters:
+       salinity - [PSS-78]
+       temperature - [degrees Celsius IPTS-68]
+       pressure - pressure
+  '''
+  t = temperature
+  if pressure == 0:
+    E = (19652.21, 148.4206, -2.327105, 1.360477e-2, -5.155288e-5)
+    Kw = polynomial(t, E)
+    F = (54.6746, -0.603459, 1.09987e-2, -6.1670e-5)
+    G = (7.944e-2, 1.6483e-2, -5.3009e-4)
+    return Kw + polynomial(t, F)*salinity + polynomial(t, G)*salinity**(3.0/2.0)
+  H = (3.239908, 1.43713e-3, 1.16092e-4, -5.77905e-7)
+  Aw = polynomial(t, H)
+  I = (2.2838e-3, -1.0981e-5, -1.6078e-6)
+  j0 = 1.91075e-4
+  A = Aw + polynomial(t, I)*salinity + j0 * salinity**(3.0/2.0)
+
+  K = (8.50935e-5, -6.12293e-6, 5.2787e-8)
+  Bw = polynomial(t, K)
+  M = (-9.9348e-7, 2.0816e-8, 9.1697e-10)
+  B = Bw + polynomial(t, M)*salinity
+  return polynomial(pressure, (secant_bulk_modulus(salinity, temperature, 0), A, B))
+
+def density(salinity, temperature, pressure):
+  t = float(temperature)
+  if pressure == 0:
+    A = (999.842594, 6.793952e-2, -9.095290e-3, 1.001685e-4, -1.120083e-6, 6.536332e-9)
+    pw = polynomial(t, A)
+    B = (8.24493e-1, -4.0899e-3, 7.6438e-5, -8.2467e-7, 5.3875e-9)
+    C = (-5.72466e-3, 1.0227e-4, -1.6546e-6)
+    d0 = 4.8314e-4
+    return pw + polynomial(t, B)*salinity + polynomial(t, C)*salinity**(3.0/2.0) + d0*salinity**2
+  pressure /= 10 # Strange correction of one order of magnitude needed?
+  return density(salinity, t, 0) / (1-(pressure/secant_bulk_modulus(salinity, t, pressure)))
 
 def depth_unesco(pres, lat):
   '''
@@ -401,10 +457,10 @@ class SummaryFile:
           # This is to delimit the columns of the sumfile
           stops = finditer('\w+\s*', self.header.split('\n')[-2])
           for stop in stops:
-            start = stop[0]
+            start = stop.group(0)
             if len(column_starts) is 0:
               column_starts.append(0)
-            column_widths.append(stop[1]-start)
+            column_widths.append(stop.group(1)-start)
         else:
           self.header += line
       else:
@@ -977,21 +1033,13 @@ class DataFile:
         var.uncertainty = oceansites_uncertainty[name]
         var[:] = column.values
       if name is 'PRES':
-        ## Fun using Sverdrup's depth integration with density.
-        ## TODO ask Jim how to calculate density here rho(T,S,p) or rho(T,S,0)
-        #def density(temp, salinity):
-        #  '''Density in (kg/m^3) from temp (C) and salinity (PSU)     sigma-t+1000'''
-        #  return (999.842594)+(0.06793952*temp)-(9.09529e-3*temp ** 2)+(1.001685e-4*temp ** 3)-(1.120083e-6*temp ** 4)+
-        #         (6.536332e-9*temp ** 5)+(0.824493*salinity)-(4.0899e-3*temp*salinity)+(7.6438e-5*temp ** 2*salinity)-
-        #         (8.2467e-7*temp ** 3*salinity)+(5.3875e-9*temp ** 4*salinity)-(5.72466e-3*salinity ** (3/2))+
-        #         (1.0226e-4*temp*salinity ** (3/2))-(1.6546e-6*temp ** 2*salinity ** (3/2))+(4.8314e-4*salinity ** 2)
-        #def grav_ocean_surface_wrt_latitude(latitude):
-        #  return 9.780318*(1.0 + 5.2788e-3 * sin(latitude) ** 2 + 2.35e-5 * sin(latitude) ** 4)
-        #localgrav = grav_ocean_surface_wrt_latitude(latitude)
-        #density_series = [] #????????
-        #depth_series = []
-        #depth(localgrav, column.values, density_series, depth_series)
-        depth_series = map(lambda pres: depth_unesco(pres, self.globals['LATITUDE']), self.columns['CTDPRS'].values)
+        # Fun using Sverdrup's depth integration with density.
+        localgrav = grav_ocean_surface_wrt_latitude(self.globals['LATITUDE'])
+        density_series = [density(*args) for args in zip(self.columns['CTDSAL'].values, self.columns['CTDTMP'].values, column.values)]
+        depth_series = depth(localgrav, column.values, density_series)
+
+        #depth_series = map(lambda pres: depth_unesco(pres, self.globals['LATITUDE']), self.columns['CTDPRS'].values)
+
         var_depth[:] = depth_series
       # Write QC variable
       if column.is_flagged_woce():
@@ -1047,7 +1095,7 @@ class DataFile:
     nc_file.title = ' '.join(['HOT CTD Timeseries', 'ExpoCode='+self.globals['EXPOCODE'],
                               'Station='+self.globals['STNNBR'], 'Cast='+self.globals['CASTNO']])
     strdate = str(self.globals['DATE']) 
-    isodate = datetime(int(strdate[0:4]), int(strdate[5:6]), int(strdate[7:8]), 0, 0)
+    isodate = datetime(int(strdate[0:4]), int(strdate[5:7]), int(strdate[8:10]), 0, 0)
     stringdate = isodate.date().isoformat().replace('-', '')
     nc_file.platform_code = 'HOT'
     nc_file.institution = "University of Hawai'i School of Ocean and Earth Science and Technology"
@@ -1108,48 +1156,11 @@ class DataFile:
   def write_CTD_ODEN(self,handle):
     raise NotImplementedError # OMIT
   def read_Bottle_WOCE(self, handle):
-    '''How to read a Bottle WOCE file.'''
-    # Read Woce Bottle header
-    try:
-      stamp_line = handle.readline()
-      parameters_line = handle.readline()
-      units_line = handle.readline()
-      asterisk_line = handle.readline()
-      self.header+='\n'.join([stamp_line, parameters_line, units_line, asterisk_line])
-    except Exception, e:
-      raise ValueError('Malformed WOCE header in WOCE Bottle file: %s' % e)
-    # Get stamp
-    stamp = compile('EXPOCODE\s*([\w/]+)\s*WHP.?ID\s*([\w/]+(,[\w/]+)*)\s*CRUISE DATES\s*(\d{6}) TO (\d{6})\s*(\d{8}\w+)')
-    m = stamp.match(stamp_line)
-    if m:
-      self.globals['EXPOCODE'] = m.group(1)
-      self.globals['SECT_ID'] = strip_all(m.group(2).split(','))
-      self.globals['_BEGIN_DATE'] = m.group(3)
-      self.globals['_END_DATE'] = m.group(4)
-      self.stamp = m.group(5)
-    else:
-      raise ValueError('Expected ExpoCode, SectIDs, dates, and a stamp. Invalid WOCE record 1.')
-    # Validate the parameter line
-    if 'STNNBR' not in parameters_line or 'CASTNO' not in parameters_line:
-      raise ValueError('Expected STNNBR and CASTNO in parameters record')
-    self.read_WOCE_data(handle, parameters_line, units_line, asterisk_line)
-    try:
-      self.columns['DATE']
-    except KeyError:
-      self.columns['DATE'] = Column('DATE')
-      self.columns['DATE'].values = ['0000-00-00'] * len(self)
-    try:
-      self.columns['TIME']
-    except KeyError:
-      self.columns['TIME'] = Column('TIME')
-      self.columns['TIME'].values = ['0000'] * len(self)
-    self.columns['_DATETIME'] = Column('_DATETIME')
-    self.columns['_DATETIME'].values = [datetime.strptime(str(int(d))+('%04d' % int(t)), '%Y%m%d%H%M') for d,t in zip(self.columns['DATE'].values, self.columns['TIME'].values)]
-    del self.columns['DATE']
-    del self.columns['TIME']
+    from libcchdo.bottle.woce import woce
+    return woce(self).read(handle)
   def write_Bottle_WOCE(self, handle):
-    '''How to write a Bottle WOCE file.'''
-    raise NotImplementedError # TODO
+    from libcchdo.bottle.woce import woce
+    return woce(self).write(handle)
   def read_Bottle_Exchange(self, handle):
     from libcchdo.bottle.exchange import exchange
     return exchange(self).read(handle)
@@ -1157,170 +1168,14 @@ class DataFile:
     from libcchdo.bottle.exchange import exchange
     return exchange(self).write(handle)
   def read_Bottle_NetCDF(self, handle):
-    '''How to read a Bottle NetCDF file.'''
-    raise NotImplementedError
+    from libcchdo.bottle.netcdf import netcdf
+    return netcdf(self).read(handle)
   def write_Bottle_NetCDF(self, handle):
-    '''How to write a Bottle NetCDF file.'''
-    # This time, the handle is actually a path to a tempdir to give to the
-    # NetCDF library to write in.
-    expocode = self.columns['EXPOCODE'][0]
-    station = self.columns['STNNBR'][0].rjust(5, '0')
-    cast = self.columns['CASTNO'][0].rjust(5, '0')
-    filename = '_'.join(expocode, station, cast, 'hy1')+'.nc'
-    fullpath = handle+'/'+filename
-
-    nc_file = NetCDFFile(fullpath, 'w')
-
-    # Write dimension variables
-    dim_bottle = nc_file.createDimension('bottle', len(self))
-    dim_time = nc_file.createDimension('time', 1)
-    dim_lat = nc_file.createDimension('latitude', 1)
-    dim_lng = nc_file.createDimension('longitude', 1)
-    dims_variable = (dim_bottle, dim_time, dim_lat, dim_lng)
-    dims_static = (dim_time, dim_lat, dim_lng)
-
-    dim_string = nc_file.createDimension('string_dimension', 10)
-    dims_string = (dim_string, dim_time)
-
-    # Sometimes, there's no WOCE Section associated with a certain STNNBR and
-    # CASTNO. In that case, let the user known it's an UNKNOWN section
-    sect = self.columns['SECT_ID'][0]
-    if sect is '':
-      sect = 'UNKNOWN'
-    setattr(nc_file, 'EXPOCODE', expocode)
-    setattr(nc_file, 'Conventions', 'COARDS/WOCE')
-    setattr(nc_file, 'WOCE_VERSION', '3.0')
-    setattr(nc_file, 'WOCE_ID', sect)
-    setattr(nc_file, 'DATA_TYPE', 'Bottle')
-    setattr(nc_file, 'STATION_NUMBER', station)
-    setattr(nc_file, 'CAST_NUMBER', cast)
-    setattr(nc_file, 'BOTTOM_DEPTH_METERS', max(self.columns['DEPTH'].values))
-    setattr(nc_file, 'BOTTLE_NUMBERS', ' '.join(self.columns['BTLNBR'].values))
-    if self.columns['BTLNBR'].is_flagged_woce():
-      setattr(nc_file, 'BOTTLE_QUALITY_CODES', ' '.join(self.columns['BTLNBR'].flags_woce))
-    now = date(1970, 1, 1).now()
-    setattr(nc_file, 'Creation_Time', str(now))
-    header_filter = compile('BOTTLE|db_to_exbot|jjward|(Previous stamp)')
-    header = '# Previous stamp: '+self.stamp+"\n"+"\n".join(filter(lambda x: not header_filter.match(x), self.header.split("\n")))
-    setattr(nc_file, 'ORIGINAL_HEADER', header)
-    setattr(nc_file, 'WOCE_BOTTLE_FLAG_DESCRIPTION', 
-      ':'.join([
-      ':',
-      '1 = Bottle information unavailable.',
-      '2 = No problems noted.',
-      '3 = Leaking.',
-      '4 = Did not trip correctly.',
-      '5 = Not reported.',
-      '6 = Significant discrepancy in measured values between Gerard and Niskin bottles.',
-      '7 = Unknown problem.',
-      '8 = Pair did not trip correctly. Note that the Niskin bottle can trip at an unplanned depth while the Gerard trips correctly and vice versa.',
-      '9 = Samples not drawn from this bottle.',
-      "\n"]))
-    setattr(nc_file, 'WOCE_WATER_SAMPLE_FLAG_DESCRIPTION', 
-      ':'.join([
-      ':',
-      '1 = Sample for this measurement was drawn from water bottle but analysis not received.', 
-      '2 = Acceptable measurement.',
-      '3 = Questionable measurement.',
-      '4 = Bad measurement.',
-      '5 = Not reported.',
-      '6 = Mean of replicate measurements.',
-      '7 = Manual chromatographic peak measurement.',
-      '8 = Irregular digital chromatographic peak integration.',
-      '9 = Sample not drawn for this measurement from this bottle.',
-      "\n"]))
-    ncvar = {}
-    ncflagvar = {}
-    for param, column in iter(self.columns):
-      parameter = column.parameter
-      parameter_name = parameter.mnemonic
-      # continue if STATIC_PARAMETERS_PER_CAST. include parameter_name
-      # TODO
-    var_time = nc_file.createVariable('time', 'f', dims_static)
-    setattr(var_time, 'long_name', 'time')
-    setattr(var_time, 'units', 'minutes since 1980-01-01 00:00:00')
-    setattr(var_time, 'data_min', 0)
-    setattr(var_time, 'data_max', 0)
-    setattr(var_time, 'C_format', '%10d')
-
-    var_latitude = nc_file.createVariable('latitude', 'f', dims_static)
-    setattr(var_latitude, 'long_name', 'latitude')
-    setattr(var_latitude, 'units', 'degrees_N')
-    setattr(var_latitude, 'data_min', 0)
-    setattr(var_latitude, 'data_max', 0)
-    setattr(var_latitude, 'C_format', '%9.4f')
-
-    var_longitude = nc_file.createVariable('longitude', 'f', dims_static)
-    setattr(var_longitude, 'long_name', 'longitude')
-    setattr(var_longitude, 'units', 'degrees_E')
-    setattr(var_longitude, 'data_min', 0)
-    setattr(var_longitude, 'data_max', 0)
-    setattr(var_longitude, 'C_format', '%9.4f')
-
-    var_woce_date = nc_file.createVariable('woce_date', 'i', dims_static)
-    setattr(var_woce_date, 'long_name', 'WOCE date')
-    setattr(var_woce_date, 'units', 'yyyymdd UTC')
-    setattr(var_woce_date, 'data_min', 0)#long min
-    setattr(var_woce_date, 'data_max', 0)#long max
-    setattr(var_woce_date, 'C_format', '%8d')
-    
-    var_woce_time = nc_file.createVariable('woce_time', 'i', dims_static)
-    setattr(var_woce_time, 'long_name', 'WOCE time')
-    setattr(var_woce_time, 'units', 'hhmm UTC')
-    setattr(var_woce_time, 'data_min', 0)#long min
-    setattr(var_woce_time, 'data_max', 0)#long max
-    setattr(var_woce_time, 'C_format', '%4d')
-    
-    # Hydrographic specific
-    
-    var_station = nc_file.createVariable('station', 'c', dims_string)
-    setattr(var_station, 'long_name', 'STATION')
-    setattr(var_station, 'units', 'unspecified')
-    setattr(var_station, 'C_format', '%s')
-    
-    var_cast = nc_file.createVariable('cast', 'c', dims_string)
-    setattr(var_cast, 'long_name', 'CAST')
-    setattr(var_cast, 'units', 'unspecified')
-    setattr(var_cast, 'C_format', '%s')
-
-    # Write out pairs TODO
-
-    datetime = self.columns['DATE'][0]+self.columns['TIME']
-    time_from_epoch = datetime # TODO
-    cchdo_epoch_offset = datetime.date(1980, 01, 01)
-    var_time[:] = (time_from_epoch - cchdo_epoch_offset)
-
-    nc_file.close()
+    from libcchdo.bottle.netcdf import netcdf
+    return netcdf(self).write(handle)
   def write_Google_Wire(self, handle):
-    '''How to write a Google Wire Protocol Javascript object literal'''
-    global_headers = sorted(self.globals.keys())
-    column_headers = self.column_headers()
-    columns = global_headers + column_headers
-    def column_type(col):
-      if col == 'EXPOCODE' or col == 'SECT_ID':
-        return 'string'
-      elif col == '_DATETIME':
-        return 'datetime'
-      else:
-        return 'number'
-    wire_columns = ["{id:'%s',label:'%s',type:'%s'}" % (col, col, column_type(col))
-                    for col in columns]
-    global_values = [self.globals[key] for key in global_headers]
-    def wire_row(i):
-      raw_values = global_values + [self.columns[hdr][i] for hdr in column_headers]
-      def raw_to_str(raw):
-        if isinstance(raw, float):
-          if isnan(raw):
-            return '-Infinity'
-          return str(raw)
-        if isinstance(raw, datetime):
-          return 'new Date(%s)' % raw.strftime('%Y,%m,%d,%H,%M')
-        else:
-          return "'%s'" % str(raw)
-      row_values = ['{v:%s}' % raw_to_str(raw) for raw in raw_values]
-      return '{c:[%s]}' % ','.join(row_values)
-    wire_rows = [wire_row(i) for i in range(len(self))]
-    handle.write("{cols:[%s],rows:[%s]}" % (','.join(wire_columns), ','.join(wire_rows)))
+    from libcchdo.google_wire.google_wire import google_wire
+    return google_wire(self).write(handle)
 
 class DataFileCollection:
   def __init__(self):
