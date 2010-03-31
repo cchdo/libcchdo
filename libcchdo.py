@@ -1162,10 +1162,10 @@ class DataFile:
     from libcchdo.bottle.woce import woce
     return woce(self).write(handle)
   def read_Bottle_Exchange(self, handle):
-    from libcchdo.bottle.exchange import exchange
+    from bottle.exchange import exchange
     return exchange(self).read(handle)
   def write_Bottle_Exchange(self, handle):
-    from libcchdo.bottle.exchange import exchange
+    from bottle.exchange import exchange
     return exchange(self).write(handle)
   def read_Bottle_NetCDF(self, handle):
     from libcchdo.bottle.netcdf import netcdf

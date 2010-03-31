@@ -1,6 +1,12 @@
 # libcchdo.bottle.exchange
 
+from sys import path
+path.insert(0, '/'.join(path[0].split('/')[:-1]))
+import libcchdo
+from libcchdo import out_of_band, NaN, Column
 from format import format
+from re import compile
+from datetime import datetime
 
 class exchange(format):
   def read(self, handle):
