@@ -17,10 +17,25 @@ lets it be manipulated easily into other formats.
 -------------------------------------------------------------------------------
 - Organization
 / - libcchdo global definitions
+  /db - modules to connect to CCHDO databases
   /formats - modules to read and write in different formats
   /datadir - modules to operate on the CCHDO data file directories
   /tests - modules to test other parts of the library
   /scripts - collection of scripts that have been useful in the past
+
+-------------------------------------------------------------------------------
+- Dependencies
+netcdf4-python - http://code.google.com/p/netcdf4-python/
+  Install the NetCDF 3 module as directed by the README
+  Depends on:
+    - netcdf
+    - numpy - http://numpy.scipy.org/
+pygresql - http://www.pygresql.org/readme.html#where-to-get
+  Depends on:
+    postgresql server binaries
+MySQLdb - http://sourceforge.net/projects/mysql-python
+  Depends on:
+    MySQL server binaries
 
 -------------------------------------------------------------------------------
 - Testing
