@@ -9,7 +9,6 @@ from os import path, makedirs, getcwd
 from sys import argv, exit, stdout
 import sys
 sys.path.insert(0, '/'.join(sys.path[0].split('/')[:-1]))
-import libcchdo
 from datadir.util import do_for_cruise_directories
 
 def color_arr_to_str(color):

@@ -3,23 +3,26 @@
 from __future__ import with_statement
 from sys import argv, exit, path, stdout
 path.insert(0, '/'.join(path[0].split('/')[:-1]))
-import libcchdo
+from libcchdo import DataFile
+from formats.bottle.exchange import exchange
 
 if len(argv) < 2:
   print 'Usage:', argv[0], '<exbot file>'
   exit(1)
 file = libcchdo.DataFile()
 with open(argv[1], 'r') as in_file:
-  file.read_Bottle_Exchange(in_file)
+  exchange(file).read(in_file)
 
 def color_arr_to_str(color):
   return 'ff'+''.join(map(lambda x: '%02x' % x, color[::-1]))
+
 def map_to_color(val, min, max, mincolor, maxcolor):
   dratio = (val-min)/(max-min)
   dr = (maxcolor[0]-mincolor[0]) * dratio
   dg = (maxcolor[1]-mincolor[1]) * dratio
   db = (maxcolor[2]-mincolor[2]) * dratio
   return [mincolor[0]+dr, mincolor[1]+dg, mincolor[2]+db]
+
 placemarks = []
 maxtemp = 38
 mintemp = 0

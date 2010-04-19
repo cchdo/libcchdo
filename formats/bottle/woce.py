@@ -1,4 +1,4 @@
-# libcchdo.bottle.woce
+''' libcchdo.bottle.woce '''
 
 from format import format
 

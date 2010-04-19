@@ -8,7 +8,7 @@ import struct
 
 import sys
 sys.path.insert(0, '/'.join(sys.path[0].split('/')[:-1]))
-import libcchdo
+from libcchdo import DataFile, SummaryFile, DataFileCollection
 from datadir.util import do_for_cruise_directories
 
 def ensure_nav(root, dirs, files):
@@ -19,13 +19,13 @@ def ensure_nav(root, dirs, files):
     info('%s is missing a nav file. Attempting to generate one.' % root)
     # Try to use easiest generation method first
     generation_methods = [
-                          ['Bottle Exchange', 'hy1.csv', libcchdo.DataFile.read_Bottle_Exchange],
-                          ['Summary', 'su.txt', libcchdo.SummaryFile.read_Summary_WOCE],
+                          ['Bottle Exchange', 'hy1.csv', DataFile.read_Bottle_Exchange],
+                          ['Summary', 'su.txt', SummaryFile.read_Summary_WOCE],
                           # Other WOCE files do not have lng lat (they're in the Summary file)
                           # TODO Collections have to have some regular way to be merged before they can be outputted to nav.
-                          #['CTD Exchange', 'ct1.zip', libcchdo.DataFileCollection.read_CTDZip_Exchange],
-                          #['Bottle NetCDF', 'nc_hyd.zip', libcchdo.DataFileCollection.read_BottleZip_NetCDF],
-                          #['CTD NetCDF', 'nc_ctd.zip', libcchdo.DataFileCollection.read_CTDZip_NetCDF],
+                          #['CTD Exchange', 'ct1.zip', DataFileCollection.read_CTDZip_Exchange],
+                          #['Bottle NetCDF', 'nc_hyd.zip', DataFileCollection.read_BottleZip_NetCDF],
+                          #['CTD NetCDF', 'nc_ctd.zip', DataFileCollection.read_CTDZip_NetCDF],
                          ]
     for methodname, extension, readfn in generation_methods:
       basefiles = filter(lambda f: f.endswith(extension), files)

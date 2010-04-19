@@ -1,9 +1,8 @@
-# libcchdo.bottle.exchange
+''' libcchdo.bottle.exchange '''
 
 from sys import path
 path.insert(0, '/'.join(path[0].split('/')[:-1]))
-import libcchdo
-from libcchdo import out_of_band, NaN, Column
+from libcchdo import out_of_band, Column
 from format import format
 from re import compile
 from datetime import datetime
@@ -59,7 +58,7 @@ class exchange(format):
       for column, raw in zip(columns, values):
         value = raw.strip()
         if out_of_band(value):
-          value = NaN
+          value = float('nan')
         try:
           value = float(value)
         except:
@@ -94,6 +93,5 @@ class exchange(format):
     df.columns['_DATETIME'].values = [datetime.strptime(str(int(d))+('%04d' % int(t)), '%Y%m%d%H%M') for d,t in zip(df.columns['DATE'].values, df.columns['TIME'].values)]
     del df.columns['DATE']
     del df.columns['TIME']
-  def write(self, handle):
-    '''How to write a Bottle Exchange file.'''
-    pass
+  #def write(self, handle): TODO
+  #  '''How to write a Bottle Exchange file.'''

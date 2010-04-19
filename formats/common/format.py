@@ -1,8 +1,4 @@
-# libcchdo.bottle.format
-
-from sys import argv, exit, path
-path.insert(0, '/'.join(path[0].split('/')[:-1]))
-import libcchdo
+''' libcchdo.common.format '''
 
 class format:
   def __init__(self, datafile):

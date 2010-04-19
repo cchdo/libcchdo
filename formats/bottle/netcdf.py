@@ -1,4 +1,4 @@
-# libcchdo.bottle.netcdf
+''' libcchdo.bottle.netcdf '''
 
 from format import format
 

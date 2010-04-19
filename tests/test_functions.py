@@ -17,7 +17,7 @@ class TestFunctions(TestCase):
   def test_connect_mysql(self):
     c = libcchdo.connect_mysql()
     cursor = c.cursor()
-    cursor.execute("SELECT cruises.id FROM cruises JOIN documents LIMIT 1");
+    cursor.execute("SELECT id FROM parameter_descriptions LIMIT 1");
     self.assert_(cursor.fetchone())
 
   def test_connect_postgresql(self):

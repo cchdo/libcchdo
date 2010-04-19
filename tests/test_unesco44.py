@@ -4,9 +4,6 @@ import libcchdo
 from unittest import TestCase
 
 class TestColumn(TestCase):
-  def setUp(self):
-    self.column = libcchdo.Column("EXPOCODE")
-  
 #  def test_specific_volume(self):
 #    self.assertEqual(1.000033251, libcchdo.specific_volume(0, 5, 0))
 #    self.assertEqual(0.957736964, libcchdo.specific_volume(0, 5, 10000))

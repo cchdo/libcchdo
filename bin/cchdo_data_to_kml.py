@@ -2,6 +2,9 @@
 # cchdo_data_to_kml
 
 from __future__ import with_statement
+from sys import argv, exit, path, stdout
+path.insert(0, '/'.join(path[0].split('/')[:-1]))
+from libcchdo import connect_mysql
 from datetime import datetime
 from os import path, makedirs
 from sys import exit
