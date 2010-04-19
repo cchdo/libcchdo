@@ -9,7 +9,6 @@ Known unknown parameters have mnemonics that start with '_'. e.g. MAX PRESSURE
 exists in certain files but there is no parameter defined for it. By prefixing
 MAX_PRESSURE with a '_', the library will not retrive the parameter definition
 from the database (there is none anyway).
-
 """
 
 from datetime import date, datetime
@@ -177,14 +176,14 @@ def depth(grav, p, rho):
     The Oceans, Their Physics, Chemistry and General Biology.
     Prentice-Hall, Inc., Englewood Cliff, N.J.
 
-    grav - local gravity (m/sec^2) @ 0.0 db
-    p - pressure series (decibars)
-    rho - insitu density series (kg/m^3)
+    Args:
+        grav: local gravity (m/sec^2) @ 0.0 db
+        p: pressure series (decibars)
+        rho: insitu density series (kg/m^3)
 
-    Returns depth - depth series (meters)
-
+    Returns:
+        depth - depth series (meters)
     """
-
     depth = []
 
     num_intervals = len(p)
@@ -217,11 +216,11 @@ def depth(grav, p, rho):
 
 
 def polynomial(x, coeffs):
-    """Gives the result of calculating
-       coeffs[n]*x**n + coeffs[n-1]*x**n-1 + ... + coeffs[0]
-
+    """Calculate a polynomial.
+    
+    Gives the result of calculating
+    coeffs[n]*x**n + coeffs[n-1]*x**n-1 + ... + coeffs[0]
     """
-
     if len(coeffs) <= 0:
         return 0
     sum = coeffs[0]
@@ -233,14 +232,18 @@ def polynomial(x, coeffs):
 
 
 def secant_bulk_modulus(salinity, temperature, pressure):
-    """Obtained from EOS80 according to Fofonoff Millard 1983 pg 15
-       Parameters:
-         salinity - [PSS-78]
-         temperature - [degrees Celsius IPTS-68]
-         pressure - pressure
+    """Calculate the secant bulk modulus of sea water.
+    
+    Obtained from EOS80 according to Fofonoff Millard 1983 pg 15
 
+    Args:
+        salinity: [PSS-78]
+        temperature: [degrees Celsius IPTS-68]
+        pressure: pressure
+
+    Returns:
+        The secant bulk modulus of sea water as a float.
     """
-
     t = temperature
 
     if pressure == 0:
@@ -283,23 +286,22 @@ def density(salinity, temperature, pressure):
 
 def depth_unesco(pres, lat):
     """Depth (meters) from pressure (decibars) using
-       Saunders and Fofonoff's method.
+    Saunders and Fofonoff's method.
 
-       Saunders, P. M., 1981. Practical Conversion of Pressure to Depth.
-       Journal of Physical Oceanography 11, 573-574.
-       Mantyla, A. W., 1982-1983. Private correspondence.
+    Saunders, P. M., 1981. Practical Conversion of Pressure to Depth.
+    Journal of Physical Oceanography 11, 573-574.
+    Mantyla, A. W., 1982-1983. Private correspondence.
 
-       Deep-sea Res., 1976, 23, 109-111.
-       Formula refitted for 1980 equation of state
-       Ported from Unesco 1983
-       Units:
-         pressure  p     decibars
-         latitude  lat   degrees
-         depth     depth meters
-       Checkvalue: depth = 9712.653 M for P=10000 decibars,
-                   latitude=30 deg above
-         for standard ocean: T=0 deg celsius; S=35 (PSS-78)
-
+    Deep-sea Res., 1976, 23, 109-111.
+    Formula refitted for 1980 equation of state
+    Ported from Unesco 1983
+    Units:
+      pressure  p     decibars
+      latitude  lat   degrees
+      depth     depth meters
+    Checkvalue: depth = 9712.653 M for P=10000 decibars,
+                latitude=30 deg above
+      for standard ocean: T=0 deg celsius; S=35 (PSS-78)
     """
 
     x = sin(lat / 57.29578) ** 2
