@@ -2,43 +2,51 @@
 # db_track_lines_to_kml
 
 from __future__ import with_statement
-from sys import argv, exit, path, stdout
-path.insert(0, '/'.join(path[0].split('/')[:-1]))
-from libcchdo import connect_mysql
 from datetime import datetime
 from os import path, makedirs
 from string import translate, maketrans
+from sys import argv, exit, path, stdout
+path.insert(0, '/'.join(path[0].split('/')[:-1]))
+
+from libcchdo import connect_mysql
+
 
 def color_arr_to_str(color):
-  return 'ff'+''.join(map(lambda x: '%02x' % x, color[::-1]))
+    return 'ff'+''.join(map(lambda x: '%02x' % x, color[::-1]))
+
 
 kml_header = """<?xml version="1.0" encoding="UTF-8"?>
-<kml xmlns="http://www.opengis.net/kml/2.2" xmlns:gx="http://www.google.com/kml/ext/2.2" xmlns:kml="http://www.opengis.net/kml/2.2" xmlns:atom="http://www.w3.org/2005/Atom"><Document>"""
+<kml xmlns="http://www.opengis.net/kml/2.2"
+     xmlns:gx="http://www.google.com/kml/ext/2.2"
+     xmlns:kml="http://www.opengis.net/kml/2.2"
+     xmlns:atom="http://www.w3.org/2005/Atom"><Document>"""
 kml_footer = """</Document></kml>"""
 
-directory = './KML_CCHDO_holdings_'+translate(str(datetime.utcnow()), maketrans(' :.', '___'))
+directory = './KML_CCHDO_holdings_'+translate(str(datetime.utcnow()),
+                                                  maketrans(' :.', '___'))
 if not path.exists(directory):
-  makedirs(directory)
+    makedirs(directory)
 
-cycle_colors = map(color_arr_to_str, [[255, 0, 0], [0, 255, 0], [0, 0, 255], [255, 255, 0]])
+cycle_colors = map(color_arr_to_str, [[255, 0, 0], [0, 255, 0],
+                                      [0, 0, 255], [255, 255, 0]])
 
 connection = connect_mysql()
 cursor = connection.cursor()
 cursor.execute('SELECT ExpoCode,ASTEXT(track) FROM track_lines')
 rows = cursor.fetchall()
 for i, row in enumerate(rows):
-  expocode = row[0]
-  placemarks = []
-  coordstr = translate(row[1][11:], maketrans(', ', ' ,'))
-  coords = map(lambda x: x.split(','), coordstr.split(' '))
-  placemarks.append("""
+    expocode = row[0]
+    placemarks = []
+    coordstr = translate(row[1][11:], maketrans(', ', ' ,'))
+    coords = map(lambda x: x.split(','), coordstr.split(' '))
+    placemarks.append("""
 <Style id="linestyle">
   <LineStyle>
     <width>4</width>
     <color>%s</color>
   </LineStyle>
 </Style>""" % cycle_colors[i%len(cycle_colors)])
-  placemarks.append("""
+    placemarks.append("""
 <Placemark>
   <name>%s</name>
   <styleUrl>#linestyle</styleUrl>
@@ -47,22 +55,22 @@ for i, row in enumerate(rows):
     <coordinates>%s</coordinates>
   </LineString>
 </Placemark>""" % (expocode, coordstr))
-  placemarks.append("""
+    placemarks.append("""
 <Placemark>
   <styleUrl>#start</styleUrl>
   <name>%s</name>
   <description>http://cchdo.ucsd.edu/data_access/show_cruise?ExpoCode=%s</description>
   <Point><coordinates>%s,%s</coordinates></Point>
 </Placemark>""" % (expocode, expocode, coords[0][0], coords[0][1]))
-  for coord in coords:
-    placemarks.append("""
+    for coord in coords:
+        placemarks.append("""
 <Placemark>
   <styleUrl>#pt</styleUrl>
   <Point><coordinates>%s,%s</coordinates></Point>
 </Placemark>""" % (coord[0], coord[1]))
 
-  with open(directory+'/track_'+expocode+'.kml', 'w') as f:
-    f.write("""%s<name>%s</name>
+    with open(directory+'/track_'+expocode+'.kml', 'w') as f:
+        f.write("""%s<name>%s</name>
 <Style id="start">
   <IconStyle>
     <scale>1.5</scale>
