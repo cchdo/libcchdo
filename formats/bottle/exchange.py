@@ -5,7 +5,7 @@ path.insert(0, '/'.join(path[0].split('/')[:-1]))
 import re
 import datetime
 
-from libcchdo import out_of_band, Column
+import libcchdo
 from format import format
 
 class exchange(format):
@@ -70,7 +70,7 @@ class exchange(format):
                                                     len(df)+1))
             for column, raw in zip(columns, values):
                 value = raw.strip()
-                if out_of_band(value):
+                if libcchdo.out_of_band(value):
                     value = float('nan')
                 try:
                     value = float(value)
@@ -99,14 +99,14 @@ class exchange(format):
         try:
             df.columns['DATE']
         except KeyError:
-            df.columns['DATE'] = Column('DATE')
+            df.columns['DATE'] = libcchdo.Column('DATE')
             df.columns['DATE'].values = ['0000-00-00'] * len(df)
         try:
             df.columns['TIME']
         except KeyError:
-            df.columns['TIME'] = Column('TIME')
+            df.columns['TIME'] = libcchdo.Column('TIME')
             df.columns['TIME'].values = ['0000'] * len(df)
-        df.columns['_DATETIME'] = Column('_DATETIME')
+        df.columns['_DATETIME'] = libcchdo.Column('_DATETIME')
         for d,t in zip(df.columns['DATE'].values, df.columns['TIME'].values):
             df.columns['_DATETIME'].append(datetime.datetime.strptime(
                 '%04d%04d' % (int(d), int(t)), '%Y%m%d%H%M'))
