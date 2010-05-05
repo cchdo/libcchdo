@@ -8,7 +8,7 @@ from string import translate, maketrans
 from sys import argv, exit, path, stdout
 path.insert(0, '/'.join(path[0].split('/')[:-1]))
 
-from libcchdo import connect_mysql
+import db.connect
 
 
 def color_arr_to_str(color):
@@ -30,7 +30,7 @@ if not path.exists(directory):
 cycle_colors = map(color_arr_to_str, [[255, 0, 0], [0, 255, 0],
                                       [0, 0, 255], [255, 255, 0]])
 
-connection = connect_mysql()
+connection = db.connect.cchdo()
 cursor = connection.cursor()
 cursor.execute('SELECT ExpoCode,ASTEXT(track) FROM track_lines')
 rows = cursor.fetchall()

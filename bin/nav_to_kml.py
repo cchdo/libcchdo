@@ -8,7 +8,7 @@ from os import path, makedirs, getcwd
 import sys
 sys.path.insert(0, '/'.join(sys.path[0].split('/')[:-1]))
 
-from datadir.util import do_for_cruise_directories
+import datadir.util
 
 
 def color_arr_to_str(color):
@@ -112,4 +112,4 @@ def generate_kml_from_nav_into(dir):
     return lambda root, dirs, files: generate_kml_from_nav(root, dirs,
                                                            files, dir)
 
-do_for_cruise_directories(generate_kml_from_nav_into(directory))
+datadir.util.do_for_cruise_directories(generate_kml_from_nav_into(directory))

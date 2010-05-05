@@ -11,7 +11,6 @@ path.insert(0, '/'.join(path[0].split('/')[:-1]))
 
 import db.connect
 
-
 def color_arr_to_str(color):
     return 'ff'+''.join(map(lambda x: '%02x' % x, color[::-1]))
 

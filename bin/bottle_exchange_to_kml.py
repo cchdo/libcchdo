@@ -4,16 +4,16 @@ from __future__ import with_statement
 from sys import argv, exit, path, stdout
 path.insert(0, '/'.join(path[0].split('/')[:-1]))
 
-from libcchdo import DataFile
-from formats.bottle.exchange import exchange
+import libcchdo
+import formats.bottle.exchange as botex
 
 if len(argv) < 2:
     print 'Usage:', argv[0], '<exbot file>'
     exit(1)
 
 with open(argv[1], 'r') as in_file:
-    file = DataFile()
-    exchange(file).read(in_file)
+    file = libcchdo.DataFile()
+    botex.read(file, in_file)
 
     placemarks = ['%f,%f' % coord for coord \
         in zip(file.columns['LONGITUDE'].values,
