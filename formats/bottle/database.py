@@ -15,9 +15,7 @@ from sys import path
 path.insert(0, '/'.join(path[0].split('/')[:-1]))
 
 import db.connect # cchdo_data()
-from format import format
 
-class database(format):
-    #def read(self):
-    def write(self):
-        print self.datafile.to_hash()
+#def read(self):
+def write(self):
+    print self.to_hash()

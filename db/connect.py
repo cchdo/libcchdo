@@ -2,10 +2,10 @@
 
 DB_CREDENTIALS = {
     # Postgres
-    'goship(cchdo_data)': {'user': 'libcchdo', 'password': '((hdo0hydr0d@t@',
-                           'host': 'goship.ucsd.edu', 'database': 'cchdo_data'},
-    'goship(cchdotest)':  {'user': 'libcchdo', 'password': '((hd0hydr0d@t@',
-                           'host': 'goship.ucsd.edu', 'database': 'cchdotest'},
+#    'goship(cchdo_data)': {'user': 'libcchdo', 'password': '((hdo0hydr0d@t@',
+#                           'host': 'goship.ucsd.edu', 'database': 'cchdo_data'},
+#    'goship(cchdotest)':  {'user': 'libcchdo', 'password': '((hd0hydr0d@t@',
+#                           'host': 'goship.ucsd.edu', 'database': 'cchdotest'},
     # MySQL
     #'cchdo(cchdo)':       {'user': 'cchdo_server', 'passwd': '((hdo0hydr0d@t@',
     #                       'host': 'cchdo.ucsd.edu', 'db': 'cchdo'},
@@ -66,6 +66,5 @@ def cchdo_data():
 
 def cchdo():
     """Connect to CCHDO's database"""
-    # TODO switch to the real database: cchdo(cchdo)
     return _mysql(**DB_CREDENTIALS['cchdo(cchdo)'])
     #return _mysql(**DB_CREDENTIALS['watershed(cchdo)'])

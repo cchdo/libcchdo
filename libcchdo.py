@@ -310,6 +310,29 @@ def depth_unesco(pres, lat):
            pres + 9.72659) * pres) / gr
 
 
+KNOWN_PARAMETERS = {
+    'EXPOCODE': {'name': 'ExpoCode',
+                 'format': '11s',
+                 'description': 'ExpoCode',
+                 'units': '',
+                 'bound_lower': '',
+                 'bound_upper': '',
+                 'mnemonic': 'EXPOCODE',
+                 'display_order': 1,
+                 'aliases': [],
+                },
+    'SECT_ID': {'name': 'Section ID',
+                'format': '11s',
+                'description': 'Section ID',
+                'units': '',
+                'bound_lower': '',
+                'bound_upper': '',
+                'mnemonic': 'SECT_ID',
+                'display_order': 2,
+                'aliases': [],
+               },
+}
+
 class Parameter:
 
     def __init__(self, parameter_name, contrived=False):
@@ -324,15 +347,17 @@ class Parameter:
             self.display_order = -9999
             self.aliases = []
         else:
+            #try:
+            #    self.init_from_postgresql(parameter_name)
+            #except Exception, e:
+            #    warn(("%s\nFalling back to mysql database for "
+            #          "parameter info.") % e)
             try:
-                self.init_from_postgresql(parameter_name)
-            except pgdb.Error:
-                warn("Falling back to mysql database for parameter info.")
-                try:
-                    self.init_from_mysql(parameter_name)
-                except MySQLdb.Error:
-                    raise EnvironmentError(("No databases could be used for "
-                                            "parameter verification"))
+                self.init_from_mysql(parameter_name)
+            except Exception, e:
+                raise EnvironmentError(
+                    ("%s\nNo databases could be used for "
+                     "parameter verification.") % e)
 
     def init_from_postgresql(self, parameter_name):
         connection = db.connect.cchdotest()
@@ -391,9 +416,22 @@ class Parameter:
             self.display_order = -9999
             self.aliases = row[6].split(',') if row[6] else []
         else:
-            connection.close()
-            raise NameError(
-                 "'%s' is not in CCHDO's parameter list." % parameter_name)
+            if parameter_name in KNOWN_PARAMETERS:
+                info = KNOWN_PARAMETERS[parameter_name]
+                self.full_name = info['name']
+                self.format = info['format']
+                self.description = info['description']
+                self.units = info['units']
+                self.bound_lower = info['bound_lower']
+                self.bound_upper = info['bound_upper']
+                self.units_mnemonic = info['mnemonic']
+                self.woce_mnemonic = parameter_name
+                self.display_order = info['display_order']
+                self.aliases = info['aliases']
+            else:
+                connection.close()
+                raise NameError(
+                     "'%s' is not in CCHDO's parameter list." % parameter_name)
         connection.close()
 
     def __eq__(self, other):
@@ -650,6 +688,7 @@ class DataFile:
         return hash
 
     # Refactored common code
+
     def create_columns(self, parameters, units):
         for parameter, unit in zip(parameters, units):
             if parameter.endswith('FLAG_W') or parameter.endswith('FLAG_I'):
