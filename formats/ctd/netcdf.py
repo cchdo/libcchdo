@@ -1,5 +1,14 @@
 '''libcchdo.formats.ctd.netcdf'''
 
+import libcchdo
+
+try:
+    from netCDF3 import Dataset
+except ImportError, e:
+    raise ImportError('%s\n%s' % (e,
+        ("You should get netcdf4-python from http://code.google.com/p/"
+         "netcdf4-python and install the NetCDF 3 module as directed by the "
+         "README.")))
 
 def read(self, handle):
     '''How to read a CTD NetCDF file.'''
@@ -29,7 +38,7 @@ def read(self, handle):
             name = nc_ctd_var_to_woce_param[name]
             if name is 'drop':
                 continue
-            self.columns[name] = Column(name)
+            self.columns[name] = libcchdo.Column(name)
             self.columns[name].values = variable[:].tolist()
             # CCHDO NetCDFs have STNNBR and CASTNO as an array of characters.
             # Collapse them into a string.

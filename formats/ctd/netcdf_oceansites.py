@@ -2,9 +2,13 @@
 
 import datetime
 import string
+import math
+import sys
+from warnings import warn
 
 import libcchdo
 
+from netCDF3 import Dataset
 
 WOCE_to_OceanSITES_flag = {
     1: 3, # Not calibrated -> Bad data that are potentially
@@ -59,8 +63,10 @@ TIMESERIES_INFO = {
 
 def write(self, handle, timeseries=None, timeseries_info={}):
     '''How to write a CTD NetCDF OceanSITES file.'''
+    # netcdf library wants to write its own files.
     filename = handle.name
-    handle.close()
+    if not handle == sys.stdout:
+        handle.close()
     strdate = str(self.globals['DATE']) 
     strtime = str(self.globals['TIME']).rjust(4, '0')
     isowocedate = datetime.datetime(
@@ -72,9 +78,9 @@ def write(self, handle, timeseries=None, timeseries_info={}):
     nc_file.date_update = datetime.datetime.utcnow().isoformat()+'Z'
     nc_file.wmo_platform_code = ''
     nc_file.source = 'Shipborne observation'
-    nc_file.history = isowocedate.isoformat()+"Z data collected\n"+
-        datetime.datetime.utcnow().isoformat()+
-        "Z date file translated/written"
+    nc_file.history = ''.join([isowocedate.isoformat(), "Z data collected\n",
+                       datetime.datetime.utcnow().isoformat(),
+                       "Z date file translated/written"])
     nc_file.data_mode = 'D'
     nc_file.quality_control_indicator = '1'
     nc_file.quality_index = 'B'
@@ -148,7 +154,7 @@ def write(self, handle, timeseries=None, timeseries_info={}):
     var_time.QC_indicator = 7 # Matthias Lankhorst
     var_time.QC_procedure = 5 # Matthias Lankhorst
     # Matthias Lankhorst
-    var_longitude.uncertainty = 0.0045/cos(self.globals['LATITUDE'])
+    var_longitude.uncertainty = 0.0045/math.cos(self.globals['LATITUDE'])
     var_longitude.axis = 'X'
 
     var_depth = nc_file.createVariable('DEPTH', 'f', ('DEPTH',))
@@ -199,6 +205,9 @@ def write(self, handle, timeseries=None, timeseries_info={}):
 
     for column in self.columns.values():
         bad_chars = string.maketrans(" ()", "___")
+        if column.parameter.description == None:
+            warn('Bad parameter description %s' % column.parameter)
+            return 
         name = column.parameter.description.lower().translate(bad_chars)
         if name in param_to_oceansites.keys():
             name = param_to_oceansites[name]
@@ -220,6 +229,30 @@ def write(self, handle, timeseries=None, timeseries_info={}):
                                 'LATITUDE: point LONGITUDE: point')
             var.uncertainty = oceansites_uncertainty[name]
             var[:] = column.values
+            # Write QC variable
+            if column.is_flagged_woce():
+                var.ancillary_variables = name+'_QC'
+                flag = nc_file.createVariable(name+'_QC', 'b', ('DEPTH',))
+                flag.long_name = 'quality flag'
+                flag.conventions = 'OceanSITES reference table 2'
+                flag._FillValue = -128
+                flag.valid_min = 0
+                flag.valid_max = 9
+                flag.flag_values = 0#, 1, 2, 3, 4, 5, 6, 7, 8, 9 TODO??
+                flag.flag_meanings = ' '.join([
+                    'no_qc_performed',
+                    'good_data',
+                    'probably_good_data',
+                    'bad_data_that_are_potentially_correctable',
+                    'bad_data',
+                    'value_changed',
+                    'not_used',
+                    'nominal_value',
+                    'interpolated_value',
+                    'missing_value'
+                ])
+                flag[:] = map(lambda x: WOCE_to_OceanSITES_flag[x],
+                              column.flags_woce)
         if name is 'PRES':
             # Fun using Sverdrup's depth integration with density.
             localgrav = libcchdo.grav_ocean_surface_wrt_latitude(
@@ -236,30 +269,6 @@ def write(self, handle, timeseries=None, timeseries_info={}):
             #     self.columns['CTDPRS'].values)
 
             var_depth[:] = depth_series
-        # Write QC variable
-        if column.is_flagged_woce():
-            var.ancillary_variables = name+'_QC'
-            flag = nc_file.createVariable(name+'_QC', 'b', ('DEPTH',))
-            flag.long_name = 'quality flag'
-            flag.conventions = 'OceanSITES reference table 2'
-            flag._FillValue = -128
-            flag.valid_min = 0
-            flag.valid_max = 9
-            flag.flag_values = 0#, 1, 2, 3, 4, 5, 6, 7, 8, 9 TODO??
-            flag.flag_meanings = ' '.join([
-                'no_qc_performed',
-                'good_data',
-                'probably_good_data',
-                'bad_data_that_are_potentially_correctable',
-                'bad_data',
-                'value_changed',
-                'not_used',
-                'nominal_value',
-                'interpolated_value',
-                'missing_value'
-            ])
-            flag[:] = map(lambda x: WOCE_to_OceanSITES_flag[x],
-                          column.flags_woce)
     # Write timeseries information, if given
     if (timeseries and timeseries in TIMESERIES_INFO) or timeseries_info:
         if timeseries:

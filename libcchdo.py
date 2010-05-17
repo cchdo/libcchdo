@@ -407,7 +407,7 @@ class Parameter:
         if row:
             self.full_name = row[0]
             self.format = row[1].strip() if row[1] else '11s'
-            self.description = row[2]
+            self.description = row[2] or ''
             self.units = row[3]
             self.bound_lower = row[4].split(',')[0] if row[4] else None
             self.bound_upper = row[4].split(',')[1] if row[4] else None
