@@ -2,10 +2,8 @@
 # cchdo_data_to_kml
 
 from __future__ import with_statement
-from datetime import datetime
-from os import makedirs
 import os.path
-from string import translate, maketrans
+import string
 from sys import argv, exit, path, stdout
 path.insert(0, '/'.join(path[0].split('/')[:-1]))
 
@@ -63,7 +61,7 @@ with open(directory+'.kml', 'w') as f:
     for i, row in enumerate(rows):
         expocode = row[0]
         placemarks = []
-        coordstr = translate(row[1][11:], maketrans(', ', ' ,'))
+        coordstr = string.translate(row[1][11:], string.maketrans(', ', ' ,'))
         coords = map(lambda x: x.split(','), coordstr.split(' '))
         begin = row[2]
         end = row[3]

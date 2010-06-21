@@ -2,9 +2,9 @@
 # db_track_lines_to_kml
 
 from __future__ import with_statement
-from datetime import datetime
-from os import path, makedirs
-from string import translate, maketrans
+import datetime
+import os
+import string
 from sys import argv, exit, path, stdout
 path.insert(0, '/'.join(path[0].split('/')[:-1]))
 
@@ -21,10 +21,10 @@ kml_header = """<?xml version="1.0" encoding="UTF-8"?>
      xmlns:atom="http://www.w3.org/2005/Atom"><Document>"""
 kml_footer = """</Document></kml>"""
 
-directory = './KML_CCHDO_holdings_'+translate(str(datetime.utcnow()),
-                                                  maketrans(' :.', '___'))
-if not path.exists(directory):
-    makedirs(directory)
+directory = './KML_CCHDO_holdings_'+string.translate(
+     str(datetime.datetime.utcnow()), string.maketrans(' :.', '___'))
+if not os.path.exists(directory):
+    os.makedirs(directory)
 
 cycle_colors = map(color_arr_to_str, [[255, 0, 0], [0, 255, 0],
                                       [0, 0, 255], [255, 255, 0]])
@@ -36,7 +36,7 @@ rows = cursor.fetchall()
 for i, row in enumerate(rows):
     expocode = row[0]
     placemarks = []
-    coordstr = translate(row[1][11:], maketrans(', ', ' ,'))
+    coordstr = string.translate(row[1][11:], string.maketrans(', ', ' ,'))
     coords = map(lambda x: x.split(','), coordstr.split(' '))
     placemarks.append("""
 <Style id="linestyle">

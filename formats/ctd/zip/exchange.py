@@ -4,7 +4,7 @@ import StringIO
 import zipfile
 import datetime
 
-import ctd.exchange
+import formats.ctd.exchange
 
 
 def read(self, handle):
