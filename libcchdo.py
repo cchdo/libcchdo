@@ -40,9 +40,14 @@ except ImportError: # Cover when < python-2.6
 RADIUS_EARTH = 6371.01 #km
 
 # Functions
-def uniquify(seq): # Credit: Dave Kirby
+def uniquify(seq):
+    '''Order preserving uniquify.
+       http://www.peterbe.com/plog/uniqifiers-benchmark/
+         uniqifiers_benchmark.py (f8 by Dave Kirby)
+    '''
     seen = set()
-    return [x for x in seq if x not in seen and not seen.add(x)]
+    a = seen.add
+    return [x for x in seq if x not in seen and not a(x)]
 
 
 def strip_all(list):
