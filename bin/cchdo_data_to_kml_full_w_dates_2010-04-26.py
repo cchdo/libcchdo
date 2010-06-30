@@ -2,12 +2,11 @@
 # cchdo_data_to_kml
 
 from __future__ import with_statement
-import os.path
 import string
-from sys import argv, exit, path, stdout
-path.insert(0, '/'.join(path[0].split('/')[:-1]))
+import sys
+sys.path.insert(0, '/'.join(sys.path[0].split('/')[:-2]))
 
-import db.connect
+import libcchdo.db.connect
 
 def color_arr_to_str(color):
     return 'ff'+''.join(map(lambda x: '%02x' % x, color[::-1]))
@@ -48,7 +47,7 @@ kml_footer = """</Document></kml>"""
 
 directory = './KML_CCHDO_holdings'
 
-connection = db.connect.cchdo()
+connection = libcchdo.db.connect.cchdo()
 cursor = connection.cursor()
 cursor.execute((
     'SELECT track_lines.ExpoCode,'

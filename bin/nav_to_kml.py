@@ -6,7 +6,7 @@ from datetime import datetime
 from string import translate, maketrans
 from os import path, makedirs, getcwd
 import sys
-sys.path.insert(0, '/'.join(sys.path[0].split('/')[:-1]))
+sys.path.insert(0, '/'.join(sys.path[0].split('/')[:-2]))
 
 import datadir.util
 

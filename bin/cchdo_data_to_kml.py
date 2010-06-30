@@ -5,10 +5,10 @@ from __future__ import with_statement
 import datetime
 import os
 import string
-from sys import argv, exit, path, stdout
-path.insert(0, '/'.join(path[0].split('/')[:-1]))
+import sys
+sys.path.insert(0, '/'.join(sys.path[0].split('/')[:-2]))
 
-import db.connect
+import libcchdo.db.connect
 
 
 def color_arr_to_str(color):
@@ -30,7 +30,7 @@ if not os.path.exists(directory):
 cycle_colors = map(color_arr_to_str, [[255, 0, 0], [0, 255, 0],
                                       [0, 0, 255], [255, 255, 0]])
 
-connection = db.connect.cchdo()
+connection = libcchdo.db.connect.cchdo()
 cursor = connection.cursor()
 cursor.execute('SELECT ExpoCode,ASTEXT(track) FROM track_lines')
 rows = cursor.fetchall()

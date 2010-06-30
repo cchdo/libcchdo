@@ -5,11 +5,11 @@ import logging
 import os.path
 import struct
 import sys
-sys.path.insert(0, '/'.join(sys.path[0].split('/')[:-1]))
+sys.path.insert(0, '/'.join(sys.path[0].split('/')[:-2]))
 
 import libcchdo
-import formats.bottle.exchange as botex
-import datadir.util
+import libcchdo.formats.bottle.exchange as botex
+import libcchdo.datadir.util
 
 def ensure_nav(root, dirs, files):
   navfiles = filter(lambda f: f.endswith('na.txt'), files)

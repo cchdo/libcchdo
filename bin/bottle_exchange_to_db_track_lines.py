@@ -2,16 +2,16 @@
 
 from __future__ import with_statement
 from sys import argv, exit, path
-path.insert(0, '/'.join(path[0].split('/')[:-1]))
+path.insert(0, '/'.join(path[0].split('/')[:-2]))
 
-from libcchdo import DataFile
-import formats.bottle.exchange as botex
+import libcchdo
+import libcchdo.formats.bottle.exchange as botex
 
 if len(argv) < 2:
     print 'Usage:', argv[0], '<exbot file>'
     exit(1)
 
 with open(argv[1], 'r') as in_file:
-    file = DataFile()
+    file = libcchdo.DataFile()
     botex.read(file, in_file)
     file.write_track_lines()

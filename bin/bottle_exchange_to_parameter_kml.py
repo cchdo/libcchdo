@@ -2,18 +2,10 @@
 
 from __future__ import with_statement
 from sys import argv, exit, path, stdout
-path.insert(0, '/'.join(path[0].split('/')[:-1]))
+path.insert(0, '/'.join(path[0].split('/')[:-2]))
 
 import libcchdo
-import formats.bottle.exchange as botex
-
-if len(argv) < 2:
-    print 'Usage:', argv[0], '<exbot file>'
-    exit(1)
-
-file = libcchdo.DataFile()
-with open(argv[1], 'r') as in_file:
-    botex.read(file, in_file)
+import libcchdo.formats.bottle.exchange as botex
 
 
 def color_arr_to_str(color):
@@ -27,6 +19,14 @@ def map_to_color(val, min, max, mincolor, maxcolor):
   db = (maxcolor[2]-mincolor[2]) * dratio
   return [mincolor[0]+dr, mincolor[1]+dg, mincolor[2]+db]
 
+
+if len(argv) < 2:
+    print 'Usage:', argv[0], '<exbot file>'
+    exit(1)
+
+file = libcchdo.DataFile()
+with open(argv[1], 'r') as in_file:
+    botex.read(file, in_file)
 
 placemarks = []
 maxtemp = 38
