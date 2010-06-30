@@ -17,7 +17,7 @@ file = libcchdo.DataFile()
 with open(sys.argv[1], 'r') as in_file:
     ctdnc.read(file, in_file)
 
-if len(sys.argv) >= 2:
+if len(sys.argv) > 2:
     timeseries = sys.argv[2].strip()
     if timeseries == 'BATS':
         print >> sys.stderr, 'Printing a BATS OceanSITES NetCDF'
