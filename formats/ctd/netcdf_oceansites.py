@@ -4,6 +4,7 @@ import datetime
 import string
 import math
 import sys
+import tempfile
 from warnings import warn
 
 import libcchdo
@@ -64,15 +65,13 @@ TIMESERIES_INFO = {
 def write(self, handle, timeseries=None, timeseries_info={}):
     '''How to write a CTD NetCDF OceanSITES file.'''
     # netcdf library wants to write its own files.
-    filename = handle.name
-    if not handle == sys.stdout:
-        handle.close()
+    tmp = tempfile.NamedTemporaryFile()
     strdate = str(self.globals['DATE']) 
     strtime = str(self.globals['TIME']).rjust(4, '0')
     isowocedate = datetime.datetime(
         int(strdate[0:4]), int(strdate[5:7]), int(strdate[8:10]),
         int(strtime[0:2]), int(strtime[3:5]))
-    nc_file = Dataset(filename, 'w', format='NETCDF3_CLASSIC')
+    nc_file = Dataset(tmp.name, 'w', format='NETCDF3_CLASSIC')
     nc_file.data_type = 'OceanSITES time-series CTD data'
     nc_file.format_version = '1.1'
     nc_file.date_update = datetime.datetime.utcnow().isoformat()+'Z'
@@ -290,3 +289,7 @@ def write(self, handle, timeseries=None, timeseries_info={}):
             nc_file.__setattr__(var, timeseries_info[var])
         nc_file.id = timeseries_info['id'] % stringdate
     nc_file.close()
+
+    handle.write(tmp.read())
+    tmp.close()
+    handle.close()
