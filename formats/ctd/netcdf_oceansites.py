@@ -292,4 +292,3 @@ def write(self, handle, timeseries=None, timeseries_info={}):
 
     handle.write(tmp.read())
     tmp.close()
-    handle.close()
