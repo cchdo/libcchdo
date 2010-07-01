@@ -59,7 +59,60 @@ TIMESERIES_INFO = {
 }
 
 
+# CTD variables
+param_to_oceansites = {
+    'ctd_pressure': 'PRES',
+    'ctd_temperature': 'TEMP',
+    'ctd_oxygen': 'DOXY',
+    'ctd_salinity': 'PSAL',
+}
+
+
+oceansites_variables = {
+    'TEMP': {'long': 'sea water temperature',
+             'std': 'sea_water_temperature',
+             'units': 'degree_Celsius'},
+    'DOXY': {'long': 'dissolved oxygen', 'std': 'dissolved_oxygen',
+             'units': 'micromole/kg'},
+    'PSAL': {'long': 'sea water salinity', 'std': 'sea_water_salinity',
+             'units': 'psu'},
+    # valid_min 0.0, valid_max 12000.0, QC_indicator =7,
+    # QC_procedure = 5, uncertainty 2.0
+    'PRES': {'long': 'sea water pressure', 'std': 'sea_water_pressure',
+             'units': 'decibars'},
+}
+
+
+oceansites_uncertainty = {
+    'TEMP': 0.002,
+    'PSAL': 0.005,
+    'DOXY': float('inf'),
+    'PRES': float('inf'),
+}
+
+
+FLAG_MEANINGS = ' '.join([
+    'no_qc_performed',
+    'good_data',
+    'probably_good_data',
+    'bad_data_that_are_potentially_correctable',
+    'bad_data',
+    'value_changed',
+    'not_used',
+    'nominal_value',
+    'interpolated_value',
+    'missing_value',
+])
+
+
+VARIABLES_TO_TRANSFER = (
+    'platform_code institution institution_references site_code '
+    'references comment summary area institution_references '
+    'contact pi_name').split()
+
+
 #def read(self, handle): TODO
+#    '''How to read a CTD NetCDF OceanSITE file.'''
 
 
 def write(self, handle, timeseries=None, timeseries_info={}):
@@ -175,39 +228,13 @@ def write(self, handle, timeseries=None, timeseries_info={}):
     var_latitude[:] = [self.globals['LATITUDE']]
     var_longitude[:] = [self.globals['LONGITUDE']]
 
-    # CTD variables
-    param_to_oceansites = {
-        'ctd_pressure': 'PRES',
-        'ctd_temperature': 'TEMP',
-        'ctd_oxygen': 'DOXY',
-        'ctd_salinity': 'PSAL',
-    }
-    oceansites_variables = {
-        'TEMP': {'long': 'sea water temperature',
-                 'std': 'sea_water_temperature',
-                 'units': 'degree_Celsius'},
-        'DOXY': {'long': 'dissolved oxygen', 'std': 'dissolved_oxygen',
-                 'units': 'micromole/kg'},
-        'PSAL': {'long': 'sea water salinity', 'std': 'sea_water_salinity',
-                 'units': 'psu'},
-        # valid_min 0.0, valid_max 12000.0, QC_indicator =7,
-        # QC_procedure = 5, uncertainty 2.0
-        'PRES': {'long': 'sea water pressure', 'std': 'sea_water_pressure',
-                 'units': 'decibars'},
-    }
-    oceansites_uncertainty = {
-        'TEMP': 0.002,
-        'PSAL': 0.005,
-        'DOXY': float('inf'),
-        'PRES': float('inf'),
-    }
-
     for column in self.columns.values():
-        bad_chars = string.maketrans(" ()", "___")
-        if column.parameter.description == None:
+        if not column.parameter.description:
             warn('Bad parameter description %s' % column.parameter)
             return 
+        bad_chars = string.maketrans(" ()", "___")
         name = column.parameter.description.lower().translate(bad_chars)
+
         if name in param_to_oceansites.keys():
             name = param_to_oceansites[name]
             # Write variable
@@ -238,25 +265,14 @@ def write(self, handle, timeseries=None, timeseries_info={}):
                 flag.valid_min = 0
                 flag.valid_max = 9
                 flag.flag_values = 0#, 1, 2, 3, 4, 5, 6, 7, 8, 9 TODO??
-                flag.flag_meanings = ' '.join([
-                    'no_qc_performed',
-                    'good_data',
-                    'probably_good_data',
-                    'bad_data_that_are_potentially_correctable',
-                    'bad_data',
-                    'value_changed',
-                    'not_used',
-                    'nominal_value',
-                    'interpolated_value',
-                    'missing_value'
-                ])
+                flag.flag_meanings = FLAG_MEANINGS
                 flag[:] = map(lambda x: WOCE_to_OceanSITES_flag[x],
                               column.flags_woce)
         if name is 'PRES':
             # Fun using Sverdrup's depth integration with density.
             localgrav = libcchdo.grav_ocean_surface_wrt_latitude(
                 self.globals['LATITUDE'])
-            density_series = [density(*args) for args in zip(
+            density_series = [libcchdo.density(*args) for args in zip(
                 self.columns['CTDSAL'].values,
                 self.columns['CTDTMP'].values,
                 column.values)]
@@ -268,6 +284,7 @@ def write(self, handle, timeseries=None, timeseries_info={}):
             #     self.columns['CTDPRS'].values)
 
             var_depth[:] = depth_series
+
     # Write timeseries information, if given
     if (timeseries and timeseries in TIMESERIES_INFO) or timeseries_info:
         if timeseries:
@@ -281,11 +298,7 @@ def write(self, handle, timeseries=None, timeseries_info={}):
                                     int(strdate[8:10]), 0, 0)
         stringdate = isodate.date().isoformat().replace('-', '')
 
-        variables_to_transfer = (
-            'platform_code institution institution_references site_code '
-            'references comment summary area institution_references '
-            'contact pi_name').split()
-        for var in variables_to_transfer:
+        for var in VARIABLES_TO_TRANSFER:
             nc_file.__setattr__(var, timeseries_info[var])
         nc_file.id = timeseries_info['id'] % stringdate
     nc_file.close()

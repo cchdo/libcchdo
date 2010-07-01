@@ -11,14 +11,15 @@ MAX_PRESSURE with a '_', the library will not retrive the parameter definition
 from the database (there is none anyway).
 """
 
-from datetime import date, datetime
-from math import sin, cos, acos
+import datetime
+import math
 from warnings import warn
 import os.path
 import re
 import struct
 
 import db.connect
+import formats
 
 # Import netCDF here because there is no easy way to import it for specific
 # formats. TODO find a way to import netcdf only for specific formats.
@@ -86,11 +87,11 @@ def read_arbitrary(filename):
 
 def great_circle_distance(lat_stand, lng_stand, lat_fore, lng_fore):
     delta_lng = lng_fore - lng_stand
-    cos_lat_fore = cos(lat_fore)
-    cos_lat_stand = cos(lat_stand)
-    cos_lat_fore_cos_delta_lng = cos_lat_fore * cos(delta_lng)
-    sin_lat_stand = sin(lat_stand)
-    sin_lat_fore = sin(lat_fore)
+    cos_lat_fore = math.cos(lat_fore)
+    cos_lat_stand = math.cos(lat_stand)
+    cos_lat_fore_cos_delta_lng = cos_lat_fore * math.cos(delta_lng)
+    sin_lat_stand = math.sin(lat_stand)
+    sin_lat_fore = math.sin(lat_fore)
 
     # Vicenty formula from Wikipedia
     # fraction_top = sqrt( (cos_lat_fore * sin(delta_lng)) ** 2 +
@@ -101,8 +102,9 @@ def great_circle_distance(lat_stand, lng_stand, lat_fore, lng_fore):
     # central_angle = atan2(1.0, fraction_top/fraction_bottom)
 
     # simple formula from wikipedia
-    central_angle = acos(cos_lat_stand * cos_lat_fore * cos(delta_lng) +
-                         sin_lat_stand * sin_lat_fore)
+    central_angle = math.acos(cos_lat_stand * cos_lat_fore * \
+                              math.cos(delta_lng) + \
+                              sin_lat_stand * sin_lat_fore)
 
     arc_length = RADIUS_EARTH * central_angle
     return arc_length
@@ -142,12 +144,12 @@ def dec_lng_to_woce_lng(lng):
     return '%3d %05.2f %1s' % (lng_deg, lng_dec, lng_hem)
 
 
-def strftime_iso(datetime):
-    return datetime.isoformat()+'Z'
+def strftime_iso(dtime):
+    return dtime.isoformat()+'Z'
 
 
-def strftime_woce_date_time(datetime):
-    return (datetime.strftime('%Y%m%d'), datetime.strftime('%H%M'))
+def strftime_woce_date_time(dtime):
+    return (dtime.strftime('%Y%m%d'), dtime.strftime('%H%M'))
 
 
 def out_of_band(value):
@@ -163,8 +165,8 @@ def out_of_band(value):
 
 
 def grav_ocean_surface_wrt_latitude(latitude):
-    return 9.780318 * (1.0 + 5.2788e-3 * sin(latitude) ** 2 +
-                             2.35e-5 * sin(latitude) ** 4)
+    return 9.780318 * (1.0 + 5.2788e-3 * math.sin(latitude) ** 2 +
+                             2.35e-5 * math.sin(latitude) ** 4)
 
 # Following two functions ports of
 # $Id: depth.c,v 11589a696ce7 2008/10/15 22:56:57 fdelahoyde $
@@ -309,7 +311,7 @@ def depth_unesco(pres, lat):
       for standard ocean: T=0 deg celsius; S=35 (PSS-78)
     """
 
-    x = sin(lat / 57.29578) ** 2
+    x = math.sin(lat / 57.29578) ** 2
     gr = 9.780318 * (1.0 + (5.2788e-3 + 2.36e-5 * x) * x) + 1.092e-6 * pres
     return ((((-1.82e-15 * pres + 2.279e-10) * pres - 2.2512e-5) * \
            pres + 9.72659) * pres) / gr
@@ -336,7 +338,49 @@ KNOWN_PARAMETERS = {
                 'display_order': 2,
                 'aliases': [],
                },
+# The CTD details are included because the database does not have descriptions.
+    'CTDPRS': {'name': 'Pressure',
+               'format': '8.1f',
+               'description': 'CTD pressure',
+               'units': 'decibar',
+               'bound_lower': '0',
+               'bound_upper': '11000',
+               'mnemonic': 'DBAR',
+               'display_order': 6,
+               'aliases': [],
+              },
+    'CTDTMP': {'name': 'Temperature',
+               'format': '8.4f',
+               'description': 'CTD temperature',
+               'units': 'ITS90',
+               'bound_lower': '-2',
+               'bound_upper': '35',
+               'mnemonic': 'ITS-90',
+               'display_order': 7,
+               'aliases': [],
+              },
+    'CTDOXY': {'name': 'Oxygen',
+               'format': '8.1f',
+               'description': 'CTD oxygen',
+               'units': u'\xb5mol/kg',
+               'bound_lower': '0',
+               'bound_upper': '500',
+               'mnemonic': 'UMOL/KG',
+               'display_order': 8,
+               'aliases': [],
+              },
+    'CTDSAL': {'name': 'Salinity',
+               'format': '8.4f',
+               'description': 'CTD salinity',
+               'units': 'PSS-78',
+               'bound_lower': '0',
+               'bound_upper': '42',
+               'mnemonic': 'PSS-78',
+               'display_order': 9,
+               'aliases': [],
+              },
 }
+
 
 class Parameter:
 
@@ -398,6 +442,19 @@ class Parameter:
         connection.close()
 
     def init_from_mysql(self, parameter_name):
+        if parameter_name in KNOWN_PARAMETERS:
+            info = KNOWN_PARAMETERS[parameter_name]
+            self.full_name = info['name']
+            self.format = info['format']
+            self.description = info['description']
+            self.units = info['units']
+            self.bound_lower = info['bound_lower']
+            self.bound_upper = info['bound_upper']
+            self.units_mnemonic = info['mnemonic']
+            self.woce_mnemonic = parameter_name
+            self.display_order = info['display_order']
+            self.aliases = info['aliases']
+            return
         connection = db.connect.cchdo()
         cursor = connection.cursor()
         def wrap_column(s):
@@ -420,24 +477,11 @@ class Parameter:
             self.woce_mnemonic = parameter_name
             self.display_order = -9999
             self.aliases = row[6].split(',') if row[6] else []
+            connection.close()
         else:
-            if parameter_name in KNOWN_PARAMETERS:
-                info = KNOWN_PARAMETERS[parameter_name]
-                self.full_name = info['name']
-                self.format = info['format']
-                self.description = info['description']
-                self.units = info['units']
-                self.bound_lower = info['bound_lower']
-                self.bound_upper = info['bound_upper']
-                self.units_mnemonic = info['mnemonic']
-                self.woce_mnemonic = parameter_name
-                self.display_order = info['display_order']
-                self.aliases = info['aliases']
-            else:
-                connection.close()
-                raise NameError(
-                     "'%s' is not in CCHDO's parameter list." % parameter_name)
-        connection.close()
+            connection.close()
+            raise NameError(
+                 "'%s' is not in CCHDO's parameter list." % parameter_name)
 
     def __eq__(self, other):
         return self.woce_mnemonic == other.woce_mnemonic
@@ -559,7 +603,7 @@ class SummaryFile:
                 cs['STNNBR'].append(int_or_none(tokens[2]))
                 cs['CASTNO'].append(int_or_none(tokens[3]))
                 cs['_CAST_TYPE'].append(tokens[4])
-                date = datetime.strptime(tokens[5], '%m%d%y')
+                date = datetime.datetime.strptime(tokens[5], '%m%d%y')
                 cs['DATE'].append('%4d%02d%02d' % \
                                   (date.year, date.month, date.day))
                 cs['TIME'].append(int_or_none(tokens[6]))
@@ -579,7 +623,7 @@ class SummaryFile:
 
     def write_Summary_WOCE(self, handle):
         '''How to write a Summary file for WOCE.'''
-        today = date.today()
+        today = datetime.date.today()
         uniq_sects = uniquify(self.columns['SECT_ID'].values)
         handle.write('R/V _SHIP LEG _# WHP-ID '+','.join(uniq_sects)+
                      ' %04d%02d%02d' % (today.year, today.month, today.day)+
@@ -630,7 +674,7 @@ class SummaryFile:
               self.columns['STNNBR'].append(int(tokens[2]))
               self.columns['CASTNO'].append(int(tokens[3]))
               self.columns['_CAST_TYPE'].append(tokens[4])
-              date = datetime.strptime(tokens[5], '%m%d%y')
+              date = datetime.datetime.strptime(tokens[5], '%m%d%y')
               self.columns['DATE'].append(
                   "%4d%02d%02d" % (date.year, date.month, date.day))
               self.columns['TIME'].append(int(tokens[6]))
@@ -795,9 +839,9 @@ class DataFileCollection:
 
 class Location:
 
-    def __init__(self, coordinate, datetime=None, depth=None):
+    def __init__(self, coordinate, dtime=None, depth=None):
         self.coordinate = coordinate
-        self.datetime = datetime
+        self.datetime = dtime
         self.depth = depth
         # TODO nil axis magnitudes should be matched as a wildcard
 
