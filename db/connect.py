@@ -49,20 +49,15 @@ def _connect(module, error, **credentials):
            an active DB connection using the given arguments
     """
     key = str(credentials)
-    print 'db key:', key
     if key in _CONNECTION_CACHE:
-        print 'key is in cache'
         conn = _CONNECTION_CACHE[key]
         try:
             if conn.open:
-                print 'cached conn is open'
                 return conn
         except Error, e:
             # The connection in the cache has been closed. Reopen it.
             pass
-        print 'cached con is CLOSED'
         
-    print 'opening CONN for', key
     try:
         conn = module.connect(**credentials)
         _CONNECTION_CACHE[key] = conn
