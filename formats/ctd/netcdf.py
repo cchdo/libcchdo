@@ -4,7 +4,7 @@ import libcchdo
 import datetime #XXX
 import tempfile #XXX
 from warnings import warn
-import sys #XXX
+import sys
 
 
 try:
@@ -55,6 +55,8 @@ def read(self, handle):
     for name, variable in nc_file.variables.items():
         if name.endswith(QC_SUFFIX):
             qc_vars[NC_CTD_VAR_TO_WOCE_PARAM[name[:-len(QC_SUFFIX)]]] = variable
+        elif name == "sampno" or name == "btlnbr": #XXX
+            continue #XXX
         else:
             name = NC_CTD_VAR_TO_WOCE_PARAM[name]
 
@@ -117,6 +119,7 @@ def netcdf_variable_name_from_column(column):
         warn("Bad parameter description %s" % column.parameter)
         return None
     n = column.parameter.description.lower()
+    n = n.replace("ctd ", "")
     return n.replace("(", "_").replace(")", "_").replace(" ", "_")
 
 
@@ -168,7 +171,7 @@ def write(self, handle):
     # Pressure
     if "CTDPRS" not in self.columns:
         raise RuntimeError("(XXX) 'CTDPRS' not in self.columns; abort")
-    var_pressure = nc_file.createVariable("ctd_pressure", "d", ("pressure", ))
+    var_pressure = nc_file.createVariable("pressure", "d", ("pressure", ))
     var_pressure.long_name = "pressure"
     var_pressure.units = "dbar"
     var_pressure.positive = "down"
@@ -177,17 +180,17 @@ def write(self, handle):
     var_pressure.data_max = max(ctdprs)
     var_pressure.C_format = "%8.1f"
     var_pressure.WHPO_Variable_Name = "CTDPRS"
-    var_pressure.OBS_QC_VARIABLE = "ctd_pressure_QC"
+    var_pressure.OBS_QC_VARIABLE = "pressure_QC"
     # Pressure QC
-    var_pressure_qc = nc_file.createVariable("ctd_pressure_QC", "i",
+    var_pressure_qc = nc_file.createVariable("pressure_QC", "i",
             ("pressure", ))
-    var_pressure_qc.long_name = "ctd pressure_QC_flag"
+    var_pressure_qc.long_name = "pressure_QC_flag"
     var_pressure_qc.units = "woce_flags"
     var_pressure_qc.C_format = "%1d"
     # Temperature
     if "CTDTMP" not in self.columns:
         raise RuntimeError("(XXX) 'CTDTMP' not in self.columns; abort")
-    var_temperature = nc_file.createVariable("ctd_temperature", "d",
+    var_temperature = nc_file.createVariable("temperature", "d",
             ("pressure", ))
     var_temperature.long_name = "temperature"
     var_temperature.units = "its-90"
@@ -196,47 +199,47 @@ def write(self, handle):
     var_temperature.data_max = max(ctdtmp)
     var_temperature.C_format = "%8.4f"
     var_temperature.WHPO_Variable_Name = "CTDTMP"
-    var_temperature.OBS_QC_VARIABLE = "ctd_temperature_QC"
+    var_temperature.OBS_QC_VARIABLE = "temperature_QC"
     # Temperature QC
-    var_temperature_qc = nc_file.createVariable("ctd_temperature_QC", "i",
+    var_temperature_qc = nc_file.createVariable("temperature_QC", "i",
             ("pressure", ))
-    var_temperature_qc.long_name = "ctd temperature_QC_flag"
+    var_temperature_qc.long_name = "temperature_QC_flag"
     var_temperature_qc.units = "woce_flags"
     var_temperature_qc.C_format = "%1d"
     # Salinity
     if "CTDSAL" not in self.columns:
         raise RuntimeError("(XXX) 'CTDSAL' not in self.columns; abort")
-    var_salinity = nc_file.createVariable("ctd_salinity", "d", ("pressure", ))
-    var_salinity.long_name = "ctd salinity"
+    var_salinity = nc_file.createVariable("salinity", "d", ("pressure", ))
+    var_salinity.long_name = "salinity"
     var_salinity.units = "pss-78"
     ctdsal = map(libcchdo.identity_or_oob, self.columns["CTDSAL"].values)
     var_salinity.data_min = min(ctdsal)
     var_salinity.data_max = max(ctdsal)
     var_salinity.C_format = "%8.4f"
     var_salinity.WHPO_Variable_Name = "CTDSAL"
-    var_salinity.OBS_QC_VARIABLE = "ctd_salinity_QC"
+    var_salinity.OBS_QC_VARIABLE = "salinity_QC"
     # Salinity QC
-    var_salinity_qc = nc_file.createVariable("ctd_salinity_QC", "i",
+    var_salinity_qc = nc_file.createVariable("salinity_QC", "i",
             ("pressure", ))
-    var_salinity_qc.long_name = "ctd salinity_QC_flag"
+    var_salinity_qc.long_name = "salinity_QC_flag"
     var_salinity_qc.units = "woce_flags"
     var_salinity_qc.C_format = "%1d"
     # Oxygen
     if "CTDOXY" not in self.columns:
         raise "(XXX) 'oxygen' not in self.columns; abort"
-    var_oxygen = nc_file.createVariable("ctd_oxygen", "d", ("pressure", ))
-    var_oxygen.long_name = "ctd oxygen"
+    var_oxygen = nc_file.createVariable("oxygen", "d", ("pressure", ))
+    var_oxygen.long_name = "oxygen"
     var_oxygen.units = "umol/kg"
     ctdoxy = map(libcchdo.identity_or_oob, self.columns["CTDOXY"].values)
     var_oxygen.data_min = min(ctdoxy)
     var_oxygen.data_max = max(ctdoxy)
     var_oxygen.C_format = "%8.1f"
     var_oxygen.WHPO_Variable_Name = "CTDOXY"
-    var_oxygen.OBS_QC_VARIABLE = "ctd_oxygen_QC"
+    var_oxygen.OBS_QC_VARIABLE = "oxygen_QC"
     # Oxygen QC
-    var_oxygen_qc = nc_file.createVariable("ctd_oxygen_QC", "i",
+    var_oxygen_qc = nc_file.createVariable("oxygen_QC", "i",
             ("pressure", ))
-    var_oxygen_qc.long_name = "ctd oxygen_QC_flag"
+    var_oxygen_qc.long_name = "oxygen_QC_flag"
     var_oxygen_qc.units = "woce_flags"
     var_oxygen_qc.C_format = "%1d"
     # Latitude
