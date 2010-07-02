@@ -112,7 +112,7 @@ VARIABLES_TO_TRANSFER = (
 
 
 #def read(self, handle): TODO
-#    '''How to read a CTD NetCDF OceanSITE file.'''
+#    '''How to read a CTD NetCDF OceanSITES file.'''
 
 
 def write(self, handle, timeseries=None, timeseries_info={}):

@@ -1,13 +1,14 @@
 '''libcchdo.formats.ctd.exchange'''
 
-from re import compile
-from datetime import datetime, date
+import re
+import datetime
 
+import libcchdo
 
 def read(self, handle):
     '''How to read a CTD Exchange file.'''
     # Read identifier and stamp
-    stamp = compile('CTD,(\d{8}\w+)')
+    stamp = re.compile('CTD,(\d{8}\w+)')
     m = stamp.match(handle.readline())
     if m:
         self.stamp = m.group(1)
@@ -19,13 +20,13 @@ def read(self, handle):
         self.header += l
         l = handle.readline()
     # Read NUMBER_HEADERS
-    num_headers = compile('NUMBER_HEADERS\s+=\s+(\d+)')
+    num_headers = re.compile('NUMBER_HEADERS\s+=\s+(\d+)')
     m = num_headers.match(l)
     if m:
         num_headers = int(m.group(1))-1 # NUMBER_HEADERS counts itself as a header
     else:
         raise ValueError('Expected NUMBER_HEADERS as the second line in the file.')
-    header = compile('(\w+)\s*=\s*(-?\w+)')
+    header = re.compile('(\w+)\s*=\s*(-?[\w\.]+)')
     for i in range(0, num_headers):
         m = header.match(handle.readline())
         if m:
@@ -59,14 +60,17 @@ def read(self, handle):
           elif column.endswith('_FLAG_I'):
               self.columns[column[:-7]].flags_igoss.append(value)
           else:
-              self.columns[column].append(value)
+              if libcchdo.out_of_band(float(value)):
+                  self.columns[column].append(None)
+              else:
+                  self.columns[column].append(float(value))
       l = handle.readline().strip()
 
 
 def write(self, handle):
     '''How to write a CTD Exchange file.'''
-    today = date.today()
-    handle.write('CTD,%4d%02d%02dSIOCCHDLIB\n' % (today.year, today.month, today.day))
+    today = datetime.date.today()
+    handle.write('CTD,%4d%02d%02d%s\n' % (today.year, today.month, today.day, libcchdo.LIBVER))
     handle.write(self.header)
     handle.write('NUMBER_HEADERS = '+str(len(self.globals.keys())+1)+"\n")
     required_headers = ('EXPOCODE', 'SECT', 'STNNBR', 'CASTNO', 'DATE',

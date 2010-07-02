@@ -11,7 +11,7 @@ import libcchdo.formats.ctd.netcdf_oceansites as ctdnc_oceansites
 
 if len(sys.argv) < 2:
     print 'Usage:', sys.argv[0], '<cchdo_netcdf> [timeseries name]'
-    exit(1)
+    sys.exit(1)
 
 file = libcchdo.DataFile()
 with open(sys.argv[1], 'r') as in_file:

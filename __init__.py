@@ -21,6 +21,8 @@ import struct
 import db.connect
 import formats
 
+LIBVER = 'SIOCCHDLIB'
+
 # Import netCDF here because there is no easy way to import it for specific
 # formats. TODO find a way to import netcdf only for specific formats.
 try:
@@ -863,3 +865,14 @@ BASINS = REGIONS = {
     # TODO define the rest of the basins...maybe define bounds for
     # other groupings
 }
+
+
+def identity_or_oob(x, oob=-999):
+    """Identity or OOB (XXX)
+       Args:
+           x - anything
+           oob - out-of-band value (default -999)
+       Returns:
+           identity or out-of-band value.
+    """
+    return x if x else oob
