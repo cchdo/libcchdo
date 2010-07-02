@@ -46,7 +46,7 @@ QC_SUFFIX = '_QC'
 def read(self, handle):
     '''How to read a CTD NetCDF file.'''
     filename = handle.name
-    handle.close()
+    #handle.close()
     nc_file = Dataset(filename, 'r')
     # Create columns for all the variables and get all the data.
     # Map the nc_ctd variable to drop to skip the variable.
@@ -130,7 +130,7 @@ def write(self, handle):
             int(strtime[:2]), int(strtime[2:]))
     nc_file = Dataset(tmp.name, "w", format="NETCDF3_CLASSIC")
     nc_file.EXPOCODE = self.globals["EXPOCODE"]
-    nc_file.conventions = "COARDS/WOCE"
+    nc_file.Conventions = "COARDS/WOCE"
     nc_file.WOCE_VERSION = "3.0"
     nc_file.WOCE_ID = self.globals["SECT"] if "SECT" in self.globals else \
                           self.globals["SECT_ID"] if "SECT_ID" in \

@@ -41,6 +41,14 @@ def read(self, handle):
     if len(columns) is not len(units):
         raise ValueError("Expected as many columns as units in file. Found %d columns and %d units." % (len(columns), len(units)))
 
+    # Check all parameters are non-trivial
+    if not all(columns):
+        #raise ValueError(("Malformed parameters/unit line; make sure there "
+        #                  "are no blank parameters (e.g. extra comma at end)"))
+        import sys
+        print >> sys.stderr, "WARNING: stripped blank parameter from MALFORMED EXCHANGE FILE"
+        columns = filter(None, columns)
+
     self.create_columns(columns, units)
 
     # Read data
