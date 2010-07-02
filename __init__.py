@@ -381,6 +381,16 @@ KNOWN_PARAMETERS = {
                'display_order': 9,
                'aliases': [],
               },
+    'CTDNOBS': {'name': 'nobs', # XXX
+               'format': 's',
+               'description': 'Number of observations',
+               'units': '',
+               'bound_lower': '',
+               'bound_upper': '',
+               'mnemonic': '',
+               'display_order': float("Inf"),
+               'aliases': [],
+              },
 }
 
 
