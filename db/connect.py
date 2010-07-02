@@ -7,8 +7,8 @@ DB_CREDENTIALS = {
 #    'goship(cchdotest)':  {'user': 'libcchdo', 'password': '((hd0hydr0d@t@',
 #                           'host': 'goship.ucsd.edu', 'database': 'cchdotest'},
     # MySQL
-    #'cchdo(cchdo)':       {'user': 'cchdo_server', 'passwd': '((hdo0hydr0d@t@',
-    #                       'host': 'cchdo.ucsd.edu', 'db': 'cchdo'},
+#    'cchdo(cchdo)':       {'user': 'cchdo_server', 'passwd': '((hdo0hydr0d@t@',
+#                           'host': 'cchdo.ucsd.edu', 'db': 'cchdo'},
     'cchdo(cchdo)':       {'user': 'jfields', 'passwd': 'c@keandc00kies',
                            'host': 'cchdo.ucsd.edu', 'db': 'cchdo'},
     'watershed(cchdo)':   {'user': 'jfields', 'passwd': 'c@keandc00kies',
@@ -34,10 +34,34 @@ except ImportError, e:
 
 # Internal connection abstractions
 
+
+_CONNECTION_CACHE = {}
+
+
 def _connect(module, error, **credentials):
-    """Connect to a given Python DB-API compliant database"""
+    """Connect to a given Python DB-API compliant database.
+       Args:
+           module - the DB-API module to use
+           error - the module specific error to consider as a database error
+           credentials - a dictionary of credentials to give to the module's
+                         connect()
+       Returns:
+           an active DB connection using the given arguments
+    """
+    key = str(credentials)
+    if key in _CONNECTION_CACHE:
+        conn = _CONNECTION_CACHE[key]
+        try:
+            conn.cursor().close()
+            return conn
+        except Error, e:
+            # The connection in the cache has been closed. Reopen it.
+            pass
+        
     try:
-        return module.connect(**credentials)
+        conn = module.connect(**credentials)
+        _CONNECTION_CACHE[key] = conn
+        return conn
     except error, e:
         raise IOError("Database error: %s" % e)
 

@@ -396,31 +396,39 @@ KNOWN_PARAMETERS = {
 
 class Parameter:
 
-    def __init__(self, parameter_name, contrived=False):
-        if contrived or parameter_name.startswith('_'):
-            self.full_name = parameter_name
-            self.format = '11s'
-            self.units = 0
-            self.bound_lower = None
-            self.bound_upper = None
-            self.units_mnemonic = ''
-            self.woce_mnemonic = parameter_name
-            self.display_order = -9999
-            self.aliases = []
-        else:
-            #try:
-            #    self.init_from_postgresql(parameter_name)
-            #except Exception, e:
-            #    warn(("%s\nFalling back to mysql database for "
-            #          "parameter info.") % e)
-            try:
-                self.init_from_mysql(parameter_name)
-            except Exception, e:
-                raise EnvironmentError(
-                    ("%s\nNo databases could be used for "
-                     "parameter verification.") % e)
 
-    def init_from_postgresql(self, parameter_name):
+    PARAMETER_CACHE = {}
+
+
+    def __init__(self, parameter_name, contrived=False):
+        if parameter_name in Parameter.PARAMETER_CACHE:
+            self.__dict__ = Parameter.PARAMETER_CACHE[parameter_name].__dict__
+        else:
+          if contrived or parameter_name.startswith('_'):
+              self.full_name = parameter_name
+              self.format = '11s'
+              self.units = 0
+              self.bound_lower = None
+              self.bound_upper = None
+              self.units_mnemonic = ''
+              self.woce_mnemonic = parameter_name
+              self.display_order = -9999
+              self.aliases = []
+          else:
+              #try:
+              #    self._init_from_postgresql(parameter_name)
+              #except Exception, e:
+              #    warn(("%s\nFalling back to mysql database for "
+              #          "parameter info.") % e)
+              try:
+                  self._init_from_mysql(parameter_name)
+              except Exception, e:
+                  raise EnvironmentError(
+                      ("%s\nNo databases could be used for "
+                       "parameter verification.") % e)
+          Parameter.PARAMETER_CACHE[parameter_name] = self
+
+    def _init_from_postgresql(self, parameter_name):
         connection = db.connect.cchdotest()
         cursor = connection.cursor()
         select = ','.join(
@@ -453,7 +461,7 @@ class Parameter:
                  "'%s' is not in CCHDO's parameter list." % parameter_name)
         connection.close()
 
-    def init_from_mysql(self, parameter_name):
+    def _init_from_mysql(self, parameter_name):
         if parameter_name in KNOWN_PARAMETERS:
             info = KNOWN_PARAMETERS[parameter_name]
             self.full_name = info['name']
