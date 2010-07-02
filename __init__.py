@@ -196,7 +196,7 @@ def depth(grav, p, rho):
     depth = []
 
     num_intervals = len(p)
-    if not (num_intervals is len(rho)):
+    if not (num_intervals == len(rho)):
         raise ValueError("The number of series intervals must be the same.")
 
     # When calling depth() repeatedly with a two-element
