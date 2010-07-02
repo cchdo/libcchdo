@@ -1,5 +1,7 @@
 """libcchdo.formats.google_wire.google_wire"""
 
+import datetime
+
 try:
     from math import isnan
 except ImportError: # Cover when < python-2.6
@@ -34,7 +36,7 @@ def write(self, handle):
                 if isnan(raw):
                     return '-Infinity'
                 return str(raw)
-            if isinstance(raw, datetime):
+            if isinstance(raw, datetime.datetime):
                 return 'new Date(%s)' % raw.strftime('%Y,%m,%d,%H,%M')
             else:
                 return "'%s'" % str(raw)
