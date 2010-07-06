@@ -109,5 +109,6 @@ def read(self, handle):
     del self.columns['DATE']
     del self.columns['TIME']
 
-#def write(self, handle): TODO
-#  '''How to write a Bottle Exchange file.'''
+def write(self, handle): #TODO
+    '''How to write a Bottle Exchange file.'''
+    raise NotImplementedError

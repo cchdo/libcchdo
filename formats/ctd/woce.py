@@ -53,8 +53,11 @@ def write(self, handle):
     sections = uniquify(self.columns['SECT_ID'].values)
     stations = uniquify(self.columns['STNNBR'].values)
     casts = uniquify(self.columns['CASTNO'].values)
-    if len(expocodes) is not len(sections) is not \
-       len(stations) is not len(casts) is not 1:
+
+    def has_multiple_values(a):
+        return len(a) is not 1
+
+    if any(map(has_multiple_values, [expocodes, sections, stations, casts])):
       raise ValueError(('Cannot write a multi-ExpoCode, section, station, '
                         'or cast WOCE CTD file.'))
     else:
@@ -68,7 +71,24 @@ def write(self, handle):
     handle.write('STNNBR %8s CASTNO %3d NO. RECORDS=%5d%s2')
     # 3 denotes record 3
     handle.write('INSTRUMENT NO. %5s SAMPLING RATE %6.2f HZ%s3')
-    handle.write('  CTDPRS  CTDTMP  CTDSAL  CTDOXY  NUMBER QUALT1') # TODO
-    handle.write('    DBAR  ITS-90  PSS-78 UMOL/KG    OBS.      *') # TODO
-    handle.write(' ******* ******* ******* *******              *') # TODO
-    handle.write('     3.0 28.7977 31.8503   209.5      42   2222') # TODO
+    #handle.write('  CTDPRS  CTDTMP  CTDSAL  CTDOXY  NUMBER QUALT1') # TODO
+    #handle.write('    DBAR  ITS-90  PSS-78 UMOL/KG    OBS.      *') # TODO
+    #handle.write(' ******* ******* ******* *******              *') # TODO
+    #handle.write('     3.0 28.7977 31.8503   209.5      42   2222') # TODO
+
+    def parameter_name_of(column):
+        return column.parameter.woce_mnemonic
+
+    def units_of(column):
+        return column.parameter.units
+
+    def flags_for(column):
+        return "*******" if column.is_flagged_woce() else ""
+
+    parameter_header_format = \
+            units_header_format = \
+            asterisks_header_format = " %-7s" * len(self.columns)
+    columns = self.sorted_columns()
+    handle.write(parameter_header_format % map(parameter_name_of, columns))
+    handle.write(units_header_format % map(units_of, columns))
+    handle.write(asterisks_header_format % map(flags_for, columns))

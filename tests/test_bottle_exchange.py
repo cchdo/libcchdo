@@ -2,7 +2,7 @@
 
 import libcchdo
 import StringIO # Unit test loading considers the file a module and tries to load it if using from module import.
-from formats.bottle.exchange import exchange
+import libcchdo.formats.bottle.exchange as exchangebot
 from unittest import TestCase
 
 class TestBottleExchange(TestCase):
@@ -57,12 +57,14 @@ END_DATA
   def test_read(self):
     self.file = libcchdo.DataFile()
     self.buff = StringIO.StringIO(self.sample)
-    exchange(self.file).read(self.buff)
+    exchangebot.read(self.file, self.buff)
     self.buff.close()
 
   def test_write(self):
-    self.file = libcchdo.DataFile()
+    #self.file = libcchdo.DataFile()
     self.buff = StringIO.StringIO()
-    exchange(self.file).write(self.buff)
-    self.assertEqual(self.buff.getvalue(), self.output)
+    self.assertRaises(NotImplementedError,
+            exchangebot.write, self.file, self.buff)
+    #exchangebot.write(self.buff)
+    #self.assertEqual(self.buff.getvalue(), self.output)
     self.buff.close()
