@@ -46,7 +46,6 @@ QC_SUFFIX = '_QC'
 def read(self, handle):
     '''How to read a CTD NetCDF file.'''
     filename = handle.name
-    #handle.close()
     nc_file = Dataset(filename, 'r')
     # Create columns for all the variables and get all the data.
     # Map the nc_ctd variable to drop to skip the variable.
@@ -74,7 +73,13 @@ def read(self, handle):
             elif name in ['DATE']:
                 # Translate string date YYYYMMDD to date object
                 string = str(self.columns[name].values[0])
-                self.columns[name].values[0] = '%s-%s-%s' % (string[0:4], string[4:6], string[6:8])
+                self.columns[name].values[0] = '%s-%s-%s' % \
+                    (string[0:4], string[4:6], string[6:8])
+            if name == 'CTDSAL':
+                self.columns[name].values = map(
+                    lambda x: None if libcchdo.equal_with_epsilon(-9.99, x) \
+                              else x,
+                    self.columns[name].values)
 
             # Check for globals
             if len(self.columns[name].values) <= 1:

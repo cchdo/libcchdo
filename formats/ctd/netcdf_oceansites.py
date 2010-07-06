@@ -272,16 +272,20 @@ def write(self, handle, timeseries=None, timeseries_info={}):
             # Fun using Sverdrup's depth integration with density.
             localgrav = libcchdo.grav_ocean_surface_wrt_latitude(
                 self.globals['LATITUDE'])
-            density_series = [libcchdo.density(*args) for args in zip(
-                self.columns['CTDSAL'].values,
-                self.columns['CTDTMP'].values,
-                column.values)]
-            depth_series = libcchdo.depth(localgrav, column.values,
-                                          density_series)
+            sal_tmp_pres = zip(self.columns['CTDSAL'].values,
+                               self.columns['CTDTMP'].values,
+                               column.values)
+            density_series = filter(
+                None, [libcchdo.density(*args) for args in sal_tmp_pres])
 
-            #depth_series = map(lambda pres: depth_unesco(
-            #    pres, self.globals['LATITUDE']),
-            #     self.columns['CTDPRS'].values)
+            try: 
+                depth_series = libcchdo.depth(
+                    localgrav, column.values, density_series)
+            except ValueError:
+                depth_series = map(
+                    lambda pres: libcchdo.depth_unesco(
+                        pres, self.globals['LATITUDE']),
+                    self.columns['CTDPRS'].values)
 
             var_depth[:] = depth_series
 

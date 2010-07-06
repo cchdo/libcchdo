@@ -163,6 +163,11 @@ def strftime_woce_date_time(dtime):
     return (dtime.strftime('%Y%m%d'), dtime.strftime('%H%M'))
 
 
+def equal_with_epsilon(a, b, epsilon=1e-6):
+    delta = abs(a - b)
+    return delta < epsilon
+
+
 def out_of_band(value):
     try:
         number = float(value)
@@ -170,9 +175,7 @@ def out_of_band(value):
         return False
     oob = -999
     tolerance = 0.1
-    if abs(oob-number) < tolerance:
-        return True
-    return False
+    return equal_with_epsilon(oob, number, tolerance)
 
 
 def grav_ocean_surface_wrt_latitude(latitude):
@@ -286,6 +289,9 @@ def secant_bulk_modulus(salinity, temperature, pressure):
 
 
 def density(salinity, temperature, pressure):
+    if any(map(lambda x: x is None, (salinity, temperature, pressure))):
+        return None
+
     t = float(temperature)
 
     if pressure == 0:
