@@ -41,7 +41,7 @@ MySQLdb - http://sourceforge.net/projects/mysql-python
 - Testing
 Just run
 
-rake test
+setup.py test
 
 and see what happens! Test batteries should be written at least for every 
 class. Every file under tests/ will be run as a python test battery.

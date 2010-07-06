@@ -19,7 +19,6 @@ import re
 import struct
 
 import db.connect
-import formats
 
 LIBVER = 'SIOCCHDLIB'
 
@@ -57,7 +56,8 @@ def strip_all(list):
     return map(lambda x: x.strip(), list)
 
 
-def read_arbitrary(filename):
+def read_arbitrary(handle):
+    filename = handle.name
     if not os.path.exists(filename):
         raise ValueError("The file '%s' does not exist" % filename)
     if filename.endswith('zip'):
@@ -70,17 +70,26 @@ def read_arbitrary(filename):
     if filename.endswith('su.txt'):
         datafile.read_Summary_WOCE(handle)
     elif filename.endswith('hy.txt'):
-        formats.bottle.woce.woce(datafile).read(handle)
+        import formats.bottle.woce
+        formats.bottle.woce.read(datafile, handle)
     elif filename.endswith('hy1.csv'):
-        formats.bottle.exchange.exchange(datafile).read(handle)
+        import formats.bottle.exchange
+        formats.bottle.exchange.read(datafile, handle)
     elif filename.endswith('nc_hyd.zip'):
-        formats.bottle.zip.netcdf.netcdf(datafile).read(handle)
+        import formats.bottle.zip.netcdf
+        formats.bottle.zip.netcdf.read(datafile, handle)
     elif filename.endswith('ct.zip'):
-        formats.ctd.zip.woce.woce(datafile).read(handle)
+        import formats.bottle.zip.woce
+        formats.ctd.zip.woce.read(datafile, handle)
     elif filename.endswith('ct1.zip'):
-        formats.ctd.zip.exchange.exchange(datafile).read(handle)
+        import formats.ctd.zip.exchange
+        formats.ctd.zip.exchange.read(datafile, handle)
+    elif filename.endswith('ctd.nc'):
+        import formats.ctd.netcdf
+        formats.ctd.netcdf.read(datafile, handle)
     elif filename.endswith('nc_ctd.zip'):
-        formats.ctd.zip.netcdf.netcdf(datafile).read(handle)
+        import formats.ctd.zip.netcdf
+        formats.ctd.zip.netcdf.read(datafile, handle)
     else:
       raise ValueError('Unrecognized file type for %s' % filename)
 
