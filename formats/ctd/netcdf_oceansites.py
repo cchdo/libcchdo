@@ -111,6 +111,15 @@ VARIABLES_TO_TRANSFER = (
     'contact pi_name').split()
 
 
+def _WOCE_to_OceanSITES_flag(woce_flag):
+    try:
+        return WOCE_to_OceanSITES_flag[woce_flag]
+    except KeyError:
+        warn(('WOCE flag %d was given that does not have '
+              'translation into OceanSITES.') % woce_flag)
+        return 6
+
+
 #def read(self, handle): TODO
 #    '''How to read a CTD NetCDF OceanSITES file.'''
 
@@ -122,8 +131,8 @@ def write(self, handle, timeseries=None, timeseries_info={}):
     strdate = str(self.globals['DATE']) 
     strtime = str(self.globals['TIME']).rjust(4, '0')
     isowocedate = datetime.datetime(
-        int(strdate[0:4]), int(strdate[5:7]), int(strdate[8:10]),
-        int(strtime[0:2]), int(strtime[3:5]))
+        int(strdate[0:4]), int(strdate[4:6]), int(strdate[6:8]),
+        int(strtime[0:2]), int(strtime[2:4]))
     nc_file = Dataset(tmp.name, 'w', format='NETCDF3_CLASSIC')
     nc_file.data_type = 'OceanSITES time-series CTD data'
     nc_file.format_version = '1.1'
@@ -206,7 +215,8 @@ def write(self, handle, timeseries=None, timeseries_info={}):
     var_time.QC_indicator = 7 # Matthias Lankhorst
     var_time.QC_procedure = 5 # Matthias Lankhorst
     # Matthias Lankhorst
-    var_longitude.uncertainty = 0.0045/math.cos(self.globals['LATITUDE'])
+    var_longitude.uncertainty = 0.0045 / math.cos(
+        float(self.globals['LATITUDE']))
     var_longitude.axis = 'X'
 
     var_depth = nc_file.createVariable('DEPTH', 'f', ('DEPTH',))
@@ -266,8 +276,7 @@ def write(self, handle, timeseries=None, timeseries_info={}):
                 flag.valid_max = 9
                 flag.flag_values = 0#, 1, 2, 3, 4, 5, 6, 7, 8, 9 TODO??
                 flag.flag_meanings = FLAG_MEANINGS
-                flag[:] = map(lambda x: WOCE_to_OceanSITES_flag[x],
-                              column.flags_woce)
+                flag[:] = map(_WOCE_to_OceanSITES_flag, column.flags_woce)
         if name is 'PRES':
             # Fun using Sverdrup's depth integration with density.
             localgrav = libcchdo.grav_ocean_surface_wrt_latitude(
@@ -298,8 +307,8 @@ def write(self, handle, timeseries=None, timeseries_info={}):
             (timeseries_info['platform_code'], self.globals['EXPOCODE'],
              self.globals['STNNBR'], self.globals['CASTNO'])
         strdate = str(self.globals['DATE']) 
-        isodate = datetime.datetime(int(strdate[0:4]), int(strdate[5:7]),
-                                    int(strdate[8:10]), 0, 0)
+        isodate = datetime.datetime(int(strdate[0:4]), int(strdate[4:6]),
+                                    int(strdate[6:8]), 0, 0)
         stringdate = isodate.date().isoformat().replace('-', '')
 
         for var in VARIABLES_TO_TRANSFER:

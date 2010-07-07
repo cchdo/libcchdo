@@ -2,8 +2,12 @@
 
 import re
 import datetime
+from warnings import warn
 
 import libcchdo
+
+REQUIRED_HEADERS = ('EXPOCODE', 'SECT', 'STNNBR', 'CASTNO', 'DATE',
+                    'TIME', 'LATITUDE', 'LONGITUDE', 'DEPTH', )
 
 def read(self, handle):
     '''How to read a CTD Exchange file.'''
@@ -13,7 +17,8 @@ def read(self, handle):
     if m:
         self.stamp = m.group(1)
     else:
-        raise ValueError('Expected identifier line with stamp (e.g. CTD,YYYYMMDDdivINSwho)')
+        raise ValueError(('Expected identifier line with stamp '
+                          '(e.g. CTD,YYYYMMDDdivINSwho)'))
     # Read comments
     l = handle.readline()
     while l and l.startswith('#'):
@@ -23,30 +28,38 @@ def read(self, handle):
     num_headers = re.compile('NUMBER_HEADERS\s+=\s+(\d+)')
     m = num_headers.match(l)
     if m:
-        num_headers = int(m.group(1))-1 # NUMBER_HEADERS counts itself as a header
+        num_headers = int(m.group(1))-1 # NUMBER_HEADERS counts itself
+                                        # as a header
     else:
-        raise ValueError('Expected NUMBER_HEADERS as the second line in the file.')
+        raise ValueError(('Expected NUMBER_HEADERS as the second line in '
+                          'the file.'))
     header = re.compile('(\w+)\s*=\s*(-?[\w\.]+)')
     for i in range(0, num_headers):
         m = header.match(handle.readline())
         if m:
-            self.globals[m.group(1)] = m.group(2)
+            if m.group(1) in REQUIRED_HEADERS and m.group(1) in ['LATITUDE',
+                                                                 'LONGITUDE']:
+                self.globals[m.group(1)] = float(m.group(2))
+            else:
+                self.globals[m.group(1)] = m.group(2)
         else:
-            raise ValueError('Expected %d continuous headers but only saw %d' % (num_headers, i))
+            raise ValueError(('Expected %d continuous headers '
+                              'but only saw %d') % (num_headers, i))
     # Read parameters and units
     columns = handle.readline().strip().split(',')
     units = handle.readline().strip().split(',')
     
     # Check columns and units to match length
     if len(columns) is not len(units):
-        raise ValueError("Expected as many columns as units in file. Found %d columns and %d units." % (len(columns), len(units)))
+        raise ValueError(("Expected as many columns as units in file. "
+                          "Found %d columns and %d units.") % \
+                         (len(columns), len(units)))
 
     # Check all parameters are non-trivial
     if not all(columns):
         #raise ValueError(("Malformed parameters/unit line; make sure there "
         #                  "are no blank parameters (e.g. extra comma at end)"))
-        import sys
-        print >> sys.stderr, "WARNING: stripped blank parameter from MALFORMED EXCHANGE FILE"
+        warn("Stripped blank parameter from MALFORMED EXCHANGE FILE")
         columns = filter(None, columns)
 
     self.create_columns(columns, units)
@@ -60,13 +73,17 @@ def read(self, handle):
       
       # Check columns and values to match length
       if len(columns) is not len(values):
-          raise ValueError("Expected as many columns as values in file. Found %d columns and %d values at data line %d" % (len(columns), len(values), len(self)+1))
+          raise ValueError(("Expected as many columns as values "
+                            "in file. Found %d columns and %d values "
+                            "at data line %d") % \
+                           (len(columns), len(values), len(self) + 1))
+
       for column, value in zip(columns, values):
           value = value.strip()
           if column.endswith('_FLAG_W'):
-              self.columns[column[:-7]].flags_woce.append(value)
+              self.columns[column[:-7]].flags_woce.append(int(value))
           elif column.endswith('_FLAG_I'):
-              self.columns[column[:-7]].flags_igoss.append(value)
+              self.columns[column[:-7]].flags_igoss.append(int(value))
           else:
               if libcchdo.out_of_band(float(value)):
                   self.columns[column].append(None)
@@ -78,14 +95,13 @@ def read(self, handle):
 def write(self, handle):
     '''How to write a CTD Exchange file.'''
     today = datetime.date.today()
-    handle.write('CTD,%4d%02d%02d%s\n' % (today.year, today.month, today.day, libcchdo.LIBVER))
+    handle.write('CTD,%4d%02d%02d%s\n' % (today.year, today.month,
+                                          today.day, libcchdo.LIBVER))
     handle.write(self.header)
     handle.write('NUMBER_HEADERS = '+str(len(self.globals.keys())+1)+"\n")
-    required_headers = ('EXPOCODE', 'SECT', 'STNNBR', 'CASTNO', 'DATE',
-                        'TIME', 'LATITUDE', 'LONGITUDE', 'DEPTH')
-    for header in required_headers:
+    for header in REQUIRED_HEADERS:
         handle.write(header+' = '+str(self.globals[header])+"\n")
-    for key in set(self.globals.keys()) - set(required_headers):
+    for key in set(self.globals.keys()) - set(REQUIRED_HEADERS):
         handle.write(key+' = '+str(self.globals[key])+"\n")
 
     headers = []
@@ -101,7 +117,8 @@ def write(self, handle):
     for i in range(len(self)):
         data = []
         for c in columns:
-            data.append(('%'+c.parameter.format) % float(c[i]) if c[i] else -999)
+            data.append(
+                ('%'+c.parameter.format) % float(c[i]) if c[i] else -999)
             if c.is_flagged_woce():
                 data.append(c.flags_woce[i])
             if c.is_flagged_igoss():

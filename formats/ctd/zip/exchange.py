@@ -1,10 +1,11 @@
-"""libcchdo.ctd.zip.exchange"""
+"""libcchdo.formats.ctd.zip.exchange"""
 
 import StringIO
 import zipfile
 import datetime
 
-import formats.ctd.exchange
+import libcchdo
+import libcchdo.formats.ctd.exchange as ctdex
 
 
 def read(self, handle):
@@ -14,8 +15,8 @@ def read(self, handle):
         if '.csv' not in file: continue
         tempstream = StringIO.StringIO(zip.read(file))
         ctdfile = libcchdo.DataFile()
-        ctd.exchange.exchange(ctdfile).read(tempstream)
-        self.datafile.files.append(ctdfile)
+        ctdex.read(ctdfile, tempstream)
+        self.files.append(ctdfile)
         tempstream.close()
     zip.close()
 
@@ -23,7 +24,7 @@ def read(self, handle):
 def write(self, handle):
     """How to write CTD Exchange files to a Zip."""
     zip = zipfile.ZipFile(handle, 'w')
-    for file in self.datafile.files:
+    for file in self.files:
         tempstream = StringIO.StringIO()
         ctd.exchange.exchange(file).write(tempstream)
         station = int(file.globals['STNNBR'].strip())
