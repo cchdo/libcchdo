@@ -25,7 +25,7 @@ def _raw_to_str(raw, json=False):
                 return None
             else:
                 return '-Infinity'
-        return str(raw)
+        return raw
     if isinstance(raw, datetime.datetime):
         if json:
             nums = (','.join(['%d'] * 5)) % \
@@ -55,7 +55,7 @@ def _json(self, handle, column_headers, columns, global_values):
     json_rows = [_json_row(self, i, global_values, column_headers) \
                  for i in range(len(self))]
     wire_obj = {'cols': json_columns, 'rows': json_rows}
-    handle.write(json.dumps(wire_obj, allow_nan=False))
+    handle.write(json.dumps(wire_obj, allow_nan=False, separators=(',', ':')))
 
 
 def _wire_row(self, i, global_values, column_headers):
