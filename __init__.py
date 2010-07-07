@@ -17,6 +17,7 @@ from warnings import warn
 import os.path
 import re
 import struct
+import sys
 
 import db.connect
 import formats.woce
@@ -382,7 +383,7 @@ KNOWN_PARAMETERS = {
                  'bound_lower': '',
                  'bound_upper': '',
                  'mnemonic': '',
-                 'display_order': float("Inf"),
+                 'display_order': sys.maxint,
                  'aliases': [],
                 },
     'CTDNOBS': {'name': 'nobs', # XXX
@@ -392,8 +393,8 @@ KNOWN_PARAMETERS = {
                'bound_lower': '',
                'bound_upper': '',
                'mnemonic': '',
-               'display_order': float("Inf"),
-               'aliases': [],
+               'display_order': sys.maxint,
+               'aliases': ['NUMBER'], # XXX
               },
     'TRANSM': {'name': 'transmissometer',
                'format': 's',
@@ -402,7 +403,7 @@ KNOWN_PARAMETERS = {
                'bound_lower': '',
                'bound_upper': '',
                'mnemonic': '',
-               'display_order': float("Inf"),
+               'display_order': sys.maxint,
                'aliases': [],
               },
     'FLUORM': {'name': 'fluorometer',
@@ -412,7 +413,7 @@ KNOWN_PARAMETERS = {
                'bound_lower': '',
                'bound_upper': '',
                'mnemonic': '',
-               'display_order': float("Inf"),
+               'display_order': sys.maxint,
                'aliases': [],
               },
 }
@@ -487,19 +488,26 @@ class Parameter:
         connection.close()
 
     def _init_from_mysql(self, parameter_name):
-        if parameter_name in KNOWN_PARAMETERS:
+        def initialize_self_from_known_parameters(this, parameter_name):
             info = KNOWN_PARAMETERS[parameter_name]
-            self.full_name = info['name']
-            self.format = info['format']
-            self.description = info['description']
-            self.units = info['units']
-            self.bound_lower = info['bound_lower']
-            self.bound_upper = info['bound_upper']
-            self.units_mnemonic = info['mnemonic']
-            self.woce_mnemonic = parameter_name
-            self.display_order = info['display_order']
-            self.aliases = info['aliases']
+            this.full_name = info['name']
+            this.format = info['format']
+            this.description = info['description']
+            this.units = info['units']
+            this.bound_lower = info['bound_lower']
+            this.bound_upper = info['bound_upper']
+            this.units_mnemonic = info['mnemonic']
+            this.woce_mnemonic = parameter_name
+            this.display_order = info['display_order']
+            this.aliases = info['aliases']
+        if parameter_name in KNOWN_PARAMETERS:
+            initialize_self_from_known_parameters(self, parameter_name)
             return
+        else: # try to use aliases
+            for known_parameter in KNOWN_PARAMETERS:
+                if parameter_name in KNOWN_PARAMETERS[known_parameter]["aliases"]:
+                    initialize_self_from_known_parameters(self, known_parameter)
+                    return
         connection = db.connect.cchdo()
         cursor = connection.cursor()
         def wrap_column(s):
@@ -805,7 +813,7 @@ class DataFile:
         num_quality_flags = len(re.findall('\*{7,8}', asterisk_line))
         num_quality_words = len(parameters_line.split('QUALT'))-1
         # The extra 1 in quality_length is for spacing between the columns
-        quality_length = num_quality_words * (num_quality_flags+1)
+        quality_length = num_quality_words * (max(len('QUALT#'), num_quality_flags) + 1)
         num_param_columns = int((len(parameters_line) - quality_length) / \
                                  column_width)
 
@@ -838,25 +846,29 @@ class DataFile:
 
         # Get each data line
         # Add on quality to unpack string
-        unpack_str += ('x'+str(num_quality_flags)+'s') * num_quality_words
-        for line in handle:
-          unpacked = struct.unpack(unpack_str, line.rstrip())
+        unpack_str += (str(quality_length / num_quality_words - num_quality_flags)+
+                       'x'+str(num_quality_flags)+'s') * num_quality_words
+        for i, line in enumerate(handle):
+            unpacked = struct.unpack(unpack_str, line.rstrip())
 
-          # QUALT1 takes precedence
-          quality_flags = unpacked[-num_quality_words:]
+            # QUALT1 takes precedence
+            quality_flags = unpacked[-num_quality_words:]
 
-          # Build up the columns for the line
-          flag_i = 0
-          for i, parameter in enumerate(parameters):
-              datum = float(unpacked[i])
-              if datum is -9.0:
-                  datum = float('nan')
-              woce_flag = None
-              # Only assign flag if column is flagged.
-              if not asterisks[i].strip() == '':
-                  woce_flag = int(quality_flags[0][flag_i])
-                  flag_i += 1
-              self.columns[parameter].set(i, datum, woce_flag)
+            # Build up the columns for the line
+            flag_i = 0
+            for j, parameter in enumerate(parameters):
+                datum = float(unpacked[i])
+                if datum is -9.0:
+                    datum = float('nan')
+                woce_flag = None
+
+                # Only assign flag if column is flagged.
+                if "**" in asterisks[j].strip(): # XXX
+                    woce_flag = int(quality_flags[0][flag_i])
+                    flag_i += 1
+                    self.columns[parameter].set(i, datum, woce_flag)
+                else:
+                    self.columns[parameter].set(i, datum)
 
         # Expand globals into columns
         #@header.each_pair do |header, value|
