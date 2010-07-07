@@ -8,7 +8,7 @@ class TestColumn(TestCase):
     self.column = libcchdo.Column("EXPOCODE")
 
   def test_unknown_parameter(self):
-    self.assertRaises(NameError, libcchdo.Column, "NotAParameter")
+    self.assertRaises(EnvironmentError, libcchdo.Column, "NotAParameter")
 
   def test_initialization(self):
     parameter = libcchdo.Parameter("EXPOCODE")

@@ -19,7 +19,7 @@ class TestBottleExchange(TestCase):
 #                 Robert Key-Princeton      key@Princeton.EDU
 #
 EXPOCODE,SECT_ID,STNNBR,CASTNO,SAMPNO,BTLNBR,BTLNBR_FLAG_W,DATE,TIME,LATITUDE,LONGITUDE,DEPTH,CTDRAW,CTDPRS,CTDTMP,CTDSAL,CTDSAL_FLAG_W,SALNTY,SALNTY_FLAG_W,CTDOXY,CTDOXY_FLAG_W,THETA,OXYGEN,OXYGEN_FLAG_W,SILCAT,SILCAT_FLAG_W,NITRAT,NITRAT_FLAG_W,NITRIT,NITRIT_FLAG_W,PHSPHT,PHSPHT_FLAG_W,CFC-11,CFC-11_FLAG_W,CFC-12,CFC-12_FLAG_W,CFC113,CFC113_FLAG_W,TCARBN,TCARBN_FLAG_W,PCO2,PCO2_FLAG_W,ALKALI,ALKALI_FLAG_W,PCO2TMP
-,,,,,,,,,,,,,DBAR,ITS-90,PSS-78,,PSS-78,,UMOL/KG,,DEG C,UMOL/KG,,UMOL/KG,,UMOL/KG,,UMOL/KG,,UMOL/KG,,PMOL/KG,,PMOL/KG,,PMOL/KG,,UMOL/KG,,UATM@T,,UMOL/KG,,DEG_C
+,,,,,,,,,,,,,DBAR,ITS-90,PSS-78,,PSS-78,,UMOL/KG,,DEG C,UMOL/KG,,UMOL/KG,,UMOL/KG,,UMOL/KG,,UMOL/KG,,PMOL/KG,,PMOL/KG,,PMOL/KG,,UMOL/KG,,UATM,,UMOL/KG,,DEG_C
   33RR20070204,   I8S,     1,  1,     15,     15,2,20070215,1442,-65.8108,  84.5502,  450,    3.0,      3.0,  -1.1066,  33.4536,2,  33.4640,2,    351.1,2, -1.1066,    352.9,2,    53.64,2,    22.66,2,     0.11,2,     1.58,2,    6.063,2,    3.278,2, -999.000,5,   2121.4,2,   -999.0,9,   2267.2,2, -999.00
   33RR20070204,   I8S,     1,  1,     16,     16,2,20070215,1442,-65.8108,  84.5502,  450,    3.0,      3.0,  -1.1112,  33.4642,2,-999.0000,9,   -999.0,9, -1.1113,   -999.0,9,  -999.00,9,  -999.00,9,  -999.00,9,  -999.00,9,    6.055,2,    3.267,2, -999.000,5,   2121.3,2,   -999.0,9,   2267.0,2, -999.00
   33RR20070204,   I8S,     1,  1,     14,     14,2,20070215,1442,-65.8108,  84.5502,  450,   27.0,     27.0,  -0.9321,  33.8663,2,  33.8736,2,    344.4,2, -0.9328,    343.5,2,    57.82,2,    24.04,2,     0.08,2,     1.72,2,    5.795,2,    3.138,2, -999.000,5,   2153.2,2,   -999.0,9,   2295.6,2, -999.00
@@ -61,7 +61,7 @@ END_DATA
     self.buff.close()
 
   def test_write(self):
-    #self.file = libcchdo.DataFile()
+    self.file = libcchdo.DataFile()
     self.buff = StringIO.StringIO()
     self.assertRaises(NotImplementedError,
             exchangebot.write, self.file, self.buff)
