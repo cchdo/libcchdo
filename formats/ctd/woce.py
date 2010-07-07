@@ -1,6 +1,9 @@
 """libcchdo.formats.ctd.woce"""
 
 
+import libcchdo.formats.woce as fmtwoce
+
+
 def read(self, handle):
     """How to read a CTD WOCE file."""
     # TODO Out of band values should be converted to None
@@ -13,8 +16,9 @@ def read(self, handle):
     if m:
       self.globals['EXPOCODE'] = m.group(1)
       self.globals['SECT_ID'] = m.group(2)
-      self.globals['DATE'], self.globals['TIME'] = strftime_woce_date_time(
-          datetime.strptime(m.group(3), '%m%d%y'))
+      self.globals['DATE'], self.globals['TIME'] = \
+          fmtwoce.strftime_woce_date_time(datetime.strptime(
+                                              m.group(3), '%m%d%y'))
     else:
       raise ValueError("Expected stamp. Invalid record 1 in WOCE CTD file.")
     # Get identifier line

@@ -19,6 +19,7 @@ import re
 import struct
 
 import db.connect
+import formats.woce
 
 LIBVER = 'SIOCCHDLIB'
 
@@ -121,46 +122,8 @@ def great_circle_distance(lat_stand, lng_stand, lat_fore, lng_fore):
     return arc_length
 
 
-def woce_lat_to_dec_lat(lattoks):
-    lat = int(lattoks[0]) + float(lattoks[1])/60.0
-    if lattoks[2] is not 'N':
-        lat *= -1
-    return lat
-
-
-def woce_lng_to_dec_lng(lngtoks):
-    lng = int(lngtoks[0]) + float(lngtoks[1])/60.0
-    if lngtoks[2] is not 'E':
-        lng *= -1
-    return lng
-
-
-def dec_lat_to_woce_lat(lat):
-    lat_deg = int(lat)
-    lat_dec = abs(lat-lat_deg) * 60
-    lat_deg = abs(lat_deg)
-    lat_hem = 'S'
-    if lat > 0:
-        lat_hem = 'N'
-    return '%2d %05.2f %1s' % (lat_deg, lat_dec, lat_hem)
-
-
-def dec_lng_to_woce_lng(lng):
-    lng_deg = int(lng)
-    lng_dec = abs(lng-lng_deg) * 60
-    lng_deg = abs(lng_deg)
-    lng_hem = 'W'
-    if lng > 0 :
-        lng_hem = 'E'
-    return '%3d %05.2f %1s' % (lng_deg, lng_dec, lng_hem)
-
-
 def strftime_iso(dtime):
     return dtime.isoformat()+'Z'
-
-
-def strftime_woce_date_time(dtime):
-    return (dtime.strftime('%Y%m%d'), dtime.strftime('%H%M'))
 
 
 def equal_with_epsilon(a, b, epsilon=1e-6):
@@ -168,14 +131,23 @@ def equal_with_epsilon(a, b, epsilon=1e-6):
     return delta < epsilon
 
 
-def out_of_band(value):
+def out_of_band(value, oob=-999, tolerance=0.1):
     try:
         number = float(value)
     except (ValueError):
         return False
-    oob = -999
-    tolerance = 0.1
     return equal_with_epsilon(oob, number, tolerance)
+
+
+def identity_or_oob(x, oob=-999):
+    """Identity or OOB (XXX)
+       Args:
+           x - anything
+           oob - out-of-band value (default -999)
+       Returns:
+           identity or out-of-band value.
+    """
+    return x if x else oob
 
 
 def grav_ocean_surface_wrt_latitude(latitude):
@@ -674,9 +646,9 @@ class SummaryFile:
                                   (date.year, date.month, date.day))
                 cs['TIME'].append(int_or_none(tokens[6]))
                 cs['_CODE'].append(tokens[7])
-                lat = woce_lat_to_dec_lat(tokens[8].split())
+                lat = formats.woce.woce_lat_to_dec_lat(tokens[8].split())
                 cs['LATITUDE'].append(lat)
-                lng = woce_lng_to_dec_lng(tokens[9].split())
+                lng = formats.woce.woce_lng_to_dec_lng(tokens[9].split())
                 cs['LONGITUDE'].append(lng)
                 cs['_NAV'].append(tokens[10])
                 cs['DEPTH'].append(int_or_none(tokens[11]))
@@ -708,8 +680,8 @@ class SummaryFile:
                self.columns['STNNBR'][i], self.columns['CASTNO'][i],
                self.columns['_CAST_TYPE'][i], date_str,
                self.columns['TIME'][i], self.columns['_CODE'][i],
-               dec_lat_to_woce_lat(self.columns['LATITUDE'][i]),
-               dec_lng_to_woce_lng(self.columns['LONGITUDE'][i]),
+               formats.woce.dec_lat_to_woce_lat(self.columns['LATITUDE'][i]),
+               formats.woce.dec_lng_to_woce_lng(self.columns['LONGITUDE'][i]),
                self.columns['_NAV'][i], self.columns['DEPTH'][i],
                self.columns['_ABOVE_BOTTOM'][i],
                self.columns['_MAX_PRESSURE'][i],
@@ -745,9 +717,9 @@ class SummaryFile:
                   "%4d%02d%02d" % (date.year, date.month, date.day))
               self.columns['TIME'].append(int(tokens[6]))
               self.columns['_CODE'].append(tokens[7])
-              lat = woce_lat_to_dec_lat(tokens[8:11])
+              lat = formats.woce.woce_lat_to_dec_lat(tokens[8:11])
               self.columns['LATITUDE'].append(lat)
-              lng = woce_lng_to_dec_lng(tokens[11:14])
+              lng = formats.woce.woce_lng_to_dec_lng(tokens[11:14])
               self.columns['LONGITUDE'].append(lng)
               self.columns['_NAV'].append(tokens[14])
               self.columns['DEPTH'].append(int(tokens[15]))
@@ -929,14 +901,3 @@ BASINS = REGIONS = {
     # TODO define the rest of the basins...maybe define bounds for
     # other groupings
 }
-
-
-def identity_or_oob(x, oob=-999):
-    """Identity or OOB (XXX)
-       Args:
-           x - anything
-           oob - out-of-band value (default -999)
-       Returns:
-           identity or out-of-band value.
-    """
-    return x if x else oob
