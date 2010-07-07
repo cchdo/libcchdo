@@ -9,41 +9,90 @@ except ImportError: # Cover when < python-2.6
         return n != n
 
 
-def write(self, handle):
-    """How to write a Google Wire Protocol Javascript object literal"""
+def _column_type(col):
+    if col == 'EXPOCODE' or col == 'SECT_ID':
+        return 'string'
+    elif col == '_DATETIME':
+        return 'datetime'
+    else:
+        return 'number'
+
+
+def _raw_to_str(raw, json=False):
+    if isinstance(raw, float):
+        if isnan(raw):
+            if json:
+                return float('-inf')
+            else:
+                return '-Infinity'
+        return str(raw)
+    if isinstance(raw, datetime.datetime):
+        if json:
+            nums = (','.join(['%d'] * 5)) % \
+                   (raw.year, raw.month, raw.day, raw.hour, raw.minute)
+            return 'Date(%s)' % nums
+        else:
+            return 'new Date(%s)' % raw.strftime('%Y,%m,%d,%H,%M')
+    else:
+        if json:
+            return str(raw)
+        else:
+            return "'%s'" % str(raw)
+
+
+def _json_row(self, i, global_values, column_headers):
+    raw_values = global_values + \
+                 [self.columns[hdr][i] for hdr in column_headers]
+
+    row_values = [{'v': _raw_to_str(raw, True)} for raw in raw_values]
+    return {'c': row_values}
+
+
+def _json(self, handle, column_headers, columns, global_values):
+    import json
+    json_columns = [{'id': col, 'label': col, 'type': _column_type(col)} \
+               for col in columns]
+    json_rows = [_json_row(self, i, global_values, column_headers) \
+                 for i in range(len(self))]
+    wire_obj = {'cols': json_columns, 'rows': json_rows}
+    handle.write(json.dumps(wire_obj))
+
+
+def _wire_row(self, i, global_values, column_headers):
+    raw_values = global_values + \
+                 [self.columns[hdr][i] for hdr in column_headers]
+
+    row_values = ['{v:%s}' % _raw_to_str(raw) for raw in raw_values]
+    return '{c:[%s]}' % ','.join(row_values)
+
+
+def _wire(self, handle, column_headers, columns, global_values):
+    wire_columns = ["{id:'%s',label:'%s',type:'%s'}" % \
+                    (col, col, _column_type(col)) for col in columns]
+
+    wire_rows = [_wire_row(self, i, global_values, column_headers) \
+                 for i in range(len(self))]
+
+    handle.write("{cols:[%s],rows:[%s]}" % (','.join(wire_columns),
+                                            ','.join(wire_rows)))
+
+
+def write(self, handle, json=False):
+    """How to write a Google Wire Protocol Javascript object literal.
+       Args:
+           json - whether to return a valid JSON object or just a Google
+                  Wire Protocol object.
+       Returns:
+           a Google Wire Protocol object that represents the data file.
+           This is different from a JSON object which is returned if
+           json is True.
+    """
     global_headers = sorted(self.globals.keys())
     column_headers = self.column_headers()
     columns = global_headers + column_headers
-
-    def column_type(col):
-        if col == 'EXPOCODE' or col == 'SECT_ID':
-            return 'string'
-        elif col == '_DATETIME':
-            return 'datetime'
-        else:
-            return 'number'
-
-    wire_columns = ["{id:'%s',label:'%s',type:'%s'}" % \
-                    (col, col, column_type(col)) for col in columns]
     global_values = [self.globals[key] for key in global_headers]
 
-    def wire_row(i):
-        raw_values = global_values + \
-                     [self.columns[hdr][i] for hdr in column_headers]
-
-        def raw_to_str(raw):
-            if isinstance(raw, float):
-                if isnan(raw):
-                    return '-Infinity'
-                return str(raw)
-            if isinstance(raw, datetime.datetime):
-                return 'new Date(%s)' % raw.strftime('%Y,%m,%d,%H,%M')
-            else:
-                return "'%s'" % str(raw)
-
-        row_values = ['{v:%s}' % raw_to_str(raw) for raw in raw_values]
-        return '{c:[%s]}' % ','.join(row_values)
-
-    wire_rows = [wire_row(i) for i in range(len(self))]
-    handle.write("{cols:[%s],rows:[%s]}" % \
-                 (','.join(wire_columns), ','.join(wire_rows)))
+    if json:
+        _json(self, handle, column_headers, columns, global_values)
+    else:
+        _wire(self, handle, column_headers, columns, global_values)
