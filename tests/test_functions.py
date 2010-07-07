@@ -1,8 +1,13 @@
 """ Test case for libcchdo global functions """
 
-import libcchdo
 from unittest import TestCase
 from math import pi
+import tempfile
+import os
+
+import libcchdo
+import libcchdo.db.connect
+
 
 class TestFunctions(TestCase):
 
@@ -14,44 +19,31 @@ class TestFunctions(TestCase):
     xs = ['a', 'b   ', '   c', '  d   ']
     self.assertEqual(['a', 'b', 'c', 'd'], libcchdo.strip_all(xs))
 
+  # Database connections
+
   def test_connect_mysql(self):
-    c = libcchdo.connect_mysql()
+    c = libcchdo.db.connect.cchdo()
     cursor = c.cursor()
-    cursor.execute("SELECT id FROM parameter_descriptions LIMIT 1");
+    cursor.execute("SELECT id FROM parameter_descriptions LIMIT 1")
     self.assert_(cursor.fetchone())
+    cursor.close()
+    c.close()
 
   def test_connect_postgresql(self):
-    c = libcchdo.connect_postgresql()
+    c = libcchdo.db.connect.cchdotest()
     cursor = c.cursor()
-    cursor.execute("SELECT id FROM parameters LIMIT 1");
-    self.assert_(cursor.fetchone());
+    cursor.execute("SELECT id FROM parameters LIMIT 1")
+    self.assert_(cursor.fetchone())
+    cursor.close()
+    c.close()
 
   def test_read_arbitrary(self):
-    self.assertRaises(ValueError, libcchdo.read_arbitrary, 'notacchdofile.txt')
-    self.assertRaises(ValueError, libcchdo.read_arbitrary, 'test_functions.py')
+    td = tempfile.mkstemp('notacchdofile.txt')
+    self.assertRaises(ValueError, libcchdo.read_arbitrary, os.fdopen(td[0]))
+    td = tempfile.mkstemp('test_functions.py')
+    self.assertRaises(ValueError, libcchdo.read_arbitrary, os.fdopen(td[0]))
     # TODO check more
 
   def test_great_circle_distance(self):
     self.assertEqual(14095.0562929323, libcchdo.great_circle_distance(0, 0, 0, 180))
     # TODO check this value
-
-  def test_woce_lat_to_dec_lat(self):
-    toks = ['12', '34.567', 'N']
-    self.assertAlmostEqual(12.57611666667, libcchdo.woce_lat_to_dec_lat(toks))
-    toks = ['12', '34.567', 'S']
-    self.assertAlmostEqual(-12.57611666667, libcchdo.woce_lat_to_dec_lat(toks))
-
-  def test_woce_lng_to_dec_lng(self):
-    toks = ['12', '34.567', 'E']
-    self.assertAlmostEqual(12.57611666667, libcchdo.woce_lng_to_dec_lng(toks))
-    toks = ['12', '34.567', 'W']
-    self.assertAlmostEqual(-12.57611666667, libcchdo.woce_lng_to_dec_lng(toks))
-
-  def test_dec_lat_to_woce_lat(self):
-    self.assertEqual('12 34.57 N', libcchdo.dec_lat_to_woce_lat(12.576116666667))
-    self.assertEqual('12 34.57 S', libcchdo.dec_lat_to_woce_lat(-12.576116666667))
-
-  def test_dec_lng_to_woce_lng(self):
-    self.assertEqual(' 12 34.57 E', libcchdo.dec_lng_to_woce_lng(12.576116666667))
-    self.assertEqual(' 12 34.57 W', libcchdo.dec_lng_to_woce_lng(-12.576116666667))
-

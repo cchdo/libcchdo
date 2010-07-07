@@ -58,6 +58,13 @@ def strip_all(list):
 
 
 def read_arbitrary(handle):
+    '''Takes any CCHDO recognized file and tries to open it.
+       The recognition is done by file extension.
+       Args:
+           handle - a file handle
+       Returns:
+           a DataFile(Collection) or *SummaryFile that matches the file type.
+    '''
     filename = handle.name
     if not os.path.exists(filename):
         raise ValueError("The file '%s' does not exist" % filename)
