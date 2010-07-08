@@ -860,7 +860,7 @@ class DataFile:
             # Build up the columns for the line
             flag_i = 0
             for j, parameter in enumerate(parameters):
-                datum = float(unpacked[i])
+                datum = float(unpacked[j])
                 if datum is -9.0:
                     datum = float('nan')
                 woce_flag = None
@@ -877,6 +877,59 @@ class DataFile:
         #@header.each_pair do |header, value|
         #  column = @column_hash[header] = Column.new(header)
         #  column.values = Array.new(num_entries) {|i| value}
+
+    def write_WOCE_data (self, handle, ):
+        def parameter_name_of (column, ):
+            return column.parameter.woce_mnemonic
+
+        def units_of (column, ):
+            return column.parameter.units_mnemonic
+
+        def quality_flags_of (column, ):
+            return "*******" if column.is_flagged_woce() else ""
+
+        def countable_flag_for (column, ):
+            return 1 if column.is_flagged_woce() else 0
+
+        num_qualt = sum(map(
+                countable_flag_for, self.columns.values() ))
+
+        base_format = "%8s" * len(self.columns)
+        qualt_colsize = max( (len(" QUALT#"), num_qualt) )
+        qualt_format = "%%%ds" % qualt_colsize
+        base_format += qualt_format
+        base_format += "\n"
+
+        columns = self.sorted_columns()
+
+        all_headers = map(parameter_name_of, columns)
+        all_units = map(units_of, columns)
+        all_asters = map(quality_flags_of, columns)
+
+        all_headers.append(qualt_format % "QUALT1")
+        all_units.append(qualt_format % "")
+        all_asters.append(qualt_format % "")
+
+        handle.write(base_format % tuple(all_headers))
+        handle.write(base_format % tuple(all_units))
+        handle.write(base_format % tuple(all_asters))
+
+        nobs = max(map( lambda x: len(x), columns ))
+        for i in range(nobs):
+            values = []
+            flags = []
+            for column in columns:
+                parameter = parameter_name_of(column)
+                format = "%%%s" % KNOWN_PARAMETERS[parameter]["format"]
+                if column[i]:
+                    values.append(format % column[i])
+                if column.is_flagged_woce():
+                    flags.append(str(column.flags_woce[i]))
+
+            values.append("".join(flags))
+            handle.write(base_format % tuple(values))
+
+        #handle.close()
 
 
 class DataFileCollection:

@@ -18,14 +18,16 @@ def read(self, handle):
     if m:
       self.globals['EXPOCODE'] = m.group(1)
       self.globals['SECT_ID'] = m.group(2)
+      self.globals["_DATETIME"] = datetime.datetime.strptime(
+          m.group(len(m.groups())), '%m%d%y')
       self.globals['DATE'], self.globals['TIME'] = \
-          fmtwoce.strftime_woce_date_time(datetime.datetime.strptime(
-                                              m.group(len(m.groups())), '%m%d%y'))
+          fmtwoce.strftime_woce_date_time(self.globals["_DATETIME"])
     else:
       raise ValueError("Expected stamp. Invalid record 1 in WOCE CTD file.")
     # Get identifier line
     identifier = re.compile(
-        'STNNBR\s*(\d+)\s*CASTNO\s*(\d+)\s*NO\. Records=\s*(\d+)', re.IGNORECASE)
+        'STNNBR\s*(\d+)\s*CASTNO\s*(\d+)\s*NO\. Records=\s*(\d+)',
+        re.IGNORECASE)
     m = identifier.match(handle.readline())
     if m:
       self.globals['STNNBR'] = m.group(1)
@@ -36,7 +38,8 @@ def read(self, handle):
 
     # Get instrument line
     instrument = re.compile(
-        'INSTRUMENT NO.\s*(\d+)\s*SAMPLING RATE\s*(\d+.\d+\s*HZ)', re.IGNORECASE)
+        'INSTRUMENT NO.\s*(\d+)\s*SAMPLING RATE\s*(\d+.\d+\s*HZ)',
+        re.IGNORECASE)
     m = instrument.match(handle.readline())
     if m:
       self.globals['_INSTRUMENT_NO'] = m.group(1)
@@ -77,8 +80,10 @@ def write(self, handle):
     station = stations   # XXX
     cast = casts         # XXX
 
-    handle.write('EXPOCODE %-14s WHP-ID %-5s DATE %-6d\n' % \
-                 (expocode, section, int(self.globals["DATE"])))
+    date = int(self.globals["_DATETIME"].strftime("%m%d%y"))
+
+    handle.write('EXPOCODE %-14s WHP-ID %-5s DATE %06d\n' % \
+                 (expocode, section, date))
     # 2 at end of line denotes record 2
     handle.write('STNNBR %-8s CASTNO %-3d NO. RECORDS=%-5d%s\n' %
                  (station, int(cast), len(self.columns), ""))
@@ -90,42 +95,4 @@ def write(self, handle):
     #handle.write(' ******* ******* ******* *******              *') # TODO
     #handle.write('     3.0 28.7977 31.8503   209.5      42   2222') # TODO
 
-    def parameter_name_of(column):
-        return column.parameter.woce_mnemonic
-
-    def units_of(column):
-        return column.parameter.units_mnemonic
-
-    def flags_for(column):
-        return "*******" if column.is_flagged_woce() else ""
-
-    base_format = "%8s" * len(self.columns)
-    num_flags = sum( map(lambda column: 1 if flags_for(column) else 0,
-            self.columns.values() ) )
-    if num_flags != 0:
-        base_format += "%%%ds" % (max(len("QUALT#"), num_flags) + 1)
-    base_format += "\n"
-
-    parameter_header_format = \
-            units_header_format = \
-            asterisks_header_format = base_format
-
-    columns = self.sorted_columns()
-    print map(parameter_name_of, columns)
-    print map(lambda col: col.is_flagged_woce(), columns)
-    qualt_colsize = len(" QUALT#") + \
-            0 if num_flags < " QUALT#" else num_flags - len(" QUALT#")
-    qualt_spaces = " " * (qualt_colsize - len("QUALT#"))
-
-    all_headers = map(parameter_name_of, columns)
-    all_headers.append(qualt_spaces + "QUALT1")
-
-    all_units = map(units_of, columns)
-    all_units.append(" " * (qualt_colsize - 1) + "*")
-
-    all_asters = map(flags_for, columns)
-    all_asters.append(" " * (qualt_colsize - 1) + "*")
-
-    handle.write(parameter_header_format % tuple(all_headers))
-    handle.write(units_header_format %  tuple(all_units))
-    handle.write(asterisks_header_format %  tuple(all_asters))
+    self.write_WOCE_data(handle)
