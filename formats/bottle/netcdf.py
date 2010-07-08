@@ -1,9 +1,164 @@
 '''libcchdo.formats.bottle.netcdf'''
 
 
+import datetime
+from warnings import warn
+
+
+try:
+    from netCDF3 import Dataset
+except ImportError, e:
+    raise ImportError('%s\n%s' % (e,
+        ("You should get netcdf4-python from http://code.google.com/p/"
+         "netcdf4-python and install the NetCDF 3 module as directed by the "
+         "README.")))
+
+
+import libcchdo
+import libcchdo.formats.woce
+
+
+NETCDF_EPOCH = datetime.datetime(1980, 1, 1, 0, 0, 0)
+
+
+NC_BOTTLE_VAR_TO_WOCE_PARAM = {
+    'pressure': 'CTDPRS',
+    'temperature': 'CTDTMP',
+    'oxygen': 'CTDOXY',
+    'salinity': 'CTDSAL',
+    'silicate': 'SILCAT',
+    'nitrate': 'NITRAT',
+    'nitrite': 'NITRIT',
+    'freon_11': 'CFC-11',
+    'partial_co2_temperature': 'PCO2TMP',
+    'alkalinity': 'ALKALI',
+    'freon_113': 'CFC113',
+    'total_carbon': 'TCARBN',
+    'ctd_raw': 'CTDRAW',
+    'freon_12': 'CFC-12',
+    'theta': 'THETA',
+    'bottle_oxygen': 'OXYGEN',
+    'bottle_oxygen': 'OXYGEN',
+    'phosphate': 'PHSPHT',
+    'partial_pressure_of_co2': 'PCO2',
+    'bottle_salinity': 'SALNTY',
+    'tritium': 'TRITUM',
+    'helium': 'HELIUM',
+    'delta_helium_3': 'DELHE3',
+    'tritium_error': 'TRITER',
+}
+
+
+VARATTRS = frozenset(('time', 'latitude', 'longitude', 'woce_date',
+                      'woce_time', 'cast', 'station', ))
+
+
+QC_SUFFIX = '_QC'
+
+
 def read(self, handle):
     """How to read a Bottle NetCDF file."""
-    raise NotImplementedError
+    filename = handle.name
+    nc_file = Dataset(filename, 'r')
+    
+    attrs = nc_file.__dict__
+    expocode = attrs['EXPOCODE']
+    self.header = attrs['ORIGINAL_HEADER']
+    station = attrs['STATION_NUMBER']
+    cast = attrs['CAST_NUMBER']
+    bottle_numbers = attrs['BOTTLE_NUMBERS'].split()
+    bottle_flags = attrs['BOTTLE_QUALITY_CODES'][:]
+    section_id = attrs['WOCE_ID']
+    bottom_depth = attrs['BOTTOM_DEPTH_METERS']
+
+    vars = nc_file.variables
+
+    time = vars['time'][:][0]
+    latitude = vars['latitude'][:][0]
+    longitude = vars['longitude'][:][0]
+    dtime = libcchdo.formats.woce.strptime_woce_date_time(
+        vars['woce_date'][:][0], vars['woce_time'][:][0])
+
+    calculated_time = NETCDF_EPOCH + datetime.timedelta(minutes=int(time))
+    if dtime != calculated_time:
+        print dtime, calculated_time
+        warn(('Datetime declarations in Bottle NetCDF file '
+              'do not match (%s, %s)') % (dtime, calculated_time))
+
+    varstation = ''.join(vars['station'][:])
+    varcast = ''.join(vars['cast'][:])
+
+    if varstation != station:
+        warn(('Station declarations in Bottle NetCDF file '
+              'do not match (%s, %s)') % (station, varstation))
+
+    if varcast != cast:
+        warn(('Cast declarations in Bottle NetCDF file '
+              'do not match (%s, %s)') % (cast, varcast))
+
+    # Create global columns if they do not exist
+    globals_to_vars = {
+        'EXPOCODE': ('', expocode),
+        'SECT_ID': ('', section_id),
+        'STNNBR': ('', station),
+        'CASTNO': ('', cast),
+        'DEPTH': ('METERS', bottom_depth),
+        '_DATETIME': ('', dtime),
+    }
+    gs = globals_to_vars.keys()
+    self.create_columns(gs, [globals_to_vars[y][0] for y in gs])
+    self.create_columns(('BTLNBR', ), ('', ))
+
+    # Fill global columns with data
+    dimensions = len(nc_file.dimensions['pressure'])
+    vlo = len(self)
+    vhi = vlo + dimensions
+    for g, var in globals_to_vars.items():
+        self.columns[g].values[vlo:vhi] = [var[1]] * dimensions
+
+    self.columns['BTLNBR'].values[vlo:vhi] = bottle_numbers
+
+    # First pass to create columns
+    qc_vars = {}
+    for name in frozenset(vars.keys()) - VARATTRS:
+        variable = vars[name]
+        if name.endswith(QC_SUFFIX):
+            qc_vars[NC_BOTTLE_VAR_TO_WOCE_PARAM[
+                name[:-len(QC_SUFFIX)]]] = variable
+        else:
+            name = NC_BOTTLE_VAR_TO_WOCE_PARAM[name]
+            
+            if name == 'drop':
+                continue
+
+            self.create_columns((name, ), ('', ))
+            self.columns[name].values[vlo:vhi] = variable[:].tolist()
+
+            # Quick conversions to uniform data format
+            self.columns[name].values[vlo:vhi] = map(
+                libcchdo.in_band_or_none,
+                self.columns[name].values[vlo:vhi])
+
+    # Second pass to put in flags
+    for name, variable in qc_vars.items():
+        if name in self.columns:
+            self.columns[name].flags_woce[vlo:vhi] = variable[:].tolist()
+        else:
+            # The column is probably a global
+            pass
+
+    # Pad out columns that aren't present in this read to maintain
+    # file structure.
+    nones = [None for i in range(vlo, vhi)]
+    for c in self.columns.values():
+        if len(c) < vhi:
+            c.values[vlo:vhi] = nones
+            if c.is_flagged_woce():
+                c.flags_woce[vlo:vhi] = nones
+            if c.is_flagged_igoss():
+                c.flags_igoss[vlo:vhi] = nones
+
+    nc_file.close()
 
 
 def write(self, handle):

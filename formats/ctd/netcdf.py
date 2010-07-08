@@ -59,7 +59,7 @@ def read(self, handle):
         else:
             name = NC_CTD_VAR_TO_WOCE_PARAM[name]
 
-            if name is 'drop':
+            if name == 'drop':
                 continue
 
             self.columns[name] = libcchdo.Column(name)

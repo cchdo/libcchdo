@@ -2,6 +2,8 @@
 
 import datetime
 
+import libcchdo.formats.woce
+
 
 def read(self, handle):
     '''How to read a Bottle WOCE file.'''
@@ -45,8 +47,7 @@ def read(self, handle):
     for d,t in zip(self.columns['DATE'].values,
                    self.columns['TIME'].values):
         self.columns['_DATETIME'].append(
-            datetime.datetime.strptime("%04d%04d" % (int(d), int(t)),
-                                       '%Y%m%d%H%M')
+            libcchdo.formats.woce.strptime_woce_date_time(int(d), int(t))
     del self.columns['DATE']
     del self.columns['TIME']
 

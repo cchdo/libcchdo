@@ -150,6 +150,24 @@ def out_of_band(value, oob=-999, tolerance=0.1):
     return equal_with_epsilon(oob, number, tolerance)
 
 
+def in_band_or_none(x, oob=None, tolerance=None):
+    """In band or none
+       Args:
+           x - anything
+           oob - out-of-band value (defaults to out_of_band's default)
+           tolerance - out-of-band tolerance (defaults to out_of_band's
+                                              default)
+       Returns:
+           x or None if x is out of band
+    """
+    args = [x]
+    if oob:
+        args.append(oob)
+    if tolerance:
+        args.append(tolerance)
+    return None if out_of_band(*args) else x
+
+
 def identity_or_oob(x, oob=-999):
     """Identity or OOB (XXX)
        Args:
@@ -599,7 +617,7 @@ class Column:
        return not (self.flags_igoss is None or len(self.flags_igoss) == 0)
 
    def __str__(self):
-       return 'Column of '+str(self.parameter)+':'+str(self.values)
+       return 'Column(%s): %s' % (self.parameter, self.values)
 
    def __cmp__(self, other):
        return self.parameter.display_order - other.parameter.display_order
@@ -783,30 +801,46 @@ class DataFile:
         return self.get_property_for_columns(
             lambda column: column.parameter.format)
 
+    def __str__(self):
+        s = ''
+        for column in self.sorted_columns():
+            s += str(column) + '\n'
+            if column.is_flagged_woce():
+                s += '\t' + str(column.flags_woce) + '\n'
+            if column.is_flagged_igoss():
+                s += '\t' + str(column.flags_igoss) + '\n'
+        return s
+
     def to_hash(self):
         hash = {}
         for column in self.columns:
-            woce = self.columns[column].parameter.woce_mnemonic 
-            hash[woce] = self.columns[column].values
-            hash[woce+'_FLAG_W'] = self.columns[column].flags_woce
-            hash[woce+'_FLAG_I'] = self.columns[column].flags_igoss
+            c = self.columns[column]
+            woce = c.parameter.woce_mnemonic 
+            hash[woce] = c.values
+            if c.is_flagged_woce():
+                hash[woce+'_FLAG_W'] = c.flags_woce
+            if c.is_flagged_igoss():
+                hash[woce+'_FLAG_I'] = c.flags_igoss
         return hash
 
     # Refactored common code
 
     def create_columns(self, parameters, units):
         for parameter, unit in zip(parameters, units):
-            if parameter.endswith('FLAG_W') or parameter.endswith('FLAG_I'):
+            if parameter.endswith('FLAG_W') or \
+               parameter.endswith('FLAG_I') or \
+               parameter in self.columns:
                 continue
             try:
                 self.columns[parameter] = Column(parameter,
                                                  self.allow_contrived)
             except Exception, e:
                 raise e
+
             expected_units = self.columns[parameter].parameter.units_mnemonic
             if expected_units != unit:
-                warn(("Mismatched expected units '%s' "
-                      "with given units '%s'") % (expected_units, unit))
+                warn(("Mismatched units for %s. Expected '%s' and "
+                      "received '%s'") % (parameter, expected_units, unit))
 
     def read_WOCE_data(self, handle, parameters_line,
                        units_line, asterisk_line):

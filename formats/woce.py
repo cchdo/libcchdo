@@ -1,6 +1,9 @@
 '''libcchdo.formats.woce'''
 
 
+import datetime
+
+
 def woce_lat_to_dec_lat(lattoks):
     '''Convert a latitude in WOCE format to decimal.'''
     lat = int(lattoks[0]) + float(lattoks[1]) / 60.0
@@ -41,3 +44,8 @@ def dec_lng_to_woce_lng(lng):
 
 def strftime_woce_date_time(dtime):
     return (dtime.strftime('%Y%m%d'), dtime.strftime('%H%M'))
+
+
+def strptime_woce_date_time(woce_date, woce_time):
+    return datetime.datetime.strptime(
+         "%04d%04d" % (int(woce_date), int(woce_time)), '%Y%m%d%H%M')
