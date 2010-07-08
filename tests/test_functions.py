@@ -29,13 +29,13 @@ class TestFunctions(TestCase):
     cursor.close()
     c.close()
 
-  def test_connect_postgresql(self):
-    c = libcchdo.db.connect.cchdotest()
-    cursor = c.cursor()
-    cursor.execute("SELECT id FROM parameters LIMIT 1")
-    self.assert_(cursor.fetchone())
-    cursor.close()
-    c.close()
+#  def test_connect_postgresql(self):
+#    c = libcchdo.db.connect.cchdotest()
+#    cursor = c.cursor()
+#    cursor.execute("SELECT id FROM parameters LIMIT 1")
+#    self.assert_(cursor.fetchone())
+#    cursor.close()
+#    c.close()
 
   def test_read_arbitrary(self):
     td = tempfile.mkstemp('notacchdofile.txt')
