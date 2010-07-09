@@ -58,6 +58,16 @@ END_DATA
     self.file = libcchdo.DataFile()
     self.buff = StringIO.StringIO(self.sample)
     exchangebot.read(self.file, self.buff)
+
+    # Ensure flags are ints
+    for c in self.file.columns.values():
+        if c.is_flagged_woce():
+            for v in c.flags_woce:
+                self.assertEqual(type(v), int)
+        if c.is_flagged_igoss():
+            for v in c.flags_igoss:
+                self.assertEqual(type(v), int)
+
     self.buff.close()
 
   def test_write(self):

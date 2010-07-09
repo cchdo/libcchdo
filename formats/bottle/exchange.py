@@ -74,13 +74,13 @@ def read(self, handle):
                 pass
             if column.endswith('_FLAG_W'):
                 try:
-                    self.columns[column[:-7]].flags_woce.append(value)
+                    self.columns[column[:-7]].flags_woce.append(int(value))
                 except KeyError:
                     warn(("Flag WOCE column exists for parameter %s but "
                           "parameter column does not exist.") % column[:-7])
             elif column.endswith('_FLAG_I'):
                 try:
-                    self.columns[column[:-7]].flags_igoss.append(value)
+                    self.columns[column[:-7]].flags_igoss.append(int(value))
                 except KeyError:
                     warn(("Flag IGOSS column exists for parameter %s but "
                           "parameter column does not exist.") % column[:-7])

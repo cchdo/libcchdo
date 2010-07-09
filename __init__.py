@@ -24,6 +24,13 @@ import formats.woce
 
 LIBVER = 'SIOCCHDLIB'
 
+
+COLORS = {
+    'YELLOW': '\x1b\x5b1;33m',
+    'CYAN': '\x1b\x5b1;36m',
+    'CLEAR': '\x1b\x5b0m',
+}
+
 # Import netCDF here because there is no easy way to import it for specific
 # formats. TODO find a way to import netcdf only for specific formats.
 try:
@@ -617,7 +624,8 @@ class Column:
        return not (self.flags_igoss is None or len(self.flags_igoss) == 0)
 
    def __str__(self):
-       return 'Column(%s): %s' % (self.parameter, self.values)
+       return '%sColumn(%s): %s%s' % (COLORS['YELLOW'], self.parameter,
+                                      COLORS['CLEAR'], self.values)
 
    def __cmp__(self, other):
        return self.parameter.display_order - other.parameter.display_order
@@ -806,9 +814,11 @@ class DataFile:
         for column in self.sorted_columns():
             s += str(column) + '\n'
             if column.is_flagged_woce():
-                s += '\t' + str(column.flags_woce) + '\n'
+                s += '\t%s%s%s\n' % (COLORS['CYAN'], column.flags_woce,
+                                     COLORS['CLEAR'])
             if column.is_flagged_igoss():
-                s += '\t' + str(column.flags_igoss) + '\n'
+                s += '\t%s%s%s\n' % (COLORS['CYAN'], column.flags_igoss,
+                                     COLORS['CLEAR'])
         return s
 
     def to_hash(self):
