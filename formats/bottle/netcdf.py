@@ -80,8 +80,9 @@ def read(self, handle):
         vars['woce_date'][:][0], vars['woce_time'][:][0])
 
     calculated_time = NETCDF_EPOCH + datetime.timedelta(minutes=int(time))
+    # Probably should trust dtime more because it is translated directly
+    # from WOCE time.
     if dtime != calculated_time:
-        print dtime, calculated_time
         warn(('Datetime declarations in Bottle NetCDF file '
               'do not match (%s, %s)') % (dtime, calculated_time))
 
@@ -106,8 +107,8 @@ def read(self, handle):
         '_DATETIME': ('', dtime),
     }
     gs = globals_to_vars.keys()
-    self.create_columns(gs, [globals_to_vars[y][0] for y in gs])
-    self.create_columns(('BTLNBR', ), ('', ))
+    self.create_columns(gs)
+    self.create_columns(('BTLNBR', ))
 
     # Fill global columns with data
     dimensions = len(nc_file.dimensions['pressure'])
@@ -131,7 +132,7 @@ def read(self, handle):
             if name == 'drop':
                 continue
 
-            self.create_columns((name, ), ('', ))
+            self.create_columns((name, ))
             self.columns[name].values[vlo:vhi] = variable[:].tolist()
 
             # Quick conversions to uniform data format

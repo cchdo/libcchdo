@@ -82,7 +82,20 @@ class TestBottleNetCDF(TestCase):
                   self.assertEquals(len(c.flags_woce), length)
               if c.is_flagged_igoss():
                   self.assertEquals(len(c.flags_igoss), length)
-      
+
+      # Test parameter in first file not in second is filled with None.
+      freon113_values += (None, ) * 36
+      map(lambda x: self.assertAlmostEqualOrNones(*x),
+          zip(freon113_values, self.file.columns['CFC113'].values))
+
+      # Test parameter in both files are filled in correctly.
+      freon11_values += (1.437, 1.501, 1.515, 1.525, 1.578, 1.596, 1.602,
+                         1.725, 1.650, 1.703, 1.694, 1.437, 1.059, 0.702,
+                         0.303, 0.130, 0.040, 0.015, -0.001, 0.002, 0.000,
+                         None, None, 0.012, None, 0.006, None, None, None,
+                         0.014, None, 0.000, None, 0.014, None, -0.001)
+      map(lambda x: self.assertAlmostEqualOrNones(*x),
+          zip(freon11_values, self.file.columns['CFC-11'].values))
 
       infile2.close()
 
