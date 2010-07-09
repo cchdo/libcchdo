@@ -26,6 +26,7 @@ LIBVER = 'SIOCCHDLIB'
 
 
 COLORS = {
+    'RED': '\x1b\x5b1;31m',
     'YELLOW': '\x1b\x5b1;33m',
     'CYAN': '\x1b\x5b1;36m',
     'CLEAR': '\x1b\x5b0m',
@@ -811,6 +812,11 @@ class DataFile:
 
     def __str__(self):
         s = ''
+        s += '%sGlobals: %s\n' % (COLORS['RED'], COLORS['CLEAR'])
+        for gv in self.globals.items():
+            s += '%s: %s\n' % gv
+
+        s += '%sData: %s\n' % (COLORS['RED'], COLORS['CLEAR'])
         for column in self.sorted_columns():
             s += str(column) + '\n'
             if column.is_flagged_woce():

@@ -1,11 +1,11 @@
 """libcchdo.formats.bottle.exchange"""
 
-from sys import path
-path.insert(0, '/'.join(path[0].split('/')[:-1]))
 import re
 import datetime
 
 import libcchdo
+import libcchdo.formats.woce
+
 
 def read(self, handle):
     '''How to read a Bottle Exchange file.'''
@@ -45,10 +45,11 @@ def read(self, handle):
         elif 'BTLNBR' in columns:
             identifier.append('BTLNBR')
         else:
-            raise ValueError(("No unique identifer found for file. "
-                              "(STNNBR,CASTNO,SAMPNO,BTLNBR),"
-                              "(STNNBR,CASTNO,SAMPNO),"
-                              "(STNNBR,CASTNO,BTLNBR)"))
+            raise ValueError(
+                ("No unique identifer found for file. "
+                 "(STNNBR,CASTNO,SAMPNO,BTLNBR),"
+                 "(STNNBR,CASTNO,SAMPNO),"
+                 "(STNNBR,CASTNO,BTLNBR)"))
 
     self.create_columns(columns, units)
 
@@ -62,8 +63,9 @@ def read(self, handle):
         if len(columns) is not len(values):
             raise ValueError(("Expected as many columns as values in file. "
                               "Found %d columns and %d values at "
-                              "data line %d" % (len(columns), len(values),
-                                                len(self)+1)))
+                              "data line %d") % (len(columns), len(values),
+                                                len(self) + 1))
+
         for column, raw in zip(columns, values):
             value = raw.strip()
             if libcchdo.out_of_band(value):
@@ -87,28 +89,84 @@ def read(self, handle):
             else:
                 self.columns[column].append(value)
         l = handle.readline().strip()
+
     # Format all data to be what it is
-    self.columns['LATITUDE'].values = map(float,
-                                        self.columns['LATITUDE'].values)
-    self.columns['LONGITUDE'].values = map(float,
-                                         self.columns['LONGITUDE'].values)
+    self.columns['LATITUDE'].values = map(
+        float, self.columns['LATITUDE'].values)
+    self.columns['LONGITUDE'].values = map(
+        float, self.columns['LONGITUDE'].values)
     try:
         self.columns['DATE']
     except KeyError:
         self.columns['DATE'] = libcchdo.Column('DATE')
-        self.columns['DATE'].values = ['0000-00-00'] * len(self)
+        self.columns['DATE'].values = [None] * len(self)
     try:
         self.columns['TIME']
     except KeyError:
         self.columns['TIME'] = libcchdo.Column('TIME')
-        self.columns['TIME'].values = ['0000'] * len(self)
+        self.columns['TIME'].values = [None] * len(self)
+
     self.columns['_DATETIME'] = libcchdo.Column('_DATETIME')
-    for d,t in zip(self.columns['DATE'].values, self.columns['TIME'].values):
-        self.columns['_DATETIME'].append(datetime.datetime.strptime(
-            '%04d%04d' % (int(d), int(t)), '%Y%m%d%H%M'))
+    self.columns['_DATETIME'].values = [
+        libcchdo.formats.woce.strptime_woce_date_time(*x) for x in zip(
+            self.columns['DATE'].values, self.columns['TIME'].values)]
     del self.columns['DATE']
     del self.columns['TIME']
 
+
 def write(self, handle): #TODO
     '''How to write a Bottle Exchange file.'''
-    raise NotImplementedError
+    handle.write('BOTTLE,%s%s\n' % \
+        (datetime.datetime.now().strftime('%Y%m%d'), libcchdo.LIBVER))
+    handle.write('# Original stamp: %s\n' % self.stamp)
+    handle.write('# Original header:\n')
+    handle.write(self.header)
+
+    columns = self.sorted_columns()
+    flagged_parameter_names = []
+    flagged_units = []
+    flagged_formats = []
+    flagged_columns = []
+
+    for c in columns:
+        param = c.parameter
+        flagged_parameter_names.append(param.woce_mnemonic)
+        flagged_units.append(param.units_mnemonic)
+        flagged_formats.append('%' + param.format)
+        flagged_columns.append(c.values)
+        if c.is_flagged_woce():
+            flagged_parameter_names.append(param.woce_mnemonic + '_FLAG_W')
+            flagged_units.append('')
+            flagged_formats.append('%1d')
+            flagged_columns.append(c.flags_woce)
+        if c.is_flagged_igoss():
+            flagged_parameter_names.append(param.woce_mnemonic + '_FLAG_I')
+            flagged_units.append('')
+            flagged_formats.append('%1d')
+            flagged_columns.append(c.flags_igoss)
+
+    handle.write(','.join(flagged_parameter_names))
+    handle.write('\n')
+    handle.write(','.join(flagged_units))
+    handle.write('\n')
+
+    flagged_formats_columns = zip(flagged_formats, flagged_columns)
+
+    for i in range(len(self)):
+        print i
+        values = []
+
+        for f, c in flagged_formats_columns:
+            if c[i] and not (type(c[i]) is float and libcchdo.isnan(c[i])):
+                values.append(f % c[i])
+            else:
+                values.append(f % -999)
+
+        handle.write(','.join(values))
+        handle.write('\n')
+
+
+    handle.write('END_DATA\n')
+
+    print self
+    
