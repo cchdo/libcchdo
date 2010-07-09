@@ -113,6 +113,17 @@ def write(self, handle):
         if c.is_flagged_igoss():
             headers.append(param+'_FLAG_I')
     handle.write(','.join(headers)+"\n")
+
+    #XXX
+    units = []
+    for c in self.sorted_columns():
+        u = c.parameter.units_mnemonic
+        units.append(u)
+        if c.is_flagged():
+            units.append("")
+    handle.write(",".join(units)+"\n")
+    #XXX
+
     columns = [self.columns[header] for header in self.column_headers()]
     for i in range(len(self)):
         data = []

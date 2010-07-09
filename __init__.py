@@ -962,8 +962,7 @@ class DataFile:
             values = []
             flags = []
             for column in columns:
-                parameter = parameter_name_of(column)
-                format = "%%%s" % KNOWN_PARAMETERS[parameter]["format"]
+                format = "%%%s" % column.parameter.format
                 if column[i]:
                     values.append(format % column[i])
                 if column.is_flagged_woce():
