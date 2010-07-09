@@ -47,5 +47,13 @@ def strftime_woce_date_time(dtime):
 
 
 def strptime_woce_date_time(woce_date, woce_time):
+    # None-date or None-time is None-woce_date_time (XXX)
+    if not woce_date or not woce_time:
+        return None
+    try: # make sure we can parse (XXX)
+        int(woce_date)
+        int(woce_time)
+    except: # can't parse date/time into ints (invalid) (XXX)
+        return None
     return datetime.datetime.strptime(
-         "%04d%04d" % (int(woce_date), int(woce_time)), '%Y%m%d%H%M')
+         "%08d%04d" % (int(woce_date), int(woce_time)), '%Y%m%d%H%M')
