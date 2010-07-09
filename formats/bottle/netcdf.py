@@ -106,8 +106,8 @@ def read(self, handle):
         '_DATETIME': ('', dtime),
     }
     gs = globals_to_vars.keys()
-    self.create_columns(gs, [globals_to_vars[y][0] for y in gs])
-    self.create_columns(('BTLNBR', ), ('', ))
+    self.create_columns(gs)
+    self.create_columns(('BTLNBR', ))
 
     # Fill global columns with data
     dimensions = len(nc_file.dimensions['pressure'])
@@ -131,7 +131,7 @@ def read(self, handle):
             if name == 'drop':
                 continue
 
-            self.create_columns((name, ), ('', ))
+            self.create_columns((name, ))
             self.columns[name].values[vlo:vhi] = variable[:].tolist()
 
             # Quick conversions to uniform data format

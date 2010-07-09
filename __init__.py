@@ -342,7 +342,7 @@ KNOWN_PARAMETERS = {
                  'units': '',
                  'bound_lower': '',
                  'bound_upper': '',
-                 'mnemonic': 'EXPOCODE',
+                 'unit_mnemonic': '',
                  'display_order': 1,
                  'aliases': [],
                 },
@@ -352,7 +352,7 @@ KNOWN_PARAMETERS = {
                 'units': '',
                 'bound_lower': '',
                 'bound_upper': '',
-                'mnemonic': 'SECT_ID',
+                'unit_mnemonic': '',
                 'display_order': 2,
                 'aliases': [],
                },
@@ -363,7 +363,7 @@ KNOWN_PARAMETERS = {
                'units': 'decibar',
                'bound_lower': '0',
                'bound_upper': '11000',
-               'mnemonic': 'DBAR',
+               'unit_mnemonic': 'DBAR',
                'display_order': 6,
                'aliases': [],
               },
@@ -373,7 +373,7 @@ KNOWN_PARAMETERS = {
                'units': 'ITS90',
                'bound_lower': '-2',
                'bound_upper': '35',
-               'mnemonic': 'ITS-90',
+               'unit_mnemonic': 'ITS-90',
                'display_order': 7,
                'aliases': [],
               },
@@ -383,7 +383,7 @@ KNOWN_PARAMETERS = {
                'units': u'\xb5mol/kg',
                'bound_lower': '0',
                'bound_upper': '500',
-               'mnemonic': 'UMOL/KG',
+               'unit_mnemonic': 'UMOL/KG',
                'display_order': 8,
                'aliases': [],
               },
@@ -393,7 +393,7 @@ KNOWN_PARAMETERS = {
                'units': 'PSS-78',
                'bound_lower': '0',
                'bound_upper': '42',
-               'mnemonic': 'PSS-78',
+               'unit_mnemonic': 'PSS-78',
                'display_order': 9,
                'aliases': [],
               },
@@ -403,7 +403,7 @@ KNOWN_PARAMETERS = {
                  'units': '',
                  'bound_lower': '',
                  'bound_upper': '',
-                 'mnemonic': '',
+                 'unit_mnemonic': '',
                  'display_order': sys.maxint,
                  'aliases': [],
                 },
@@ -413,7 +413,7 @@ KNOWN_PARAMETERS = {
                'units': '',
                'bound_lower': '',
                'bound_upper': '',
-               'mnemonic': '',
+               'unit_mnemonic': '',
                'display_order': sys.maxint,
                'aliases': ['NUMBER'], # XXX
               },
@@ -423,7 +423,7 @@ KNOWN_PARAMETERS = {
                'units': '',
                'bound_lower': '',
                'bound_upper': '',
-               'mnemonic': '',
+               'unit_mnemonic': '',
                'display_order': sys.maxint,
                'aliases': [],
               },
@@ -433,7 +433,7 @@ KNOWN_PARAMETERS = {
                'units': '',
                'bound_lower': '',
                'bound_upper': '',
-               'mnemonic': '',
+               'unit_mnemonic': '',
                'display_order': sys.maxint,
                'aliases': [],
               },
@@ -517,7 +517,7 @@ class Parameter:
             this.units = info['units']
             this.bound_lower = info['bound_lower']
             this.bound_upper = info['bound_upper']
-            this.units_mnemonic = info['mnemonic']
+            this.units_mnemonic = info['unit_mnemonic']
             this.woce_mnemonic = parameter_name
             this.display_order = info['display_order']
             this.aliases = info['aliases']
@@ -825,8 +825,13 @@ class DataFile:
 
     # Refactored common code
 
-    def create_columns(self, parameters, units):
-        for parameter, unit in zip(parameters, units):
+    def create_columns(self, parameters, units=None):
+        '''Create columns given parameters and their units.
+           Args:
+               parameters - parameters
+               units - units to check. If None then no check is done.
+        '''
+        for i, parameter in enumerate(parameters):
             if parameter.endswith('FLAG_W') or \
                parameter.endswith('FLAG_I') or \
                parameter in self.columns:
@@ -837,10 +842,14 @@ class DataFile:
             except Exception, e:
                 raise e
 
-            expected_units = self.columns[parameter].parameter.units_mnemonic
-            if expected_units != unit:
-                warn(("Mismatched units for %s. Expected '%s' and "
-                      "received '%s'") % (parameter, expected_units, unit))
+            if units:
+                expected_units = \
+                    self.columns[parameter].parameter.units_mnemonic
+                given_unit = units[i]
+                if expected_units != given_unit:
+                    warn(("Mismatched units for %s. Expected '%s' and "
+                          "received '%s'") % (parameter, expected_units,
+                                              given_unit))
 
     def read_WOCE_data(self, handle, parameters_line,
                        units_line, asterisk_line):

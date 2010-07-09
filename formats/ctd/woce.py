@@ -16,25 +16,25 @@ def read(self, handle):
         re.IGNORECASE)
     m = stamp.match(handle.readline())
     if m:
-      self.globals['EXPOCODE'] = m.group(1)
-      self.globals['SECT_ID'] = m.group(2)
-      self.globals["_DATETIME"] = datetime.datetime.strptime(
-          m.group(len(m.groups())), '%m%d%y')
-      self.globals['DATE'], self.globals['TIME'] = \
-          fmtwoce.strftime_woce_date_time(self.globals["_DATETIME"])
+        self.globals['EXPOCODE'] = m.group(1)
+        self.globals['SECT_ID'] = m.group(2)
+        self.globals["_DATETIME"] = datetime.datetime.strptime(
+            m.group(len(m.groups())), '%m%d%y')
+        self.globals['DATE'], self.globals['TIME'] = \
+            fmtwoce.strftime_woce_date_time(self.globals["_DATETIME"])
     else:
-      raise ValueError("Expected stamp. Invalid record 1 in WOCE CTD file.")
+        raise ValueError("Expected stamp. Invalid record 1 in WOCE CTD file.")
     # Get identifier line
     identifier = re.compile(
         'STNNBR\s*(\d+)\s*CASTNO\s*(\d+)\s*NO\. Records=\s*(\d+)',
         re.IGNORECASE)
     m = identifier.match(handle.readline())
     if m:
-      self.globals['STNNBR'] = m.group(1)
-      self.globals['CASTNO'] = m.group(2)
+        self.globals['STNNBR'] = m.group(1)
+        self.globals['CASTNO'] = m.group(2)
     else:
-      raise ValueError(("Expected identifiers. Invalid record 2 in "
-                        "WOCE CTD file."))
+        raise ValueError(("Expected identifiers. Invalid record 2 in "
+                          "WOCE CTD file."))
 
     # Get instrument line
     instrument = re.compile(
@@ -42,11 +42,11 @@ def read(self, handle):
         re.IGNORECASE)
     m = instrument.match(handle.readline())
     if m:
-      self.globals['_INSTRUMENT_NO'] = m.group(1)
-      self.globals['_SAMPLING_RATE'] = m.group(2)
+        self.globals['_INSTRUMENT_NO'] = m.group(1)
+        self.globals['_SAMPLING_RATE'] = m.group(2)
     else:
-      raise ValueError(("Expected instrument information. "
-                        "Invalid record 3 in WOCE CTD file."))
+        raise ValueError(("Expected instrument information. "
+                          "Invalid record 3 in WOCE CTD file."))
     
     parameters_line = handle.readline()
     units_line = handle.readline()
