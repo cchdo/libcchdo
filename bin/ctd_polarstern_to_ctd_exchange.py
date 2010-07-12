@@ -29,7 +29,7 @@ def read_ctd_polarstern(meta, filename):
         #"param_sigma_theta": None,
         "param_temp": "CTDTMP",
         "param_tpot": "THETA",
-        "param_cond": "CTDCOND", # FIXME
+        #"param_cond": "CTDCOND", # FIXME
         "param_nobs": "CTDNOBS",
         #"param_atten": "XMISS",
         #"param_ys_fl": None,
@@ -37,6 +37,15 @@ def read_ctd_polarstern(meta, filename):
     }
 
     datafile = libcchdo.DataFile()
+
+    preamble = """\
+# Auto-generated Exchange CTD file from ctd_polarstern_to_ctd_exchange
+# Please verify integrity before use.
+#
+# Original data acquired from CD
+# Reference website: http://www.awi.de/en/research/research_divisions/climate_science/observational_oceanography
+#
+"""
 
     citation = "# Citation: %s (%d): %s\n" % (
             meta["cites"]["name"],
@@ -57,12 +66,17 @@ def read_ctd_polarstern(meta, filename):
                     meta[attr]["comment"],
                     meta[attr]["pi"])
 
-    datafile.header = citation + reference + parameter_descriptions
+    datafile.header = preamble + citation + reference + parameter_descriptions
 
     datafile.globals["EXPOCODE"] = None
     datafile.globals["SECT"] = meta["events"]["campaign"]
-    datafile.globals["STNNBR"] = None
-    datafile.globals["CASTNO"] = None
+    cruise, cast_info = meta["events"]["name"].split("/")
+    if len(cast_info.split("-")) == 1:
+        datafile.globals["STNNBR"] = cast_info
+        datafile.globals["CASTNO"] = "1"
+    else:
+        datafile.globals["STNNBR"], datafile.globals["CASTNO"] = \
+                cast_info.split("-")
     date_time = datetime.datetime.strptime(
             meta["events"]["date_time"].upper(),
             "%Y-%m-%dT%H:%M:%S")
