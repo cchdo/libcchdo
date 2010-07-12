@@ -32,16 +32,6 @@ COLORS = {
     'CLEAR': '\x1b\x5b0m',
 }
 
-# Import netCDF here because there is no easy way to import it for specific
-# formats. TODO find a way to import netcdf only for specific formats.
-try:
-    from netCDF3 import Dataset
-except ImportError, e:
-    raise ImportError('%s\n%s' % (e,
-        ("You should get netcdf4-python from http://code.google.com/p/"
-         "netcdf4-python and install the NetCDF 3 module as directed by the "
-         "README.")))
-
 try:
     from math import isnan
 except ImportError: # Cover when < python-2.6

@@ -1,19 +1,12 @@
 '''libcchdo.formats.ctd.netcdf'''
 
 import libcchdo
-import datetime #XXX
-import tempfile #XXX
+import datetime
+import tempfile
 from warnings import warn
 import sys
 
-
-try:
-    from netCDF3 import Dataset
-except ImportError, e:
-    raise ImportError('%s\n%s' % (e,
-        ("You should get netcdf4-python from http://code.google.com/p/"
-         "netcdf4-python and install the NetCDF 3 module as directed by the "
-         "README.")))
+import libcchdo.formats.netcdf as nc
 
 
 NC_CTD_VAR_TO_WOCE_PARAM = {
@@ -46,7 +39,7 @@ QC_SUFFIX = '_QC'
 def read(self, handle):
     '''How to read a CTD NetCDF file.'''
     filename = handle.name
-    nc_file = Dataset(filename, 'r')
+    nc_file = nc.Dataset(filename, 'r')
     # Create columns for all the variables and get all the data.
     # Map the nc_ctd variable to drop to skip the variable.
     qc_vars = {}
@@ -136,7 +129,7 @@ def write(self, handle):
     isowocedate = datetime.datetime(
             int(strdate[:4]), int(strdate[4:6]), int(strdate[6:]),
             int(strtime[:2]), int(strtime[2:]))
-    nc_file = Dataset(tmp.name, "w", format="NETCDF3_CLASSIC")
+    nc_file = nc.Dataset(tmp.name, "w", format="NETCDF3_CLASSIC")
     nc_file.EXPOCODE = self.globals["EXPOCODE"]
     nc_file.Conventions = "COARDS/WOCE"
     nc_file.WOCE_VERSION = "3.0"

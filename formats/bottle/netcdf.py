@@ -4,17 +4,8 @@
 import datetime
 from warnings import warn
 
-
-try:
-    from netCDF3 import Dataset
-except ImportError, e:
-    raise ImportError('%s\n%s' % (e,
-        ("You should get netcdf4-python from http://code.google.com/p/"
-         "netcdf4-python and install the NetCDF 3 module as directed by the "
-         "README.")))
-
-
 import libcchdo
+import libcchdo.formats.netcdf as nc
 import libcchdo.formats.woce
 
 
@@ -53,13 +44,10 @@ VARATTRS = frozenset(('time', 'latitude', 'longitude', 'woce_date',
                       'woce_time', 'cast', 'station', ))
 
 
-QC_SUFFIX = '_QC'
-
-
 def read(self, handle):
     """How to read a Bottle NetCDF file."""
     filename = handle.name
-    nc_file = Dataset(filename, 'r')
+    nc_file = nc.Dataset(filename, 'r')
     
     attrs = nc_file.__dict__
     expocode = attrs['EXPOCODE']
@@ -123,9 +111,9 @@ def read(self, handle):
     qc_vars = {}
     for name in frozenset(vars.keys()) - VARATTRS:
         variable = vars[name]
-        if name.endswith(QC_SUFFIX):
+        if name.endswith(nc.QC_SUFFIX):
             qc_vars[NC_BOTTLE_VAR_TO_WOCE_PARAM[
-                name[:-len(QC_SUFFIX)]]] = variable
+                name[:-len(nc.QC_SUFFIX)]]] = variable
         else:
             name = NC_BOTTLE_VAR_TO_WOCE_PARAM[name]
             

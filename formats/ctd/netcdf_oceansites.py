@@ -8,8 +8,8 @@ import tempfile
 from warnings import warn
 
 import libcchdo
+import libcchdo.formats.netcdf as nc
 
-from netCDF3 import Dataset
 
 WOCE_to_OceanSITES_flag = {
     1: 3, # Not calibrated -> Bad data that are potentially
@@ -133,7 +133,7 @@ def write(self, handle, timeseries=None, timeseries_info={}):
     isowocedate = datetime.datetime(
         int(strdate[0:4]), int(strdate[4:6]), int(strdate[6:8]),
         int(strtime[0:2]), int(strtime[2:4]))
-    nc_file = Dataset(tmp.name, 'w', format='NETCDF3_CLASSIC')
+    nc_file = nc.Dataset(tmp.name, 'w', format='NETCDF3_CLASSIC')
     nc_file.data_type = 'OceanSITES time-series CTD data'
     nc_file.format_version = '1.1'
     nc_file.date_update = datetime.datetime.utcnow().isoformat()+'Z'
