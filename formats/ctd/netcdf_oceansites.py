@@ -136,7 +136,7 @@ def write(self, handle, timeseries=None, timeseries_info={}):
     nc_file = nc.Dataset(tmp.name, 'w', format='NETCDF3_CLASSIC')
     nc_file.data_type = 'OceanSITES time-series CTD data'
     nc_file.format_version = '1.1'
-    nc_file.date_update = datetime.datetime.utcnow().isoformat()+'Z'
+    nc_file.date_update = libcchdo.strftime_iso(datetime.datetime.utcnow())
     nc_file.wmo_platform_code = ''
     nc_file.source = 'Shipborne observation'
     nc_file.history = ''.join([isowocedate.isoformat(), "Z data collected\n",
@@ -169,8 +169,8 @@ def write(self, handle, timeseries=None, timeseries_info={}):
                         'national programs that contribute to it.')
     nc_file.update_interval = 'void'
     nc_file.qc_manual = "OceanSITES User's Manual v1.1"
-    nc_file.time_coverage_start = isowocedate.isoformat()+'Z'
-    nc_file.time_coverage_end = isowocedate.isoformat()+'Z'
+    nc_file.time_coverage_start = libcchdo.strftime_iso(isowocedate)
+    nc_file.time_coverage_end = libcchdo.strftime_iso(isowocedate)
 
     nc_file.createDimension('TIME')
     nc_file.createDimension('DEPTH', len(self))

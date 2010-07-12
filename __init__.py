@@ -440,14 +440,12 @@ KNOWN_PARAMETERS = {
 
 class Parameter:
 
-
     PARAMETER_CACHE = {}
 
-
     def __init__(self, parameter_name, contrived=False):
-        if parameter_name in Parameter.PARAMETER_CACHE:
+        try:
             self.__dict__ = Parameter.PARAMETER_CACHE[parameter_name].__dict__
-        else:
+        except KeyError:
             if contrived or parameter_name.startswith('_'):
                 self.full_name = parameter_name
                 self.format = '11s'
@@ -635,9 +633,10 @@ class SummaryFile:
             self.columns[column] = Column(column)
 
     def __len__(self):
-        if not self.columns.values():
+        try:
+            return len(self.columns.values()[0])
+        except:
             return 0
-        return len(self.columns.values()[0])
 
     def read_Summary_WOCE(self, handle):
         '''How to read a Summary file for WOCE.'''
@@ -782,9 +781,10 @@ class DataFile:
         return uniquify(self.columns['EXPOCODE'].values)
 
     def __len__(self):
-        if not self.columns.values():
+        try:
+            return len(self.columns.values()[0])
+        except:
             return 0
-        return len(self.columns.values()[0])
 
     def sorted_columns(self):
         return sorted(self.columns.values())
@@ -860,12 +860,15 @@ class DataFile:
     def read_WOCE_data(self, handle, parameters_line,
                        units_line, asterisk_line):
         column_width = 8
-        safe_column_width = column_width-1
+        safe_column_width = column_width - 1
+
         # num_quality_flags = the number of asterisk-marked columns
         num_quality_flags = len(re.findall('\*{7,8}', asterisk_line))
         num_quality_words = len(parameters_line.split('QUALT'))-1
+
         # The extra 1 in quality_length is for spacing between the columns
-        quality_length = num_quality_words * (max(len('QUALT#'), num_quality_flags) + 1)
+        quality_length = num_quality_words * (max(len('QUALT#'),
+                                                  num_quality_flags) + 1)
         num_param_columns = int((len(parameters_line) - quality_length) / \
                                  column_width)
 
@@ -898,8 +901,9 @@ class DataFile:
 
         # Get each data line
         # Add on quality to unpack string
-        unpack_str += (str(quality_length / num_quality_words - num_quality_flags)+
-                       'x'+str(num_quality_flags)+'s') * num_quality_words
+        unpack_str += ('%sx%ss' % (quality_length / num_quality_words - \
+                                  num_quality_flags, num_quality_flags)) * \
+                      num_quality_words
         for i, line in enumerate(handle):
             unpacked = struct.unpack(unpack_str, line.rstrip())
 
@@ -963,7 +967,7 @@ class DataFile:
         handle.write(base_format % tuple(all_units))
         handle.write(base_format % tuple(all_asters))
 
-        nobs = max(map( lambda x: len(x), columns ))
+        nobs = max(map(len, columns))
         for i in range(nobs):
             values = []
             flags = []
