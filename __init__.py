@@ -22,8 +22,16 @@ import sys
 import db.connect
 import formats.woce
 
-LIBVER = 'SIOCCHDLIB'
+try:
+    from math import isnan
+except ImportError: # Cover when < python-2.6
+    def isnan(n):
+        return n != n
 
+
+RADIUS_EARTH = 6371.01 #km
+
+LIBVER = 'SIOCCHDLIB'
 
 COLORS = {
     'RED': '\x1b\x5b1;31m',
@@ -32,14 +40,6 @@ COLORS = {
     'CLEAR': '\x1b\x5b0m',
 }
 
-try:
-    from math import isnan
-except ImportError: # Cover when < python-2.6
-    def isnan(n):
-        return n != n
-
-# Globals
-RADIUS_EARTH = 6371.01 #km
 
 # Functions
 def uniquify(seq):
