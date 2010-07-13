@@ -123,7 +123,7 @@ def read_ctd_polarstern(meta, filename):
             for datum, param in zip(values, parameters):
                 if param in ignored_params:
                     continue
-                datafile.columns[PARAM_EQUIVS[param]].values.append(float(datum))
+                datafile.columns[PARAM_EQUIVS[param]].values.append(float(datum) if datum else -999.0)
 
     return datafile
 
@@ -180,54 +180,57 @@ def main():
     try:
         for input_filename in sys.argv[2:]:
 
-            print input_filename
+            try:
+                print input_filename
 
-            meta = {}
-            meta_cast = db.cursor().execute(
-                    "select * from ctd_casts where filename = ? limit 1",
-                    (os.path.basename(input_filename), )).fetchone()
+                meta = {}
+                meta_cast = db.cursor().execute(
+                        "select * from ctd_casts where filename = ? limit 1",
+                        (os.path.basename(input_filename), )).fetchone()
 
-            if not meta_cast:
-                print >> sys.stderr, "no metadata for %s" % input_filename
+                if not meta_cast:
+                    print >> sys.stderr, "no metadata for %s" % input_filename
+                    continue
+
+                meta["filename"] = meta_cast[1]
+
+                meta["cites"] = unpack_citation(db.cursor().execute(
+                        "select * from ctd_citations where id = ? limit 1",
+                        (meta_cast[2], )).fetchone())
+
+                meta["refs"] = unpack_reference(db.cursor().execute(
+                        "select * from ctd_references where id = ? limit 1",
+                        (meta_cast[3], )).fetchone())
+
+                meta["events"] = unpack_events(db.cursor().execute(
+                        "select * from ctd_events where id = ? limit 1",
+                        (meta_cast[4], )).fetchone())
+
+                meta["min_depth"] = meta_cast[5]
+
+                meta["max_depth"] = meta_cast[6]
+
+                for i in PARAMETERS:
+                    if meta_cast[i] != 0:
+                        meta_param = db.cursor().execute(
+                                "select * from ctd_%s where id = ? limit 1" %
+                                PARAMETERS[i], (meta_cast[i], )).fetchone()
+                        meta[PARAMETERS[i]] = unpack_param_meta (meta_param)
+
+                output_filename = os.path.basename(input_filename)
+                output_filename = output_filename[:output_filename.find('.')] + \
+                                  "_ct1.csv"
+
+                datafile = read_ctd_polarstern(meta, input_filename)
+
+                if COMMIT_TO_FILE:
+                    with open(output_filename, "wb") as output_file:
+                        exctd.write(datafile, output_file)
+                else:
+                    print "%sOutput to %s (not written):%s" % (BOLD, output_filename, CLEAR)
+
+            except:
                 continue
-
-            meta["filename"] = meta_cast[1]
-
-            meta["cites"] = unpack_citation(db.cursor().execute(
-                    "select * from ctd_citations where id = ? limit 1",
-                    (meta_cast[2], )).fetchone())
-
-            meta["refs"] = unpack_reference(db.cursor().execute(
-                    "select * from ctd_references where id = ? limit 1",
-                    (meta_cast[3], )).fetchone())
-
-            meta["events"] = unpack_events(db.cursor().execute(
-                    "select * from ctd_events where id = ? limit 1",
-                    (meta_cast[4], )).fetchone())
-
-            meta["min_depth"] = meta_cast[5]
-
-            meta["max_depth"] = meta_cast[6]
-
-            for i in PARAMETERS:
-                if meta_cast[i] != 0:
-                    meta_param = db.cursor().execute(
-                            "select * from ctd_%s where id = ? limit 1" %
-                            PARAMETERS[i], (meta_cast[i], )).fetchone()
-                    meta[PARAMETERS[i]] = unpack_param_meta (meta_param)
-
-            output_filename = os.path.basename(input_filename)
-            output_filename = output_filename[:output_filename.find('.')] + \
-                              "_ct1.csv"
-
-            datafile = read_ctd_polarstern(meta, input_filename)
-
-            if COMMIT_TO_FILE:
-                with open(output_filename, "wb") as output_file:
-                    exctd.write(datafile, output_file)
-            else:
-                print "%sOutput to %s (not written):%s" % (BOLD, output_filename, CLEAR)
-                exctd.write(datafile, sys.stdout)
 
     finally:
         db.close()
