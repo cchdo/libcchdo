@@ -402,7 +402,7 @@ KNOWN_PARAMETERS = {
                  'bound_lower': '',
                  'bound_upper': '',
                  'unit_mnemonic': '',
-                 'display_order': sys.maxint,
+                 'display_order': sys.maxint - 99999,
                  'aliases': [],
                 },
     'CTDNOBS': {'name': 'nobs', # XXX
@@ -412,7 +412,7 @@ KNOWN_PARAMETERS = {
                'bound_lower': '',
                'bound_upper': '',
                'unit_mnemonic': '',
-               'display_order': sys.maxint,
+               'display_order': sys.maxint - 99999,
                'aliases': ['NUMBER'], # XXX
               },
     'TRANSM': {'name': 'transmissometer',
@@ -422,7 +422,7 @@ KNOWN_PARAMETERS = {
                'bound_lower': '',
                'bound_upper': '',
                'unit_mnemonic': '',
-               'display_order': sys.maxint,
+               'display_order': sys.maxint - 99999,
                'aliases': [],
               },
     'FLUORM': {'name': 'fluorometer',
@@ -432,7 +432,7 @@ KNOWN_PARAMETERS = {
                'bound_lower': '',
                'bound_upper': '',
                'unit_mnemonic': '',
-               'display_order': sys.maxint,
+               'display_order': sys.maxint - 99999,
                'aliases': [],
               },
 }
