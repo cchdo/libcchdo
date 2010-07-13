@@ -15,22 +15,6 @@ DB_CREDENTIALS = {
                            'host': 'watershed.ucsd.edu', 'db': 'cchdo'},
 }
 
-try:
-    import pgdb
-except ImportError, e:
-    raise ImportError('%s\n%s' % (e,
-        ("You should get pygresql from http://www.pygresql.org/readme.html"
-         "#where-to-get. You will need Postgresql with server binaries "
-         "installed already.")))
-
-try:
-    import MySQLdb
-except ImportError, e:
-    raise ImportError('%s\n%s' % (e,
-        ("You should get MySQLdb from http://sourceforge.net/projects/"
-         "mysql-python. You will need MySQL with server binaries "
-         "installed already.")))
-
 
 # Internal connection abstractions
 
@@ -68,11 +52,25 @@ def _connect(module, error, **credentials):
 
 def _pg(**credentials):
     """Connect to a given postgresql database"""
+    try:
+        import pgdb
+    except ImportError, e:
+        raise ImportError('%s\n%s' % (e,
+            ("You should get pygresql from http://www.pygresql.org/readme.html"
+             "#where-to-get. You will need Postgresql with server binaries "
+             "installed already.")))
     return _connect(pgdb, pgdb.Error, **credentials)
 
 
 def _mysql(**credentials):
     """Connect to a given MySQL database"""
+    try:
+        import MySQLdb
+    except ImportError, e:
+        raise ImportError('%s\n%s' % (e,
+            ("You should get MySQLdb from http://sourceforge.net/projects/"
+             "mysql-python. You will need MySQL with server binaries "
+             "installed already.")))
     return _connect(MySQLdb, MySQLdb.Error, **credentials)
 
 
