@@ -2,11 +2,14 @@
 
 from distutils.core import setup, Command
 from unittest import TextTestRunner, defaultTestLoader
-from glob import glob
-from os.path import splitext, basename, join as pjoin, walk
+import glob
+import os
 import sys
+import inspect
+
 sys.path.insert(0, "/".join(sys.path[0].split("/")[:-1]))
-sys.path.insert(0, "/Users/ayshen/work")
+sys.path.insert(0, os.path.split(os.path.abspath(inspect.getfile(
+                       inspect.currentframe())))[0])
 
 import os
 
@@ -22,11 +25,16 @@ class TestCommand(Command):
     def run(self):
         '''Finds all the tests modules in tests/, and runs them.'''
         testfiles = []
-        for t in glob(pjoin(self._dir, 'tests', 'test_*.py')):
+        for t in glob.glob(os.path.join(self._dir, 'tests', 'test_*.py')):
             testfiles.append('.'.join(
-                    ['tests', splitext(basename(t))[0]]))
-        tests = defaultTestLoader.loadTestsFromNames(testfiles)
-        TextTestRunner(verbosity = 2).run(tests)
+                    ['tests', os.path.splitext(os.path.basename(t))[0]]))
+        try:
+            tests = defaultTestLoader.loadTestsFromNames(testfiles)
+            TextTestRunner(verbosity = 2).run(tests)
+        except AttributeError:
+            raise ImportError(("It's likely that you have an import error "
+                               "in your test."))
+
 
 class CleanCommand(Command):
     description = "Cleans directories of .pyc files"
@@ -37,7 +45,7 @@ class CleanCommand(Command):
         for root, dirs, files in os.walk('.'):
             for f in files:
                 if f.endswith('.pyc'):
-                    self._clean_me.append(pjoin(root, f))
+                    self._clean_me.append(os.path.join(root, f))
     def finalize_options(self):
         pass
     def run(self):
