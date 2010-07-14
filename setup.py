@@ -6,6 +6,8 @@ from glob import glob
 from os.path import splitext, basename, join as pjoin, walk
 import sys
 sys.path.insert(0, "/".join(sys.path[0].split("/")[:-1]))
+sys.path.insert(0, "/Users/ayshen/work")
+
 import os
 
 # http://da44en.wordpress.com/2002/11/22/using-distutils/
@@ -45,11 +47,34 @@ class CleanCommand(Command):
             except:
                 pass
 
+
+# API for coverage-python: http://nedbatchelder.com/code/coverage/api.html
+class CoverageCommand (TestCommand):
+    description = "Check test coverage"
+    user_options = []
+    def initialize_options (self):
+        import coverage
+        # distutils.core.Command is old-style, so use old supermethod call
+        TestCommand.initialize_options(self)
+        if ".coverage" in os.listdir(self._dir):
+            os.unlink(".coverage")
+        self.cov = coverage.coverage()
+        self.cov.start()
+    def finalize_options (self):
+        pass
+    def run (self):
+        TestCommand.run(self)
+        self.cov.stop()
+        self.cov.save()
+        self.cov.report(file=sys.stdout)
+
+
 setup(name="libcchdo",
       version="0.4",
       description="libcchdo setup",
       cmdclass = {'test': TestCommand,
-                  'clean': CleanCommand
+                  'clean': CleanCommand,
+                  'coverage': CoverageCommand,
                  }
      )
 

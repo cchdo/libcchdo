@@ -74,8 +74,8 @@ def read(self, handle):
         warn(('Datetime declarations in Bottle NetCDF file '
               'do not match (%s, %s)') % (dtime, calculated_time))
 
-    varstation = ''.join(vars['station'][:])
-    varcast = ''.join(vars['cast'][:])
+    varstation = ''.join(filter(None, vars['station'][:].tolist()))
+    varcast = ''.join(filter(None, vars['cast'][:].tolist()))
 
     if varstation != station:
         warn(('Station declarations in Bottle NetCDF file '
