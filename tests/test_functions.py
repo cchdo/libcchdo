@@ -6,7 +6,6 @@ import tempfile
 import os
 
 import libcchdo
-import libcchdo.db.connect
 
 
 class TestFunctions(TestCase):
@@ -18,24 +17,6 @@ class TestFunctions(TestCase):
   def test_strip_all(self):
     xs = ['a', 'b   ', '   c', '  d   ']
     self.assertEqual(['a', 'b', 'c', 'd'], libcchdo.strip_all(xs))
-
-  # Database connections
-
-  def test_connect_mysql(self):
-    c = libcchdo.db.connect.cchdo()
-    cursor = c.cursor()
-    cursor.execute("SELECT id FROM parameter_descriptions LIMIT 1")
-    self.assert_(cursor.fetchone())
-    cursor.close()
-    c.close()
-
-#  def test_connect_postgresql(self):
-#    c = libcchdo.db.connect.cchdotest()
-#    cursor = c.cursor()
-#    cursor.execute("SELECT id FROM parameters LIMIT 1")
-#    self.assert_(cursor.fetchone())
-#    cursor.close()
-#    c.close()
 
   def test_read_arbitrary(self):
     td = tempfile.mkstemp('notacchdofile.txt')
