@@ -1,3 +1,7 @@
+[run]
+
+branch = True
+
 [report]
 
 omit = 

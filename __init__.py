@@ -145,6 +145,8 @@ def out_of_band(value, oob=-999, tolerance=0.1):
         number = float(value)
     except (ValueError):
         return False
+    except TypeError:
+        return True
     return equal_with_epsilon(oob, number, tolerance)
 
 
