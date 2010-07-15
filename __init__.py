@@ -36,7 +36,7 @@ COLORS = {
 }
 
 
-class memoize:
+class memoize(object):
 
     def __init__(self, callable):
         self._cache = {}
@@ -53,7 +53,7 @@ class memoize:
 
 
 @memoize
-class Parameter:
+class Parameter(object):
     ''' A CCHDO tracked parameter.
         
         The definition of the parameter is obtained from the CCHDO database
@@ -94,7 +94,7 @@ class Parameter:
         return 'Parameter %s' % self.woce_mnemonic
 
 
-class Column:
+class Column(object):
 
    def __init__(self, parameter, contrived=False):
        if type(parameter) != str:
