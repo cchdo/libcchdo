@@ -1,15 +1,18 @@
-""" Test case for libcchdo.SummaryFile """
+""" Test case for libcchdo.formats.summary """
+
+import StringIO
+from unittest import TestCase
 
 import libcchdo
-import StringIO # Unit test loading considers the file a module and tries to load it if using from module import.
-from unittest import TestCase
+import libcchdo.formats.summary.woce as sumwoce
+import libcchdo.formats.summary.hot as sumhot
 
 def fp_eq(a, b, epsilon=0.00001):
   return abs(a-b) < epsilon
 
 class TestSummaryFile(TestCase):
   def setUp(self):
-    self.sample_woce = """
+    self.sample_woce = """\
 I8S     R/V Revelle     15 Feb 2007 - 13 Mar 2007  20070502CCHDOSCD
 SHIP/CRS     WOCE                 CAST         UTC EVENT         POSITION             UNC HT ABOVE WIRE   MAX  NO. OF                                                                
 EXPOCODE     SECT   STNNBR CASTNO TYPE DATE   TIME  CODE LATITUDE   LONGITUDE   NAV DEPTH   BOTTOM  OUT PRESS BOTTLES PARAMETERS                              COMMENTS                       
@@ -18,7 +21,7 @@ EXPOCODE     SECT   STNNBR CASTNO TYPE DATE   TIME  CODE LATITUDE   LONGITUDE   
 33RR20070204 I8S         1      1  ROS 021507 1442    BO 65 48.65 S  84 33.01 E GPS   450        6  435   439      16 1-8,23-24,27,43,104-112                                                
 33RR20070204 I8S         2      1  ROS 021507 1705    BE 65 46.09 S  84 32.09 E GPS  1257            11                
 """
-    self.sample_hot = """
+    self.sample_hot = """\
                                        Hawaii Ocean Time-Series   Cruise HOT-134
    Ship  Section Sta Cast Cast  Date     Time            Position               Depth   Pres. Number  Parameters Comments
   Cruise  WHP ID  #    #  Type         UTC Code   Lat.       Lon.       Code   Max  Hgt  Max Bottles 
@@ -31,7 +34,7 @@ EXPOCODE     SECT   STNNBR CASTNO TYPE DATE   TIME  CODE LATITUDE   LONGITUDE   
   def test_read_summary_woce(self):
     self.file = libcchdo.SummaryFile()
     self.buff = StringIO.StringIO(self.sample_woce)
-    self.file.read_Summary_WOCE(self.buff)
+    sumwoce.read(self.file, self.buff)
 
     cs = self.file.columns
     self.assertEqual(['33RR20070204'] * 3, cs['EXPOCODE'].values)
@@ -61,7 +64,7 @@ EXPOCODE     SECT   STNNBR CASTNO TYPE DATE   TIME  CODE LATITUDE   LONGITUDE   
   def test_read_summary_hot(self):
     self.file = libcchdo.SummaryFile()
     self.buff = StringIO.StringIO(self.sample_hot)
-    self.file.read_Summary_HOT(self.buff)
+    sumhot.read(self.file, self.buff)
 
     cs = self.file.columns
     self.assertEqual(['33KI134_1'] * 3, cs['EXPOCODE'].values)

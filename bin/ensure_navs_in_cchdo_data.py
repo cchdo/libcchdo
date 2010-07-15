@@ -21,7 +21,7 @@ def ensure_nav(root, dirs, files):
   # Try to use easiest generation method first
   generation_methods = [
       ['Bottle Exchange', 'hy1.csv', botex.read],
-      ['Summary', 'su.txt', libcchdo.SummaryFile.read_Summary_WOCE],
+      ['Summary', 'su.txt', libcchdo.formats.summary.woce.read],
       # Other WOCE files do not have lng lat (they're in the Summary file)
       # TODO Collections have to have some regular way to be merged before
       # they can be outputted to nav.
