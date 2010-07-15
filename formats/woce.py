@@ -2,6 +2,11 @@
 
 
 import datetime
+import re
+import struct
+
+
+import libcchdo
 
 
 def woce_lat_to_dec_lat(lattoks):
@@ -57,3 +62,128 @@ def strptime_woce_date_time(woce_date, woce_time):
         return None
     return datetime.datetime.strptime(
          "%08d%04d" % (int(woce_date), int(woce_time)), '%Y%m%d%H%M')
+
+
+def read_data(self, handle, parameters_line, units_line, asterisk_line):
+    column_width = 8
+    safe_column_width = column_width - 1
+
+    # num_quality_flags = the number of asterisk-marked columns
+    num_quality_flags = len(re.findall('\*{7,8}', asterisk_line))
+    num_quality_words = len(parameters_line.split('QUALT'))-1
+
+    # The extra 1 in quality_length is for spacing between the columns
+    quality_length = num_quality_words * (max(len('QUALT#'),
+                                              num_quality_flags) + 1)
+    num_param_columns = int((len(parameters_line) - quality_length) / \
+                             column_width)
+
+    # Unpack the column headers
+    unpack_str = '8s' * num_param_columns
+    parameters = libcchdo.strip_all(struct.unpack(unpack_str,
+                                  parameters_line[:num_param_columns*8]))
+    units = libcchdo.strip_all(struct.unpack(unpack_str,
+                                    units_line[:num_param_columns*8]))
+    asterisks = libcchdo.strip_all(struct.unpack(unpack_str,
+                                 asterisk_line[:num_param_columns*8]))
+
+    # Warn if the header lines break 8 character column rules
+    def warn_broke_character_column_rule(headername, headers):
+        for header in headers:
+            if len(header) > safe_column_width:
+                warn("%s '%s' has too many characters (>%d)." % \
+                     (headername, header, safe_column_width))
+
+    warn_broke_character_column_rule("Parameter", parameters)
+    warn_broke_character_column_rule("Unit", units)
+    warn_broke_character_column_rule("Asterisks", asterisks)
+
+    # Die if parameters are not unique
+    if not parameters == libcchdo.uniquify(parameters):
+        raise ValueError(('There were duplicate parameters in the file; '
+                          'cannot continue without data corruption.'))
+
+    self.create_columns(parameters, units)
+
+    # Get each data line
+    # Add on quality to unpack string
+    unpack_str += ('%sx%ss' % (quality_length / num_quality_words - \
+                              num_quality_flags, num_quality_flags)) * \
+                  num_quality_words
+    for i, line in enumerate(handle):
+        unpacked = struct.unpack(unpack_str, line.rstrip())
+
+        # QUALT1 takes precedence
+        quality_flags = unpacked[-num_quality_words:]
+
+        # Build up the columns for the line
+        flag_i = 0
+        for j, parameter in enumerate(parameters):
+            datum = float(unpacked[j])
+            if datum is -9.0:
+                datum = float('nan')
+            woce_flag = None
+
+            # Only assign flag if column is flagged.
+            if "**" in asterisks[j].strip(): # XXX
+                woce_flag = int(quality_flags[0][flag_i])
+                flag_i += 1
+                self.columns[parameter].set(i, datum, woce_flag)
+            else:
+                self.columns[parameter].set(i, datum)
+
+    # Expand globals into columns
+    #@header.each_pair do |header, value|
+    #  column = @column_hash[header] = Column.new(header)
+    #  column.values = Array.new(num_entries) {|i| value}
+
+
+def write_data(self, handle, ):
+    def parameter_name_of (column, ):
+        return column.parameter.woce_mnemonic
+
+    def units_of (column, ):
+        return column.parameter.units_mnemonic
+
+    def quality_flags_of (column, ):
+        return "*******" if column.is_flagged_woce() else ""
+
+    def countable_flag_for (column, ):
+        return 1 if column.is_flagged_woce() else 0
+
+    num_qualt = sum(map(
+            countable_flag_for, self.columns.values() ))
+
+    base_format = "%8s" * len(self.columns)
+    qualt_colsize = max( (len(" QUALT#"), num_qualt) )
+    qualt_format = "%%%ds" % qualt_colsize
+    base_format += qualt_format
+    base_format += "\n"
+
+    columns = self.sorted_columns()
+
+    all_headers = map(parameter_name_of, columns)
+    all_units = map(units_of, columns)
+    all_asters = map(quality_flags_of, columns)
+
+    all_headers.append(qualt_format % "QUALT1")
+    all_units.append(qualt_format % "")
+    all_asters.append(qualt_format % "")
+
+    handle.write(base_format % tuple(all_headers))
+    handle.write(base_format % tuple(all_units))
+    handle.write(base_format % tuple(all_asters))
+
+    nobs = max(map(len, columns))
+    for i in range(nobs):
+        values = []
+        flags = []
+        for column in columns:
+            format = "%%%s" % column.parameter.format
+            if column[i]:
+                values.append(format % column[i])
+            if column.is_flagged_woce():
+                flags.append(str(column.flags_woce[i]))
+
+        values.append("".join(flags))
+        handle.write(base_format % tuple(values))

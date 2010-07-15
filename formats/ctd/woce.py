@@ -52,7 +52,7 @@ def read(self, handle):
     units_line = handle.readline()
     asterisk_line = handle.readline()
 
-    self.read_WOCE_data(handle, parameters_line, units_line, asterisk_line)
+    fmtwoce.read_data(self, handle, parameters_line, units_line, asterisk_line)
 
 def write(self, handle):
     '''How to write a CTD WOCE file.'''
@@ -95,4 +95,4 @@ def write(self, handle):
     #handle.write(' ******* ******* ******* *******              *') # TODO
     #handle.write('     3.0 28.7977 31.8503   209.5      42   2222') # TODO
 
-    self.write_WOCE_data(handle)
+    fmtwoce.write_data(self, handle)

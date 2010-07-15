@@ -34,7 +34,8 @@ def read(self, handle):
     # Validate the parameter line
     if 'STNNBR' not in parameters_line or 'CASTNO' not in parameters_line:
         raise ValueError('Expected STNNBR and CASTNO in parameters record')
-    self.read_WOCE_data(handle, parameters_line, units_line, asterisk_line)
+    libcchdo.formats.woce.read_data(self, handle, parameters_line,
+                                    units_line, asterisk_line)
     try:
         self.columns['DATE']
     except KeyError:
@@ -72,5 +73,5 @@ def write(self, handle):
     #         BEGIN_DATE,
     #         END_DATE,
     #         self.stamp))
-    #self.write_WOCE_data(handle)
+    #libcchdo.formats.woce.write_data(self, handle)
     return NotImplementedError("Not to be used, nitwit!")
