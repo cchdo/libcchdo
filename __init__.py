@@ -27,46 +27,65 @@ RADIUS_EARTH = 6371.01 #km
 
 LIBVER = 'SIOCCHDLIB'
 
+COLOR_ESCAPE = '\x1b\x5b'
 COLORS = {
-    'RED': '\x1b\x5b1;31m',
-    'YELLOW': '\x1b\x5b1;33m',
-    'CYAN': '\x1b\x5b1;36m',
-    'CLEAR': '\x1b\x5b0m',
+    'RED': COLOR_ESCAPE + '1;31m',
+    'YELLOW': COLOR_ESCAPE + '1;33m',
+    'CYAN': COLOR_ESCAPE + '1;36m',
+    'CLEAR': COLOR_ESCAPE + '0m',
 }
 
 
-class Parameter:
+class memoize:
 
-    PARAMETER_CACHE = {}
+    def __init__(self, callable):
+        self._cache = {}
+        self._callable = callable
+
+    def __call__(self, *args, **kwargs):
+        cache = self._cache
+        key = kwargs and (args, hash(tuple(kwargs.items()))) or args
+        try:
+            return cache[key]
+        except KeyError:
+            value = cache[key] = self._callable(*args, **kwargs)
+            return value
+
+
+@memoize
+class Parameter:
+    ''' A CCHDO tracked parameter.
+        
+        The definition of the parameter is obtained from the CCHDO database
+        using the given parameter name as the WOCE mnemonic to match.
+
+        Any parameter_name with a leading '_' is contrived and is not
+        searched for in the database. It is filled in with default values.
+    '''
 
     def __init__(self, parameter_name, contrived=False):
-        try:
-            self.__dict__ = Parameter.PARAMETER_CACHE[parameter_name].__dict__
-        except KeyError:
-            if contrived or parameter_name.startswith('_'):
-                self.full_name = parameter_name
-                self.format = '11s'
-                self.units = 0
-                self.bound_lower = None
-                self.bound_upper = None
-                self.units_mnemonic = ''
-                self.woce_mnemonic = parameter_name
-                self.display_order = -9999
-                self.aliases = []
-            else:
-                #try:
-                #    db.parameters.init_from_postgresql(self, parameter_name)
-                #except Exception, e:
-                #    warn(("%s\nFalling back to mysql database for "
-                #          "parameter info.") % e)
-                try:
-                    db.parameters.init_from_mysql(self, parameter_name)
-                except Exception, e:
-                    raise EnvironmentError(
-                        ("%s\nNo databases could be used for "
-                         "parameter verification.") % e)
-
-            Parameter.PARAMETER_CACHE[parameter_name] = self
+        if contrived or parameter_name.startswith('_'):
+            self.full_name = parameter_name
+            self.format = '11s'
+            self.units = 0
+            self.bound_lower = None
+            self.bound_upper = None
+            self.units_mnemonic = ''
+            self.woce_mnemonic = parameter_name
+            self.display_order = -9999
+            self.aliases = []
+        else:
+            #try:
+            #    db.parameters.init_from_postgresql(self, parameter_name)
+            #except Exception, e:
+            #    warn(("%s\nFalling back to mysql database for "
+            #          "parameter info.") % e)
+            try:
+                db.parameters.init_from_mysql(self, parameter_name)
+            except Exception, e:
+                raise EnvironmentError(
+                    ("%s\nNo databases could be used for "
+                     "parameter verification.") % e)
 
     def __eq__(self, other):
         return self.woce_mnemonic == other.woce_mnemonic
@@ -78,7 +97,7 @@ class Parameter:
 class Column:
 
    def __init__(self, parameter, contrived=False):
-       if isinstance(parameter, Parameter):
+       if type(parameter) != str:
            self.parameter = parameter
        else:
            self.parameter = Parameter(parameter, contrived)
@@ -135,17 +154,11 @@ class Column:
        return self.parameter.display_order - other.parameter.display_order
 
 
-class SummaryFile:
-  
+class File(object):
+
     def __init__(self):
         self.columns = {}
         self.header = ''
-        columns = ("EXPOCODE SECT_ID STNNBR CASTNO DATE TIME LATITUDE "
-                   "LONGITUDE DEPTH _CAST_TYPE _CODE _NAV _WIRE_OUT "
-                   "_ABOVE_BOTTOM _MAX_PRESSURE _NUM_BOTTLES "
-                   "_PARAMETERS _COMMENTS").split()
-        for column in columns:
-            self.columns[column] = Column(column)
 
     def __len__(self):
         try:
@@ -154,24 +167,28 @@ class SummaryFile:
             return 0
 
 
-class DataFile:
+class SummaryFile(File):
+  
+    def __init__(self):
+        super(SummaryFile, self).__init__()
+        columns = (
+            "EXPOCODE SECT_ID STNNBR CASTNO DATE TIME LATITUDE LONGITUDE "
+            "DEPTH _CAST_TYPE _CODE _NAV _WIRE_OUT _ABOVE_BOTTOM "
+            "_MAX_PRESSURE _NUM_BOTTLES _PARAMETERS _COMMENTS").split()
+        for column in columns:
+            self.columns[column] = Column(column)
+
+class DataFile(File):
 
     def __init__(self, allow_contrived=False):
-        self.columns = {}
+        super(DataFile, self).__init__()
         self.stamp = None
-        self.header = ''
         self.footer = None
         self.globals = {}
         self.allow_contrived = allow_contrived
 
     def expocodes(self):
         return fns.uniquify(self.columns['EXPOCODE'].values)
-
-    def __len__(self):
-        try:
-            return len(self.columns.values()[0])
-        except:
-            return 0
 
     def sorted_columns(self):
         return sorted(self.columns.values())
@@ -245,7 +262,7 @@ class DataFile:
                                               given_unit))
 
 
-class DataFileCollection:
+class DataFileCollection(object):
 
     def __init__(self, allow_contrived=False):
         self.files = []
@@ -259,33 +276,3 @@ class DataFileCollection:
 
     def stamps(self):
         return [file.stamp for file in self.files.values()]
-
-
-# TODO Regions...maybe break this out into different parts of the library?
-
-class Location:
-
-    def __init__(self, coordinate, dtime=None, depth=None):
-        self.coordinate = coordinate
-        self.datetime = dtime
-        self.depth = depth
-        # TODO nil axis magnitudes should be matched as a wildcard
-
-
-class Region:
-
-    def __init__(self, name, *locations):
-        self.name = name
-        self.locations = locations
-
-    def include (location):
-        raise NotImplementedError # TODO
-
-BASINS = REGIONS = {
-    'Pacific': Region('Pacific', Location([1.111, 2.222]),
-                      Location([-1.111, -2.222])),
-    'East_Pacific': Region('East Pacific', Location([0, 0]), Location([1, 1]),
-                           Location([3, 3]))
-    # TODO define the rest of the basins...maybe define bounds for
-    # other groupings
-}
