@@ -70,7 +70,7 @@ def read(self, handle):
                     (string[0:4], string[4:6], string[6:8])
             if name == 'CTDSAL':
                 self.columns[name].values = map(
-                    lambda x: None if libcchdo.equal_with_epsilon(-9.99, x) \
+                    lambda x: None if libcchdo.fns.equal_with_epsilon(-9.99, x) \
                               else x,
                     self.columns[name].values)
 
@@ -173,7 +173,7 @@ def write(self, handle):
     var_pressure.long_name = "pressure"
     var_pressure.units = "dbar"
     var_pressure.positive = "down"
-    ctdprs = map(libcchdo.identity_or_oob, self.columns["CTDPRS"].values)
+    ctdprs = map(libcchdo.fns.identity_or_oob, self.columns["CTDPRS"].values)
     var_pressure.data_min = min(ctdprs)
     var_pressure.data_max = max(ctdprs)
     var_pressure.C_format = "%8.1f"
@@ -192,7 +192,7 @@ def write(self, handle):
             ("pressure", ))
     var_temperature.long_name = "temperature"
     var_temperature.units = "its-90"
-    ctdtmp = map(libcchdo.identity_or_oob, self.columns["CTDTMP"].values)
+    ctdtmp = map(libcchdo.fns.identity_or_oob, self.columns["CTDTMP"].values)
     var_temperature.data_min = min(ctdtmp)
     var_temperature.data_max = max(ctdtmp)
     var_temperature.C_format = "%8.4f"
@@ -210,7 +210,7 @@ def write(self, handle):
     var_salinity = nc_file.createVariable("salinity", "d", ("pressure", ))
     var_salinity.long_name = "salinity"
     var_salinity.units = "pss-78"
-    ctdsal = map(libcchdo.identity_or_oob, self.columns["CTDSAL"].values)
+    ctdsal = map(libcchdo.fns.identity_or_oob, self.columns["CTDSAL"].values)
     var_salinity.data_min = min(ctdsal)
     var_salinity.data_max = max(ctdsal)
     var_salinity.C_format = "%8.4f"
@@ -228,7 +228,7 @@ def write(self, handle):
     var_oxygen = nc_file.createVariable("oxygen", "d", ("pressure", ))
     var_oxygen.long_name = "oxygen"
     var_oxygen.units = "umol/kg"
-    ctdoxy = map(libcchdo.identity_or_oob, self.columns["CTDOXY"].values)
+    ctdoxy = map(libcchdo.fns.identity_or_oob, self.columns["CTDOXY"].values)
     var_oxygen.data_min = min(ctdoxy)
     var_oxygen.data_max = max(ctdoxy)
     var_oxygen.C_format = "%8.1f"
@@ -319,10 +319,10 @@ def write(self, handle):
         var = nc_file.variables[name] if name in nc_file.variables else \
               nc_file.createVariable(name, "f8", ("pressure", ))
         #TODO other stuff
-        var[:] = map(libcchdo.identity_or_oob, column.values)
+        var[:] = map(libcchdo.fns.identity_or_oob, column.values)
         if column.is_flagged_woce():
             var = nc_file.variables[name + "_QC"]
-            var[:] = map(lambda x: libcchdo.identity_or_oob(x, 9),
+            var[:] = map(lambda x: libcchdo.fns.identity_or_oob(x, 9),
                     column.flags_woce)
 
     nc_file.close()

@@ -125,7 +125,7 @@ def read(self, handle):
 
             # Quick conversions to uniform data format
             self.columns[name].values[vlo:vhi] = map(
-                libcchdo.in_band_or_none,
+                libcchdo.fns.in_band_or_none,
                 self.columns[name].values[vlo:vhi])
 
     # Second pass to put in flags

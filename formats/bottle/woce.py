@@ -24,7 +24,7 @@ def read(self, handle):
     m = stamp.match(stamp_line)
     if m:
         self.globals['EXPOCODE'] = m.group(1)
-        self.globals['SECT_ID'] = libcchdo.strip_all(m.group(2).split(','))
+        self.globals['SECT_ID'] = libcchdo.fns.strip_all(m.group(2).split(','))
         self.globals['_BEGIN_DATE'] = m.group(4)
         self.globals['_END_DATE'] = m.group(5)
         self.stamp = m.groups()[-1] # XXX

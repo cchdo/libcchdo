@@ -12,5 +12,5 @@ if len(sys.argv) < 2:
     sys.exit(1)
 
 with open(sys.argv[1], 'r') as infile:
-    file = libcchdo.read_arbitrary(infile)
+    file = libcchdo.fns.read_arbitrary(infile)
     google_wire.write(file, sys.stdout, json=True)

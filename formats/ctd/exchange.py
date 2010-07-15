@@ -85,7 +85,7 @@ def read(self, handle):
           elif column.endswith('_FLAG_I'):
               self.columns[column[:-7]].flags_igoss.append(int(value))
           else:
-              if libcchdo.out_of_band(float(value)):
+              if libcchdo.fns.out_of_band(float(value)):
                   self.columns[column].append(None)
               else:
                   self.columns[column].append(float(value))

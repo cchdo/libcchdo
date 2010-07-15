@@ -59,9 +59,9 @@ def write(self, handle):
     # We can only write the CTD file if there is a unique
     # EXPOCODE, STNNBR, and CASTNO in the file.
     expocodes = self.globals["EXPOCODE"] #self.expocodes()
-    sections = self.globals["SECT_ID"] #libcchdo.uniquify(self.columns['SECT_ID'].values)
-    stations = self.globals["STNNBR"] #libcchdo.uniquify(self.columns['STNNBR'].values)
-    casts = self.globals["CASTNO"] #libcchdo.uniquify(self.columns['CASTNO'].values)
+    sections = self.globals["SECT_ID"] #libcchdo.fns.uniquify(self.columns['SECT_ID'].values)
+    stations = self.globals["STNNBR"] #libcchdo.fns.uniquify(self.columns['STNNBR'].values)
+    casts = self.globals["CASTNO"] #libcchdo.fns.uniquify(self.columns['CASTNO'].values)
 
     #def has_multiple_values(a):
     #    return len(a) is not 1

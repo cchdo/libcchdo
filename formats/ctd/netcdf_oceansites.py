@@ -136,7 +136,7 @@ def write(self, handle, timeseries=None, timeseries_info={}):
     nc_file = nc.Dataset(tmp.name, 'w', format='NETCDF3_CLASSIC')
     nc_file.data_type = 'OceanSITES time-series CTD data'
     nc_file.format_version = '1.1'
-    nc_file.date_update = libcchdo.strftime_iso(datetime.datetime.utcnow())
+    nc_file.date_update = libcchdo.fns.strftime_iso(datetime.datetime.utcnow())
     nc_file.wmo_platform_code = ''
     nc_file.source = 'Shipborne observation'
     nc_file.history = ''.join([isowocedate.isoformat(), "Z data collected\n",
@@ -169,8 +169,8 @@ def write(self, handle, timeseries=None, timeseries_info={}):
                         'national programs that contribute to it.')
     nc_file.update_interval = 'void'
     nc_file.qc_manual = "OceanSITES User's Manual v1.1"
-    nc_file.time_coverage_start = libcchdo.strftime_iso(isowocedate)
-    nc_file.time_coverage_end = libcchdo.strftime_iso(isowocedate)
+    nc_file.time_coverage_start = libcchdo.fns.strftime_iso(isowocedate)
+    nc_file.time_coverage_end = libcchdo.fns.strftime_iso(isowocedate)
 
     nc_file.createDimension('TIME')
     nc_file.createDimension('DEPTH', len(self))
@@ -279,20 +279,20 @@ def write(self, handle, timeseries=None, timeseries_info={}):
                 flag[:] = map(_WOCE_to_OceanSITES_flag, column.flags_woce)
         if name is 'PRES':
             # Fun using Sverdrup's depth integration with density.
-            localgrav = libcchdo.grav_ocean_surface_wrt_latitude(
+            localgrav = libcchdo.fns.grav_ocean_surface_wrt_latitude(
                 self.globals['LATITUDE'])
             sal_tmp_pres = zip(self.columns['CTDSAL'].values,
                                self.columns['CTDTMP'].values,
                                column.values)
             density_series = filter(
-                None, [libcchdo.density(*args) for args in sal_tmp_pres])
+                None, [libcchdo.fns.density(*args) for args in sal_tmp_pres])
 
             try: 
-                depth_series = libcchdo.depth(
+                depth_series = libcchdo.fns.depth(
                     localgrav, column.values, density_series)
             except ValueError:
                 depth_series = map(
-                    lambda pres: libcchdo.depth_unesco(
+                    lambda pres: libcchdo.fns.depth_unesco(
                         pres, self.globals['LATITUDE']),
                     self.columns['CTDPRS'].values)
 

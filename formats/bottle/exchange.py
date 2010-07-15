@@ -68,7 +68,7 @@ def read(self, handle):
 
         for column, raw in zip(columns, values):
             value = raw.strip()
-            if libcchdo.out_of_band(value):
+            if libcchdo.fns.out_of_band(value):
                 value = float('nan')
             try:
                 value = float(value)

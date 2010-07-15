@@ -80,11 +80,11 @@ def read_data(self, handle, parameters_line, units_line, asterisk_line):
 
     # Unpack the column headers
     unpack_str = '8s' * num_param_columns
-    parameters = libcchdo.strip_all(struct.unpack(unpack_str,
+    parameters = libcchdo.fns.strip_all(struct.unpack(unpack_str,
                                   parameters_line[:num_param_columns*8]))
-    units = libcchdo.strip_all(struct.unpack(unpack_str,
+    units = libcchdo.fns.strip_all(struct.unpack(unpack_str,
                                     units_line[:num_param_columns*8]))
-    asterisks = libcchdo.strip_all(struct.unpack(unpack_str,
+    asterisks = libcchdo.fns.strip_all(struct.unpack(unpack_str,
                                  asterisk_line[:num_param_columns*8]))
 
     # Warn if the header lines break 8 character column rules
@@ -99,7 +99,7 @@ def read_data(self, handle, parameters_line, units_line, asterisk_line):
     warn_broke_character_column_rule("Asterisks", asterisks)
 
     # Die if parameters are not unique
-    if not parameters == libcchdo.uniquify(parameters):
+    if not parameters == libcchdo.fns.uniquify(parameters):
         raise ValueError(('There were duplicate parameters in the file; '
                           'cannot continue without data corruption.'))
 
