@@ -1,4 +1,6 @@
-<?xml version="1.0" encoding="utf-8" ?><sql><datatypes db="mysql">
+<?xml version="1.0" encoding="utf-8" ?>
+<sql>
+<datatypes db="mysql">
 	<group label="Numeric" color="rgb(238,238,170)">
 		<type label="Integer" length="0" sql="INTEGER" re="INT" quote=""/>
 		<type label="Decimal" length="1" sql="DECIMAL" re="DEC" quote=""/>
@@ -27,4 +29,362 @@
 		<type label="ENUM" length="1" sql="ENUM" quote=""/>
 		<type label="SET" length="1" sql="SET" quote=""/>
 	</group>
-</datatypes><table x="285" y="227" name="Measurement"><row name="identifier" null="0" autoincrement="0"><datatype>INTEGER</datatype><relation table="Identifier" row="id" /></row><row name="value" null="0" autoincrement="0"><datatype>DECIMAL</datatype></row><row name="parameter" null="0" autoincrement="0"><datatype>INTEGER</datatype><relation table="Parameter" row="id" /></row><row name="WOCE flag" null="0" autoincrement="0"><datatype>INTEGER</datatype></row><row name="IGOSS flag" null="0" autoincrement="0"><datatype>INTEGER</datatype></row><key type="PRIMARY" name=""></key></table><table x="138" y="273" name="Parameter"><row name="id" null="0" autoincrement="1"><datatype>INTEGER</datatype></row><row name="name" null="0" autoincrement="0"><datatype>CHAR</datatype></row><row name="mnemonic" null="1" autoincrement="0"><datatype>CHAR(9)</datatype></row><row name="format" null="0" autoincrement="0"><datatype>CHAR</datatype></row><key type="PRIMARY" name=""><part>id</part></key></table><table x="628" y="292" name="Location"><row name="id" null="0" autoincrement="1"><datatype>INTEGER</datatype></row><row name="datetime" null="0" autoincrement="0"><datatype>DATETIME</datatype></row><row name="coordinate" null="0" autoincrement="0"><datatype>BINARY</datatype><comment>OGIS hash -- this only accounts for 2-D location on earth's surface</comment></row><row name="prs/depth???" null="0" autoincrement="0"><datatype>DECIMAL</datatype></row><key type="PRIMARY" name=""><part>id</part></key><comment>4-D location in Earth's history.</comment></table><table x="626" y="47" name="Project_Cruise"><row name="id" null="0" autoincrement="1"><datatype>INTEGER</datatype></row><row name="name" null="0" autoincrement="0"><datatype>VARCHAR</datatype></row><row name="cruise" null="0" autoincrement="0"><datatype>INTEGER</datatype><relation table="Cruise" row="id" /></row><key type="PRIMARY" name=""><part>id</part></key></table><table x="476" y="108" name="Cruise"><row name="id" null="0" autoincrement="1"><datatype>INTEGER</datatype></row><row name="ExpoCode" null="0" autoincrement="0"><datatype>VARCHAR</datatype></row><key type="PRIMARY" name=""><part>id</part></key></table><table x="633" y="158" name="Ship_Cruise"><row name="id" null="0" autoincrement="1"><datatype>INTEGER</datatype></row><row name="name" null="0" autoincrement="0"><datatype>VARCHAR</datatype></row><row name="cruise" null="0" autoincrement="0"><datatype>INTEGER</datatype><relation table="Cruise" row="id" /></row><key type="PRIMARY" name=""><part>id</part></key></table><table x="316" y="61" name="PI_Cruise"><row name="id" null="0" autoincrement="1"><datatype>INTEGER</datatype></row><row name="PI" null="0" autoincrement="0"><datatype>INTEGER</datatype><relation table="PI" row="id" /></row><row name="cruise" null="0" autoincrement="0"><datatype>INTEGER</datatype><relation table="Cruise" row="id" /></row><key type="PRIMARY" name=""><part>id</part></key></table><table x="787" y="276" name="Region"><row name="id" null="0" autoincrement="1"><datatype>INTEGER</datatype></row><row name="name" null="0" autoincrement="0"><datatype>VARCHAR</datatype></row><row name="polygon(s?)" null="0" autoincrement="0"><datatype>VARBINARY</datatype></row><key type="PRIMARY" name=""><part>id</part></key></table><table x="220" y="74" name="PI"><row name="id" null="0" autoincrement="1"><datatype>INTEGER</datatype></row><row name="name" null="0" autoincrement="0"><datatype>MEDIUMTEXT</datatype></row><row name="institution" null="0" autoincrement="0"><datatype>INTEGER</datatype><relation table="Institution" row="id" /></row><key type="PRIMARY" name=""><part>id</part></key></table><table x="470" y="229" name="Identifier"><row name="id" null="0" autoincrement="1"><datatype>INTEGER</datatype></row><row name="cruise" null="0" autoincrement="0"><datatype>INTEGER</datatype><relation table="Cruise" row="id" /></row><row name="station" null="0" autoincrement="0"><datatype>INTEGER</datatype></row><row name="cast" null="0" autoincrement="0"><datatype>INTEGER</datatype></row><row name="bottle" null="0" autoincrement="0"><datatype>INTEGER</datatype></row><row name="sample" null="0" autoincrement="0"><datatype>INTEGER</datatype></row><row name="location" null="0" autoincrement="0"><datatype>INTEGER</datatype><relation table="Location" row="id" /></row><key type="PRIMARY" name=""><part>id</part></key><comment>Small bit count for station, cast, bottle, sample representations so denormalized.</comment></table><table x="149" y="185" name="Institution"><row name="id" null="0" autoincrement="1"><datatype>INTEGER</datatype></row><row name="name" null="0" autoincrement="0"><datatype>MEDIUMTEXT</datatype></row><key type="PRIMARY" name=""><part>id</part></key></table></sql>
+</datatypes><table x="300" y="484" name="Location">
+<row name="id" null="0" autoincrement="1">
+<datatype>INTEGER</datatype>
+</row>
+<row name="datetime" null="0" autoincrement="0">
+<datatype>DATETIME</datatype>
+</row>
+<row name="coordinate" null="0" autoincrement="0">
+<datatype>BINARY</datatype>
+<comment>OGIS hash -- this only accounts for 2-D location on earth's surface</comment>
+</row>
+<row name="bottom_depth" null="0" autoincrement="0">
+<datatype>DECIMAL</datatype>
+</row>
+<key type="PRIMARY" name="">
+<part>id</part>
+</key>
+<comment>4-D location in Earth's history.</comment>
+</table>
+<table x="874" y="566" name="Region">
+<row name="id" null="0" autoincrement="1">
+<datatype>INTEGER</datatype>
+</row>
+<row name="name" null="0" autoincrement="0">
+<datatype>VARCHAR</datatype>
+</row>
+<row name="polygon(s?)" null="0" autoincrement="0">
+<datatype>VARBINARY</datatype>
+</row>
+<key type="PRIMARY" name="">
+<part>id</part>
+</key>
+</table>
+<table x="628" y="152" name="Contact">
+<row name="id" null="0" autoincrement="1">
+<datatype>INTEGER</datatype>
+</row>
+<row name="name" null="0" autoincrement="0">
+<datatype>MEDIUMTEXT</datatype>
+</row>
+<row name="institution" null="0" autoincrement="0">
+<datatype>INTEGER</datatype>
+<relation table="Institution" row="id" />
+</row>
+<key type="PRIMARY" name="">
+<part>id</part>
+</key>
+</table>
+<table x="607" y="41" name="Institution">
+<row name="id" null="0" autoincrement="1">
+<datatype>INTEGER</datatype>
+</row>
+<row name="name" null="0" autoincrement="0">
+<datatype>MEDIUMTEXT</datatype>
+</row>
+<row name="country_id" null="0" autoincrement="0">
+<datatype>VARCHAR(6)</datatype>
+<default>'NULL'</default><relation table="Country" row="iso3166" />
+</row>
+<key type="PRIMARY" name="">
+<part>id</part>
+</key>
+</table>
+<table x="433" y="385" name="Bottle">
+<row name="id" null="0" autoincrement="1">
+<datatype>INTEGER</datatype>
+<default>NULL</default></row>
+<row name="cast_id" null="0" autoincrement="0">
+<datatype>INTEGER</datatype>
+<default>NULL</default><relation table="Cast" row="id" />
+</row>
+<row name="location_id" null="1" autoincrement="0">
+<datatype>INTEGER</datatype>
+<default>NULL</default><relation table="Location" row="id" />
+</row>
+<row name="sample" null="1" autoincrement="0">
+<datatype>INTEGER</datatype>
+<default>NULL</default></row>
+<row name="name" null="1" autoincrement="0">
+<datatype>INTEGER</datatype>
+<default>NULL</default></row>
+<row name="flag_woce" null="1" autoincrement="0">
+<datatype>INTEGER</datatype>
+<default>NULL</default></row>
+<row name="flag_igoss" null="1" autoincrement="0">
+<datatype>INTEGER</datatype>
+<default>NULL</default></row>
+<key type="PRIMARY" name="">
+<part>id</part>
+</key>
+</table>
+<table x="315" y="135" name="Cruise">
+<row name="id" null="0" autoincrement="1">
+<datatype>INTEGER</datatype>
+<default>NULL</default></row>
+<row name="expocode" null="1" autoincrement="0">
+<datatype>VARCHAR(11)</datatype>
+<default>NULL</default></row>
+<row name="ship_id" null="1" autoincrement="0">
+<datatype>INTEGER</datatype>
+<default>NULL</default><relation table="Ship" row="id" />
+</row>
+<row name="start_date" null="1" autoincrement="0">
+<datatype>DATE</datatype>
+<default>NULL</default><comment>No one cares about the time</comment>
+</row>
+<row name="end_date" null="1" autoincrement="0">
+<datatype>DATE</datatype>
+<default>NULL</default></row>
+<row name="start_port_id" null="1" autoincrement="0">
+<datatype>INTEGER</datatype>
+<default>NULL</default><relation table="Port" row="id" />
+</row>
+<row name="end_port_id" null="1" autoincrement="0">
+<datatype>INTEGER</datatype>
+<default>NULL</default><relation table="Port" row="id" />
+</row>
+<row name="country_id" null="0" autoincrement="0">
+<datatype>VARCHAR(6)</datatype>
+<default>'NULL'</default><relation table="Country" row="iso3166" />
+</row>
+<key type="PRIMARY" name="">
+<part>id</part>
+</key>
+</table>
+<table x="308" y="354" name="Cast">
+<row name="id" null="0" autoincrement="1">
+<datatype>INTEGER</datatype>
+<default>NULL</default></row>
+<row name="name" null="1" autoincrement="0">
+<datatype>INTEGER</datatype>
+<default>NULL</default></row>
+<row name="cruise" null="0" autoincrement="0">
+<datatype>INTEGER</datatype>
+<default>NULL</default><relation table="Cruise" row="id" />
+</row>
+<row name="station" null="1" autoincrement="0">
+<datatype>INTEGER</datatype>
+<default>NULL</default></row>
+<key type="PRIMARY" name="">
+<part>id</part>
+</key>
+<key type="INDEX" name="">
+<part>cruise</part>
+</key>
+</table>
+<table x="178" y="402" name="CTD">
+<row name="id" null="1" autoincrement="1">
+<datatype>INTEGER</datatype>
+<default>NULL</default></row>
+<row name="cast_id" null="1" autoincrement="0">
+<datatype>INTEGER</datatype>
+<default>NULL</default><relation table="Cast" row="id" />
+</row>
+<row name="location_id" null="1" autoincrement="0">
+<datatype>INTEGER</datatype>
+<default>NULL</default><relation table="Location" row="id" />
+</row>
+<row name="instrument_id" null="1" autoincrement="0">
+<datatype>INTEGER</datatype>
+<default>NULL</default></row>
+<key type="PRIMARY" name="">
+<part>id</part>
+</key>
+<comment>sample point</comment>
+</table>
+<table x="317" y="650" name="Parameter">
+<row name="id" null="1" autoincrement="1">
+<datatype>INTEGER</datatype>
+<default>NULL</default></row>
+<row name="name" null="0" autoincrement="0">
+<datatype>VARCHAR</datatype>
+<default>'NULL'</default></row>
+<row name="mnemonic_woce" null="1" autoincrement="0">
+<datatype>MEDIUMTEXT</datatype>
+<default>NULL</default></row>
+<row name="format" null="1" autoincrement="0">
+<datatype>VARCHAR</datatype>
+<default>NULL</default></row>
+<row name="description" null="1" autoincrement="0">
+<datatype>MEDIUMTEXT</datatype>
+<default>NULL</default></row>
+<row name="units" null="1" autoincrement="0">
+<datatype>INTEGER</datatype>
+<default>NULL</default><relation table="Unit" row="id" />
+</row>
+<row name="bound_lower" null="1" autoincrement="0">
+<datatype>DECIMAL</datatype>
+<default>NULL</default></row>
+<row name="bound_upper" null="1" autoincrement="0">
+<datatype>DECIMAL</datatype>
+<default>NULL</default></row>
+<row name="priority" null="1" autoincrement="0">
+<datatype>INTEGER</datatype>
+<default>NULL</default></row>
+<row name="privacy" null="0" autoincrement="0">
+<datatype>ENUM</datatype>
+<default>PUBLIC</default></row>
+<key type="PRIMARY" name="">
+<part>id</part>
+</key>
+</table>
+<table x="582" y="493" name="DataBottle">
+<row name="bottle_id" null="0" autoincrement="0">
+<datatype>INTEGER</datatype>
+<default>NULL</default><relation table="Bottle" row="id" />
+</row>
+<row name="parameter_id" null="1" autoincrement="0">
+<datatype>INTEGER</datatype>
+<default>NULL</default><relation table="Parameter" row="id" />
+</row>
+<row name="value" null="1" autoincrement="0">
+<datatype>DECIMAL</datatype>
+<default>NULL</default></row>
+<row name="flag_woce" null="1" autoincrement="0">
+<datatype>INTEGER</datatype>
+<default>NULL</default></row>
+<row name="flag_igoss" null="1" autoincrement="0">
+<datatype>INTEGER</datatype>
+<default>NULL</default></row>
+<key type="INDEX" name="">
+<part>bottle_id</part>
+<part>parameter_id</part>
+</key>
+</table>
+<table x="22" y="446" name="DataCTD">
+<row name="ctd_id" null="1" autoincrement="0">
+<datatype>INTEGER</datatype>
+<default>NULL</default><relation table="CTD" row="id" />
+</row>
+<row name="parameter_id" null="1" autoincrement="0">
+<datatype>INTEGER</datatype>
+<default>NULL</default><relation table="Parameter" row="id" />
+</row>
+<row name="value" null="1" autoincrement="0">
+<datatype>INTEGER</datatype>
+<default>NULL</default></row>
+<row name="flag_woce" null="1" autoincrement="0">
+<datatype>INTEGER</datatype>
+<default>NULL</default></row>
+<row name="flag_igoss" null="1" autoincrement="0">
+<datatype>INTEGER</datatype>
+<default>NULL</default></row>
+<key type="INDEX" name="">
+<part>ctd_id</part>
+<part>parameter_id</part>
+</key>
+</table>
+<table x="40" y="629" name="Unit">
+<row name="id" null="1" autoincrement="1">
+<datatype>INTEGER</datatype>
+<default>NULL</default></row>
+<row name="name" null="0" autoincrement="0">
+<datatype>MEDIUMTEXT</datatype>
+<default>'NULL'</default></row>
+<row name="mnemonic_woce" null="1" autoincrement="0">
+<datatype>MEDIUMTEXT</datatype>
+<default>NULL</default></row>
+<key type="PRIMARY" name="">
+<part>id</part>
+</key>
+</table>
+<table x="478" y="704" name="ParameterAlias">
+<row name="parameter_id" null="1" autoincrement="0">
+<datatype>INTEGER</datatype>
+<default>NULL</default><relation table="Parameter" row="id" />
+</row>
+<row name="name" null="0" autoincrement="0">
+<datatype>MEDIUMTEXT</datatype>
+<default>'NULL'</default></row>
+</table>
+<table x="459" y="170" name="cruise_pi">
+<row name="cruise_id" null="1" autoincrement="0">
+<datatype>INTEGER</datatype>
+<default>NULL</default><relation table="Cruise" row="id" />
+</row>
+<row name="contact_id" null="1" autoincrement="0">
+<datatype>INTEGER</datatype>
+<default>NULL</default><relation table="Contact" row="id" />
+</row>
+<key type="PRIMARY" name="">
+</key>
+</table>
+<table x="21" y="326" name="Port">
+<row name="id" null="1" autoincrement="1">
+<datatype>INTEGER</datatype>
+<default>NULL</default></row>
+<row name="name" null="0" autoincrement="0">
+<datatype>MEDIUMTEXT</datatype>
+<default>'NULL'</default></row>
+<key type="PRIMARY" name="">
+<part>id</part>
+</key>
+</table>
+<table x="1" y="170" name="Project">
+<row name="id" null="1" autoincrement="1">
+<datatype>INTEGER</datatype>
+<default>NULL</default></row>
+<row name="name" null="0" autoincrement="0">
+<datatype>MEDIUMTEXT</datatype>
+<default>'NULL'</default></row>
+<key type="PRIMARY" name="">
+<part>id</part>
+</key>
+</table>
+<table x="124" y="171" name="project_cruise">
+<row name="cruise_id" null="1" autoincrement="0">
+<datatype>INTEGER</datatype>
+<default>NULL</default><relation table="Cruise" row="id" />
+</row>
+<row name="project_id" null="1" autoincrement="0">
+<datatype>INTEGER</datatype>
+<default>NULL</default><relation table="Project" row="id" />
+</row>
+<key type="PRIMARY" name="">
+</key>
+</table>
+<table x="250" y="5" name="Ship">
+<row name="id" null="1" autoincrement="1">
+<datatype>INTEGER</datatype>
+<default>NULL</default></row>
+<row name="name" null="0" autoincrement="0">
+<datatype>MEDIUMTEXT</datatype>
+<default>'NULL'</default></row>
+<row name="code_NODC" null="1" autoincrement="0">
+<datatype>VARCHAR(6)</datatype>
+<default>NULL</default></row>
+<row name="country_id" null="1" autoincrement="0">
+<datatype>VARCHAR(6)</datatype>
+<default>NULL</default><relation table="Country" row="iso3166" />
+</row>
+<key type="PRIMARY" name="">
+<part>id</part>
+</key>
+</table>
+<table x="469" y="38" name="Country">
+<row name="iso3166" null="0" autoincrement="0">
+<datatype>VARCHAR(6)</datatype>
+<default>'NULL'</default></row>
+<row name="name" null="0" autoincrement="0">
+<datatype>MEDIUMTEXT</datatype>
+<default>'NULL'</default></row>
+<key type="PRIMARY" name="">
+<part>iso3166</part>
+</key>
+</table>
+<table x="36" y="30" name="Alias">
+<row name="name" null="1" autoincrement="1">
+<datatype>INTEGER</datatype>
+<default>NULL</default></row>
+<row name="cruise_id" null="1" autoincrement="0">
+<datatype>INTEGER</datatype>
+<default>NULL</default><relation table="Cruise" row="id" />
+</row>
+<key type="PRIMARY" name="">
+<part>name</part>
+</key>
+</table>
+</sql>
