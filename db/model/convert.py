@@ -17,7 +17,8 @@ def parameter(legacy):
         parameter.bound_lower = float(range[0]) if range[0] else None
         parameter.bound_upper = float(range[1]) if range[1] else None
 
-        parameter.units = std.Unit(legacy.units, legacy.unit_mnemonic) if \
+        parameter.units = std.Unit(
+            legacy.units, legacy.unit_mnemonic) if \
             legacy.units else None
         parameter.mnemonic = legacy.name
         parameter.aliases = map(

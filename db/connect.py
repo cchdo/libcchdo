@@ -29,10 +29,10 @@ _DBS = {
     #     database='cchdo'),
     'cchdo': S.engine.url.URL(
         _DRIVER['MYSQL'], 'jfields', 'c@keandc00kies', _HOST['cchdo'],
-        database='cchdo'),
+        database='cchdo', query={'charset': 'utf8'}),
     'watershed': S.engine.url.URL(
         _DRIVER['MYSQL'], 'jfields', 'c@keandc00kies', _HOST['watershed'],
-        database='cchdo'),
+        database='cchdo', query={'charset': 'utf8'}),
 }
 
 

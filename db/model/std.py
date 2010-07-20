@@ -104,7 +104,7 @@ class ParameterAlias(Base):
         self.name = name
 
     def __repr__(self):
-        return "<Unit('%s', '%s')>" % (self.name, self.mnemonic)
+        return "<ParameterAlias('%s')>" % self.name
 
 
 class Parameter(Base):
@@ -138,7 +138,7 @@ def session():
     return libcchdo.db.connect.session(libcchdo.db.connect.cchdo_data())
 
 
-def create_all(engine):
-    _metadata.create_all(engine)
+def create_all():
+    _metadata.create_all(libcchdo.db.connect.cchdo_data())
 
 

@@ -36,7 +36,7 @@ def find_by_mnemonic(name, contrived=False):
                     model.legacy.MYSQL_PARAMETER_DISPLAY_ORDERS[
                         legacy_parameter.name]
             except:
-                self.display_order = sys.maxint
+                legacy_parameter.display_order = sys.maxint
 
         if legacy_parameter.name == 'CTDNOBS':
             print legacy_parameter.__dict__
