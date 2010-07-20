@@ -13,27 +13,11 @@ from the database (there is none anyway).
 
 from warnings import warn
 
-import db.parameters
-import fns
-
 try:
     from math import isnan
 except ImportError: # Cover when < python-2.6
     def isnan(n):
         return n != n
-
-
-RADIUS_EARTH = 6371.01 #km
-
-LIBVER = 'SIOCCHDLIB'
-
-COLOR_ESCAPE = '\x1b\x5b'
-COLORS = {
-    'RED': COLOR_ESCAPE + '1;31m',
-    'YELLOW': COLOR_ESCAPE + '1;33m',
-    'CYAN': COLOR_ESCAPE + '1;36m',
-    'CLEAR': COLOR_ESCAPE + '0m',
-}
 
 
 class memoize(object):
@@ -52,46 +36,21 @@ class memoize(object):
             return value
 
 
-@memoize
-class Parameter(object):
-    ''' A CCHDO tracked parameter.
-        
-        The definition of the parameter is obtained from the CCHDO database
-        using the given parameter name as the WOCE mnemonic to match.
+import db
+import fns
 
-        Any parameter_name with a leading '_' is contrived and is not
-        searched for in the database. It is filled in with default values.
-    '''
 
-    def __init__(self, parameter_name, contrived=False):
-        if contrived or parameter_name.startswith('_'):
-            self.full_name = parameter_name
-            self.format = '11s'
-            self.units = 0
-            self.bound_lower = None
-            self.bound_upper = None
-            self.units_mnemonic = ''
-            self.woce_mnemonic = parameter_name
-            self.display_order = -9999
-            self.aliases = []
-        else:
-            #try:
-            #    db.parameters.init_from_postgresql(self, parameter_name)
-            #except Exception, e:
-            #    warn(("%s\nFalling back to mysql database for "
-            #          "parameter info.") % e)
-            try:
-                db.parameters.init_from_mysql(self, parameter_name)
-            except Exception, e:
-                raise EnvironmentError(
-                    ("%s\nNo databases could be used for "
-                     "parameter verification.") % e)
+RADIUS_EARTH = 6371.01 #km
 
-    def __eq__(self, other):
-        return self.woce_mnemonic == other.woce_mnemonic
+LIBVER = 'SIOCCHDLIB'
 
-    def __str__(self):
-        return 'Parameter %s' % self.woce_mnemonic
+COLOR_ESCAPE = '\x1b\x5b'
+COLORS = {
+    'RED': COLOR_ESCAPE + '1;31m',
+    'YELLOW': COLOR_ESCAPE + '1;33m',
+    'CYAN': COLOR_ESCAPE + '1;36m',
+    'CLEAR': COLOR_ESCAPE + '0m',
+}
 
 
 class Column(object):
@@ -100,7 +59,7 @@ class Column(object):
        if type(parameter) != str:
            self.parameter = parameter
        else:
-           self.parameter = Parameter(parameter, contrived)
+           self.parameter = db.parameters.find_by_mnemonic(parameter, contrived)
        self.values = []
        self.flags_woce = []
        self.flags_igoss = []
@@ -198,7 +157,7 @@ class DataFile(File):
 
     def column_headers(self):
         return self.get_property_for_columns(
-            lambda column: column.parameter.woce_mnemonic)
+            lambda column: column.parameter.mnemonic_woce())
 
     def formats(self):
         return self.get_property_for_columns(
@@ -225,7 +184,7 @@ class DataFile(File):
         hash = {}
         for column in self.columns:
             c = self.columns[column]
-            woce = c.parameter.woce_mnemonic 
+            woce = c.parameter.mnemonic_woce()
             hash[woce] = c.values
             if c.is_flagged_woce():
                 hash[woce+'_FLAG_W'] = c.flags_woce
@@ -252,9 +211,10 @@ class DataFile(File):
             except Exception, e:
                 raise e
 
-            if units:
-                expected_units = \
-                    self.columns[parameter].parameter.units_mnemonic
+            expected_units = \
+                self.columns[parameter].parameter.units.mnemonic if \
+                self.columns[parameter].parameter.units else None
+            if units and expected_units:
                 given_unit = units[i]
                 if expected_units != given_unit:
                     warn(("Mismatched units for %s. Expected '%s' and "

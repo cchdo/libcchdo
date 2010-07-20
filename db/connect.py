@@ -1,92 +1,73 @@
 """libcchdo.db.connect"""
 
-DB_CREDENTIALS = {
-    # Postgres
-#    'goship(cchdo_data)': {'user': 'libcchdo', 'password': '((hdo0hydr0d@t@',
-#                           'host': 'goship.ucsd.edu', 'database': 'cchdo_data'},
-#    'goship(cchdotest)':  {'user': 'libcchdo', 'password': '((hd0hydr0d@t@',
-#                           'host': 'goship.ucsd.edu', 'database': 'cchdotest'},
-    # MySQL
-#    'cchdo(cchdo)':       {'user': 'cchdo_server', 'passwd': '((hdo0hydr0d@t@',
-#                           'host': 'cchdo.ucsd.edu', 'db': 'cchdo'},
-    'cchdo(cchdo)':       {'user': 'jfields', 'passwd': 'c@keandc00kies',
-                           'host': 'cchdo.ucsd.edu', 'db': 'cchdo'},
-    'watershed(cchdo)':   {'user': 'jfields', 'passwd': 'c@keandc00kies',
-                           'host': 'watershed.ucsd.edu', 'db': 'cchdo'},
+import sqlalchemy as S
+import sqlalchemy.orm
+
+import libcchdo
+
+
+_DRIVER = {
+    'PG': 'postgresql',
+    'MYSQL': 'mysql',
+    'SQLITE': 'sqlite',
+}
+
+
+_HOST = {
+    'cchdo': 'cchdo.ucsd.edu',
+    'goship': 'goship.ucsd.edu',
+    'watershed': 'watershed.ucsd.edu',
+}
+
+
+_DBS = {
+    'cchdo_data': S.engine.url.URL(
+        _DRIVER['SQLITE'], None, None, None,
+        database='cchdo_data.db'),
+    #'cchdo': S.engine.url.URL(
+    #     _DRIVER['MYSQL'], 'cchdo_server', '((hd0hydr0d@t@', _HOST['cchdo'],
+    #     database='cchdo'),
+    'cchdo': S.engine.url.URL(
+        _DRIVER['MYSQL'], 'jfields', 'c@keandc00kies', _HOST['cchdo'],
+        database='cchdo'),
+    'watershed': S.engine.url.URL(
+        _DRIVER['MYSQL'], 'jfields', 'c@keandc00kies', _HOST['watershed'],
+        database='cchdo'),
 }
 
 
 # Internal connection abstractions
 
 
-_CONNECTION_CACHE = {}
-
-
-def _connect(module, error, **credentials):
-    """Connect to a given Python DB-API compliant database.
+@libcchdo.memoize
+def _connect(url):
+    """Create an engine for the given sqlalchemy url with default settings.
        Args:
-           module - the DB-API module to use
-           error - the module specific error to consider as a database error
-           credentials - a dictionary of credentials to give to the module's
-                         connect()
+           url - an sqlalchemy.engine.url.URL
        Returns:
-           an active DB connection using the given arguments
+           an engine
     """
-    key = str(credentials)
-    if key in _CONNECTION_CACHE:
-        conn = _CONNECTION_CACHE[key]
-        try:
-            if conn.open:
-                return conn
-        except Error, e:
-            # The connection in the cache has been closed. Reopen it.
-            pass
-        
-    try:
-        conn = module.connect(**credentials)
-        _CONNECTION_CACHE[key] = conn
-        return conn
-    except error, e:
-        raise IOError("Database error: %s" % e)
-
-
-def _pg(**credentials):
-    """Connect to a given postgresql database"""
-    try:
-        import pgdb
-    except ImportError, e:
-        raise ImportError('%s\n%s' % (e,
-            ("You should get pygresql from http://www.pygresql.org/readme.html"
-             "#where-to-get. You will need Postgresql with server binaries "
-             "installed already.")))
-    return _connect(pgdb, pgdb.Error, **credentials)
-
-
-def _mysql(**credentials):
-    """Connect to a given MySQL database"""
-    try:
-        import MySQLdb
-    except ImportError, e:
-        raise ImportError('%s\n%s' % (e,
-            ("You should get MySQLdb from http://sourceforge.net/projects/"
-             "mysql-python. You will need MySQL with server binaries "
-             "installed already.")))
-    return _connect(MySQLdb, MySQLdb.Error, **credentials)
+    return S.create_engine(url)
 
 
 # Public interface connections
 
-def cchdotest():
-    """Connect to cchdotest"""
-    return _pg(**DB_CREDENTIALS['goship(cchdotest)'])
-
 
 def cchdo_data():
     """Connect to cchdo_data"""
-    return _pg(**DB_CREDENTIALS['goship(cchdo_data)'])
+    return _connect(_DBS['cchdo_data'])
 
 
 def cchdo():
     """Connect to CCHDO's database"""
-    return _mysql(**DB_CREDENTIALS['cchdo(cchdo)'])
-    #return _mysql(**DB_CREDENTIALS['watershed(cchdo)'])
+    return _connect(_DBS['cchdo'])
+    #return _connect(_DBS['watershed'])
+
+
+@libcchdo.memoize
+def sessionmaker(engine):
+    return S.orm.sessionmaker(bind=engine)
+
+
+def session(engine):
+    return sessionmaker(engine)()

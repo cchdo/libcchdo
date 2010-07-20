@@ -140,10 +140,13 @@ def read_data(self, handle, parameters_line, units_line, asterisk_line):
 
 def write_data(self, handle, ):
     def parameter_name_of (column, ):
-        return column.parameter.woce_mnemonic
+        return column.parameter.mnemonic_woce()
 
     def units_of (column, ):
-        return column.parameter.units_mnemonic
+        if column.parameter.units:
+            return column.parameter.units.mnemonic
+        else:
+            return ''
 
     def quality_flags_of (column, ):
         return "*******" if column.is_flagged_woce() else ""
@@ -179,7 +182,7 @@ def write_data(self, handle, ):
         values = []
         flags = []
         for column in columns:
-            format = "%%%s" % column.parameter.format
+            format = column.parameter.format
             if column[i]:
                 values.append(format % column[i])
             if column.is_flagged_woce():

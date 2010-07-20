@@ -106,7 +106,7 @@ def write(self, handle):
 
     headers = []
     for c in self.sorted_columns():
-        param = c.parameter.woce_mnemonic
+        param = c.parameter.mnemonic_woce()
         headers.append(param)
         if c.is_flagged_woce():
             headers.append(param+'_FLAG_W')
@@ -117,7 +117,7 @@ def write(self, handle):
     #XXX
     units = []
     for c in self.sorted_columns():
-        u = c.parameter.units_mnemonic
+        u = c.parameter.units.mnemonic
         units.append(u)
         if c.is_flagged():
             units.append("")

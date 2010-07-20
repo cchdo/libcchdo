@@ -38,7 +38,7 @@ class TestDataFile(TestCase):
     self.file.columns['CASTNO'] = libcchdo.Column('CASTNO')
     self.file.columns['STNNBR'] = libcchdo.Column('STNNBR')
     expected = ['EXPOCODE', 'STNNBR', 'CASTNO']
-    received = map(lambda c: c.parameter.woce_mnemonic, self.file.sorted_columns())
+    received = map(lambda c: c.parameter.mnemonic_woce(), self.file.sorted_columns())
     # If lengths are equal and all expected in received, then assume equal
     self.assertEqual(len(expected), len(received))
     self.assertTrue(all( [x in received for x in expected] ))
@@ -57,7 +57,7 @@ class TestDataFile(TestCase):
 
   def test_formats(self):
     self.file.columns['CTDOXY'] = libcchdo.Column('CTDOXY')
-    self.assertEqual(['11s', '8.1f'], self.file.formats())
+    self.assertEqual(['%11s', '%8.1f'], self.file.formats())
 
   def test_to_hash(self):
     pass

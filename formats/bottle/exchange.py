@@ -130,17 +130,17 @@ def write(self, handle): #TODO
 
     for c in columns:
         param = c.parameter
-        flagged_parameter_names.append(param.woce_mnemonic)
-        flagged_units.append(param.units_mnemonic)
-        flagged_formats.append('%' + param.format)
+        flagged_parameter_names.append(param.mnemonic_woce())
+        flagged_units.append(param.units.mnemonic if param.units else '')
+        flagged_formats.append(param.format)
         flagged_columns.append(c.values)
         if c.is_flagged_woce():
-            flagged_parameter_names.append(param.woce_mnemonic + '_FLAG_W')
+            flagged_parameter_names.append(param.mnemonic_woce() + '_FLAG_W')
             flagged_units.append('')
             flagged_formats.append('%1d')
             flagged_columns.append(c.flags_woce)
         if c.is_flagged_igoss():
-            flagged_parameter_names.append(param.woce_mnemonic + '_FLAG_I')
+            flagged_parameter_names.append(param.mnemonic_woce() + '_FLAG_I')
             flagged_units.append('')
             flagged_formats.append('%1d')
             flagged_columns.append(c.flags_igoss)

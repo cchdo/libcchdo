@@ -1,9 +1,13 @@
 """ Test case for libcchdo.Column """
 
-import libcchdo
 from unittest import TestCase
 
+import libcchdo
+import libcchdo.db.parameters
+
+
 class TestColumn(TestCase):
+
   def setUp(self):
     self.column = libcchdo.Column("EXPOCODE")
 
@@ -11,9 +15,9 @@ class TestColumn(TestCase):
     self.assertRaises(EnvironmentError, libcchdo.Column, "NotAParameter")
 
   def test_initialization(self):
-    parameter = libcchdo.Parameter("EXPOCODE")
+    parameter = libcchdo.db.parameters.find_by_mnemonic("EXPOCODE")
     self.assertTrue(parameter == self.column.parameter)
-    self.assertEqual(self.column.parameter.woce_mnemonic, "EXPOCODE") # The column did not initialize to the correct parameter
+    self.assertEqual(self.column.parameter.mnemonic_woce(), "EXPOCODE") # The column did not initialize to the correct parameter
     self.assertEqual(self.column.values, []) # Missing values array.
     self.assertEqual(self.column.flags_woce, []) # Missing WOCE flags array
     self.assertEqual(self.column.flags_igoss, []) # Missing IGOSS flags array
@@ -53,3 +57,5 @@ class TestColumn(TestCase):
     self.assertFalse(self.column.is_flagged_igoss()) # Column has IGOSS flags when there should not be
     self.column.set(0, 1, 2, 3)
     self.assertTrue(self.column.is_flagged_igoss()) # Column did not have IGOSS flags when there should have been
+
+
