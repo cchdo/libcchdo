@@ -122,6 +122,16 @@ def write(self, handle): #TODO
     handle.write('# Original header:\n')
     handle.write(self.header)
 
+    # Convert from internal data format to bottle exchange
+    # Separate _DATETIME into DATE and TIME
+    # TODO
+    date = self.columns['DATE'] = libcchdo.Column('DATE')
+    time = self.columns['TIME'] = libcchdo.Column('TIME')
+    for dtime in self.columns['_DATETIME'].values:
+        date.append(dtime.strftime('%Y%m%d'))
+        time.append(dtime.strftime('%H%M'))
+    del self.columns['_DATETIME']
+
     columns = self.sorted_columns()
     flagged_parameter_names = []
     flagged_units = []
@@ -153,7 +163,6 @@ def write(self, handle): #TODO
     flagged_formats_columns = zip(flagged_formats, flagged_columns)
 
     for i in range(len(self)):
-        print i
         values = []
 
         for f, c in flagged_formats_columns:
@@ -167,6 +176,3 @@ def write(self, handle): #TODO
 
 
     handle.write('END_DATA\n')
-
-    print self
-    
