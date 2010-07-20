@@ -38,6 +38,7 @@ class memoize(object):
 
 import db
 import fns
+import formats
 
 
 RADIUS_EARTH = 6371.01 #km
