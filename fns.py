@@ -34,11 +34,11 @@ def read_arbitrary(handle):
         raise ValueError("The file '%s' does not exist" % filename)
 
     if filename.endswith('zip'):
-        datafile = DataFileCollection()
+        datafile = libcchdo.DataFileCollection()
     elif filename.endswith('su.txt'):
-        datafile = SummaryFile()
+        datafile = libcchdo.SummaryFile()
     else:
-        datafile = DataFile()
+        datafile = libcchdo.DataFile()
 
     if filename.endswith('su.txt'):
         import formats.summary.woce
