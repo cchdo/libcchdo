@@ -37,6 +37,7 @@ class memoize(object):
 
 
 import db
+import db.parameters
 import fns
 import formats
 
