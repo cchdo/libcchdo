@@ -13,14 +13,15 @@ def read(self, handle):
     stamp = re.compile('BOTTLE,(\d{8}\w+)')
     m = stamp.match(handle.readline())
     if m:
-        self.stamp = m.group(1)
+        self.globals['stamp'] = m.group(1)
     else:
         raise ValueError(("Expected identifier line with stamp "
                           "(e.g. BOTTLE,YYYYMMDDdivINSwho)"))
     # Read comments
     l = handle.readline()
+    self.globals['header'] = ''
     while l and l.startswith('#'):
-        self.header += l
+        self.globals['header'] += l
         l = handle.readline()
     # Read columns and units
     columns = l.strip().split(',')
