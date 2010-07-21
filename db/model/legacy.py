@@ -13,6 +13,11 @@ Base = S.ext.declarative.declarative_base()
 metadata = Base.metadata
 
 
+@libcchdo.memoize
+def session():
+    return libcchdo.db.connect.session(libcchdo.db.connect.cchdo())
+
+
 OVERRIDE_PARAMETERS = {
     'EXPOCODE': {'name': 'ExpoCode',
                  'format': '11s',
@@ -171,8 +176,41 @@ class Parameter(Base):
                 parameter_name)
 
 
-@libcchdo.memoize
-def session():
-    return libcchdo.db.connect.session(libcchdo.db.connect.cchdo())
+class Contact(Base):
+    __tablename__ = 'contacts'
+
+    id = S.Column(S.Integer(11), primary_key=True)
+    LastName = S.Column(S.String)
+    FirstName = S.Column(S.String)
+    Institute = S.Column(S.String)
+    Address = S.Column(S.String)
+    telephone = S.Column(S.String)
+    fax = S.Column(S.String)
+    email = S.Column(S.String)
+    title = S.Column(S.String)
+
+    def __init__(self):
+        pass
+
+
+class ParameterStatus(Base):
+    __tablename__ = 'parameter_status'
+
+    expocode = S.Column('ExpoCode', S.Integer(11), primary_key=True)
+    parameter_id = S.Column(S.ForeignKey('parameter_descriptions.id'),
+                            primary_key=True)
+    pi_id = S.Column(S.ForeignKey('contacts.id'), nullable=True)
+    status = S.Column(libcchdo.db.Enum([u'PRELIMINARY', u'NON-PRELIMINARY']),
+                      default=u'PRELIMINARY')
+
+    parameter = S.orm.relation(Parameter)
+    pi = S.orm.relation(Contact)
+
+    def __init__(self, expocode, parameter, status, pi=None):
+        self.expocode = expocode
+        self.parameter = parameter
+        self.status = status
+        if pi:
+            self.pi = pi
 
 
