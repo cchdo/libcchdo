@@ -2,12 +2,7 @@
 
 import datetime
 
-try:
-    from math import isnan
-except ImportError: # Cover when < python-2.6
-    def isnan(n):
-        return n != n
-
+import libcchdo
 
 def _column_type(col):
     if col == 'EXPOCODE' or col == 'SECT_ID':
@@ -20,7 +15,7 @@ def _column_type(col):
 
 def _raw_to_str(raw, json=False):
     if isinstance(raw, float):
-        if isnan(raw):
+        if libcchdo.isnan(raw):
             if json:
                 return None
             else:

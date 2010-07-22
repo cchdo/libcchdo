@@ -124,7 +124,7 @@ def read_data(self, handle, parameters_line, units_line, asterisk_line):
         for j, parameter in enumerate(parameters):
             datum = float(unpacked[j])
             if datum is -9.0:
-                datum = float('nan')
+                datum = None
             woce_flag = None
 
             # Only assign flag if column is flagged.

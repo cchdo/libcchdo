@@ -70,7 +70,7 @@ def read(self, handle):
         for column, raw in zip(columns, values):
             value = raw.strip()
             if libcchdo.fns.out_of_band(value):
-                value = float('nan')
+                value = None
             try:
                 value = float(value)
             except:
@@ -167,7 +167,7 @@ def write(self, handle): #TODO
         values = []
 
         for f, c in flagged_formats_columns:
-            if c[i] and not (type(c[i]) is float and libcchdo.isnan(c[i])):
+            if c[i]:
                 values.append(f % c[i])
             else:
                 values.append(f % -999)
