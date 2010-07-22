@@ -119,9 +119,9 @@ def write(self, handle): #TODO
     '''How to write a Bottle Exchange file.'''
     handle.write('BOTTLE,%s%s\n' % \
         (datetime.datetime.now().strftime('%Y%m%d'), libcchdo.LIBVER))
-    handle.write('# Original stamp: %s\n' % self.stamp)
+    handle.write('# Original stamp: %s\n' % self.globals['stamp'])
     handle.write('# Original header:\n')
-    handle.write(self.header)
+    handle.write(self.globals['header'])
 
     # Convert from internal data format to bottle exchange
     # Separate _DATETIME into DATE and TIME
