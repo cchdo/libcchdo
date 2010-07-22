@@ -216,7 +216,7 @@ class Parameter(Base):
         return self.name == other.name
 
     def __repr__(self):
-        return "<Parameter()>"
+        return "<Parameter('%s')>" % self.name
 
 
 class Cast(Base):
