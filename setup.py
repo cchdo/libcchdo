@@ -77,12 +77,12 @@ class CoverageCommand (TestCommand):
         self.cov.report(file=sys.stdout)
 
 
-setup(name="libcchdo",
-      version="0.4",
-      description="libcchdo setup",
-      cmdclass = {'test': TestCommand,
-                  'clean': CleanCommand,
-                  'coverage': CoverageCommand,
-                 }
-     )
-
+if __name__ == '__main__':
+    setup(name="libcchdo",
+          version="0.4",
+          description="libcchdo setup",
+          cmdclass = {'test': TestCommand,
+                      'clean': CleanCommand,
+                      'coverage': CoverageCommand,
+                     }
+         )

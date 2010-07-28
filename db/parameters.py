@@ -52,7 +52,7 @@ def find_by_mnemonic(name, allow_contrived=False):
         parameter.display_order = sys.maxint
         return parameter
 
-    if name.startswith('_') and allow_contrived:
+    if name.startswith('_'):
         return get_contrived_parameter(name)
     else:
         try:
@@ -67,5 +67,6 @@ def find_by_mnemonic(name, allow_contrived=False):
                                'failed. Falling back to contrived.'))
                 return get_contrived_parameter(name)
 
-        return None
+        raise EnvironmentError(('Unknown parameter %s. Contrivance not '
+                                'allowed.') % name)
 

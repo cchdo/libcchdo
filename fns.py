@@ -146,6 +146,22 @@ def identity_or_oob(x, oob=-999):
     return x if x else oob
 
 
+def polynomial(x, coeffs):
+    """Calculate a polynomial.
+    
+    Gives the result of calculating
+    coeffs[n]*x**n + coeffs[n-1]*x**n-1 + ... + coeffs[0]
+    """
+    if len(coeffs) <= 0:
+        return 0
+    sum = coeffs[0]
+    degreed = x
+    for coef in coeffs[1:]:
+        sum += coef * degreed
+        degreed *= x
+    return sum
+
+
 def grav_ocean_surface_wrt_latitude(latitude):
     return 9.780318 * (1.0 + 5.2788e-3 * math.sin(latitude) ** 2 +
                              2.35e-5 * math.sin(latitude) ** 4)
@@ -205,22 +221,6 @@ def depth(grav, p, rho):
     return depth
 
 
-def polynomial(x, coeffs):
-    """Calculate a polynomial.
-    
-    Gives the result of calculating
-    coeffs[n]*x**n + coeffs[n-1]*x**n-1 + ... + coeffs[0]
-    """
-    if len(coeffs) <= 0:
-        return 0
-    sum = coeffs[0]
-    degreed = x
-    for coef in coeffs[1:]:
-        sum += coef * degreed
-        degreed *= x
-    return sum
-
-
 def secant_bulk_modulus(salinity, temperature, pressure):
     """Calculate the secant bulk modulus of sea water.
     
@@ -243,6 +243,7 @@ def secant_bulk_modulus(salinity, temperature, pressure):
         G = (7.944e-2, 1.6483e-2, -5.3009e-4)
         return Kw + polynomial(t, F) * salinity + \
                polynomial(t, G) * salinity ** (3.0 / 2.0)
+
     H = (3.239908, 1.43713e-3, 1.16092e-4, -5.77905e-7)
     Aw = polynomial(t, H)
     I = (2.2838e-3, -1.0981e-5, -1.6078e-6)
@@ -272,6 +273,7 @@ def density(salinity, temperature, pressure):
         d0 = 4.8314e-4
         return pw + polynomial(t, B) * salinity + \
                polynomial(t, C) * salinity ** (3.0 / 2.0) + d0 * salinity ** 2
+
     pressure /= 10 # Strange correction of one order of magnitude needed?
     return density(salinity, t, 0) / \
            (1 - (pressure / secant_bulk_modulus(salinity, t, pressure)))
