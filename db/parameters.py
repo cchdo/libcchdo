@@ -12,6 +12,18 @@ import model.legacy
 import model.convert
 
 
+def make_contrived_parameter(name, format=None, units=None, bound_lower=None,
+                             bound_upper=None, display_order=sys.maxint):
+    parameter = model.std.Parameter(name)
+    parameter.full_name = name
+    parameter.format = format or '%11s'
+    parameter.units = model.std.Unit(units) if units else None
+    parameter.bound_lower = bound_lower
+    parameter.bound_upper = bound_upper
+    parameter.display_order = display_order
+    return parameter
+
+
 def find_legacy_parameter(name):
     legacy = model.legacy
     session = legacy.session()
@@ -40,20 +52,8 @@ def find_legacy_parameter(name):
 
 
 def find_by_mnemonic(name, allow_contrived=False):
-
-    def get_contrived_parameter(name):
-        parameter = model.std.Parameter(name)
-        parameter.full_name = name
-        parameter.format = '%11s'
-        parameter.units = None
-        parameter.bound_lower = None
-        parameter.bound_upper = None
-        parameter.units = None
-        parameter.display_order = sys.maxint
-        return parameter
-
     if name.startswith('_'):
-        return get_contrived_parameter(name)
+        return make_contrived_parameter(name)
     else:
         try:
             legacy_parameter = find_legacy_parameter(name)
@@ -65,8 +65,18 @@ def find_by_mnemonic(name, allow_contrived=False):
             if allow_contrived:
                 libcchdo.warn(('Conversion from legacy to std parameter '
                                'failed. Falling back to contrived.'))
-                return get_contrived_parameter(name)
+                return make_contrived_parameter(name)
 
         raise EnvironmentError(('Unknown parameter %s. Contrivance not '
                                 'allowed.') % name)
 
+
+def find_by_mnemonic_std(name):
+    parameter = model.std.session().query(model.std.Parameter).filter(
+        model.std.Parameter.name == name).first()
+    if not parameter:
+        parameter = model.std.session().query(model.std.ParameterAlias).filter(
+            model.std.ParameterAlias.name == name).first()
+        if parameter:
+            parameter = parameter.parameter
+    return parameter

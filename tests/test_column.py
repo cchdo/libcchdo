@@ -11,9 +11,6 @@ class TestColumn(TestCase):
   def setUp(self):
     self.column = libcchdo.Column("EXPOCODE")
 
-  def test_unknown_parameter(self):
-    self.assertRaises(EnvironmentError, libcchdo.Column, "NotAParameter")
-
   def test_initialization(self):
     parameter = libcchdo.db.parameters.find_by_mnemonic("EXPOCODE")
     self.assertTrue(parameter == self.column.parameter)

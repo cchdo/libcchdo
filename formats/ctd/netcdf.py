@@ -99,6 +99,8 @@ def read(self, handle):
     # Clean up
     nc_file.close()
 
+    self.check_and_replace_parameters()
+
 
 WOCE_CTD_FLAG_DESCRIPTION = """\
 ::1=Not calibrated

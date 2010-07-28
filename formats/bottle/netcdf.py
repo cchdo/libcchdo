@@ -149,6 +149,8 @@ def read(self, handle):
 
     nc_file.close()
 
+    self.check_and_replace_parameters()
+
 
 def write(self, handle):
     """How to write a Bottle NetCDF file."""

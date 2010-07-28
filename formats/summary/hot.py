@@ -43,5 +43,7 @@ def read(self, handle):
           self.columns['_PARAMETERS'].append(tokens[19])
           self.columns['_COMMENTS'].append(' '.join(tokens[20:]))
 
+    self.check_and_replace_parameters()
+
 def write(self, handle):
     raise NotImplementedError # OMIT

@@ -67,29 +67,31 @@ def read(self, handle):
     # Read data
     l = handle.readline().strip()
     while l:
-      if l == 'END_DATA':
-          break
-      values = l.split(',')
-      
-      # Check columns and values to match length
-      if len(columns) is not len(values):
-          raise ValueError(("Expected as many columns as values "
-                            "in file. Found %d columns and %d values "
-                            "at data line %d") % \
-                           (len(columns), len(values), len(self) + 1))
+       if l == 'END_DATA':
+           break
+       values = l.split(',')
+       
+       # Check columns and values to match length
+       if len(columns) is not len(values):
+           raise ValueError(("Expected as many columns as values "
+                             "in file. Found %d columns and %d values "
+                             "at data line %d") % \
+                            (len(columns), len(values), len(self) + 1))
 
-      for column, value in zip(columns, values):
-          value = value.strip()
-          if column.endswith('_FLAG_W'):
-              self.columns[column[:-7]].flags_woce.append(int(value))
-          elif column.endswith('_FLAG_I'):
-              self.columns[column[:-7]].flags_igoss.append(int(value))
-          else:
-              if libcchdo.fns.out_of_band(float(value)):
-                  self.columns[column].append(None)
-              else:
-                  self.columns[column].append(float(value))
-      l = handle.readline().strip()
+       for column, value in zip(columns, values):
+           value = value.strip()
+           if column.endswith('_FLAG_W'):
+               self.columns[column[:-7]].flags_woce.append(int(value))
+           elif column.endswith('_FLAG_I'):
+               self.columns[column[:-7]].flags_igoss.append(int(value))
+           else:
+               if libcchdo.fns.out_of_band(float(value)):
+                   self.columns[column].append(None)
+               else:
+                   self.columns[column].append(float(value))
+       l = handle.readline().strip()
+
+    self.check_and_replace_parameters()
 
 
 def write(self, handle):

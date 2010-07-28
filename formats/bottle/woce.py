@@ -53,6 +53,8 @@ def read(self, handle):
             libcchdo.formats.woce.strptime_woce_date_time(d, t))
     del self.columns['DATE']
     del self.columns['TIME']
+    
+    self.check_and_replace_parameters()
 
 
 def write(self, handle):

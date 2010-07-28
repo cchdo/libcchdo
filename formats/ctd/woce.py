@@ -54,6 +54,9 @@ def read(self, handle):
 
     fmtwoce.read_data(self, handle, parameters_line, units_line, asterisk_line)
 
+    self.check_and_replace_parameters()
+
+
 def write(self, handle):
     '''How to write a CTD WOCE file.'''
     # We can only write the CTD file if there is a unique

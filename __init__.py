@@ -57,11 +57,12 @@ COLORS = {
 
 class Column(object):
 
-   def __init__(self, parameter, contrived=False):
+   def __init__(self, parameter, units=None):
        if type(parameter) != str:
            self.parameter = parameter
        else:
-           self.parameter = db.parameters.find_by_mnemonic(parameter, contrived)
+           self.parameter = db.parameters.make_contrived_parameter(
+                                parameter, units=units)
        self.values = []
        self.flags_woce = []
        self.flags_igoss = []
@@ -121,11 +122,37 @@ class File(object):
         self.columns = {}
         self.header = ''
 
+    def sorted_columns(self):
+        return sorted(self.columns.values())
+
+    def get_property_for_columns(self, property_getter):
+        return map(property_getter, self.sorted_columns())
+
     def __len__(self):
         try:
             return len(self.columns.values()[0])
         except:
             return 0
+
+    def check_and_replace_parameters(self):
+        for column in self.columns.values():
+            parameter = column.parameter
+            std_parameter = db.parameters.find_by_mnemonic_std(parameter.name)
+
+            if not std_parameter:
+                warn("Unknown parameter '%s'" % parameter.name)
+                continue
+
+            given_units = parameter.units.mnemonic if parameter.units else None
+            expected_units = std_parameter.units.mnemonic \
+                if std_parameter.units else None
+    
+            if given_units and expected_units and given_units != expected_units:
+                warn(("Mismatched units for '%s'. Expected '%s' and found "
+                      "'%s'") % (parameter.name, expected_units, given_units))
+                continue # maybe do some conversion? TODO
+
+            column.parameter = std_parameter
 
 
 class SummaryFile(File):
@@ -139,6 +166,7 @@ class SummaryFile(File):
         for column in columns:
             self.columns[column] = Column(column)
 
+
 class DataFile(File):
 
     def __init__(self, allow_contrived=False):
@@ -150,12 +178,6 @@ class DataFile(File):
 
     def expocodes(self):
         return fns.uniquify(self.columns['EXPOCODE'].values)
-
-    def sorted_columns(self):
-        return sorted(self.columns.values())
-
-    def get_property_for_columns(self, property_getter):
-        return map(property_getter, self.sorted_columns())
 
     def column_headers(self):
         return self.get_property_for_columns(
@@ -208,21 +230,10 @@ class DataFile(File):
                parameter in self.columns:
                 continue
             try:
-                self.columns[parameter] = Column(parameter,
-                                                 self.allow_contrived)
+                self.columns[parameter] = Column(
+                    parameter, units[i] if units else None)
             except Exception, e:
                 raise e
-
-            expected_units = \
-                self.columns[parameter].parameter.units.mnemonic if \
-                self.columns[parameter].parameter.units else None
-            if units and expected_units:
-                given_unit = units[i]
-                if expected_units != given_unit:
-                    warn(("Mismatched units for %s. Expected '%s' and "
-                          "received '%s'") % (parameter, expected_units,
-                                              given_unit))
-
 
 class DataFileCollection(object):
 
@@ -238,3 +249,5 @@ class DataFileCollection(object):
 
     def stamps(self):
         return [file.stamp for file in self.files.values()]
+
+

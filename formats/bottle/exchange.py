@@ -114,6 +114,8 @@ def read(self, handle):
     del self.columns['DATE']
     del self.columns['TIME']
 
+    self.check_and_replace_parameters()
+
 
 def write(self, handle): #TODO
     '''How to write a Bottle Exchange file.'''
@@ -142,7 +144,8 @@ def write(self, handle): #TODO
     for c in columns:
         param = c.parameter
         flagged_parameter_names.append(param.mnemonic_woce())
-        flagged_units.append(param.units.mnemonic if param.units else '')
+        flagged_units.append(param.units.mnemonic if param.units and \
+            param.units.mnemonic else '')
         flagged_formats.append(param.format)
         flagged_columns.append(c.values)
         if c.is_flagged_woce():

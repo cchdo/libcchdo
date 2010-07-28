@@ -52,4 +52,6 @@ def read(self, handle):
             self.columns['POTTMP'][row] = data[4]
         lineno += 1
 
+    self.check_and_replace_parameters()
+
 # OMIT writer

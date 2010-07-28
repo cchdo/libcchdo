@@ -63,6 +63,8 @@ def read(self, handle):
             cs['_PARAMETERS'].append(identity_or_none(tokens[16]))
             cs['_COMMENTS'].append(identity_or_none(tokens[17]))
 
+    self.check_and_replace_parameters()
+
 def write(self, handle):
     '''How to write a Summary file for WOCE.'''
     today = datetime.date.today()
