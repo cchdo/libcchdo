@@ -24,8 +24,8 @@ def read(self, handle):
         self.globals['header'] += l
         l = handle.readline()
     # Read columns and units
-    columns = l.strip().split(',')
-    units = handle.readline().strip().split(',')
+    columns = [x.strip() for x in l.strip().split(',')]
+    units = [x.strip() for x in handle.readline().strip().split(',')]
     
     # Check columns and units to match length
     if len(columns) is not len(units):
@@ -79,8 +79,9 @@ def read(self, handle):
                 try:
                     self.columns[column[:-7]].flags_woce.append(int(value))
                 except KeyError:
-                    warn(("Flag WOCE column exists for parameter %s but "
-                          "parameter column does not exist.") % column[:-7])
+                    libcchdo.warn(("Flag WOCE column exists for parameter %s "
+                                   "but parameter column does not exist.") % \
+                                  column[:-7])
             elif column.endswith('_FLAG_I'):
                 try:
                     self.columns[column[:-7]].flags_igoss.append(int(value))

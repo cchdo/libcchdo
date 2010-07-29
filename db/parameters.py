@@ -17,7 +17,7 @@ def make_contrived_parameter(name, format=None, units=None, bound_lower=None,
     parameter = model.std.Parameter(name)
     parameter.full_name = name
     parameter.format = format or '%11s'
-    parameter.units = model.std.Unit(units) if units else None
+    parameter.units = model.std.Unit(units, units) if units else None
     parameter.bound_lower = bound_lower
     parameter.bound_upper = bound_upper
     parameter.display_order = display_order

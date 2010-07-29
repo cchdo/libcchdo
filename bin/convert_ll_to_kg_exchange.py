@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 ''' 
 A small percentage of WOCE format hydro data is submitted with oxygens
 (both bottle and CTD) in ML/L and with nutrients in UMOL/L.  This program
@@ -17,226 +18,120 @@ notes:
 '''
 
 
+from __future__ import with_statement
 import sys
 sys.path.insert(0, '/'.join(sys.path[0].split('/')[:-2]))
 
 
+import libcchdo
+import libcchdo.formats.bottle.exchange as botex
 import libcchdo.algorithms.volume
 
 
-def main():
-    '''Converts ML/L and UMOL/L units to /KG.
-    '''
-    
-    print 'cvuwoce converts WOCE format L/L units to /KG.'
-    print 'enter input (.sea) filename:'
-    
-    filename = sys.stdin.readlines()
-    file = open(filename, 'r')
+APPROXIMATION_SALINITY = 34.8
+APPROXIMATION_TEMPERATURE = 25.0
 
-    # read the file
-    # TODO
 
-    head3 = file.readline()
-    num_to_convert = 0
-    yesoxy = False
-    maxdat = 30
-
-    for k in range(1, maxdat):
-        i = (k - 1) * 8 + 1
-        j = i + 7
-        if i > eop:
-            # have reached end of data on line.
-            break
-        if head3[i:j].index('L/L'):
-            # have found unit with L/L in it. Add to Number To Convert.
-            num_to_convert += 1
-            ctc[num_to_convert] = i
-            if head3[i + 6] != '/':
-                print head2[i:j], 'unit label not properly placed. aborting.'
-                return 1
-            print ' %8s %8s' % (head2[i:j], head3[i:j])
-            if head2[i:j].index('OXY'):
-                if head2[i:j].index('CTDOXY'):
-                    # this row of oxygen is CTD
-                else:
-                    # this row of oxygens is bottle. set flag
-                    yesoxy = True
-                ndp[num_to_convert] = 1
-            elif head2[i:j].index('SIL'):
-                ndp[num_to_convert] = 2
-            elif head2[i:j].index('NITRA'):
-                ndp[num_to_convert] = 2
-            elif head2[i:j].index('NITRI'):
-                ndp[num_to_convert] = 2
-            elif head2[i:j].index('NO2+N'):
-                ndp[num_to_convert] = 2
-            elif head2[i:j].index('PHSPH'):
-                ndp[num_to_convert] = 2
-            else:
-                print (head2[i:j], 'unexpected conversion.\n How many points '
-                       'past decimal in output?:')
-                ndp[num_to_convert] = int(sys.stdin.readline())
-
-    if num_to_convert == 0:
-        print ' No units to change found!\n Output file is incomplete.'
-        return 0
-    else:
-        print 'Found %d data columns to convert' % num_to_convert
-        print '  Bottle oxygen was %s one of them.' % ('' if yexoxy or 'NOT')
-        print ' <enter> to continue; Q to quit:'
-        ch1 = sys.stdin.readline()
-        if ch1 in ['q', 'Q']:
-            print ' Program quit.'
-            return 0
-
-    # Fix the units line and print it out.
-    for k in range(1, num_to_convert):
-        i = ctc[k]
-        j = i + 7
-        if head2[i:j].index('OXY'):
-            head3[i:j] = ' UMOL/KG'
-        else:
-            # need a U,P, or N in MOLS string.
-            c8 = ' ' + head3[i + 2] + 'MOL/KG'
-            head3[i:j] = c8
-    outfile.write(head3[1:eol])
-
-    # ask about oxygen method.
-    if yexoxy:
-        print ' Were bottle oxygens Whole bottle or Aliquot? (W/A):'
-        ch1 = sys.stdin.readline()
-        if ch1 in ('w', 'W'):
-            whole = True
-        elif ch1 in ('a', 'A'):
-            whole = False
-            print 'Will use temp=25. for oxygen conversion.'
-        else:
-            print ' enter W or A.'
-            print " In truth it probably doesn't matter."
-            # TODO jump back to ch1
-
-    # locate salinity and temperature columns.
-    nosal = False
-    if head2.index('CTDSAL'):
-        isal = head2.index('CTDSAL') - 2
-    elif head2.index('SALNTY'):
-        isal = head2.index('SALNTY') - 2
-    else:
-        print ' no salinity found. using 34.8 .'
-        nosal = True
-
-    # test position of salinity
-    if not nosal:
-        if (isal - 1) % 8 != 0:
-            print (' salinity or label not on 8 byte boundary.\n fix it. '
-                   'aborting.')
-
-    notemp = False
-    if head2.index('CTDTMP'):
-        itmp = head2.index('CTDTMP') - 2
-    elif head2.index('THETA'):
-        itmp = head2.index('THETA') - 3
-    elif head2.index('REVTMP'):
-        itmp = head2.index('REVTMP') - 2
-    else:
-        print ' no temperature found. using approximations.'
-        notemp = True
-
-    # test position of temperature
-    if not notemp:
-        if (itmp - 1) % 8 != 0:
-            print (' temper. or label not on 8 byte boundary.\n fix it. '
-                   'aborting.')
-
-    # read and copy silly asterisk line
-    outfile.write(file.readline())
-
-    # read all data lines converting one at a time
-    nlw = 4
-
-    for line in file:
-        if nosal:
-            s = 34.8
-        else:
-            c8 = line[isal:isal + 7]
-            try:
-                s = float(c8)
-            except:
-                print ' read err in salinity. aborting. rec#=%d line=%s' % \
-                      (nlw + 1, line)
-                return 1
-            
-            if s < 0:
-                s = 34.8
-            elif s < 20 or s > 60:
-                print ' salinity is ridiculous=%f rec#=%d' % (s, nlw + 1)
-
-        # extract temperature
-        tmiss = True
-        if notemp:
+def get_first_value_of_parameters(file, parameters, i):
+    for parameter in parameters:
+        try:
+            return file.columns['parameters'][i]
+        except KeyError:
             pass
-        else:
-            c8 = line[itmp:itmp + 7]
-            try:
-                t = float(c8)
-            except:
-                print ' read err in temp. aborting. rec#=%d line=%s' % \
-                      (nlw + 1, line)
-                return 1
-            if t > -3:
-                tmiss = False
+    return None
 
-        for k in range(1, num_to_convert):
-            i = ctc[k]
-            j = i + 7
-            c8 = line[i:j]
-            try:
-                v = float(c8)
-            except:
-                print 'unreadable value. aborting. rec#=%d line=%s' % \
-                      (nlw + 1, line)
-                return 1
-            if v < -3:
-                # missing
-                v = -9.0
-            elif head2[i:j].index('OXY'):
-                # dealing with oxygen.
-                if not whole and not head2[i:j].index('CTDOXY'):
-                    # not CTDOXY and yes oxybottles were aliquot.
-                    t = 25.0
-                elif tmiss:
-                    t = 25.0
-                    print 'T missing. using 25. at rec#=%d' % nlw + 1
-                sigt = libcchdo.algorithms.volume.sigma_p(0, 0, t, s)
-                v = v / (0.022392 * (sigt / 1e3 + 1.0))
+
+def unit_converter_ll_umol_kg_maker(whole_not_aliquot=False):
+    def unit_converter_ll_umol_kg(file, column, whole_not_aliquot=False):
+        for i, value in enumerate(column.values):
+            salinity = get_first_value_of_parameters(
+                file, ('CTDSAL', 'SALNTY'), i) or APPROXIMATION_SALINITY
+
+            # Salinity sanity check
+            if salinity < 0:
+                salinity = APPROXIMATION_SALINITY
+            elif 20 < salinity or salinity > 60:
+                libcchdo.warn('Salinity (%f) is ridiculous' % salinity)
+
+            temperature = get_first_value_of_parameters(
+                file, ('CTDTMP', 'THETA', 'REVTMP'), i)
+            temperature_missing = not (temperature and temperature > -3)
+
+            if value < -3:
+                # Missing
+                column.values[i] = None
+            elif 'OXY' in column.parameter.mnemonic_woce():
+                # Converting oxygen
+                if not whole_not_aliquot and not \
+                   'CTDOXY' in column.parameter.mnemonic_woce():
+                    temperature = APPROXIMATION_TEMPERATURE
+                elif temperature_missing:
+                    temperature = APPROXIMATION_TEMPERATURE
+                    libcchdo.warn(('Temperature is missing. Using %f at '
+                                   'record#%d') % (temperature, i))
+                sigt = libcchdo.algorithms.volume.sigma_p(
+                    0, 0, temperature, salinity)
+                column.values[i] /= (0.022392 * (sigt / 1e3 + 1.0))
+
             else:
-                # everything, but oxygen
-                pden = libcchdo.algorithms.volume.sigma_p(0, 0, 25.0, s)
-                v = v / (pden / 1e3 + 1.0)
+                # Everything not oxygen
+                pdensity = libcchdo.algorithms.volume.sigma_p(
+                    0, 0, 25.0, salinity)
+                column.values[i] /= (pdensity / 1e3 + 1.0)
 
-            # done converting. print to string.
-            if ndp[k] == 2:
-                c8 = v % '%8.2f'
-            elif ndp[k] == 1:
-                c8 = v % '%8.1f'
-            elif ndp[k] == 3:
-                c8 = v % '%8.3f'
-            elif ndp[k] == 4:
-                c8 = v % '%8.4f'
+        # Change the units TODO
+        # if unit has 'OXY':
+            # unit = 'UMOL/KG'
+        # else:
+            # unit = '{U,P,N}MOL/KG'
+
+        return column
+
+    return lambda file, column: unit_converter_ll_umol_kg(
+                                    file, column, whole_not_aliquot)
+
+
+def main():
+    '''Converts WOCE format L/L units to /KG.'''
+    if len(sys.argv) < 2:
+        print 'enter input (.sea) filename:'
+        filename = sys.stdin.readline().strip()
+    else:
+        filename = sys.argv[1]
+
+    file = libcchdo.DataFile()
+
+    with open(filename, 'r') as f:
+        botex.read(file, f)
+
+    oxygen_present = False
+    for column in file.columns.keys():
+        if 'OXY' in column:
+            oxygen_present = True
+            break
+
+    whole_not_aliquot = False
+    if oxygen_present:
+        # Ask about oxygen method
+        print 'Were bottle oxygens Whole bottle or Aliquot? (W/A): ',
+        while True:
+            whole_or_aliquot = sys.stdin.readline().strip().upper()
+            if whole_or_aliquot == 'W':
+                whole_not_aliquot = True
+                break
+            elif whole_or_aliquot == 'A':
+                whole_not_aliquot = False
+                print 'Will use temp=25. for oxygen conversion.'
+                break
             else:
-                print " can't print number with %d dec point." % ndp[k]
-                return 1
-            line[i:j] = c8
+                print 'Please enter W or A.'
+                print "In truth it probably doesn't matter: ",
 
-        outfile.write(line)
-        nlw += 1
+    file.unit_converters[('L/L', u'UMOL/KG')] = \
+        unit_converter_ll_umol_kg_maker(whole_not_aliquot)
+    file.check_and_replace_parameters()
 
-    # get here on normal end of file.
-    print '%d lines written.' % nlw
-    file.close()
-    outfile.close()
-
+    botex.write(file, sys.stdout)
 
 if __name__ == '__main__':
     sys.exit(main())

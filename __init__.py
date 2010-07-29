@@ -121,6 +121,7 @@ class File(object):
     def __init__(self):
         self.columns = {}
         self.header = ''
+        self.unit_converters = {}
 
     def sorted_columns(self):
         return sorted(self.columns.values())
@@ -146,11 +147,20 @@ class File(object):
             given_units = parameter.units.mnemonic if parameter.units else None
             expected_units = std_parameter.units.mnemonic \
                 if std_parameter.units else None
-    
+            from_to = (given_units, expected_units)
+
             if given_units and expected_units and given_units != expected_units:
-                warn(("Mismatched units for '%s'. Expected '%s' and found "
-                      "'%s'") % (parameter.name, expected_units, given_units))
-                continue # maybe do some conversion? TODO
+                warn(("Mismatched units for '%s'. Found '%s' but expected "
+                      "'%s'") % ((parameter.name,) + from_to))
+                try:
+                    unit_converter = self.unit_converters[from_to]
+                    warn(("Converting from '%s' -> '%s' for %s.") % (from_to + 
+                         (column.parameter.name,)))
+                    column = unit_converter(self, column)
+                except KeyError:
+                    warn(("No unit converter registered with file for "
+                          "'%s' -> '%s'. Skipping conversion.") % from_to)
+                    continue
 
             column.parameter = std_parameter
 
@@ -188,21 +198,21 @@ class DataFile(File):
             lambda column: column.parameter.format)
 
     def __str__(self):
-        s = ''
+        s = u''
         s += '%sGlobals: %s\n' % (COLORS['RED'], COLORS['CLEAR'])
         for gv in self.globals.items():
             s += '%s: %s\n' % gv
 
         s += '%sData: %s\n' % (COLORS['RED'], COLORS['CLEAR'])
         for column in self.sorted_columns():
-            s += str(column) + '\n'
+            s += '%s\n' % column
             if column.is_flagged_woce():
                 s += '\t%s%s%s\n' % (COLORS['CYAN'], column.flags_woce,
                                      COLORS['CLEAR'])
             if column.is_flagged_igoss():
                 s += '\t%s%s%s\n' % (COLORS['CYAN'], column.flags_igoss,
                                      COLORS['CLEAR'])
-        return s
+        return s.encode('ascii', 'replace')
 
     def to_hash(self):
         hash = {}

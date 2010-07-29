@@ -189,7 +189,7 @@ def sigma_p(refprs, press, temp, salty):
             polynomial(potemp, (0.0022838, -1.0981e-5, -1.6078e-6)) * salty + \
             1.91075e-4 * abs(salty) ** 1.5
 
-    termb = polynomial(potemp, (8.50935e-5, -6.12293e-6, 5.2787e-8)) + 
+    termb = polynomial(potemp, (8.50935e-5, -6.12293e-6, 5.2787e-8)) + \
             polynomial(potemp, (-9.9348e-7, 2.0816e-8, 9.1697e-10)) * salty
 
     # Secant bulk modulus k(s,t,p) */
