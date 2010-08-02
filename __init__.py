@@ -78,17 +78,18 @@ class Column(object):
            self.flags_woce.append(None)
            self.flags_igoss.append(None)
        self.values.insert(index, value)
-       if flag_woce:
+       if flag_woce is not None:
            self.flags_woce.insert(index, flag_woce)
-       if flag_igoss:
+       if flag_igoss is not None:
            self.flags_igoss.insert(index, flag_igoss)
 
    def append(self, value=None, flag_woce=None, flag_igoss=None):
        self.values.append(value)
-       if flag_woce:
-           self.flags_woce.append(flag_woce)
-       if flag_igoss:
-           self.flags_igoss.append(flag_igoss)
+       i = len(self.values) - 1
+       if flag_woce is not None:
+           self.flags_woce.insert(i, flag_woce)
+       if flag_igoss is not None:
+           self.flags_igoss.insert(i, flag_igoss)
 
    def __getitem__(self, key):
        return self.get(key)

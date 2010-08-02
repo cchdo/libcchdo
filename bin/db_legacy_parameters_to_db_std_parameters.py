@@ -11,16 +11,21 @@ import libcchdo.db.model.legacy
 import libcchdo.db.model.std
 
 def main():
-    legacy_parameters = map(
-         lambda x: x.name,
-         libcchdo.db.model.legacy.session().query(
-             libcchdo.db.model.legacy.Parameter).all())
+    legacy_parameters = [x[0] for x in 
+        libcchdo.db.model.legacy.session().query(
+            libcchdo.db.model.legacy.Parameter.name).all()]
 
-    std_parameters = map(
-        lambda x: libcchdo.db.parameters.find_by_mnemonic(x),
-        legacy_parameters)
+    std_parameters = [libcchdo.db.parameters.find_by_mnemonic(x) for x in 
+        legacy_parameters]
+
+    # Additional modifications
+    std_parameters.insert(0, libcchdo.db.model.std.Parameter(
+        'EXPOCODE', 'ExpoCode', '%11s', display_order=1))
+    std_parameters.insert(1, libcchdo.db.model.std.Parameter(
+        'SECT_ID', 'Section ID', '%11s', display_order=2))
 
     libcchdo.db.model.std.create_all()
+
     std_session = libcchdo.db.model.std.session()
     std_session.add_all(std_parameters)
     std_session.commit()

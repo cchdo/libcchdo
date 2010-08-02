@@ -208,9 +208,21 @@ class Parameter(Base):
     def mnemonic_woce(self):
         return self.name
 
-    def __init__(self, name, fullname=None, format=None, bound_lower=None,
-                 bound_upper=None, display_order=None):
+    def __init__(self, name, full_name=None, format=None, units=None,
+                 bound_lower=None, bound_upper=None, display_order=None):
         self.name = name
+        if full_name:
+            self.full_name = full_name
+        if format:
+            self.format = format
+        if units:
+            self.units = units
+        if bound_lower:
+            self.bound_lower = bound_lower
+        if bound_upper:
+            self.bound_upper = bound_upper
+        if display_order:
+            self.display_order = display_order
 
     def __eq__(self, other):
         return self.name == other.name

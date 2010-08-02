@@ -1,5 +1,8 @@
 """libcchdo.db.connect"""
 
+import inspect
+import os
+
 import sqlalchemy as S
 import sqlalchemy.orm
 
@@ -20,10 +23,13 @@ _HOST = {
 }
 
 
+_DB_MODULE_PATH = os.path.split(inspect.currentframe().f_code.co_filename)[0]
+
+
 _DBS = {
     'cchdo_data': S.engine.url.URL(
         _DRIVER['SQLITE'], None, None, None,
-        database='cchdo_data.db'),
+        database=os.path.join(_DB_MODULE_PATH, 'cchdo_data.db')),
     #'cchdo': S.engine.url.URL(
     #     _DRIVER['MYSQL'], 'cchdo_server', '((hd0hydr0d@t@', _HOST['cchdo'],
     #     database='cchdo'),

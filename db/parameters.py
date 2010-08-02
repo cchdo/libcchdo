@@ -14,14 +14,14 @@ import model.convert
 
 def make_contrived_parameter(name, format=None, units=None, bound_lower=None,
                              bound_upper=None, display_order=sys.maxint):
-    parameter = model.std.Parameter(name)
-    parameter.full_name = name
-    parameter.format = format or '%11s'
-    parameter.units = model.std.Unit(units, units) if units else None
-    parameter.bound_lower = bound_lower
-    parameter.bound_upper = bound_upper
-    parameter.display_order = display_order
-    return parameter
+    return model.std.Parameter(
+        name,
+        full_name=name,
+        format=format or '%11s', 
+        units=model.std.Unit(units, units) if units else None,
+        bound_lower=bound_lower,
+        bound_upper=bound_upper,
+        display_order=display_order)
 
 
 def find_legacy_parameter(name):

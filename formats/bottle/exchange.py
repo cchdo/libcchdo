@@ -135,6 +135,7 @@ def write(self, handle): #TODO
         date.append(dtime.strftime('%Y%m%d'))
         time.append(dtime.strftime('%H%M'))
     del self.columns['_DATETIME']
+    self.check_and_replace_parameters()
 
     columns = self.sorted_columns()
     flagged_parameter_names = []
@@ -171,13 +172,17 @@ def write(self, handle): #TODO
         values = []
 
         for f, c in flagged_formats_columns:
-            if c[i]:
-                values.append(f % c[i])
-            else:
-                values.append(f % -999)
+            try:
+                if c[i] is not None:
+                    values.append(f % c[i])
+                else:
+                    values.append(f % -999.0)
+            except Exception, e:
+                libcchdo.warn('Arguments at %d:' % i)
+                libcchdo.warn('\t%s and %s' % (f, c[i]))
+                raise 
 
         handle.write(','.join(values))
         handle.write('\n')
-
 
     handle.write('END_DATA\n')
