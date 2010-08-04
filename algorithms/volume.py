@@ -105,7 +105,6 @@ def potential_temperature(p, t, s, rp):
        Return:
            potential temperature
     '''
-    
     s1 = s - 35.0
     if _any_missing(s, p, t):
         return CDMISS
@@ -114,15 +113,16 @@ def potential_temperature(p, t, s, rp):
     n = int(abs(dp) / 1.0e3) + 1
     dp /= float(n)
 
-    r1 = polynomial(t, (-4.6206e-13, 1.8676e-14, -2.1687e-16)) * p
-    r2 = polynomial(t, (-1.1351e-10, 2.7759e-12)) * s1
-    r3 = polynomial(t, (0, -6.7795e-10, 8.733e-12, -5.4481e-13))
-    r4 = (r1 + (r2 + r3 + 1.8741e-8)) * p + \
-         polynomial(t, (1.8932e-6, -4.2393e-8)) * s1
-    r5 = r4 + polynomial(t, (3.5803e-5, 8.5258e-6, -6.836e-8, 6.6228e-10))
-
     for i in range(1, n):
         for j in range(1, 4):
+            r1 = polynomial(t, (-4.6206e-13, 1.8676e-14, -2.1687e-16)) * p
+            r2 = polynomial(t, (-1.1351e-10, 2.7759e-12)) * s1
+            r3 = polynomial(t, (0, -6.7795e-10, 8.733e-12, -5.4481e-13))
+            r4 = (r1 + (r2 + r3 + 1.8741e-8)) * p + \
+                 polynomial(t, (1.8932e-6, -4.2393e-8)) * s1
+            r5 = r4 + polynomial(
+                          t, (3.5803e-5, 8.5258e-6, -6.836e-8, 6.6228e-10))
+
             x = dp * r5
 
             if j == 1:
@@ -195,9 +195,7 @@ def sigma_p(refprs, press, temp, salty):
     # Secant bulk modulus k(s,t,p) */
     kstp = polynomial(bars, (kst0, terma, termb))
 
-    sigma /= 1.0 - bars / kstp
-
-    return sigma - 1000.0
+    return sigma / (1.0 - bars / kstp) - 1000.0
 
 
 def oxycal(pt, s, o2):

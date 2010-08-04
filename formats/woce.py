@@ -53,18 +53,19 @@ def strftime_woce_date_time(dtime):
 
 def strptime_woce_date_time(woce_date, woce_time):
     # None-date or None-time is None-woce_date_time (XXX)
-    if not woce_date or not woce_time:
+    if woce_date is None or woce_time is None:
         return None
     try: # make sure we can parse (XXX)
-        int(woce_date)
-        int(woce_time)
+        i_woce_date = int(woce_date)
+        i_woce_time = int(woce_time)
+        if i_woce_time >= 2400:
+            libcchdo.warn(
+                "Illegal time greater than 2400 found. Setting to 0.")
+            i_woce_time = 0
+        return datetime.datetime.strptime(
+             "%08d%04d" % (i_woce_date, i_woce_time), '%Y%m%d%H%M')
     except: # can't parse date/time into ints (invalid) (XXX)
         return None
-    if int(woce_time) >= 2400:
-        libcchdo.warn("Illegal time greater than 2400 found. Setting to 0.")
-        woce_time = 0
-    return datetime.datetime.strptime(
-         "%08d%04d" % (int(woce_date), int(woce_time)), '%Y%m%d%H%M')
 
 
 def read_data(self, handle, parameters_line, units_line, asterisk_line):

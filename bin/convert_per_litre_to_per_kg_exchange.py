@@ -24,6 +24,7 @@ sys.path.insert(0, '/'.join(sys.path[0].split('/')[:-2]))
 
 
 import libcchdo
+import libcchdo.db.model.std as std
 import libcchdo.formats.bottle.exchange as botex
 import libcchdo.algorithms.volume
 
@@ -35,7 +36,7 @@ APPROXIMATION_TEMPERATURE = 25.0
 def get_first_value_of_parameters(file, parameters, i):
     for parameter in parameters:
         try:
-            return file.columns['parameters'][i]
+            return file.columns[parameter][i]
         except KeyError:
             pass
     return None
@@ -48,9 +49,9 @@ def unit_converter_ll_umol_kg_maker(whole_not_aliquot=False):
                 file, ('CTDSAL', 'SALNTY'), i) or APPROXIMATION_SALINITY
 
             # Salinity sanity check
-            if salinity < 0:
+            if salinity <= 0:
                 salinity = APPROXIMATION_SALINITY
-            elif 20 < salinity or salinity > 60:
+            elif salinity < 20 or salinity > 60:
                 libcchdo.warn('Salinity (%f) is ridiculous' % salinity)
 
             temperature = get_first_value_of_parameters(
@@ -62,7 +63,7 @@ def unit_converter_ll_umol_kg_maker(whole_not_aliquot=False):
                 column.values[i] = None
             elif 'OXY' in column.parameter.mnemonic_woce():
                 # Converting oxygen
-                if not whole_not_aliquot and not \
+                if not whole_not_aliquot and \
                    'CTDOXY' in column.parameter.mnemonic_woce():
                     temperature = APPROXIMATION_TEMPERATURE
                 elif temperature_missing:
@@ -70,20 +71,20 @@ def unit_converter_ll_umol_kg_maker(whole_not_aliquot=False):
                     libcchdo.warn(('Temperature is missing. Using %f at '
                                    'record#%d') % (temperature, i))
                 sigt = libcchdo.algorithms.volume.sigma_p(
-                    0, 0, temperature, salinity)
-                column.values[i] /= (0.022392 * (sigt / 1e3 + 1.0))
-
+                    0.0, 0.0, temperature, salinity)
+                column.values[i] /= (0.022392 * (sigt / 1.0e3 + 1.0))
             else:
                 # Everything not oxygen
                 pdensity = libcchdo.algorithms.volume.sigma_p(
-                    0, 0, 25.0, salinity)
-                column.values[i] /= (pdensity / 1e3 + 1.0)
+                    0.0, 0.0, 25.0, salinity)
+                column.values[i] /= (pdensity / 1.0e3 + 1.0)
 
-        # Change the units TODO
-        # if unit has 'OXY':
-            # unit = 'UMOL/KG'
-        # else:
-            # unit = '{U,P,N}MOL/KG'
+        # Change the units
+        if 'OXY' in column.parameter.units.name:
+            column.parameter.unit = std.Unit('UMOL/KG')
+        else:
+            prefix = column.parameter.units.name.strip()[0]
+            column.parameter.unit = std.Unit('%cMOL/KG' % prefix)
 
         return column
 
@@ -91,10 +92,14 @@ def unit_converter_ll_umol_kg_maker(whole_not_aliquot=False):
                                     file, column, whole_not_aliquot)
 
 
+def unit_equiv_converter(file, column):
+    return column
+
+
 def main():
     '''Converts WOCE format L/L units to /KG.'''
     if len(sys.argv) < 2:
-        print 'enter input (.sea) filename:'
+        print >>sys.stderr, 'Please give an input Exchange filename (hy1.csv):'
         filename = sys.stdin.readline().strip()
     else:
         filename = sys.argv[1]
@@ -113,7 +118,7 @@ def main():
     whole_not_aliquot = False
     if oxygen_present:
         # Ask about oxygen method
-        print 'Were bottle oxygens Whole bottle or Aliquot? (W/A): ',
+        print >>sys.stderr, 'Were bottle oxygens Whole bottle or Aliquot? (W/A): ',
         while True:
             whole_or_aliquot = sys.stdin.readline().strip().upper()
             if whole_or_aliquot == 'W':
@@ -121,14 +126,19 @@ def main():
                 break
             elif whole_or_aliquot == 'A':
                 whole_not_aliquot = False
-                print 'Will use temp=25. for oxygen conversion.'
+                print >>sys.stderr, 'Will use temp=25. for oxygen conversion.'
                 break
             else:
-                print 'Please enter W or A.'
-                print "In truth it probably doesn't matter: ",
+                print >>sys.stderr, 'Please enter W or A.'
+                print >>sys.stderr, "In truth it probably doesn't matter: ",
 
-    file.unit_converters[('L/L', u'UMOL/KG')] = \
-        unit_converter_ll_umol_kg_maker(whole_not_aliquot)
+    converter = unit_converter_ll_umol_kg_maker(whole_not_aliquot)
+    file.unit_converters[('DEG C', u'ITS-90')] = unit_equiv_converter
+
+    file.unit_converters[('UMOL/L', u'UMOL/KG')] = converter
+    file.unit_converters[('PMOL/L', u'PMOL/KG')] = converter
+    file.unit_converters[('NMOL/L', u'NMOL/KG')] = converter
+    file.unit_converters[('MMOL/L', u'UMOL/KG')] = converter # XXX YIKES
     file.check_and_replace_parameters()
 
     botex.write(file, sys.stdout)

@@ -128,7 +128,6 @@ def write(self, handle): #TODO
 
     # Convert from internal data format to bottle exchange
     # Separate _DATETIME into DATE and TIME
-    # TODO
     date = self.columns['DATE'] = libcchdo.Column('DATE')
     time = self.columns['TIME'] = libcchdo.Column('TIME')
     for dtime in self.columns['_DATETIME'].values:
