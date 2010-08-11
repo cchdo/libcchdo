@@ -131,8 +131,12 @@ def write(self, handle): #TODO
     date = self.columns['DATE'] = libcchdo.Column('DATE')
     time = self.columns['TIME'] = libcchdo.Column('TIME')
     for dtime in self.columns['_DATETIME'].values:
-        date.append(dtime.strftime('%Y%m%d'))
-        time.append(dtime.strftime('%H%M'))
+        if dtime:
+            date.append(dtime.strftime('%Y%m%d'))
+            time.append(dtime.strftime('%H%M'))
+        else:
+            date.append(None)
+            time.append(None)
     del self.columns['_DATETIME']
     self.check_and_replace_parameters()
 
