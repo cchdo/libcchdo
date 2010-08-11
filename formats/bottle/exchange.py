@@ -118,7 +118,7 @@ def read(self, handle):
     self.check_and_replace_parameters()
 
 
-def write(self, handle): #TODO
+def write(self, handle):
     '''How to write a Bottle Exchange file.'''
     handle.write('BOTTLE,%s%s\n' % \
         (datetime.datetime.now().strftime('%Y%m%d'), libcchdo.LIBVER))
@@ -138,6 +138,16 @@ def write(self, handle): #TODO
             date.append(None)
             time.append(None)
     del self.columns['_DATETIME']
+
+    # Convert all float stnnbr, castno, sampno, btlnbr to ints
+    def if_float_then_int(x):
+        if type(x) is float:
+            return int(x)
+        return x
+    self.columns['STNNBR'].values = [if_float_then_int(x) for x in self.columns['STNNBR'].values]
+    self.columns['CASTNO'].values = [if_float_then_int(x) for x in self.columns['CASTNO'].values]
+    self.columns['SAMPNO'].values = [if_float_then_int(x) for x in self.columns['SAMPNO'].values]
+    self.columns['BTLNBR'].values = [if_float_then_int(x) for x in self.columns['BTLNBR'].values]
     self.check_and_replace_parameters()
 
     columns = self.sorted_columns()
