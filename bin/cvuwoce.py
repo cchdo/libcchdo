@@ -257,11 +257,11 @@ def main():
                 elif tmiss:
                     t = 25.0
                     print 'T missing. using 25. at rec#=%d' % nlw + 1
-                sigt = libcchdo.algorithms.volume.sigma_p(0, 0, t, s)
+                sigt = libcchdo.algorithms.volume.sigma_r(0, 0, t, s)
                 v = v / (0.022392 * (sigt / 1e3 + 1.0))
             else:
                 # everything, but oxygen
-                pden = libcchdo.algorithms.volume.sigma_p(0, 0, 25.0, s)
+                pden = libcchdo.algorithms.volume.sigma_r(0, 0, 25.0, s)
                 v = v / (pden / 1e3 + 1.0)
 
             # done converting. print to string.

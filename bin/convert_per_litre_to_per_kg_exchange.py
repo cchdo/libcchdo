@@ -24,124 +24,92 @@ sys.path.insert(0, '/'.join(sys.path[0].split('/')[:-2]))
 
 
 import libcchdo
+import libcchdo.units.convert as cvt
 import libcchdo.db.model.std as std
 import libcchdo.formats.bottle.exchange as botex
 import libcchdo.algorithms.volume
 
 
-APPROXIMATION_SALINITY = 34.8
-APPROXIMATION_TEMPERATURE = 25.0
+def check_and_replace_parameters(self):
+    for column in self.columns.values():
+        parameter = column.parameter
+        std_parameter = libcchdo.db.parameters.find_by_mnemonic_std(
+                            parameter.name)
 
+        if not std_parameter:
+            libcchdo.warn("Unknown parameter '%s'" % parameter.name)
+            continue
 
-def get_first_value_of_parameters(file, parameters, i):
-    for parameter in parameters:
-        try:
-            return file.columns[parameter][i]
-        except KeyError:
-            pass
-    return None
+        given_units = parameter.units.mnemonic if parameter.units else None
+        expected_units = std_parameter.units.mnemonic \
+            if std_parameter.units else None
+        from_to = (given_units, expected_units)
 
+        if given_units and expected_units and given_units != expected_units:
+            libcchdo.warn(("Mismatched units for '%s'. Found '%s' but "
+                           "expected '%s'") % ((parameter.name,) + from_to))
+            try:
+                unit_converter = self.unit_converters[from_to]
+                convert = None
+                while not convert or convert.lower() not in ('y', 'n'):
+                    try:
+                        convert = raw_input(("Convert from '%s' to '%s' for "
+                                             "'%s'? (y/n)") % \
+                                             (from_to + (parameter.name,)))
+                    except EOFError:
+                        pass
+                if convert == 'y':
+                    libcchdo.warn(("Converting from '%s' -> '%s' for %s.") % \
+                                  (from_to + (column.parameter.name,)))
+                    column = unit_converter(self, column)
+                else:
+                    # Skip conversion and unit change.
+                    continue
+            except KeyError:
+                libcchdo.warn(("No unit converter registered with file for "
+                      "'%s' -> '%s'. Skipping conversion.") % from_to)
+                continue
 
-def unit_converter_ll_umol_kg_maker(whole_not_aliquot=False):
-    def unit_converter_ll_umol_kg(file, column, whole_not_aliquot=False):
-        for i, value in enumerate(column.values):
-            salinity = get_first_value_of_parameters(
-                file, ('CTDSAL', 'SALNTY'), i) or APPROXIMATION_SALINITY
-
-            # Salinity sanity check
-            if salinity <= 0:
-                salinity = APPROXIMATION_SALINITY
-            elif salinity < 20 or salinity > 60:
-                libcchdo.warn('Salinity (%f) is ridiculous' % salinity)
-
-            temperature = get_first_value_of_parameters(
-                file, ('CTDTMP', 'THETA', 'REVTMP'), i)
-            temperature_missing = not (temperature and temperature > -3)
-
-            if value < -3:
-                # Missing
-                column.values[i] = None
-            elif 'OXY' in column.parameter.mnemonic_woce():
-                # Converting oxygen
-                if not whole_not_aliquot and \
-                   'CTDOXY' in column.parameter.mnemonic_woce():
-                    temperature = APPROXIMATION_TEMPERATURE
-                elif temperature_missing:
-                    temperature = APPROXIMATION_TEMPERATURE
-                    libcchdo.warn(('Temperature is missing. Using %f at '
-                                   'record#%d') % (temperature, i))
-                sigt = libcchdo.algorithms.volume.sigma_p(
-                    0.0, 0.0, temperature, salinity)
-                column.values[i] /= (0.022392 * (sigt / 1.0e3 + 1.0))
-            else:
-                # Everything not oxygen
-                pdensity = libcchdo.algorithms.volume.sigma_p(
-                    0.0, 0.0, 25.0, salinity)
-                column.values[i] /= (pdensity / 1.0e3 + 1.0)
-
-        # Change the units
-        if 'OXY' in column.parameter.units.name:
-            column.parameter.unit = std.Unit('UMOL/KG')
-        else:
-            prefix = column.parameter.units.name.strip()[0]
-            column.parameter.unit = std.Unit('%cMOL/KG' % prefix)
-
-        return column
-
-    return lambda file, column: unit_converter_ll_umol_kg(
-                                    file, column, whole_not_aliquot)
-
-
-def unit_equiv_converter(file, column):
-    return column
+        column.parameter = std_parameter
 
 
 def main():
-    '''Converts WOCE format L/L units to /KG.'''
+    '''Converts WOCE format /L units to /KG.'''
     if len(sys.argv) < 2:
-        print >>sys.stderr, 'Please give an input Exchange filename (hy1.csv):'
-        filename = sys.stdin.readline().strip()
+        filename = raw_input(('Please give an input Exchange filename '
+                              '(hy1.csv):')).strip()
     else:
         filename = sys.argv[1]
+
+    if len(sys.argv) < 3:
+        outputfile = raw_input(('Please give an output Exchange filename '
+                                '(hy1.csv):')).strip()
+    else:
+        outputfile = sys.argv[2]
 
     file = libcchdo.DataFile()
 
     with open(filename, 'r') as f:
         botex.read(file, f)
 
-    oxygen_present = False
-    for column in file.columns.keys():
-        if 'OXY' in column:
-            oxygen_present = True
-            break
+    file.unit_converters[('DEG C', u'ITS-90')] = cvt.equivalent
 
-    whole_not_aliquot = False
-    if oxygen_present:
-        # Ask about oxygen method
-        print >>sys.stderr, 'Were bottle oxygens Whole bottle or Aliquot? (W/A): ',
-        while True:
-            whole_or_aliquot = sys.stdin.readline().strip().upper()
-            if whole_or_aliquot == 'W':
-                whole_not_aliquot = True
-                break
-            elif whole_or_aliquot == 'A':
-                whole_not_aliquot = False
-                print >>sys.stderr, 'Will use temp=25. for oxygen conversion.'
-                break
-            else:
-                print >>sys.stderr, 'Please enter W or A.'
-                print >>sys.stderr, "In truth it probably doesn't matter: ",
+    file.unit_converters[('ML/L', u'UMOL/KG')] = \
+        cvt.milliliter_per_liter_to_umol_per_kg
+    file.unit_converters[('UMOL/L', u'UMOL/KG')] = \
+        cvt.mol_per_liter_to_mol_per_kg
+    file.unit_converters[('PMOL/L', u'PMOL/KG')] = \
+        cvt.mol_per_liter_to_mol_per_kg
+    file.unit_converters[('NMOL/L', u'NMOL/KG')] = \
+        cvt.mol_per_liter_to_mol_per_kg
+    # XXX YIKES but it's there in the fortran
+    #file.unit_converters[('MMOL/L', u'UMOL/KG')] = \
+    #    cvt.mol_per_liter_to_mol_per_kg
+    check_and_replace_parameters(file)
 
-    converter = unit_converter_ll_umol_kg_maker(whole_not_aliquot)
-    file.unit_converters[('DEG C', u'ITS-90')] = unit_equiv_converter
+    with open(outputfile, 'w') as f:
+        botex.write(file, f)
 
-    file.unit_converters[('UMOL/L', u'UMOL/KG')] = converter
-    file.unit_converters[('PMOL/L', u'PMOL/KG')] = converter
-    file.unit_converters[('NMOL/L', u'NMOL/KG')] = converter
-    file.unit_converters[('MMOL/L', u'UMOL/KG')] = converter # XXX YIKES
-    file.check_and_replace_parameters()
-
-    botex.write(file, sys.stdout)
 
 if __name__ == '__main__':
     sys.exit(main())

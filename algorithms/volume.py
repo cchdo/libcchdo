@@ -54,7 +54,7 @@ def alphy(s, t, p):
 
        Note: temperature used instead of pot. temp. DMN 10/22/84
     '''
-    sigstp = sigma_p(p, p, t, s)
+    sigstp = sigma_r(p, p, t, s)
 
     if _missing(sigstp):
         return CDMISS
@@ -141,7 +141,7 @@ def potential_temperature(p, t, s, rp):
     return t
 
 
-def sigma_p(refprs, press, temp, salty):
+def sigma_r(refprs, press, temp, salty):
     '''Calculate density using international equation of state
 
        From text furnished by J. Gieskes
@@ -240,7 +240,7 @@ def oxycal(pt, s, o2):
 
 def salinity(press, potemp, sig):
     '''Calculate salinity using international equation of state and back 
-       calculating the sigma theta portion of sigma_p().
+       calculating the sigma theta portion of sigma_r().
  
        From text furnished by J. Gieskes
  
@@ -311,7 +311,7 @@ def salinity_back_from_in_situ_density(temp, salty, press, stpned):
            press     pressure in decibars.
            stpned    the sigma stp at the point in question
                        calculated as:
-                       call sigma_p(p,p,t,s,stp)
+                       call sigma_r(p,p,t,s,stp)
 
        Return:
            sal       the resultant back calculated salinity.
@@ -324,11 +324,11 @@ def salinity_back_from_in_situ_density(temp, salty, press, stpned):
 
     for i in range(1, 20):
         # Calculate STP at the guess salinity
-        stpcal = sigma_p(press, press, temp, salty)
+        stpcal = sigma_r(press, press, temp, salty)
     
         # Add a little bit and calculate it again.
         salx = salty + plus
-        stpx = sigma_p(press,press,temp,salx)
+        stpx = sigma_r(press,press,temp,salx)
     
         # Figure the gradient.
         grad = plus / (stpx - stpcal)
