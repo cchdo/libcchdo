@@ -31,9 +31,10 @@ class TestCommand(Command):
         try:
             tests = defaultTestLoader.loadTestsFromNames(testfiles)
             TextTestRunner(verbosity = 2).run(tests)
-        except AttributeError:
+        except AttributeError, e:
             raise ImportError(("It's likely that you have an import error "
-                               "in your test."))
+                               "in your test file:\n\t%s\nCheck this file's "
+                               "imports.") % e)
 
 
 class CleanCommand(Command):
