@@ -66,7 +66,7 @@ def strptime_woce_date_time(woce_date, woce_time):
     except:
         raise ValueError(
                   "The time given (%s, %s) is not in the WOCE date format." % \
-                  (i_woce_date, i_woce_time))
+                  (woce_date, woce_time))
 
 
 def read_data(self, handle, parameters_line, units_line, asterisk_line):
