@@ -69,7 +69,10 @@ def milliliter_per_liter_to_umol_per_kg(file, column):
                                'record#%d') % (temperature, i))
             sigt = libcchdo.algorithms.volume.sigma_r(
                 0.0, 0.0, temperature, salinity)
-            column.values[i] /= (0.022392 * (sigt / 1.0e3 + 1.0))
+            o2_atomic_weight = 31.9988
+            density_o2 = 1.42905481 # g/l @ 273.15K
+            constant = o2_atomic_weight / density_o2 * 0.001
+            column.values[i] /= (constant * (sigt / 1.0e3 + 1.0))
         else:
             raise ValueError(('Cannot apply conversion for oxygen to '
                               'non-oxygen parameter.'))
