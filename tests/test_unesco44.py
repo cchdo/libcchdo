@@ -1,26 +1,29 @@
 """ Test case for libcchdo.Column """
 
 import libcchdo
+import libcchdo.algorithms.depth as X
 from unittest import TestCase
 
+
 class TestColumn(TestCase):
+
 #  def test_specific_volume(self):
-#    self.assertEqual(1.000033251, libcchdo.fns.specific_volume(0, 5, 0))
-#    self.assertEqual(0.957736964, libcchdo.fns.specific_volume(0, 5, 10000))
-#    self.assertEqual(1.00296078,  libcchdo.fns.specific_volume(0, 25, 0))
-#    self.assertEqual(0.963482064, libcchdo.fns.specific_volume(0, 25, 10000))
-#    self.assertEqual(0.973069835, libcchdo.fns.specific_volume(35, 5, 0))
-#    self.assertEqual(0.935025857, libcchdo.fns.specific_volume(35, 5, 10000))
-#    self.assertEqual(0.977189409, libcchdo.fns.specific_volume(35, 25, 0))
-#    self.assertEqual(0.941142660, libcchdo.fns.specific_volume(35, 25, 10000))
+#    self.assertEqual(1.000033251, X.specific_volume(0, 5, 0))
+#    self.assertEqual(0.957736964, X.specific_volume(0, 5, 10000))
+#    self.assertEqual(1.00296078,  X.specific_volume(0, 25, 0))
+#    self.assertEqual(0.963482064, X.specific_volume(0, 25, 10000))
+#    self.assertEqual(0.973069835, X.specific_volume(35, 5, 0))
+#    self.assertEqual(0.935025857, X.specific_volume(35, 5, 10000))
+#    self.assertEqual(0.977189409, X.specific_volume(35, 25, 0))
+#    self.assertEqual(0.941142660, X.specific_volume(35, 25, 10000))
 
   def test_density(self):
-    self.assertAlmostEqual(libcchdo.fns.density( 0, 5,      0),  999.96675, 5)
-    self.assertAlmostEqual(libcchdo.fns.density( 0, 5,  10000), 1044.12802, 5)
-    self.assertAlmostEqual(libcchdo.fns.density( 0, 25,     0),  997.04796, 5)
-    self.assertAlmostEqual(libcchdo.fns.density( 0, 25, 10000), 1037.90204, 5)
+      self.assertAlmostEqual(X.density( 0, 5,      0),  999.96675, 5)
+      self.assertAlmostEqual(X.density( 0, 5,  10000), 1044.12802, 5)
+      self.assertAlmostEqual(X.density( 0, 25,     0),  997.04796, 5)
+      self.assertAlmostEqual(X.density( 0, 25, 10000), 1037.90204, 5)
 
-    self.assertAlmostEqual(libcchdo.fns.density(35, 5,      0), 1027.67547, 5)
-    self.assertAlmostEqual(libcchdo.fns.density(35, 5,  10000), 1069.48914, 5)
-    self.assertAlmostEqual(libcchdo.fns.density(35, 25,     0), 1023.34306, 5)
-    self.assertAlmostEqual(libcchdo.fns.density(35, 25, 10000), 1062.53817, 5)
+      self.assertAlmostEqual(X.density(35, 5,      0), 1027.67547, 5)
+      self.assertAlmostEqual(X.density(35, 5,  10000), 1069.48914, 5)
+      self.assertAlmostEqual(X.density(35, 25,     0), 1023.34306, 5)
+      self.assertAlmostEqual(X.density(35, 25, 10000), 1062.53817, 5)

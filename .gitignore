@@ -6,3 +6,4 @@
 *.pyc
 dev
 .coverage
+db/*.db

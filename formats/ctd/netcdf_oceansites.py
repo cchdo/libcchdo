@@ -9,6 +9,7 @@ from warnings import warn
 
 import libcchdo
 import libcchdo.formats.netcdf as nc
+import libcchdo.algorithms.depth
 
 
 WOCE_to_OceanSITES_flag = {
@@ -279,20 +280,21 @@ def write(self, handle, timeseries=None, timeseries_info={}):
                 flag[:] = map(_WOCE_to_OceanSITES_flag, column.flags_woce)
         if name is 'PRES':
             # Fun using Sverdrup's depth integration with density.
-            localgrav = libcchdo.fns.grav_ocean_surface_wrt_latitude(
-                self.globals['LATITUDE'])
+            localgrav = \
+                libcchdo.algorithms.depth.grav_ocean_surface_wrt_latitude(
+                    self.globals['LATITUDE'])
             sal_tmp_pres = zip(self.columns['CTDSAL'].values,
                                self.columns['CTDTMP'].values,
                                column.values)
             density_series = filter(
-                None, [libcchdo.fns.density(*args) for args in sal_tmp_pres])
+                None, [libcchdo.algorithms.depth.density(*args) for args in sal_tmp_pres])
 
             try: 
-                depth_series = libcchdo.fns.depth(
+                depth_series = libcchdo.algorithms.depth.depth(
                     localgrav, column.values, density_series)
             except ValueError:
                 depth_series = map(
-                    lambda pres: libcchdo.fns.depth_unesco(
+                    lambda pres: libcchdo.algorithms.depth.depth_unesco(
                         pres, self.globals['LATITUDE']),
                     self.columns['CTDPRS'].values)
 
