@@ -68,7 +68,6 @@ def reorder_file_pressure(file, ascending=True):
 
 def main(argv):
     '''Reorder casts.'''
-    print argv
 
     if len(sys.argv) < 2:
         inputfile = raw_input(('Please give an input Exchange filename '
