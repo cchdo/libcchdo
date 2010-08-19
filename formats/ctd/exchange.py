@@ -6,7 +6,7 @@ from warnings import warn
 
 import libcchdo
 
-REQUIRED_HEADERS = ('EXPOCODE', 'SECT', 'STNNBR', 'CASTNO', 'DATE',
+REQUIRED_HEADERS = ('EXPOCODE', 'SECT_ID', 'STNNBR', 'CASTNO', 'DATE',
                     'TIME', 'LATITUDE', 'LONGITUDE', 'DEPTH', )
 
 def read(self, handle):
@@ -119,10 +119,13 @@ def write(self, handle):
     #XXX
     units = []
     for c in self.sorted_columns():
-        u = c.parameter.units.mnemonic
-        units.append(u)
+        if c.parameter.units:
+            u = c.parameter.units.mnemonic
+            units.append(u)
+        else:
+            units.append('')
         if c.is_flagged():
-            units.append("")
+            units.append('')
     handle.write(",".join(units)+"\n")
     #XXX
 
@@ -131,7 +134,7 @@ def write(self, handle):
         data = []
         for c in columns:
             data.append(
-                ('%'+c.parameter.format) % float(c[i]) if c[i] else -999)
+                c.parameter.format % float(c[i]) if c[i] else -999)
             if c.is_flagged_woce():
                 data.append(c.flags_woce[i])
             if c.is_flagged_igoss():
