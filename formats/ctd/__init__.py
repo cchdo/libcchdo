@@ -1,2 +1,4 @@
-__all__ = ['exchange.py', 'netcdf.py', 'netcdf_oceansites.py', 'oden.py',
-           'woce.py', 'zip']
+__all__ = [
+    'exchange.py', 'netcdf.py', 'netcdf_oceansites.py', 'oden.py', 'woce.py',
+    'bacp.py', 'zip',
+]
