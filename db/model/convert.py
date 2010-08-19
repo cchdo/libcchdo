@@ -21,8 +21,18 @@ def parameter(legacy):
             legacy.units, legacy.unit_mnemonic) if \
             legacy.units else None
         parameter.mnemonic = legacy.name
+
+        def find_or_create_parameter_alias(name):
+            alias = std.session().query(std.ParameterAlias).filter(
+                std.ParameterAlias.name==name).first()
+
+            if not alias:
+                alias = std.ParameterAlias(name)
+
+            return alias
+
         parameter.aliases = map(
-            lambda x: std.ParameterAlias(x.strip()),
+            lambda x: find_or_create_parameter_alias(x.strip()), 
             legacy.alias.split(',')) if legacy.alias else []
         try:
             parameter.display_order = legacy.display_order

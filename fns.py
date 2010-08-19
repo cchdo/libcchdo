@@ -68,7 +68,7 @@ def read_arbitrary(handle):
         import formats.ctd.zip.netcdf
         formats.ctd.zip.netcdf.read(datafile, handle)
     else:
-      raise ValueError('Unrecognized file type for %s' % filename)
+        raise ValueError('Unrecognized file type for %s' % filename)
 
     return datafile
 
