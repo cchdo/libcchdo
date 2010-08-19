@@ -42,7 +42,8 @@ class Institution(Base):
     name = S.Column(S.String)
     country_id = S.Column(S.ForeignKey('countries.iso3166'))
 
-    country = S.orm.relation(Country, backref='institutions')
+    country = S.orm.relation(Country, backref=S.orm.backref('institutions',
+                                                            lazy='dynamic'))
 
     def __init__(self, name):
         self.name = name
@@ -58,7 +59,9 @@ class Contact(Base):
     name = S.Column(S.String(255)) # TODO
     institution_id = S.Column(S.ForeignKey('institutions.id'))
 
-    institution = S.orm.relation(Institution, backref='contacts')
+    institution = S.orm.relation(Institution,
+                                 backref=S.orm.backref('contacts',
+                                                       lazy='dynamic'))
 
     def __init__(self, name):
         self.name = name
@@ -75,7 +78,8 @@ class Ship(Base):
     code_NODC = S.Column(S.String(6))
     country_id = S.Column(S.ForeignKey('countries.iso3166'))
 
-    country = S.orm.relation(Country, backref='ships')
+    country = S.orm.relation(Country,
+                             backref=S.orm.backref('ships', lazy='dynamic'))
 
     def __init__(self, name, code_NODC=None):
         self.name = name
@@ -87,8 +91,8 @@ class Ship(Base):
 
 
 cruises_pis = S.Table('cruises_pis', _metadata,
-    S.Column('pi_id', S.ForeignKey('contacts.id')),
-    S.Column('cruise_id', S.ForeignKey('cruises.id')),
+    S.Column('pi_id', S.ForeignKey('contacts.id', ondelete='CASCADE')),
+    S.Column('cruise_id', S.ForeignKey('cruises.id', ondelete='CASCADE')),
 )
 
 
@@ -119,8 +123,8 @@ class Project(Base):
 
 
 cruises_projects = S.Table('cruises_projects', _metadata,
-     S.Column('cruise_id', S.ForeignKey('cruises.id')),
-     S.Column('project_id', S.ForeignKey('projects.id')),
+     S.Column('cruise_id', S.ForeignKey('cruises.id', ondelete='CASCADE')),
+     S.Column('project_id', S.ForeignKey('projects.id', ondelete='CASCADE')),
 )
 
 
@@ -150,16 +154,17 @@ class Cruise(Base):
     country_id = S.Column(S.ForeignKey('countries.iso3166'))
 
     ship = S.orm.relation(
-        Ship, backref=S.orm.backref('cruises', order_by=id))
-    pis = S.orm.relation(Contact, secondary=cruises_pis, backref='cruises')
+        Ship, backref=S.orm.backref('cruises', order_by=id, lazy='dynamic'))
+    pis = S.orm.relation(Contact, secondary=cruises_pis,
+                         backref=S.orm.backref('cruises', lazy='dynamic'))
     projects = S.orm.relation(Project, secondary=cruises_projects,
-                              backref='cruises')
+                              backref=S.orm.backref('cruises', lazy='dynamic'))
 
     def __init__(self, expocode):
         self.expocode = expocode
 
     def __repr__(self):
-        return "<Cruise('%s')>" % expocode
+        return "<Cruise('%s', '%s')>" % (self.expocode, self.casts)
 
 
 class Unit(Base):
@@ -180,7 +185,7 @@ class Unit(Base):
 class ParameterAlias(Base):
     __tablename__ = 'parameter_aliases'
 
-    parameter_id = S.Column(S.ForeignKey('parameters.id'))
+    parameter_id = S.Column(S.ForeignKey('parameters.id', ondelete='CASCADE'))
     name = S.Column(S.String(255), primary_key=True)
 
     def __init__(self, name):
@@ -203,7 +208,8 @@ class Parameter(Base):
     display_order = S.Column(S.Integer(10))
 
     units = S.orm.relation(Unit)
-    aliases = S.orm.relation(ParameterAlias, backref='parameter')
+    aliases = S.orm.relation(
+        ParameterAlias, backref=S.orm.backref('parameter', lazy='dynamic'))
 
     def mnemonic_woce(self):
         return self.name
@@ -235,13 +241,15 @@ class Cast(Base):
     __tablename__ = 'casts'
 
     id = S.Column(S.Integer, primary_key=True)
-    cruise_id = S.Column(S.ForeignKey('cruises.id'))
+    cruise_id = S.Column(S.ForeignKey('cruises.id', ondelete='CASCADE'))
     name = S.Column(S.String(10))
     station = S.Column(S.String(10))
 
-    cruise = S.orm.relation(Cruise, backref='casts')
+    cruise = S.orm.relation(Cruise,
+                            backref=S.orm.backref('casts', lazy='dynamic'))
 
-    def __init__(self, name, station):
+    def __init__(self, cruise, name, station):
+        self.cruise = cruise
         self.name = name
         self.station = station
 
@@ -269,16 +277,22 @@ class Location(Base):
             (self.datetime, self.latitude, self.longitude, self.bottom_depth)
 
 
+S.Index('locations_uniq',
+        Location.datetime, Location.latitude, Location.longitude,
+        Location.bottom_depth,
+        unique=True)
+
+
 class CTD(Base):
     __tablename__ = 'ctds'
 
     id = S.Column(S.Integer, primary_key=True)
-    cast_id = S.Column(S.ForeignKey('casts.id'))
+    cast_id = S.Column(S.ForeignKey('casts.id', ondelete='CASCADE'))
     location_id = S.Column(S.ForeignKey('locations.id'))
     instrument_id = S.Column(S.Integer)
 
-    cast = S.orm.relation(Cast, backref='ctds')
-    location = S.orm.relation(Location, backref='ctds')
+    cast = S.orm.relation(Cast, backref=S.orm.backref('ctds', lazy='dynamic'))
+    location = S.orm.relation(Location, backref=S.orm.backref('ctds', lazy='dynamic'))
 
     def __init__(self, cast, location, instrument_id):
         self.cast = cast
@@ -293,14 +307,18 @@ class CTD(Base):
 class DataCTD(Base):
     __tablename__ = 'data_ctds'
 
-    ctd_id = S.Column(S.ForeignKey('ctds.id'), primary_key=True)
-    parameter_id = S.Column(S.ForeignKey('parameters.id'), primary_key=True)
+    ctd_id = S.Column(S.ForeignKey('ctds.id', ondelete='CASCADE'),
+                      primary_key=True)
+    parameter_id = S.Column(S.ForeignKey('parameters.id', ondelete='CASCADE'),
+                            primary_key=True)
     value = S.Column(S.Numeric)
     flag_woce = S.Column(S.Integer(10))
     flag_igoss = S.Column(S.Integer(10))
 
-    ctd = S.orm.relation(CTD, backref='data_ctd')
-    parameter = S.orm.relation(Parameter, backref='data')
+    ctd = S.orm.relation(CTD,
+                         backref=S.orm.backref('data_ctd', lazy='dynamic'))
+    parameter = S.orm.relation(Parameter,
+                               backref=S.orm.backref('data', lazy='dynamic'))
 
     def __init__(self, ctd, parameter, value, flag_woce=None, flag_igoss=None):
         self.ctd = ctd
@@ -320,7 +338,7 @@ class Bottle(Base):
     __tablename__ = 'bottles'
 
     id = S.Column(S.Integer, primary_key=True)
-    cast_id = S.Column(S.ForeignKey('casts.id'))
+    cast_id = S.Column(S.ForeignKey('casts.id', ondelete='CASCADE'))
     location_id = S.Column(S.ForeignKey('locations.id'))
     name = S.Column(S.String(10))
     sample = S.Column(S.String(10))
@@ -329,8 +347,10 @@ class Bottle(Base):
     latitude = S.Column(S.Numeric)
     longitude = S.Column(S.Numeric)
 
-    cast = S.orm.relation(Cast, backref='bottles')
-    location = S.orm.relation(Location, backref='bottles')
+    cast = S.orm.relation(Cast, backref=S.orm.backref('bottles',
+                                                      lazy='dynamic'))
+    location = S.orm.relation(Location,
+                              backref=S.orm.backref('bottles', lazy='dynamic'))
 
     def __init__(self, cast, location, name, sample=None,
                  flag_woce=None, flag_igoss=None):
@@ -353,14 +373,18 @@ class Bottle(Base):
 class DataBottle(Base):
     __tablename__ = 'data_bottles'
 
-    bottle_id = S.Column(S.ForeignKey('bottles.id'), primary_key=True)
-    parameter_id = S.Column(S.ForeignKey('parameters.id'), primary_key=True)
+    bottle_id = S.Column(S.ForeignKey('bottles.id', ondelete='CASCADE'),
+                         primary_key=True)
+    parameter_id = S.Column(S.ForeignKey('parameters.id', ondelete='CASCADE'),
+                            primary_key=True)
     value = S.Column(S.Numeric)
     flag_woce = S.Column(S.Integer(10))
     flag_igoss = S.Column(S.Integer(10))
 
-    bottle = S.orm.relation(Bottle, backref='data')
-    parameter = S.orm.relation(Parameter, backref='data_bottle')
+    bottle = S.orm.relation(Bottle,
+                            backref=S.orm.backref('data', lazy='dynamic'))
+    parameter = S.orm.relation(
+        Parameter, backref=S.orm.backref('data_bottle', lazy='dynamic'))
 
     def __init__(self, bottle, parameter, value, flag_woce=None, flag_igoss=None):
         self.bottle = bottle

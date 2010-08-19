@@ -114,7 +114,10 @@ class Column(object):
                                       COLORS['CLEAR'], self.values)
 
    def __cmp__(self, other):
-       return self.parameter.display_order - other.parameter.display_order
+       try:
+           return self.parameter.display_order - other.parameter.display_order
+       except:
+           return -1
 
 
 class File(object):
@@ -245,6 +248,18 @@ class DataFile(File):
                     parameter, units[i] if units else None)
             except Exception, e:
                 raise e
+
+            expected_units = \
+                self.columns[parameter].parameter.units.mnemonic if \
+                self.columns[parameter].parameter and \
+                self.columns[parameter].parameter.units else None
+            if units and expected_units:
+                given_unit = units[i]
+                if expected_units != given_unit:
+                    warn(("Mismatched units for %s. Expected '%s' and "
+                          "received '%s'") % (parameter, expected_units,
+                                              given_unit))
+
 
 class DataFileCollection(object):
 
