@@ -144,7 +144,7 @@ class File(object):
             parameter = column.parameter
             std_parameter = db.parameters.find_by_mnemonic_std(parameter.name)
 
-            if not std_parameter:
+            if not std_parameter and not parameter.name.startswith('_'):
                 warn("Unknown parameter '%s'" % parameter.name)
                 continue
 
