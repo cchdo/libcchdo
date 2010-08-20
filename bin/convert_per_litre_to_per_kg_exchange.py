@@ -36,7 +36,7 @@ def check_and_replace_parameters(self):
         std_parameter = libcchdo.db.parameters.find_by_mnemonic_std(
                             parameter.name)
 
-        if not std_parameter:
+        if not std_parameter and not parameter.name.startswith('_'):
             libcchdo.warn("Unknown parameter '%s'" % parameter.name)
             continue
 
