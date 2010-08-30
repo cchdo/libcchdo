@@ -1,10 +1,13 @@
 import sys
 
-import libcchdo.db.model.std as std
+import libcchdo.db.parameters
+import libcchdo.db.model as model
+import libcchdo.db.model.legacy
+import libcchdo.db.model.std
 
 def parameter(legacy):
     if legacy:
-        parameter = std.Parameter(legacy.name)
+        parameter = model.std.Parameter(legacy.name)
         parameter.full_name = legacy.full_name
         try:
             parameter.format = '%' + legacy.ruby_precision.strip() if \
@@ -17,17 +20,17 @@ def parameter(legacy):
         parameter.bound_lower = float(range[0]) if range[0] else None
         parameter.bound_upper = float(range[1]) if range[1] else None
 
-        parameter.units = std.Unit(
+        parameter.units = model.std.Unit(
             legacy.units, legacy.unit_mnemonic) if \
             legacy.units else None
         parameter.mnemonic = legacy.name
 
         def find_or_create_parameter_alias(name):
-            alias = std.session().query(std.ParameterAlias).filter(
-                std.ParameterAlias.name==name).first()
+            alias = model.std.session().query(model.std.ParameterAlias).filter(
+                model.std.ParameterAlias.name==name).first()
 
             if not alias:
-                alias = std.ParameterAlias(name)
+                alias = model.std.ParameterAlias(name)
 
             return alias
 
@@ -44,3 +47,20 @@ def parameter(legacy):
         return None
 
 
+def all_parameters():
+    legacy_parameters = [x[0] for x in 
+        model.legacy.session().query(model.legacy.Parameter.name).all()]
+
+    std_parameters = [libcchdo.db.parameters.find_by_mnemonic(x) for x in 
+        legacy_parameters]
+
+    # Additional modifications
+    display_order = 1
+    std_parameters.insert(0, model.std.Parameter(
+        'EXPOCODE', 'ExpoCode', '%11s', display_order=display_order))
+    display_order += 1
+    std_parameters.insert(1, model.std.Parameter(
+        'SECT_ID', 'Section ID', '%11s', display_order=display_order))
+    display_order += 1
+
+    return std_parameters
