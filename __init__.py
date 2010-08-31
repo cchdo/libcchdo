@@ -158,7 +158,7 @@ class File(object):
 
             given_units = parameter.units.mnemonic if parameter.units else None
             expected_units = std_parameter.units.mnemonic \
-                if std_parameter.units else None
+                if std_parameter and std_parameter.units else None
             from_to = (given_units, expected_units)
 
             if given_units and expected_units and given_units != expected_units:

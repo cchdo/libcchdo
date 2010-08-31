@@ -6,9 +6,7 @@ import sqlalchemy.orm
 import sqlalchemy.ext.declarative
 
 import libcchdo
-import libcchdo.db.model as model
-import libcchdo.db.model.std
-import libcchdo.db.model.convert
+import convert
 
 
 Base = S.ext.declarative.declarative_base()
@@ -413,9 +411,9 @@ library_db_file_path = os.path.join(libcchdo._get_library_abspath(),
 if not os.path.isfile(library_db_file_path):
     libcchdo.warn(("The library's database file (%s) is not present. Auto-"
                    "generation is taking place.") % library_db_file_path)
-    model.std.create_all()
+    create_all()
 
-    std_session = model.std.session()
-    std_session.add_all(model.convert.all_parameters())
+    std_session = session()
+    std_session.add_all(convert.all_parameters())
     std_session.commit()
     std_session.close()

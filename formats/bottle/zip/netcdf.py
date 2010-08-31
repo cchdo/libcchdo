@@ -1,20 +1,19 @@
 """libcchdo.formats.bottle.zip.netcdf"""
 
-from tempfile import mkdtemp
-from StringIO import StringIO
-from zipfile import ZipFile, ZipInfo
+import os
+import tempfile
+import StringIO
+import zipfile
 
-from netCDF3 import DataSet
-
-from ..netcdf import netcdf
+from .. import netcdf
 
 
 def read(self, handle):
     """How to read Bottle NetCDF files from a Zip."""
-    zip = ZipFile(handle, 'r')
+    zip = zipfile.ZipFile(handle, 'r')
     for file in zip.namelist():
         if '.csv' not in file: continue
-        tempstream = StringIO(zip.read(file))
+        tempstream = StringIO.StringIO(zip.read(file))
         bottlefile = DataFile()
         netcdf(bottlefile).read(tempstream)
         self.datafile.files.append(bottlefile)
@@ -29,15 +28,15 @@ def write(self, handle):
     """
     # NetCDF libraries like to write to a file.
     # Work around that by giving temp dir.
-    tempdir = mkdtemp()
+    tempdir = tempfile.mkdtemp()
 
-    for file in self.datafile.files:
+    for file in self.files:
         netcdf(file).write(tempdir)
 
-    zip = ZipFile(handle, 'w')
-    for file in listdir(tempdir):
-        fullpath = tempdir+'/'+file
+    zip = zipfile.ZipFile(handle, 'w')
+    for file in os.listdir(tempdir):
+        fullpath = os.path.join(tempdir, file)
         zip.write(fullpath)
-        remove(fullpath)
-    rmdir(tempdir)
+        os.remove(fullpath)
+    os.rmdir(tempdir)
     zip.close()
