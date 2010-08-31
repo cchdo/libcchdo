@@ -43,6 +43,9 @@ def read_arbitrary(handle):
     if filename.endswith('su.txt'):
         import formats.summary.woce
         formats.summary.woce.read(datafile, handle)
+    elif filename.endswith('.hot.su.txt'):
+        import formats.summary.hot
+        formats.summary.hot.read(datafile, handle)
     elif filename.endswith('hy.txt'):
         import formats.bottle.woce
         formats.bottle.woce.read(datafile, handle)

@@ -16,7 +16,7 @@ def main(argv):
 
     json = len(argv) > 2 and argv[2].lower() == 'true'
     
-    with open(sys.argv[1], 'r') as in_file:
+    with open(argv[1], 'r') as in_file:
         file = libcchdo.fns.read_arbitrary(in_file)
         google_wire.write(file, sys.stdout, json=json)
 
