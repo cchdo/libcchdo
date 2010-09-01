@@ -11,6 +11,7 @@ MAX_PRESSURE with a '_', the library will not retrive the parameter definition
 from the database (there is none anyway).
 """
 
+import os
 from warnings import warn
 
 try:
@@ -42,6 +43,15 @@ def _get_library_abspath():
     import inspect
     return os.path.split(os.path.abspath(inspect.getfile(
                        inspect.currentframe())))[0]
+
+
+def set_list(list, i, value):
+    try:
+        list[i] = value
+    except IndexError:
+        list.extend([None] * index - len(list))
+        list[i] = value
+
 
 
 import db
@@ -85,11 +95,11 @@ class Column(object):
            self.values.append(None)
            self.flags_woce.append(None)
            self.flags_igoss.append(None)
-       self.values.insert(index, value)
+       set_list(self.values, index, value)
        if flag_woce is not None:
-           self.flags_woce.insert(index, flag_woce)
+           set_list(self.flags_woce, index, flag_woce)
        if flag_igoss is not None:
-           self.flags_igoss.insert(index, flag_igoss)
+           set_list(self.flags_igoss, index, flag_igoss)
 
    def append(self, value=None, flag_woce=None, flag_igoss=None):
        self.values.append(value)
@@ -285,3 +295,19 @@ class DataFileCollection(object):
         return [file.stamp for file in self.files.values()]
 
 
+# initialize the database file if it is not present
+
+library_db_file_path = os.path.join(_get_library_abspath(), 
+    'db', db.connect._DB_LIBRARY_FILE)
+
+if not os.path.isfile(library_db_file_path):
+    warn(("the library's database file (%s) is not present. auto-"
+          "generation is taking place.") % library_db_file_path)
+    import db.model.std
+    import db.model.convert as convert
+    db.model.std.create_all()
+
+    std_session = db.model.std.session()
+    std_session.add_all(convert.all_parameters())
+    std_session.commit()
+    std_session.close()

@@ -9,7 +9,7 @@ import libcchdo
 import connect
 import model
 import model.legacy
-import model.convert
+import model.std
 
 
 def make_contrived_parameter(name, format=None, units=None, bound_lower=None,

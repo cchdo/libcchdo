@@ -6,8 +6,10 @@ from warnings import warn
 
 import libcchdo
 
+
 REQUIRED_HEADERS = ('EXPOCODE', 'SECT_ID', 'STNNBR', 'CASTNO', 'DATE',
                     'TIME', 'LATITUDE', 'LONGITUDE', 'DEPTH', )
+
 
 def read(self, handle):
     '''How to read a CTD Exchange file.'''
@@ -134,7 +136,7 @@ def write(self, handle):
         data = []
         for c in columns:
             data.append(
-                c.parameter.format % float(c[i]) if c[i] else -999)
+                c.parameter.format % (float(c[i]) if c[i] else -999.0))
             if c.is_flagged_woce():
                 data.append(c.flags_woce[i])
             if c.is_flagged_igoss():

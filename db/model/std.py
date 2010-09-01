@@ -6,7 +6,7 @@ import sqlalchemy.orm
 import sqlalchemy.ext.declarative
 
 import libcchdo
-import convert
+import libcchdo.db.model as model
 
 
 Base = S.ext.declarative.declarative_base()
@@ -401,19 +401,3 @@ class DataBottle(Base):
         return "<DataBottle('%s', '%s', '%s', '%s', '%s')>" % \
             (self.bottle, self.parameter, self.value,
              self.flag_woce, self.flag_igoss)
-
-
-# Initialize the database file if it is not present
-
-library_db_file_path = os.path.join(libcchdo._get_library_abspath(), 
-    'db', libcchdo.db.connect._DB_LIBRARY_FILE)
-
-if not os.path.isfile(library_db_file_path):
-    libcchdo.warn(("The library's database file (%s) is not present. Auto-"
-                   "generation is taking place.") % library_db_file_path)
-    create_all()
-
-    std_session = session()
-    std_session.add_all(convert.all_parameters())
-    std_session.commit()
-    std_session.close()

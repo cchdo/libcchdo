@@ -26,7 +26,8 @@ def write(self, handle):
     zip = zipfile.ZipFile(handle, 'w')
     for file in self.files:
         tempstream = StringIO.StringIO()
-        ctd.exchange.exchange(file).write(tempstream)
+        ctdex.write(file, tempstream)
+
         station = int(file.globals['STNNBR'].strip())
         cast = int(file.globals['CASTNO'].strip())
         info = zipfile.ZipInfo('%s_%05d_%05d_ct1.csv' % \
@@ -35,6 +36,7 @@ def write(self, handle):
         info.date_time = (dt.year, dt.month, dt.day,
                           dt.hour, dt.minute, dt.second)
         info.external_attr = 0644 << 16L
+
         zip.writestr(info, tempstream.getvalue())
         tempstream.close()
     zip.close()
