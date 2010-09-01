@@ -51,10 +51,11 @@ def all_parameters():
     legacy_parameters = [x[0] for x in 
         model.legacy.session().query(model.legacy.Parameter.name).all()]
 
-    std_parameters = [libcchdo.db.parameters.find_by_mnemonic(x) for x in 
+    std_parameters = [libcchdo.db.parameters.find_by_mnemonic(x) for x in \
         legacy_parameters]
 
     # Additional modifications
+    # Add EXPOCODE and SECT_ID to known parameters
     display_order = 1
     std_parameters.insert(0, model.std.Parameter(
         'EXPOCODE', 'ExpoCode', '%11s', display_order=display_order))
@@ -62,5 +63,8 @@ def all_parameters():
     std_parameters.insert(1, model.std.Parameter(
         'SECT_ID', 'Section ID', '%11s', display_order=display_order))
     display_order += 1
+    # Change CTDOXY's precision to 9.4f
+    i = [p.mnemonic_woce() for p in std_parameters].index('CTDOXY')
+    std_parameters[i].format = '%9.4f'
 
     return std_parameters

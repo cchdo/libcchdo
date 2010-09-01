@@ -55,6 +55,9 @@ def read_arbitrary(handle):
     elif filename.endswith('nc_hyd.zip'):
         import formats.bottle.zip.netcdf
         formats.bottle.zip.netcdf.read(datafile, handle)
+    elif filename.endswith('ct1.csv'):
+        import formats.ctd.exchange
+        formats.ctd.exchange.read(datafile, handle)
     elif filename.endswith('ct.zip'):
         import formats.bottle.zip.woce
         formats.ctd.zip.woce.read(datafile, handle)
