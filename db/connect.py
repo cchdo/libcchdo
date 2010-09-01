@@ -26,10 +26,13 @@ _HOST = {
 _DB_MODULE_PATH = os.path.split(inspect.currentframe().f_code.co_filename)[0]
 
 
+_DB_LIBRARY_FILE = 'cchdo_data.db'
+
+
 _DBS = {
     'cchdo_data': S.engine.url.URL(
         _DRIVER['SQLITE'], None, None, None,
-        database=os.path.join(_DB_MODULE_PATH, 'cchdo_data.db')),
+        database=os.path.join(_DB_MODULE_PATH, _DB_LIBRARY_FILE)),
     #'cchdo': S.engine.url.URL(
     #     _DRIVER['MYSQL'], 'cchdo_server', '((hd0hydr0d@t@', _HOST['cchdo'],
     #     database='cchdo'),

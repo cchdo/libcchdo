@@ -36,6 +36,14 @@ class memoize(object):
             return value
 
 
+def _get_library_abspath():
+    import os
+    import os.path as path
+    import inspect
+    return os.path.split(os.path.abspath(inspect.getfile(
+                       inspect.currentframe())))[0]
+
+
 import db
 import db.parameters
 import fns
