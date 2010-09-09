@@ -1,10 +1,11 @@
 import datetime
 import os
-from warnings import warn
+import re
+import tempfile
 
 import libcchdo
 import libcchdo.formats.netcdf as nc
-import libcchdo.formats.woce
+import libcchdo.formats.woce as woce
 
 
 NETCDF_EPOCH = datetime.datetime(1980, 1, 1, 0, 0, 0)
@@ -74,8 +75,12 @@ VARATTRS = frozenset(('time', 'latitude', 'longitude', 'woce_date',
                       'woce_time', 'cast', 'station', ))
 
 
+def _minutes_since_epoch(dtime):
+    return ((dtime - NETCDF_EPOCH).seconds / 60) if dtime else -9
+
+
 def read(self, handle):
-    """How to read a Bottle NetCDF COARDS file."""
+    """How to read a Bottle NetCDF file."""
     filename = handle.name
     nc_file = nc.Dataset(filename, 'r')
     
@@ -101,19 +106,19 @@ def read(self, handle):
     # Probably should trust dtime more because it is translated directly
     # from WOCE time.
     if dtime != calculated_time:
-        warn(('Datetime declarations in Bottle NetCDF file '
-              'do not match (%s, %s)') % (dtime, calculated_time))
+        libcchdo.warn(('Datetime declarations in Bottle NetCDF file '
+                       'do not match (%s, %s)') % (dtime, calculated_time))
 
     varstation = ''.join(filter(None, vars['station'][:].tolist()))
     varcast = ''.join(filter(None, vars['cast'][:].tolist()))
 
     if varstation != station:
-        warn(('Station declarations in Bottle NetCDF file '
-              'do not match (%s, %s)') % (station, varstation))
+        libcchdo.warn(('Station declarations in Bottle NetCDF file '
+                       'do not match (%s, %s)') % (station, varstation))
 
     if varcast != cast:
-        warn(('Cast declarations in Bottle NetCDF file '
-              'do not match (%s, %s)') % (cast, varcast))
+        libcchdo.warn(('Cast declarations in Bottle NetCDF file '
+                       'do not match (%s, %s)') % (cast, varcast))
 
     # Create global columns if they do not exist
     globals_to_vars = {
@@ -133,9 +138,9 @@ def read(self, handle):
     vlo = len(self)
     vhi = vlo + dimensions
     for g, var in globals_to_vars.items():
-        self.columns[g].values[vlo:vhi] = [var[1]] * dimensions
+        self[g].values[vlo:vhi] = [var[1]] * dimensions
 
-    self.columns['BTLNBR'].values[vlo:vhi] = bottle_numbers
+    self['BTLNBR'].values[vlo:vhi] = bottle_numbers
 
     # First pass to create columns
     qc_vars = {}
@@ -151,17 +156,17 @@ def read(self, handle):
                 continue
 
             self.create_columns((name, ))
-            self.columns[name].values[vlo:vhi] = variable[:].tolist()
+            self[name].values[vlo:vhi] = variable[:].tolist()
 
             # Quick conversions to uniform data format
-            self.columns[name].values[vlo:vhi] = map(
+            self[name].values[vlo:vhi] = map(
                 libcchdo.fns.in_band_or_none,
-                self.columns[name].values[vlo:vhi])
+                self[name].values[vlo:vhi])
 
     # Second pass to put in flags
     for name, variable in qc_vars.items():
         if name in self.columns:
-            self.columns[name].flags_woce[vlo:vhi] = variable[:].tolist()
+            self[name].flags_woce[vlo:vhi] = variable[:].tolist()
         else:
             # The column is probably a global
             pass
@@ -182,111 +187,139 @@ def read(self, handle):
     self.check_and_replace_parameters()
 
 
+STATIC_PARAMETERS_PER_CAST = ('EXPOCODE', 'SECT_ID', 'STNNBR', 'CASTNO',
+    '_DATETIME', 'LATITUDE', 'LONGITUDE', 'DEPTH', )
+
+
+def _simplest_str(s):
+    if type(s) is float:
+        if libcchdo.fns.equal_with_epsilon(s, int(s)):
+            s = int(s)
+    return str(s)
+
+
 def write(self, handle):
-    """How to write a Bottle NetCDF COARDS file."""
-    # This time, the handle is actually a path to a tempdir to give to the
-    # NetCDF library to write in.
-    expocode = self.columns['EXPOCODE'][0]
-    station = self.columns['STNNBR'][0].rjust(5, '0')
-    cast = self.columns['CASTNO'][0].rjust(5, '0')
-    filename = '_'.join(expocode, station, cast, 'hy1') + '.nc'
-    fullpath = os.path.join(handle, filename)
+    """How to write a Bottle NetCDF file."""
+    UNKNOWN = 'UNKNOWN'
+    UNSPECIFIED_UNITS = 'unspecified'
+    STRLEN = 40
 
-    nc_file = nc.Dataset(fullpath, 'w')
+    temp = tempfile.NamedTemporaryFile()
+    nc_file = nc.Dataset(temp.name, 'w', format='NETCDF3_CLASSIC')
 
-    # Write dimension variables
-    dim_time = nc_file.createDimension('time', 1)
-    dim_lat = nc_file.createDimension('latitude', 1)
-    dim_lng = nc_file.createDimension('longitude', 1)
-    dims_variable = (dim_time, dim_lat, dim_lng)
-    dims_static = (dim_time, dim_lat, dim_lng)
+    # Define dimension variables
+    makeDim = nc_file.createDimension
+    makeDim('time', 1)
+    makeDim('pressure', len(self))
+    makeDim('latitude', 1)
+    makeDim('longitude', 1)
+    makeDim('string_dimension', STRLEN)
 
-    dim_string = nc_file.createDimension('string_dimension', 10)
-    dims_string = (dim_string, dim_time)
-
-    # Sometimes, there's no WOCE Section associated with a certain STNNBR
-    # and CASTNO. In that case, let the user known it's an UNKNOWN section
-    sect = self.columns['SECT_ID'][0] or 'UNKNOWN'
-
-    nc_file.EXPOCODE = expocode
+    # Define dataset attributes
+    nc_file.EXPOCODE = self['EXPOCODE'][0] or UNKNOWN
     nc_file.Conventions = 'COARDS/WOCE'
     nc_file.WOCE_VERSION = '3.0'
-    nc_file.WOCE_ID = sect
-    nc_file.DATA_TYPE = 'Bottle'
-    nc_file.STATION_NUMBER = station
-    nc_file.CAST_NUMBER = cast
-    nc_file.BOTTOM_DEPTH_METERS = max(self.columns['DEPTH'].values)
-    nc_file.BOTTLE_NUMBERS = ' '.join(self.columns['BTLNBR'].values)
-    if self.columns['BTLNBR'].is_flagged_woce():
-        nc_file.BOTTLE_QUALITY_CODES = ' '.join(
-            self.columns['BTLNBR'].flags_woce)
-    nc_file.Creation_Time = libcchdo.fns.strftime_iso(datetime.datetime.now())
-    header_filter = compile('BOTTLE|db_to_exbot|jjward')
-    header = '# Previous stamp: ' + self.stamp + "\n" + "\n".join(
+    nc_file.WOCE_ID = self['SECT_ID'][0] or UNKNOWN
+    nc_file.DATA_TYPE = 'WOCE Bottle'
+    nc_file.STATION_NUMBER = _simplest_str(self['STNNBR'][0]) or UNKNOWN
+    nc_file.CAST_NUMBER = _simplest_str(self['CASTNO'][0]) or UNKNOWN
+    nc_file.BOTTOM_DEPTH_METERS = int(max(self['DEPTH'].values))
+    nc_file.BOTTLE_NUMBERS = ' '.join(map(_simplest_str, self['BTLNBR'].values))
+    if self['BTLNBR'].is_flagged_woce():
+        nc_file.BOTTLE_QUALITY_CODES = ' '.join(self['BTLNBR'].flags_woce)
+    nc_file.Creation_Time = libcchdo.fns.strftime_iso(datetime.datetime.utcnow())
+
+    header_filter = re.compile('BOTTLE|db_to_exbot|jjward')
+    header = '# Previous stamp: %s\n' % self.globals['stamp'] + "\n".join(
         [x for x in self.header.split("\n") if not header_filter.match(x)])
-    nc_file.ORIGINAL_HEADER = header
+    nc_file.ORIGINAL_HEADER = self.globals['header']
+
     nc_file.WOCE_BOTTLE_FLAG_DESCRIPTION = WOCE_BOTTLE_FLAG_DESCRIPTION
     nc_file.WOCE_WATER_SAMPLE_FLAG_DESCRIPTION = WOCE_WATER_SAMPLE_FLAG_DESCRIPTION
 
-    ncvar = {}
-    ncflagvar = {}
-    for param, column in iter(self.columns):
-        parameter = column.parameter
-        parameter_name = parameter.mnemonic
-        # continue if STATIC_PARAMETERS_PER_CAST.include parameter_name
-        # TODO
-    var_time = nc_file.createVariable('time', 'f', dims_static)
-    var_time.long_name = 'time'
-    var_time.units = 'minutes since 1980-01-01 00:00:00'
-    var_time.data_min = 0
-    var_time.data_max = 0
-    var_time.C_format = '%10d'
+    # Coordinate variables
+    dtime = min(self['_DATETIME'])
 
-    var_latitude = nc_file.createVariable('latitude', 'f', dims_static)
+    var_time = nc_file.createVariable('time', 'i', ('time',))
+    var_time.long_name = 'time'
+    var_time.units = 'minutes since %s' % libcchdo.fns.strftime_iso(NETCDF_EPOCH)
+    var_time.data_min = _minutes_since_epoch(dtime)
+    var_time.data_max = var_time.data_min
+    var_time.C_format = '%10d'
+    var_time[:] = var_time.data_min
+
+    var_latitude = nc_file.createVariable('latitude', 'f', ('latitude',))
     var_latitude.long_name = 'latitude'
     var_latitude.units = 'degrees_N'
-    var_latitude.data_min = 0
-    var_latitude.data_max = 0
+    var_latitude.data_min = self['LATITUDE'][0]
+    var_latitude.data_max = var_latitude.data_min
     var_latitude.C_format = '%9.4f'
+    var_latitude[:] = var_latitude.data_min
 
-    var_longitude = nc_file.createVariable('longitude', 'f', dims_static)
+    var_longitude = nc_file.createVariable('longitude', 'f', ('longitude',))
     var_longitude.long_name = 'longitude'
     var_longitude.units = 'degrees_E'
-    var_longitude.data_min = 0
-    var_longitude.data_max = 0
+    var_longitude.data_min = self['LONGITUDE'][0]
+    var_longitude.data_max = var_longitude.data_min
     var_longitude.C_format = '%9.4f'
+    var_longitude[:] = var_longitude.data_min
 
-    var_woce_date = nc_file.createVariable('woce_date', 'i', dims_static)
+    woce_datetime = woce.strftime_woce_date_time(dtime)
+
+    var_woce_date = nc_file.createVariable('woce_date', 'i', ('time',))
     var_woce_date.long_name = 'WOCE date'
     var_woce_date.units = 'yyyymdd UTC'
-    var_woce_date.data_min = 0 #long min
-    var_woce_date.data_max = 0 #long max
+    var_woce_date.data_min = int(woce_datetime[0] or -9)
+    var_woce_date.data_max = var_woce_date.data_min
     var_woce_date.C_format = '%8d'
+    var_woce_date[:] = var_woce_date.data_min
     
-    var_woce_time = nc_file.createVariable('woce_time', 'i', dims_static)
+    var_woce_time = nc_file.createVariable('woce_time', 'i2', ('time',))
     var_woce_time.long_name = 'WOCE time'
     var_woce_time.units = 'hhmm UTC'
-    var_woce_time.data_min = 0 #long min
-    var_woce_time.data_max = 0 #long max
+    var_woce_time.data_min = int(woce_datetime[1] or -9)
+    var_woce_time.data_max = var_woce_time.data_min
     var_woce_time.C_format = '%4d'
+    var_woce_time[:] = var_woce_time.data_min
     
     # Hydrographic specific
     
-    var_station = nc_file.createVariable('station', 'c', dims_string)
+    var_station = nc_file.createVariable('station', 'c', ('string_dimension',))
     var_station.long_name = 'STATION'
-    var_station.units = 'unspecified'
+    var_station.units = UNSPECIFIED_UNITS
     var_station.C_format = '%s'
+    var_station[:] = _simplest_str(self['STNNBR'][0]).ljust(len(var_station))
     
-    var_cast = nc_file.createVariable('cast', 'c', dims_string)
+    var_cast = nc_file.createVariable('cast', 'c', ('string_dimension',))
     var_cast.long_name = 'CAST'
-    var_cast.units = 'unspecified'
+    var_cast.units = UNSPECIFIED_UNITS
     var_cast.C_format = '%s'
+    var_cast[:] = _simplest_str(self['CASTNO'][0]).ljust(len(var_cast))
 
-    # Write out pairs TODO
+    # Create data variables and fill them
+    for param, column in self.columns.iteritems():
+        parameter = column.parameter
+        parameter_name = parameter.mnemonic_woce()
+        if parameter_name in STATIC_PARAMETERS_PER_CAST:
+            continue
+        var = nc_file.createVariable(parameter.name, 'f8', ('pressure',))
+        var.long_name = parameter.name
+        var.units = parameter.units.name if parameter.units else UNSPECIFIED_UNITS
+        compact_column = filter(None, column)
+        if compact_column:
+            var.data_min = min(compact_column)
+            var.data_max = max(compact_column)
+        else:
+            var.data_min = float('-inf')
+            var.data_max = float('inf')
+        var.C_format = parameter.format
+        var[:] = column.values
 
-    datetime = self.columns['DATE'][0]+self.columns['TIME']
-    time_from_epoch = datetime # TODO
-    cchdo_epoch_offset = datetime.date(1980, 01, 01)
-    var_time[:] = (time_from_epoch - cchdo_epoch_offset)
+        if column.is_flagged_woce():
+            vfw = nc_file.createVariable(parameter.name + nc.QC_SUFFIX, 'i2', ('pressure',))
+            vfw.long_name = parameter.name + nc.QC_SUFFIX
+            vfw[:] = column.flags_woce
 
     nc_file.close()
+    handle.write(temp.read())
+    temp.close()

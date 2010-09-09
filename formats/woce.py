@@ -48,6 +48,8 @@ def dec_lng_to_woce_lng(lng):
 
 
 def strftime_woce_date_time(dtime):
+    if dtime is None:
+        return (None, None)
     return (dtime.strftime('%Y%m%d'), dtime.strftime('%H%M'))
 
 

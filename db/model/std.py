@@ -214,7 +214,7 @@ class Parameter(Base):
         ParameterAlias, backref=S.orm.backref('parameter', lazy='dynamic'))
 
     def mnemonic_woce(self):
-        return self.name
+        return self.name.encode('ascii', 'replace')
 
     def __init__(self, name, full_name=None, format=None, units=None,
                  bound_lower=None, bound_upper=None, display_order=None):

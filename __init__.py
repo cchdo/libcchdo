@@ -16,7 +16,8 @@ from warnings import warn
 
 try:
     from math import isnan
-except ImportError: # Cover when < python-2.6
+except ImportError:
+    # Just in case python < 2.6
     def isnan(n):
         return n != n
 
@@ -37,7 +38,7 @@ class memoize(object):
             return value
 
 
-def _get_library_abspath():
+def get_library_abspath():
     import os
     import os.path as path
     import inspect
@@ -45,12 +46,12 @@ def _get_library_abspath():
                        inspect.currentframe())))[0]
 
 
-def set_list(list, i, value):
+def set_list(L, i, value, fill=None):
     try:
-        list[i] = value
+        L[i] = value
     except IndexError:
-        list.extend([None] * index - len(list))
-        list[i] = value
+        L.extend([fill] * index - len(L))
+        L[i] = value
 
 
 
@@ -115,6 +116,12 @@ class Column(object):
    def __setitem__(self, key, value):
        self.set(key, value)
 
+   def __iter__(self):
+       return self.values.__iter__()
+
+   def __contains__(self, v):
+       return v in self.values
+
    def __len__(self):
        return len(self.values)
 
@@ -151,6 +158,12 @@ class File(object):
     def get_property_for_columns(self, property_getter):
         return map(property_getter, self.sorted_columns())
 
+    def __getitem__(self, index):
+        return self.columns[index]
+
+    def __setitem__(self, key, value):
+        self.columns[key] = value
+
     def __len__(self):
         try:
             return len(self.columns.values()[0])
@@ -161,8 +174,11 @@ class File(object):
         for column in self.columns.values():
             parameter = column.parameter
             std_parameter = db.parameters.find_by_mnemonic_std(parameter.name)
+            
+            if parameter.name.startswith('_'):
+                continue
 
-            if not std_parameter and not parameter.name.startswith('_'):
+            if not std_parameter:
                 warn("Unknown parameter '%s'" % parameter.name)
                 continue
 
@@ -196,7 +212,7 @@ class SummaryFile(File):
             "DEPTH _CAST_TYPE _CODE _NAV _WIRE_OUT _ABOVE_BOTTOM "
             "_MAX_PRESSURE _NUM_BOTTLES _PARAMETERS _COMMENTS").split()
         for column in columns:
-            self.columns[column] = Column(column)
+            self[column] = Column(column)
 
 
 class DataFile(File):
@@ -209,7 +225,7 @@ class DataFile(File):
         self.allow_contrived = allow_contrived
 
     def expocodes(self):
-        return fns.uniquify(self.columns['EXPOCODE'].values)
+        return fns.uniquify(self['EXPOCODE'].values)
 
     def column_headers(self):
         return self.get_property_for_columns(
@@ -239,7 +255,7 @@ class DataFile(File):
     def to_hash(self):
         hash = {}
         for column in self.columns:
-            c = self.columns[column]
+            c = self[column]
             woce = c.parameter.mnemonic_woce()
             hash[woce] = c.values
             if c.is_flagged_woce():
@@ -253,7 +269,7 @@ class DataFile(File):
     def create_columns(self, parameters, units=None):
         '''Create columns given parameters and their units.
            Args:
-               parameters - parameters
+               parameters - parameter names as WOCE mnemonics
                units - units to check. If None then no check is done.
         '''
         for i, parameter in enumerate(parameters):
@@ -262,15 +278,15 @@ class DataFile(File):
                parameter in self.columns:
                 continue
             try:
-                self.columns[parameter] = Column(
+                self[parameter] = Column(
                     parameter, units[i] if units else None)
             except Exception, e:
                 raise e
 
+            column = self[parameter]
             expected_units = \
-                self.columns[parameter].parameter.units.mnemonic if \
-                self.columns[parameter].parameter and \
-                self.columns[parameter].parameter.units else None
+                column.parameter.units.mnemonic if column.parameter and \
+                column.parameter.units else None
             if units and expected_units:
                 given_unit = units[i]
                 if expected_units != given_unit:
@@ -285,23 +301,24 @@ class DataFileCollection(object):
         self.files = []
         self.allow_contrived = allow_contrived
 
-    def merge(datafile):
-        raise NotImplementedError # TODO
-
-    def split(self):
-        raise NotImplementedError # TODO
-
     def stamps(self):
         return [file.stamp for file in self.files.values()]
 
+    def __str__(self):
+        s = u''
+        for i, file in enumerate(self.files):
+            s += '%sFILE %d %s\n' % (COLORS['RED'], i, COLORS['CLEAR'])
+            s += str(file)
+        return s.encode('ascii', 'replace')
 
-# initialize the database file if it is not present
 
-library_db_file_path = os.path.join(_get_library_abspath(), 
+# Initialize the database file, if it is not present.
+
+library_db_file_path = os.path.join(get_library_abspath(), 
     'db', db.connect._DB_LIBRARY_FILE)
 
 if not os.path.isfile(library_db_file_path):
-    warn(("the library's database file (%s) is not present. auto-"
+    warn(("The library's database file (%s) is not present.\nAuto-"
           "generation is taking place.") % library_db_file_path)
     import db.model.std
     import db.model.convert as convert
