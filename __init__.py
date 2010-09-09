@@ -162,7 +162,6 @@ class File(object):
 
     def __init__(self):
         self.columns = {}
-        self.header = ''
         self.unit_converters = {}
 
     def sorted_columns(self):
@@ -206,11 +205,11 @@ class File(object):
                           "expected '%s'") % ((parameter.name,) + from_to))
                 try:
                     unit_converter = self.unit_converters[from_to]
-                    _LIBLOG.info(("Converting from '%s' -> '%s' for %s.") % \
+                    LOG.info(("Converting from '%s' -> '%s' for %s.") % \
                          (from_to + (column.parameter.name,)))
                     column = unit_converter(self, column)
                 except KeyError:
-                    _LIBLOG.info(("No unit converter registered with file for "
+                    LOG.info(("No unit converter registered with file for "
                                   "'%s' -> '%s'. Skipping conversion.") % \
                                   from_to)
                     continue
@@ -222,6 +221,10 @@ class SummaryFile(File):
   
     def __init__(self):
         super(SummaryFile, self).__init__()
+        self.globals = {
+            'stamp': '',
+            'header': '',
+        }
         columns = (
             "EXPOCODE SECT_ID STNNBR CASTNO DATE TIME LATITUDE LONGITUDE "
             "DEPTH _CAST_TYPE _CODE _NAV _WIRE_OUT _ABOVE_BOTTOM "
@@ -234,9 +237,11 @@ class DataFile(File):
 
     def __init__(self, allow_contrived=False):
         super(DataFile, self).__init__()
-        self.stamp = None
         self.footer = None
-        self.globals = {}
+        self.globals = {
+            'stamp': '',
+            'header': '',
+        }
         self.allow_contrived = allow_contrived
 
     def expocodes(self):
@@ -317,7 +322,7 @@ class DataFileCollection(object):
         self.allow_contrived = allow_contrived
 
     def stamps(self):
-        return [file.stamp for file in self.files.values()]
+        return [file.globals['stamp'] for file in self.files.values()]
 
     def __str__(self):
         s = u''
@@ -333,7 +338,7 @@ library_db_file_path = os.path.join(get_library_abspath(),
     'db', db.connect._DB_LIBRARY_FILE)
 
 if not os.path.isfile(library_db_file_path):
-    _LIBLOG.info(
+    LOG.info(
         "The library's missing database file (%s) was auto-generated." % \
         library_db_file_path)
     import db.model.std

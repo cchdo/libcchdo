@@ -13,7 +13,7 @@ def read(self, handle):
             if header_delimiter.match(line):
                 header = False
             else:
-                self.header += line
+                self.globals['header'] += line
         else:
           # TODO Reimplement by finding ASCII column edges in header and
           # reading that way. 

@@ -121,9 +121,7 @@ def read(self, handle):
 
 def write(self, handle):
     '''How to write a Bottle Exchange file.'''
-    handle.write('BOTTLE,%s%s\n' % \
-        (datetime.datetime.now().strftime('%Y%m%d'), libcchdo.LIBVER))
-    handle.write('# Original stamp: %s\n' % self.globals['stamp'])
+    handle.write('BOTTLE,%s\n' % self.globals['stamp'])
     handle.write('# Original header:\n')
     handle.write(self.globals['header'])
 

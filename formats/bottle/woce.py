@@ -15,8 +15,8 @@ def read(self, handle):
         parameters_line = handle.readline()
         units_line = handle.readline()
         asterisk_line = handle.readline()
-        self.header+='\n'.join([stamp_line, parameters_line,
-                                units_line, asterisk_line])
+        self.globals['header'] += '\n'.join(
+            [stamp_line, parameters_line, units_line, asterisk_line])
     except Exception, e:
         raise ValueError('Malformed WOCE header in WOCE Bottle file: %s' % e)
     # Get stamp
@@ -27,7 +27,7 @@ def read(self, handle):
         self.globals['SECT_ID'] = libcchdo.fns.strip_all(m.group(2).split(','))
         self.globals['_BEGIN_DATE'] = m.group(4)
         self.globals['_END_DATE'] = m.group(5)
-        self.stamp = m.groups()[-1] # XXX
+        self.globals['stamp'] = m.groups()[-1] # XXX
     else:
         raise ValueError(("Expected ExpoCode, SectIDs, dates, and a stamp. "
                           "Invalid WOCE record 1."))
@@ -74,6 +74,6 @@ def write(self, handle):
     #         self.globals["SECT_ID"][0],
     #         BEGIN_DATE,
     #         END_DATE,
-    #         self.stamp))
+    #         self.globals['stamp']))
     #libcchdo.formats.woce.write_data(self, handle)
     return NotImplementedError("Not to be used, nitwit!")

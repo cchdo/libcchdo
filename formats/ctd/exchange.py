@@ -16,14 +16,14 @@ def read(self, handle):
     stamp = re.compile('CTD,(\d{8}\w+)')
     m = stamp.match(handle.readline())
     if m:
-        self.stamp = m.group(1)
+        self.globals['stamp'] = m.group(1)
     else:
         raise ValueError(('Expected identifier line with stamp '
                           '(e.g. CTD,YYYYMMDDdivINSwho)'))
     # Read comments
     l = handle.readline()
     while l and l.startswith('#'):
-        self.header += l
+        self.globals['header'] += l
         l = handle.readline()
     # Read NUMBER_HEADERS
     num_headers = re.compile('NUMBER_HEADERS\s+=\s+(\d+)')
@@ -97,13 +97,11 @@ def read(self, handle):
 
 def write(self, handle):
     '''How to write a CTD Exchange file.'''
-    today = datetime.date.today()
-    handle.write('CTD,%4d%02d%02d%s\n' % (today.year, today.month,
-                                          today.day, libcchdo.LIBVER))
-    handle.write(self.header)
+    handle.write('CTD,%s\n' % self.globals['stamp'])
+    handle.write(self.globals['header'])
     handle.write('NUMBER_HEADERS = '+str(len(self.globals.keys())+1)+"\n")
     for header in REQUIRED_HEADERS:
-        handle.write(header+' = '+str(self.globals[header])+"\n")
+        handle.write(header+' = '+str(self.globals['header'])+"\n")
     for key in set(self.globals.keys()) - set(REQUIRED_HEADERS):
         handle.write(key+' = '+str(self.globals[key])+"\n")
 

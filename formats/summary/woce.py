@@ -20,7 +20,7 @@ def read(self, handle):
                 header = False
                 # Stops are tuples (beginning of column, end of column)
                 # This is to delimit the columns of the sumfile
-                stops = re.finditer('(\w+\s*)', self.header.split('\n')[-2])
+                stops = re.finditer('(\w+\s*)', self.globals['header'].split('\n')[-2])
                 for stop in stops:
                     start = stop.start()
                     if len(column_starts) is 0:
@@ -29,7 +29,7 @@ def read(self, handle):
                         column_starts.append(start)
                     column_widths.append(stop.end()-start)
             else:
-                self.header += line
+                self.globals['header'] += line
         else:
             tokens = []
             for s, w in zip(column_starts, column_widths):

@@ -43,7 +43,7 @@ def read(meta, filename):
                     meta[attr]["comment"],
                     meta[attr]["pi"])
 
-    datafile.header = preamble + citation + reference + parameter_descriptions
+    datafile.globals['header'] = preamble + citation + reference + parameter_descriptions
 
     datafile.globals["EXPOCODE"] = None
     datafile.globals["SECT"] = meta["events"]["campaign"]

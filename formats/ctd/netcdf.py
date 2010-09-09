@@ -92,8 +92,7 @@ def read(self, handle):
     for g, param in GLOBALS_TO_RENAME_AS.items():
         self.globals[param] = str(global_attrs[g])
 
-    # Get stamp
-    self.stamp = global_attrs['ORIGINAL_HEADER']
+    self.globals['stamp'] = global_attrs['ORIGINAL_HEADER']
 
     # Clean up
     nc_file.close()
@@ -143,7 +142,7 @@ def write(self, handle):
     nc_file.BOTTOM_DEPTH_METERS = int(self.globals["DEPTH"])
     nc_file.Creation_Time = '%s %sZ' % (libcchdo.LIBVER,
                                         datetime.datetime.utcnow().isoformat())
-    nc_file.ORIGINAL_HEADER = "" #TODO
+    nc_file.ORIGINAL_HEADER = self.globals['header']
     nc_file.WOCE_CTD_FLAG_DESCRIPTION = WOCE_CTD_FLAG_DESCRIPTION
 
     # Dimensions

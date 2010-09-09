@@ -86,7 +86,7 @@ def read(self, handle):
     
     attrs = nc_file.__dict__
     expocode = attrs['EXPOCODE']
-    self.header = attrs['ORIGINAL_HEADER']
+    self.globals['header'] = attrs['ORIGINAL_HEADER']
     station = attrs['STATION_NUMBER']
     cast = attrs['CAST_NUMBER']
     bottle_numbers = attrs['BOTTLE_NUMBERS'].split()
@@ -231,8 +231,8 @@ def write(self, handle):
 
     header_filter = re.compile('BOTTLE|db_to_exbot|jjward')
     header = '# Previous stamp: %s\n' % self.globals['stamp'] + "\n".join(
-        [x for x in self.header.split("\n") if not header_filter.match(x)])
-    nc_file.ORIGINAL_HEADER = self.globals['header']
+        [x for x in self.globals['header'].split("\n") if not header_filter.match(x)])
+    nc_file.ORIGINAL_HEADER = header
 
     nc_file.WOCE_BOTTLE_FLAG_DESCRIPTION = WOCE_BOTTLE_FLAG_DESCRIPTION
     nc_file.WOCE_WATER_SAMPLE_FLAG_DESCRIPTION = WOCE_WATER_SAMPLE_FLAG_DESCRIPTION

@@ -18,10 +18,8 @@ class TestDataFile(TestCase):
   
     def test_init(self):
         self.assertEqual(len(self.file.columns), 1)
-        self.assertEqual(self.file.stamp, None)
-        self.assertEqual(self.file.header, '')
         self.assertEqual(self.file.footer, None)
-        self.assertEqual(self.file.globals, {})
+        self.assertEqual(self.file.globals, {'stamp': '', 'header': ''})
   
     def test_expocodes(self):
         self.c.append('A')
