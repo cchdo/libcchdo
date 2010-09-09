@@ -2,7 +2,6 @@
 
 import re
 import datetime
-from warnings import warn
 
 import libcchdo
 
@@ -61,7 +60,7 @@ def read(self, handle):
     if not all(columns):
         #raise ValueError(("Malformed parameters/unit line; make sure there "
         #                  "are no blank parameters (e.g. extra comma at end)"))
-        warn("Stripped blank parameter from MALFORMED EXCHANGE FILE")
+        libcchdo.LOG.warn("Stripped blank parameter from MALFORMED EXCHANGE FILE")
         columns = filter(None, columns)
 
     self.create_columns(columns, units)

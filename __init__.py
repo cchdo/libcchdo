@@ -12,7 +12,7 @@ from the database (there is none anyway).
 """
 
 import os
-from warnings import warn
+import logging
 
 try:
     from math import isnan
@@ -20,6 +20,20 @@ except ImportError:
     # Just in case python < 2.6
     def isnan(n):
         return n != n
+
+
+class NullHandler(logging.Handler):
+    def emit(self, record):
+        pass
+
+
+_LIBLOG_HANDLER = logging.StreamHandler()
+_LIBLOG_HANDLER.setFormatter(logging.Formatter(
+    '%(asctime)s - %(name)s - %(levelname)s - %(message)s'))
+
+LOG = logging.getLogger('libcchdo')
+LOG.setLevel(logging.DEBUG)
+LOG.addHandler(_LIBLOG_HANDLER)
 
 
 class memoize(object):
@@ -52,7 +66,6 @@ def set_list(L, i, value, fill=None):
     except IndexError:
         L.extend([fill] * (i - len(L) + 1))
         L[i] = value
-
 
 
 import db
@@ -179,7 +192,7 @@ class File(object):
                 continue
 
             if not std_parameter:
-                warn("Unknown parameter '%s'" % parameter.name)
+                LOG.warn("Unknown parameter '%s'" % parameter.name)
                 continue
 
             given_units = parameter.units.mnemonic if parameter.units else None
@@ -187,17 +200,19 @@ class File(object):
                 if std_parameter and std_parameter.units else None
             from_to = (given_units, expected_units)
 
-            if given_units and expected_units and given_units != expected_units:
-                warn(("Mismatched units for '%s'. Found '%s' but expected "
-                      "'%s'") % ((parameter.name,) + from_to))
+            if given_units and expected_units and \
+               given_units != expected_units:
+                LOG.warn(("Mismatched units for '%s'. Found '%s' but "
+                          "expected '%s'") % ((parameter.name,) + from_to))
                 try:
                     unit_converter = self.unit_converters[from_to]
-                    warn(("Converting from '%s' -> '%s' for %s.") % (from_to + 
-                         (column.parameter.name,)))
+                    _LIBLOG.info(("Converting from '%s' -> '%s' for %s.") % \
+                         (from_to + (column.parameter.name,)))
                     column = unit_converter(self, column)
                 except KeyError:
-                    warn(("No unit converter registered with file for "
-                          "'%s' -> '%s'. Skipping conversion.") % from_to)
+                    _LIBLOG.info(("No unit converter registered with file for "
+                                  "'%s' -> '%s'. Skipping conversion.") % \
+                                  from_to)
                     continue
 
             column.parameter = std_parameter
@@ -290,9 +305,9 @@ class DataFile(File):
             if units and expected_units:
                 given_unit = units[i]
                 if expected_units != given_unit:
-                    warn(("Mismatched units for %s. Expected '%s' and "
-                          "received '%s'") % (parameter, expected_units,
-                                              given_unit))
+                    LOG.warn(("Mismatched units for %s. Expected '%s' and "
+                              "received '%s'") % \
+                             (parameter, expected_units, given_unit))
 
 
 class DataFileCollection(object):
@@ -318,8 +333,9 @@ library_db_file_path = os.path.join(get_library_abspath(),
     'db', db.connect._DB_LIBRARY_FILE)
 
 if not os.path.isfile(library_db_file_path):
-    warn(("The library's database file (%s) is not present.\nAuto-"
-          "generation is taking place.") % library_db_file_path)
+    _LIBLOG.info(
+        "The library's missing database file (%s) was auto-generated." % \
+        library_db_file_path)
     import db.model.std
     import db.model.convert as convert
     db.model.std.create_all()

@@ -31,7 +31,7 @@ def oxygen_method_is_whole_not_aliquot():
         if whole_or_aliquot == 'w':
             return True
         elif whole_or_aliquot == 'a':
-            libcchdo.warn('Will use temp=25. for oxygen conversion.')
+            libcchdo.LOG.warn('Will use temp=25. for oxygen conversion.')
             return False
         else:
             print 'Please enter W or A.'
@@ -49,7 +49,7 @@ def milliliter_per_liter_to_umol_per_kg(file, column):
         if salinity <= 0:
             salinity = APPROXIMATION_SALINITY
         elif salinity < 20 or salinity > 60:
-            libcchdo.warn('Salinity (%f) is ridiculous' % salinity)
+            libcchdo.LOG.warn('Salinity (%f) is ridiculous' % salinity)
 
         temperature = _get_first_value_of_parameters(
             file, ('CTDTMP', 'THETA', 'REVTMP'), i)
@@ -65,8 +65,8 @@ def milliliter_per_liter_to_umol_per_kg(file, column):
                 temperature = APPROXIMATION_TEMPERATURE
             elif temperature_missing:
                 temperature = APPROXIMATION_TEMPERATURE
-                libcchdo.warn(('Temperature is missing. Using %f at '
-                               'record#%d') % (temperature, i))
+                libcchdo.LOG.warn(('Temperature is missing. Using %f at '
+                                   'record#%d') % (temperature, i))
             sigt = libcchdo.algorithms.volume.sigma_r(
                 0.0, 0.0, temperature, salinity)
             o2_atomic_weight = 31.9988
@@ -96,7 +96,7 @@ def mol_per_liter_to_mol_per_kg(file, column):
         if salinity <= 0:
             salinity = APPROXIMATION_SALINITY
         elif salinity < 20 or salinity > 60:
-            libcchdo.warn('Salinity (%f) is ridiculous' % salinity)
+            libcchdo.LOG.warn('Salinity (%f) is ridiculous' % salinity)
 
         temperature = _get_first_value_of_parameters(
             file, ('CTDTMP', 'THETA', 'REVTMP'), i)

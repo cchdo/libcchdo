@@ -2,7 +2,6 @@
 
 import re
 import datetime
-from warnings import warn
 
 import libcchdo
 

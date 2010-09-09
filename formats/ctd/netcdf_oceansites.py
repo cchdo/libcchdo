@@ -5,7 +5,6 @@ import string
 import math
 import sys
 import tempfile
-from warnings import warn
 
 import libcchdo
 import libcchdo.formats.netcdf as nc
@@ -116,8 +115,8 @@ def _WOCE_to_OceanSITES_flag(woce_flag):
     try:
         return WOCE_to_OceanSITES_flag[woce_flag]
     except KeyError:
-        warn(('WOCE flag %d was given that does not have '
-              'translation into OceanSITES.') % woce_flag)
+        libcchdo.LOG.warn(('WOCE flag %d was given that does not have '
+                           'translation into OceanSITES.') % woce_flag)
         return 6
 
 

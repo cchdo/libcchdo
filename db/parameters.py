@@ -32,15 +32,16 @@ def find_legacy_parameter(name):
 
     if not legacy_parameter:
         # Try aliases
-        libcchdo.warn(("No legacy parameter found for '%s'. Falling back to "
-                       "aliases.") % name)
+        libcchdo.LOG.warn(("No legacy parameter found for '%s'. Falling "
+                               "back to aliases.") % name)
         legacy_parameter = session.query(legacy.Parameter).filter(
             legacy.Parameter.alias.like('%%%s%%' % name)).first()
         
         if not legacy_parameter:
             # Try known overrides
-            libcchdo.warn(("No legacy parameter found for '%s'. Falling back "
-                           "on known override parameters.") % name)
+            libcchdo.LOG.warn(("No legacy parameter found for '%s'. "
+                                   "Falling back on known override "
+                                   "parameters.") % name)
             legacy_parameter = legacy.Parameter.find_known(name)
     else:
         try:
@@ -76,10 +77,10 @@ def find_by_mnemonic(name, allow_contrived=False):
             #    model.std.Parameter.name == name).first()
             return model.convert.parameter(legacy_parameter)
         except Exception, e:
-            libcchdo.warn(('Conversion from legacy to std parameter failed '
-                           "for '%s': %s") % (name, e))
+            libcchdo.LOG.warn(('Conversion from legacy to std parameter '
+                                   "failed for '%s': %s") % (name, e))
             if allow_contrived:
-                libcchdo.warn(('Falling back to contrived.'))
+                libcchdo.LOG.warn(('Falling back to contrived.'))
                 return get_contrived_parameter(name)
 
 

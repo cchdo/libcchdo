@@ -106,19 +106,19 @@ def read(self, handle):
     # Probably should trust dtime more because it is translated directly
     # from WOCE time.
     if dtime != calculated_time:
-        libcchdo.warn(('Datetime declarations in Bottle NetCDF file '
-                       'do not match (%s, %s)') % (dtime, calculated_time))
+        libcchdo.LOG.warn(('Datetime declarations in Bottle NetCDF file '
+                           'do not match (%s, %s)') % (dtime, calculated_time))
 
     varstation = ''.join(filter(None, vars['station'][:].tolist()))
     varcast = ''.join(filter(None, vars['cast'][:].tolist()))
 
     if varstation != station:
-        libcchdo.warn(('Station declarations in Bottle NetCDF file '
-                       'do not match (%s, %s)') % (station, varstation))
+        libcchdo.LOG.warn(('Station declarations in Bottle NetCDF file '
+                           'do not match (%s, %s)') % (station, varstation))
 
     if varcast != cast:
-        libcchdo.warn(('Cast declarations in Bottle NetCDF file '
-                       'do not match (%s, %s)') % (cast, varcast))
+        libcchdo.LOG.warn(('Cast declarations in Bottle NetCDF file '
+                           'do not match (%s, %s)') % (cast, varcast))
 
     # Create global columns if they do not exist
     globals_to_vars = {

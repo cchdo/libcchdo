@@ -37,7 +37,7 @@ def check_and_replace_parameters(self):
                             parameter.name)
 
         if not std_parameter and not parameter.name.startswith('_'):
-            libcchdo.warn("Unknown parameter '%s'" % parameter.name)
+            libcchdo.LOG.warn("Unknown parameter '%s'" % parameter.name)
             continue
 
         given_units = parameter.units.mnemonic if parameter.units else None
@@ -46,8 +46,9 @@ def check_and_replace_parameters(self):
         from_to = (given_units, expected_units)
 
         if given_units and expected_units and given_units != expected_units:
-            libcchdo.warn(("Mismatched units for '%s'. Found '%s' but "
-                           "expected '%s'") % ((parameter.name,) + from_to))
+            libcchdo.LOG.warn(("Mismatched units for '%s'. Found '%s' but "
+                                   "expected '%s'") % \
+                                   ((parameter.name,) + from_to))
             try:
                 unit_converter = self.unit_converters[from_to]
                 convert = None
@@ -59,15 +60,16 @@ def check_and_replace_parameters(self):
                     except EOFError:
                         pass
                 if convert == 'y':
-                    libcchdo.warn(("Converting from '%s' -> '%s' for %s.") % \
-                                  (from_to + (column.parameter.name,)))
+                    libcchdo.LOG.info(
+                        "Converting from '%s' -> '%s' for %s." % \
+                        (from_to + (column.parameter.name,)))
                     column = unit_converter(self, column)
                 else:
                     # Skip conversion and unit change.
                     continue
             except KeyError:
-                libcchdo.warn(("No unit converter registered with file for "
-                      "'%s' -> '%s'. Skipping conversion.") % from_to)
+                libcchdo.LOG.info(("No unit converter registered with "
+                    "file for '%s' -> '%s'. Skipping conversion.") % from_to)
                 continue
 
         column.parameter = std_parameter

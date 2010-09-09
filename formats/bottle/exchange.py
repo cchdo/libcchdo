@@ -79,15 +79,16 @@ def read(self, handle):
                 try:
                     self.columns[column[:-7]].flags_woce.append(int(value))
                 except KeyError:
-                    libcchdo.warn(("Flag WOCE column exists for parameter %s "
-                                   "but parameter column does not exist.") % \
-                                  column[:-7])
+                    libcchdo.LOG.warn(
+                        ("Flag WOCE column exists for parameter %s but "
+                         "parameter column does not exist.") % column[:-7])
             elif column.endswith('_FLAG_I'):
                 try:
                     self.columns[column[:-7]].flags_igoss.append(int(value))
                 except KeyError:
-                    warn(("Flag IGOSS column exists for parameter %s but "
-                          "parameter column does not exist.") % column[:-7])
+                    libcchdo.LOG.warn(
+                        ("Flag IGOSS column exists for parameter %s but "
+                         "parameter column does not exist.") % column[:-7])
             else:
                 self.columns[column].append(value)
         l = handle.readline().strip()
@@ -191,8 +192,8 @@ def write(self, handle):
                 else:
                     values.append(f % -999.0)
             except Exception, e:
-                libcchdo.warn('Arguments at %d:' % i)
-                libcchdo.warn('\t%s and %s' % (f, c[i]))
+                libcchdo.LOG.warn('Arguments at %d:' % i)
+                libcchdo.LOG.warn('\t%s and %s' % (f, c[i]))
                 raise 
 
         handle.write(','.join(values))

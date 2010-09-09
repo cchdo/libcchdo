@@ -3,7 +3,6 @@
 import libcchdo
 import datetime
 import tempfile
-from warnings import warn
 import sys
 
 import libcchdo.formats.netcdf as nc
@@ -116,7 +115,7 @@ WOCE_CTD_FLAG_DESCRIPTION = """\
 
 def netcdf_variable_name_from_column(column):
     if not column.parameter.description:
-        warn("Bad parameter description %s" % column.parameter)
+        libccho.LOG.warn("Bad parameter description %s" % column.parameter)
         return None
     n = column.parameter.description.lower()
     n = n.replace("ctd ", "")

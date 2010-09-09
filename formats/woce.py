@@ -60,7 +60,7 @@ def strptime_woce_date_time(woce_date, woce_time):
         i_woce_date = int(woce_date)
         i_woce_time = int(woce_time)
         if i_woce_time >= 2400:
-            libcchdo.warn(
+            libcchdo.LOG.warn(
                 "Illegal time greater than 2400 found. Setting to 0.")
             i_woce_time = 0
         return datetime.datetime.strptime(
@@ -98,8 +98,8 @@ def read_data(self, handle, parameters_line, units_line, asterisk_line):
     def warn_broke_character_column_rule(headername, headers):
         for header in headers:
             if len(header) > safe_column_width:
-                warn("%s '%s' has too many characters (>%d)." % \
-                     (headername, header, safe_column_width))
+                libcchdo.LOG.warn("%s '%s' has too many characters (>%d)." % \
+                                  (headername, header, safe_column_width))
 
     warn_broke_character_column_rule("Parameter", parameters)
     warn_broke_character_column_rule("Unit", units)
