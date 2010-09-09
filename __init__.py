@@ -50,7 +50,7 @@ def set_list(L, i, value, fill=None):
     try:
         L[i] = value
     except IndexError:
-        L.extend([fill] * index - len(L))
+        L.extend([fill] * (i - len(L) + 1))
         L[i] = value
 
 

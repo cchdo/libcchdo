@@ -62,7 +62,7 @@ class TestDataFile(TestCase):
     def test_formats(self):
         self.file.columns['CTDOXY'] = libcchdo.Column('CTDOXY')
         self.file.check_and_replace_parameters()
-        self.assertEqual(['%11s', '%8.1f'], self.file.formats())
+        self.assertEqual(['%11s', '%9.4f'], self.file.formats())
   
     def test_to_hash(self):
         pass # TODO

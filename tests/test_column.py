@@ -13,7 +13,6 @@ class TestColumn(TestCase):
 
   def test_initialization(self):
     parameter = libcchdo.db.parameters.find_by_mnemonic("EXPOCODE")
-    self.assertTrue(parameter == self.column.parameter)
     self.assertEqual(self.column.parameter.mnemonic_woce(), "EXPOCODE") # The column did not initialize to the correct parameter
     self.assertEqual(self.column.values, []) # Missing values array.
     self.assertEqual(self.column.flags_woce, []) # Missing WOCE flags array

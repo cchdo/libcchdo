@@ -233,6 +233,10 @@ class Parameter(Base):
             self.display_order = display_order
 
     def __eq__(self, other):
+        if self is None:
+            return False
+        if other is None:
+            return False
         return self.name == other.name
 
     def __repr__(self):
