@@ -1,3 +1,5 @@
+'''Abstractions for the CCHDO databases'''
+
 import connect
 import model
 

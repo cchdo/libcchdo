@@ -1,4 +1,4 @@
-"""libcchdo.db.connect"""
+'''Abstractions for SQLAlchemy connections'''
 
 import inspect
 import os

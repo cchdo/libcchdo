@@ -1,1 +1,3 @@
-""" __init__.py for libcchdo.tests """
+'''
+Tests for libcchdo
+'''

@@ -17,23 +17,9 @@ import logging
 try:
     from math import isnan
 except ImportError:
-    # Just in case python < 2.6
+    # Define if python < 2.6
     def isnan(n):
         return n != n
-
-
-class NullHandler(logging.Handler):
-    def emit(self, record):
-        pass
-
-
-_LIBLOG_HANDLER = logging.StreamHandler()
-_LIBLOG_HANDLER.setFormatter(logging.Formatter(
-    '%(asctime)s - %(name)s - %(levelname)s - %(message)s'))
-
-LOG = logging.getLogger('libcchdo')
-LOG.setLevel(logging.DEBUG)
-LOG.addHandler(_LIBLOG_HANDLER)
 
 
 class memoize(object):
@@ -59,6 +45,13 @@ def get_library_abspath():
 
 
 def set_list(L, i, value, fill=None):
+    ''' Set a cell in a list. If the list is not long enough, extend it first.
+        Args:
+            L - the list
+            i - the index
+            value - the value to put at L[i]
+            fill - the value to fill if the list is to be extended
+    '''
     try:
         L[i] = value
     except IndexError:
@@ -67,13 +60,27 @@ def set_list(L, i, value, fill=None):
 
 
 import db
-import db.parameters
 import formats
 
 
+# Logging
+
+_LIBLOG_HANDLER = logging.StreamHandler()
+_LIBLOG_HANDLER.setFormatter(logging.Formatter(
+    '%(asctime)s - %(name)s - %(levelname)s - %(message)s'))
+
+LOG = logging.getLogger('libcchdo')
+LOG.setLevel(logging.DEBUG)
+LOG.addHandler(_LIBLOG_HANDLER)
+
+
+# Nice constants
+
 RADIUS_EARTH = 6371.01 #km
 
+
 LIBVER = 'SIOCCHDLIB'
+
 
 COLOR_ESCAPE = '\x1b\x5b'
 COLORS = {
@@ -83,6 +90,13 @@ COLORS = {
     'CLEAR': COLOR_ESCAPE + '0m',
 }
 
+
+LIBRARY_DB_FILE_PATH = os.path.join(get_library_abspath(), 
+    'db', db.connect._DB_LIBRARY_FILE)
+
+
+# Alias some model.datafile classes for legacy purposes
+# TODO reference these classes directly rather than aliasing them here
 
 import model.datafile
 
@@ -95,13 +109,11 @@ DataFileCollection = model.datafile.DataFileCollection
 
 # Initialize the database file, if it is not present.
 
-library_db_file_path = os.path.join(get_library_abspath(), 
-    'db', db.connect._DB_LIBRARY_FILE)
 
-if not os.path.isfile(library_db_file_path):
+if not os.path.isfile(LIBRARY_DB_FILE_PATH):
     LOG.info(
         "The library's missing database file (%s) was auto-generated." % \
-        library_db_file_path)
+        LIBRARY_DB_FILE_PATH)
     import db.model.std
     import db.model.convert as convert
     db.model.std.create_all()
