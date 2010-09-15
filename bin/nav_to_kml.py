@@ -6,9 +6,9 @@ from datetime import datetime
 from string import translate, maketrans
 from os import path, makedirs, getcwd
 import sys
-sys.path.insert(0, '/'.join(sys.path[0].split('/')[:-2]))
 
-import datadir.util
+import abs_import_libcchdo
+import libcchdo.datadir.util
 
 
 def color_arr_to_str(color):
@@ -63,7 +63,7 @@ def generate_kml_from_nav(root, dirs, files, outputdir):
     <tessellate>1</tessellate>
     <coordinates>%s</coordinates>
   </LineString>
-</Placemark>""" % (expocode, ' '.join(map(lambda c: '%s,%s' % (c[0], c[1]),
+</Placemark>""" % (expocode, ' '.join(map(lambda c: '%s,%s' % *c[:2],
                                           coords))))
     placemarks.append("""
 <Placemark>
@@ -109,7 +109,8 @@ generate_kml_from_nav.i = 0
 
 
 def generate_kml_from_nav_into(dir):
-    return lambda root, dirs, files: generate_kml_from_nav(root, dirs,
-                                                           files, dir)
+    return lambda root, dirs, files: generate_kml_from_nav(
+                                         root, dirs, files, dir)
 
-datadir.util.do_for_cruise_directories(generate_kml_from_nav_into(directory))
+
+libcchdo.datadir.util.do_for_cruise_directories(generate_kml_from_nav_into(directory))

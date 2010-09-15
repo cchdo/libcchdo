@@ -1,18 +1,23 @@
 #!/usr/bin/env python
 
 from __future__ import with_statement
-from sys import argv, exit, path
-path.insert(0, '/'.join(path[0].split('/')[:-2]))
+import sys
 
-import libcchdo
+import abs_import_libcchdo
 import libcchdo.formats.bottle.database as db
 import libcchdo.formats.bottle.exchange as botex
 
-if len(argv) < 2:
-    print 'Usage:', argv[0], '<exbot file>'
-    exit(1)
 
-with open(argv[1], 'r') as in_file:
-    file = libcchdo.DataFile()
-    botex.read(file, in_file)
-    db.write(file)
+def main(argv):
+    if len(argv) < 2:
+        print 'Usage:', argv[0], '<exbot file>'
+        return 1
+    
+    with open(argv[1], 'r') as in_file:
+        file = libcchdo.DataFile()
+        botex.read(file, in_file)
+        db.write(file)
+
+
+if __name__ == '__main__':
+    sys.exit(main(sys.argv))

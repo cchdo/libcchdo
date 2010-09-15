@@ -4,12 +4,10 @@ from __future__ import with_statement
 
 import sqlite3
 import sys
-sys.path.insert(0, "/".join(sys.path[0].split("/")[:-2]))
 import os
-import os.path
 import datetime
 
-import libcchdo
+import abs_import_libcchdo
 import libcchdo.formats.ctd.exchange as ctdex
 import libcchdo.formats.ctd.polarstern as ctd_polarstern
 

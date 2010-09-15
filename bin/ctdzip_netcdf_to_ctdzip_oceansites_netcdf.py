@@ -3,30 +3,34 @@
 from __future__ import with_statement
 
 import sys
-sys.path.insert(0, '/'.join(sys.path[0].split('/')[:-2]))
 
-import libcchdo
+import abs_import_libcchdo
 import libcchdo.formats.ctd.zip.netcdf as ctdzipnc
 import libcchdo.formats.ctd.zip.netcdf_oceansites as ctdzipnc_oceansites
 
-if len(sys.argv) < 2:
-    print 'Usage:', sys.argv[0], '<cchdo_netcdf zip> [timeseries name]'
-    exit(1)
 
-file = libcchdo.DataFileCollection()
-with open(sys.argv[1], 'r') as in_file:
-    ctdzipnc.read(file, in_file)
+def main(argv):
+    if len(argv) < 2:
+        print 'Usage:', argv[0], '<cchdo_netcdf zip> [timeseries name]'
+        return 1
+    
+    file = libcchdo.DataFileCollection()
+    with open(argv[1], 'r') as in_file:
+        ctdzipnc.read(file, in_file)
+    
+    print >> sys.stderr, 'Done reading. Beginning CTD Zip write.'
+    
+    if len(argv) > 2:
+        timeseries = argv[2].strip()
+        if timeseries == 'BATS':
+            print >> sys.stderr, 'Printing a BATS OceanSITES NetCDF Zip'
+            ctdzipnc_oceansites.write(file, sys.stdout, timeseries='BATS')
+        elif timeseries == 'HOT':
+            print >> sys.stderr, 'Printing a HOT OceanSITES NetCDF Zip'
+            ctdzipnc_oceansites.write(file, sys.stdout, timeseries='HOT')
+    else:
+        print >> sys.stderr, 'Printing an AMBIGUOUS (read: INVALID) OceanSITES NetCDF Zip'
+        ctdzipnc_oceansites.write(file, sys.stdout)
 
-print >> sys.stderr, 'Done reading. Beginning CTD Zip write.'
-
-if len(sys.argv) > 2:
-    timeseries = sys.argv[2].strip()
-    if timeseries == 'BATS':
-        print >> sys.stderr, 'Printing a BATS OceanSITES NetCDF Zip'
-        ctdzipnc_oceansites.write(file, sys.stdout, timeseries='BATS')
-    elif timeseries == 'HOT':
-        print >> sys.stderr, 'Printing a HOT OceanSITES NetCDF Zip'
-        ctdzipnc_oceansites.write(file, sys.stdout, timeseries='HOT')
-else:
-    print >> sys.stderr, 'Printing an AMBIGUOUS (read: INVALID) OceanSITES NetCDF Zip'
-    ctdzipnc_oceansites.write(file, sys.stdout)
+if __name__ == '__main__':
+    sys.exit(main(sys.argv))

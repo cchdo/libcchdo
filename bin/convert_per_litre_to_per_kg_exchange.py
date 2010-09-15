@@ -20,10 +20,8 @@ notes:
 
 from __future__ import with_statement
 import sys
-sys.path.insert(0, '/'.join(sys.path[0].split('/')[:-2]))
 
-
-import libcchdo
+import abs_import_libcchdo
 import libcchdo.units.convert as cvt
 import libcchdo.db.model.std as std
 import libcchdo.formats.bottle.exchange as botex
@@ -75,19 +73,19 @@ def check_and_replace_parameters(self):
         column.parameter = std_parameter
 
 
-def main():
+def main(argv):
     '''Converts WOCE format /L units to /KG.'''
-    if len(sys.argv) < 2:
+    if len(argv) < 2:
         filename = raw_input(('Please give an input Exchange filename '
                               '(hy1.csv):')).strip()
     else:
-        filename = sys.argv[1]
+        filename = argv[1]
 
-    if len(sys.argv) < 3:
+    if len(argv) < 3:
         outputfile = raw_input(('Please give an output Exchange filename '
                                 '(hy1.csv):')).strip()
     else:
-        outputfile = sys.argv[2]
+        outputfile = argv[2]
 
     file = libcchdo.DataFile()
 
@@ -114,4 +112,4 @@ def main():
 
 
 if __name__ == '__main__':
-    sys.exit(main())
+    sys.exit(main(sys.argv))

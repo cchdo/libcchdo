@@ -1,16 +1,12 @@
 #!/usr/bin/env python
 
-'''
-Put casts into ascending pressure sequenced order.
-'''
-
+'''Put casts into ascending pressure sequenced order. '''
 
 from __future__ import with_statement
 import operator
 import sys
-sys.path.insert(0, '/'.join(sys.path[0].split('/')[:-2]))
 
-import libcchdo
+import abs_import_libcchdo
 import libcchdo.formats.bottle.exchange as botex
 
 
@@ -20,6 +16,7 @@ PRESSURE_PARAMETERS = ('CTDPRS', 'CTDRAW', )
 def swap_rows(a, b, file):
     for c in file.columns.values():
         c.values[a], c.values[b] = c.values[b], c.values[a]
+
 
 def sort_file_range(file, start, end, ascending):
     pressure_col = None

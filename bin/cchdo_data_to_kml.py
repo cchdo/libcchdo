@@ -1,13 +1,11 @@
 #!/usr/bin/env python
-# cchdo_data_to_kml
 
 from __future__ import with_statement
 import datetime
 import os
 import string
-import sys
-sys.path.insert(0, '/'.join(sys.path[0].split('/')[:-2]))
 
+import abs_import_libcchdo
 import libcchdo.db.connect
 
 
@@ -15,7 +13,8 @@ def color_arr_to_str(color):
     return 'ff'+''.join(map(lambda x: '%02x' % x, color[::-1]))
 
 
-kml_header = """<?xml version="1.0" encoding="UTF-8"?>
+kml_header = """\
+<?xml version="1.0" encoding="UTF-8"?>
 <kml xmlns="http://www.opengis.net/kml/2.2"
      xmlns:gx="http://www.google.com/kml/ext/2.2"
      xmlns:kml="http://www.opengis.net/kml/2.2"

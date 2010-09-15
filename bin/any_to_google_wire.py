@@ -2,21 +2,31 @@
 
 
 from __future__ import with_statement
+import getopt
 import sys
-sys.path.insert(0, '/'.join(sys.path[0].split('/')[:-2]))
 
-import libcchdo
+import abs_import_libcchdo
 import libcchdo.formats.google_wire.google_wire as google_wire
 
 
 def main(argv):
-    if len(argv) < 2:
-        print 'Usage:', argv[0], '<any recognized CCHDO file> [json(true)]'
+    opts, args = getopt.getopt(argv[1:], 'j', ['json'])
+
+    if len(args) < 1:
+        print 'Usage:', argv[0], '[-j|--json] <any recognized CCHDO file>'
         return 1
 
-    json = len(argv) > 2 and argv[2].lower() == 'true'
-    
-    with open(argv[1], 'r') as in_file:
+    # XXX hidden option: if program is supplied two args with the last as true
+    # the output format is selected to be json
+    json = len(args) > 1 and args[1].lower() == 'true'
+
+    for o, a in opts:
+        if o in ('-j', '--json'):
+            json = True
+        else:
+            assert False, "unhandled option"
+
+    with open(args[0], 'r') as in_file:
         file = libcchdo.fns.read_arbitrary(in_file)
         google_wire.write(file, sys.stdout, json=json)
 

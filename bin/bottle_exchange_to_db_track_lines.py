@@ -2,9 +2,8 @@
 
 from __future__ import with_statement
 import sys
-sys.path.insert(0, '/'.join(sys.path[0].split('/')[:-2]))
 
-import libcchdo
+import abs_import_libcchdo
 import libcchdo.formats.common.track_lines as track_lines
 
 

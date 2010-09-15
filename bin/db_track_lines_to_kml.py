@@ -6,8 +6,8 @@ import datetime
 import os
 import string
 import sys
-sys.path.insert(0, '/'.join(sys.path[0].split('/')[:-2]))
 
+import abs_import_libcchdo
 import libcchdo.db.connect
 
 def color_arr_to_str(color):

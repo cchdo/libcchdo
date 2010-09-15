@@ -1,10 +1,9 @@
 #!/usr/bin/env python
 
 from __future__ import with_statement
-from sys import argv, exit, path, stdout
-path.insert(0, '/'.join(path[0].split('/')[:-2]))
+import sys
 
-import libcchdo
+import abs_import_libcchdo
 import libcchdo.formats.bottle.exchange as botex
 
 
@@ -13,33 +12,34 @@ def color_arr_to_str(color):
 
 
 def map_to_color(val, min, max, mincolor, maxcolor):
-  dratio = (val-min)/(max-min)
-  dr = (maxcolor[0]-mincolor[0]) * dratio
-  dg = (maxcolor[1]-mincolor[1]) * dratio
-  db = (maxcolor[2]-mincolor[2]) * dratio
-  return [mincolor[0]+dr, mincolor[1]+dg, mincolor[2]+db]
+    dratio = (val - min) / (max - min)
+    dr = (maxcolor[0] - mincolor[0]) * dratio
+    dg = (maxcolor[1] - mincolor[1]) * dratio
+    db = (maxcolor[2] - mincolor[2]) * dratio
+    return [mincolor[0] + dr, mincolor[1] + dg, mincolor[2] + db]
 
 
-if len(argv) < 2:
-    print 'Usage:', argv[0], '<exbot file>'
-    exit(1)
-
-file = libcchdo.DataFile()
-with open(argv[1], 'r') as in_file:
-    botex.read(file, in_file)
-
-placemarks = []
-maxtemp = 38
-mintemp = 0
-maxcolor = [255, 0, 0]
-mincolor = [0, 0, 255]
-for ctdtmp, lng, lat, depth, i in zip(
-    file.columns['CTDTMP'].values, file.columns['LONGITUDE'].values,
-    file.columns['LATITUDE'].values, file.columns['CTDPRS'].values,
-    range(0, len(file))):
-  colorstr = color_arr_to_str(map_to_color(ctdtmp, mintemp, maxtemp,
-                                           mincolor, maxcolor))
-  placemarks.append("""
+def main(argv):
+    if len(argv) < 2:
+        print 'Usage:', argv[0], '<exbot file>'
+        return 1
+    
+    file = libcchdo.DataFile()
+    with open(argv[1], 'r') as in_file:
+        botex.read(file, in_file)
+    
+    placemarks = []
+    maxtemp = 38
+    mintemp = 0
+    maxcolor = [255, 0, 0]
+    mincolor = [0, 0, 255]
+    for ctdtmp, lng, lat, depth, i in zip(
+        file.columns['CTDTMP'].values, file.columns['LONGITUDE'].values,
+        file.columns['LATITUDE'].values, file.columns['CTDPRS'].values,
+        range(0, len(file))):
+      colorstr = color_arr_to_str(map_to_color(ctdtmp, mintemp, maxtemp,
+                                               mincolor, maxcolor))
+      placemarks.append("""\
 <Style id="dot%d">
   <IconStyle>
     <color>%s</color>
@@ -54,8 +54,9 @@ for ctdtmp, lng, lat, depth, i in zip(
     <coordinates>%f,%f,-%d</coordinates>
   </Point>
 </Placemark>""" % (i, colorstr, i, lng, lat, depth))
-
-print """<?xml version="1.0" encoding="UTF-8"?>
+    
+    print """\
+<?xml version="1.0" encoding="UTF-8"?>
 <kml xmlns="http://www.opengis.net/kml/2.2"
      xmlns:gx="http://www.google.com/kml/ext/2.2"
      xmlns:kml="http://www.opengis.net/kml/2.2"
@@ -64,3 +65,7 @@ print """<?xml version="1.0" encoding="UTF-8"?>
 <name>Test</name>
 %s
 </Document></kml>""" % ''.join(placemarks)
+
+
+if __name__ == '__main__':
+    sys.exit(main(sys.argv))

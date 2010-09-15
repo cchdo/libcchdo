@@ -5,6 +5,7 @@ newvol.f -> volume.py
 
 
 import libcchdo
+import libcchdo.fns
 
 
 CDMISS = 3.2e4

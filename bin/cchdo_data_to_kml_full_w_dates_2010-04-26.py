@@ -1,11 +1,9 @@
 #!/usr/bin/env python
-# cchdo_data_to_kml
 
 from __future__ import with_statement
 import string
-import sys
-sys.path.insert(0, '/'.join(sys.path[0].split('/')[:-2]))
 
+import abs_import_libcchdo
 import libcchdo.db.connect
 
 def color_arr_to_str(color):

@@ -1,13 +1,13 @@
 '''libcchdo.common.track_line'''
 
-import db.connect
+import libcchdo.db.connect
 
 
 #def read(self, handle):
 
 def write(self, handle):
     '''How to write a trackline entry to the cchdo database'''
-    connection = db.connect.cchdo()
+    connection = libcchdo.db.connect.cchdo()
     cursor = connection.cursor()
     expocodes = self.datafile.columns['EXPOCODE'].values
     for expocode in self.datafile.expocodes():

@@ -1,25 +1,26 @@
 #!/usr/bin/env python
 
 from __future__ import with_statement
-from sys import argv, exit, path, stdout
-path.insert(0, '/'.join(path[0].split('/')[:-2]))
+import sys
 
-import libcchdo
+import abs_import_libcchdo
 import libcchdo.formats.bottle.exchange as botex
 
-if len(argv) < 2:
-    print 'Usage:', argv[0], '<exbot file>'
-    exit(1)
 
-with open(argv[1], 'r') as in_file:
-    file = libcchdo.DataFile()
-    botex.read(file, in_file)
-
-    placemarks = ['%f,%f' % coord for coord \
-        in zip(file.columns['LONGITUDE'].values,
-               file.columns['LATITUDE'].values)]
-
-    print """<?xml version="1.0" encoding="UTF-8"?>
+def main(argv):
+    if len(argv) < 2:
+        print 'Usage:', argv[0], '<exbot file>'
+        return 1
+    
+    with open(argv[1], 'r') as in_file:
+        file = libcchdo.DataFile()
+        botex.read(file, in_file)
+    
+        placemarks = ['%f,%f' % coord for coord \
+            in zip(file.columns['LONGITUDE'].values,
+                   file.columns['LATITUDE'].values)]
+    
+        print """<?xml version="1.0" encoding="UTF-8"?>
 <kml xmlns="http://www.opengis.net/kml/2.2"
      xmlns:gx="http://www.google.com/kml/ext/2.2"
      xmlns:kml="http://www.opengis.net/kml/2.2"
@@ -40,3 +41,7 @@ with open(argv[1], 'r') as in_file:
 </LineString>
 </Placemark>
 </Document></kml>""" % ' '.join(placemarks)
+
+
+if __name__ == '__main__':
+    sys.exit(main(sys.argv))
