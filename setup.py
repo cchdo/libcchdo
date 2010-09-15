@@ -3,15 +3,10 @@
 from distutils.core import setup, Command
 from unittest import TextTestRunner, defaultTestLoader
 import glob
+import imp
+import inspect
 import os
 import sys
-import inspect
-
-sys.path.insert(0, "/".join(sys.path[0].split("/")[:-1]))
-sys.path.insert(0, os.path.split(os.path.abspath(inspect.getfile(
-                       inspect.currentframe())))[0])
-
-import os
 
 # http://da44en.wordpress.com/2002/11/22/using-distutils/
 class TestCommand(Command):
@@ -79,9 +74,17 @@ class CoverageCommand (TestCommand):
 
 
 if __name__ == '__main__':
-    setup(name="libcchdo",
-          version="0.4",
-          description="libcchdo setup",
+    package_name = 'libcchdo'
+    module_path, module_name = os.path.split(os.path.split(os.path.abspath(
+                                   inspect.getfile(inspect.currentframe())))[0])
+    sys.path.insert(0, module_path)
+
+    imp.load_module(package_name, *imp.find_module(module_name, [module_path]))
+
+    setup(name=package_name,
+          version='0.5',
+          description='%s setup' % package_name,
+          requires=['sqlalchemy', 'netCDF3'],
           cmdclass = {'test': TestCommand,
                       'clean': CleanCommand,
                       'coverage': CoverageCommand,
