@@ -15,6 +15,7 @@ def get_parameters(file):
         lambda c: c.parameter.mnemonic_woce() if c and c.parameter else '')
     return parameters
 
+
 def clone_file_structure(file):
     clone = libcchdo.DataFile()
 
@@ -24,6 +25,7 @@ def clone_file_structure(file):
     clone.globals = file.globals.copy()
 
     return clone
+
 
 def split_bottle(file):
     ''' Split apart the bottle exchange file into a data file collection based

@@ -3,6 +3,8 @@ Common utilities that NetCDF handlers need.
 '''
 
 
+import datetime
+
 try:
     from netCDF3 import Dataset
 except ImportError, e:
@@ -14,6 +16,7 @@ except ImportError, e:
 
 QC_SUFFIX = '_QC'
 FILE_EXTENSION = 'nc'
+EPOCH = datetime.datetime(1980, 1, 1, 0, 0, 0)
 
 
 def _pad_station_cast(x):
@@ -29,7 +32,20 @@ def get_filename(expocode, station, cast):
                       FILE_EXTENSION, )
 
 
-def _simplest_str(s):
+def minutes_since_epoch(dtime, default=-9):
+    delta = dtime - EPOCH
+    minutes_in_day = 60 * 24
+    minutes_in_seconds = 1.0 / 60
+    minutes_in_microseconds = minutes_in_seconds / 1.0e6
+    if dtime:
+        return (delta.days * minutes_in_day + \
+                delta.seconds * minutes_in_seconds + \
+                delta.microseconds * minutes_in_microseconds)
+    else:
+        return default
+
+
+def simplest_str(s):
     if type(s) is float:
         if libcchdo.fns.equal_with_epsilon(s, int(s)):
             s = int(s)

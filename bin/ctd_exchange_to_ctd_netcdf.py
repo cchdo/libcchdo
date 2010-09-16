@@ -5,17 +5,17 @@ import sys
 
 import abs_import_libcchdo
 import libcchdo.formats.ctd.netcdf as ctdnc
-import libcchdo.formats.ctd.exchange as ctdxchg
+import libcchdo.formats.ctd.exchange as ctdex
 
 
 def main(argv):
     if len(argv) < 2:
-        print >> sys.stderr, "Usage: %s <ctd_exchange>" % argv[0]
+        print "Usage: %s <ctd exchange>" % argv[0]
         return 1
     
     file = libcchdo.DataFile()
-    with open(argv[1], "rb") as infile:
-        ctdxchg.read(file, infile)
+    with open(argv[1], 'r') as in_file:
+        ctdex.read(file, in_file)
 
     ctdnc.write(file, sys.stdout)
 

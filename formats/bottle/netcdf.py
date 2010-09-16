@@ -8,7 +8,6 @@ import libcchdo.formats.netcdf as nc
 import libcchdo.formats.woce as woce
 
 
-NETCDF_EPOCH = datetime.datetime(1980, 1, 1, 0, 0, 0)
 
 
 NC_BOTTLE_VAR_TO_WOCE_PARAM = {
@@ -75,10 +74,6 @@ VARATTRS = frozenset(('time', 'latitude', 'longitude', 'woce_date',
                       'woce_time', 'cast', 'station', ))
 
 
-def _minutes_since_epoch(dtime):
-    return ((dtime - NETCDF_EPOCH).seconds / 60) if dtime else -9
-
-
 def read(self, handle):
     """How to read a Bottle NetCDF file."""
     filename = handle.name
@@ -102,7 +97,7 @@ def read(self, handle):
     dtime = libcchdo.formats.woce.strptime_woce_date_time(
         vars['woce_date'][:][0], vars['woce_time'][:][0])
 
-    calculated_time = NETCDF_EPOCH + datetime.timedelta(minutes=int(time))
+    calculated_time = nc.EPOCH + datetime.timedelta(minutes=int(time))
     # Probably should trust dtime more because it is translated directly
     # from WOCE time.
     if dtime != calculated_time:
@@ -214,10 +209,10 @@ def write(self, handle):
     nc_file.WOCE_VERSION = '3.0'
     nc_file.WOCE_ID = self['SECT_ID'][0] or UNKNOWN
     nc_file.DATA_TYPE = 'WOCE Bottle'
-    nc_file.STATION_NUMBER = nc._simplest_str(self['STNNBR'][0]) or UNKNOWN
-    nc_file.CAST_NUMBER = nc._simplest_str(self['CASTNO'][0]) or UNKNOWN
+    nc_file.STATION_NUMBER = nc.simplest_str(self['STNNBR'][0]) or UNKNOWN
+    nc_file.CAST_NUMBER = nc.simplest_str(self['CASTNO'][0]) or UNKNOWN
     nc_file.BOTTOM_DEPTH_METERS = int(max(self['DEPTH'].values))
-    nc_file.BOTTLE_NUMBERS = ' '.join(map(nc._simplest_str, self['BTLNBR'].values))
+    nc_file.BOTTLE_NUMBERS = ' '.join(map(nc.simplest_str, self['BTLNBR'].values))
     if self['BTLNBR'].is_flagged_woce():
         nc_file.BOTTLE_QUALITY_CODES = ' '.join(self['BTLNBR'].flags_woce)
     nc_file.Creation_Time = libcchdo.fns.strftime_iso(datetime.datetime.utcnow())
@@ -235,8 +230,8 @@ def write(self, handle):
 
     var_time = nc_file.createVariable('time', 'i', ('time',))
     var_time.long_name = 'time'
-    var_time.units = 'minutes since %s' % libcchdo.fns.strftime_iso(NETCDF_EPOCH)
-    var_time.data_min = _minutes_since_epoch(dtime)
+    var_time.units = 'minutes since %s' % libcchdo.fns.strftime_iso(nc.EPOCH)
+    var_time.data_min = nc.minutes_since_epoch(dtime)
     var_time.data_max = var_time.data_min
     var_time.C_format = '%10d'
     var_time[:] = var_time.data_min
@@ -261,7 +256,7 @@ def write(self, handle):
 
     var_woce_date = nc_file.createVariable('woce_date', 'i', ('time',))
     var_woce_date.long_name = 'WOCE date'
-    var_woce_date.units = 'yyyymdd UTC'
+    var_woce_date.units = 'yyyymmdd UTC'
     var_woce_date.data_min = int(woce_datetime[0] or -9)
     var_woce_date.data_max = var_woce_date.data_min
     var_woce_date.C_format = '%8d'
@@ -281,13 +276,13 @@ def write(self, handle):
     var_station.long_name = 'STATION'
     var_station.units = UNSPECIFIED_UNITS
     var_station.C_format = '%s'
-    var_station[:] = nc._simplest_str(self['STNNBR'][0]).ljust(len(var_station))
+    var_station[:] = nc.simplest_str(self['STNNBR'][0]).ljust(len(var_station))
     
     var_cast = nc_file.createVariable('cast', 'c', ('string_dimension',))
     var_cast.long_name = 'CAST'
     var_cast.units = UNSPECIFIED_UNITS
     var_cast.C_format = '%s'
-    var_cast[:] = nc._simplest_str(self['CASTNO'][0]).ljust(len(var_cast))
+    var_cast[:] = nc.simplest_str(self['CASTNO'][0]).ljust(len(var_cast))
 
     # Create data variables and fill them
     for param, column in self.columns.iteritems():
