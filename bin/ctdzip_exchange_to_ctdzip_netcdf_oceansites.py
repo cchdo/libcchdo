@@ -1,7 +1,6 @@
 #!/usr/bin/env python
 
 from __future__ import with_statement
-
 import sys
 
 import abs_import_libcchdo
@@ -12,7 +11,7 @@ import libcchdo.formats.ctd.zip.netcdf_oceansites as ctdzipnc_oceansites
 def main(argv):
     if len(argv) < 2:
         print 'Usage:', argv[0], '<ctd exchange zip> [timeseries name]'
-        exit(1)
+        return 1
     
     file = libcchdo.DataFileCollection()
     with open(argv[1], 'r') as in_file:
