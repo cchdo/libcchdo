@@ -1,4 +1,6 @@
 import libcchdo
+import libcchdo.fns
+import libcchdo.db.parameters
 
 
 COLORS = libcchdo.COLORS

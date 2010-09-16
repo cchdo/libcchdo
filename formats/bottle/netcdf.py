@@ -191,13 +191,6 @@ STATIC_PARAMETERS_PER_CAST = ('EXPOCODE', 'SECT_ID', 'STNNBR', 'CASTNO',
     '_DATETIME', 'LATITUDE', 'LONGITUDE', 'DEPTH', )
 
 
-def _simplest_str(s):
-    if type(s) is float:
-        if libcchdo.fns.equal_with_epsilon(s, int(s)):
-            s = int(s)
-    return str(s)
-
-
 def write(self, handle):
     """How to write a Bottle NetCDF file."""
     UNKNOWN = 'UNKNOWN'
@@ -221,10 +214,10 @@ def write(self, handle):
     nc_file.WOCE_VERSION = '3.0'
     nc_file.WOCE_ID = self['SECT_ID'][0] or UNKNOWN
     nc_file.DATA_TYPE = 'WOCE Bottle'
-    nc_file.STATION_NUMBER = _simplest_str(self['STNNBR'][0]) or UNKNOWN
-    nc_file.CAST_NUMBER = _simplest_str(self['CASTNO'][0]) or UNKNOWN
+    nc_file.STATION_NUMBER = nc._simplest_str(self['STNNBR'][0]) or UNKNOWN
+    nc_file.CAST_NUMBER = nc._simplest_str(self['CASTNO'][0]) or UNKNOWN
     nc_file.BOTTOM_DEPTH_METERS = int(max(self['DEPTH'].values))
-    nc_file.BOTTLE_NUMBERS = ' '.join(map(_simplest_str, self['BTLNBR'].values))
+    nc_file.BOTTLE_NUMBERS = ' '.join(map(nc._simplest_str, self['BTLNBR'].values))
     if self['BTLNBR'].is_flagged_woce():
         nc_file.BOTTLE_QUALITY_CODES = ' '.join(self['BTLNBR'].flags_woce)
     nc_file.Creation_Time = libcchdo.fns.strftime_iso(datetime.datetime.utcnow())
@@ -288,13 +281,13 @@ def write(self, handle):
     var_station.long_name = 'STATION'
     var_station.units = UNSPECIFIED_UNITS
     var_station.C_format = '%s'
-    var_station[:] = _simplest_str(self['STNNBR'][0]).ljust(len(var_station))
+    var_station[:] = nc._simplest_str(self['STNNBR'][0]).ljust(len(var_station))
     
     var_cast = nc_file.createVariable('cast', 'c', ('string_dimension',))
     var_cast.long_name = 'CAST'
     var_cast.units = UNSPECIFIED_UNITS
     var_cast.C_format = '%s'
-    var_cast[:] = _simplest_str(self['CASTNO'][0]).ljust(len(var_cast))
+    var_cast[:] = nc._simplest_str(self['CASTNO'][0]).ljust(len(var_cast))
 
     # Create data variables and fill them
     for param, column in self.columns.iteritems():

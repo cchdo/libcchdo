@@ -139,7 +139,7 @@ def write(self, handle):
     nc_file.DATA_TYPE = "WOCE CTD"
     nc_file.STATION_NUMBER = self.globals["STNNBR"]
     nc_file.CAST_NUMBER = self.globals["CASTNO"]
-    nc_file.BOTTOM_DEPTH_METERS = int(self.globals["DEPTH"])
+    nc_file.BOTTOM_DEPTH_METERS = nc._simplest_str(float(self.globals["DEPTH"]))
     nc_file.Creation_Time = '%s %sZ' % (libcchdo.LIBVER,
                                         datetime.datetime.utcnow().isoformat())
     nc_file.ORIGINAL_HEADER = self.globals['header']
@@ -155,7 +155,7 @@ def write(self, handle):
     ### Variables
     # Time
     if "TIME" not in self.globals:
-        raise RuntimeError("(XXX) 'TIME' not in self.globals; abort")
+        raise AttributeError("(XXX) 'TIME' not in self.globals; abort")
     var_time = nc_file.createVariable("time", "i", ("time", ))
     var_time.long_name = "time"
     var_time.units = "minutes since 1980-01-01 00:00:00"
@@ -168,7 +168,7 @@ def write(self, handle):
     var_time.C_format = "%10d"
     # Pressure
     if "CTDPRS" not in self.columns:
-        raise RuntimeError("(XXX) 'CTDPRS' not in self.columns; abort")
+        raise AttributeError("(XXX) 'CTDPRS' not in self.columns; abort")
     var_pressure = nc_file.createVariable("pressure", "d", ("pressure", ))
     var_pressure.long_name = "pressure"
     var_pressure.units = "dbar"
@@ -187,7 +187,7 @@ def write(self, handle):
     var_pressure_qc.C_format = "%1d"
     # Temperature
     if "CTDTMP" not in self.columns:
-        raise RuntimeError("(XXX) 'CTDTMP' not in self.columns; abort")
+        raise AttributeError("(XXX) 'CTDTMP' not in self.columns; abort")
     var_temperature = nc_file.createVariable("temperature", "d",
             ("pressure", ))
     var_temperature.long_name = "temperature"
@@ -206,7 +206,7 @@ def write(self, handle):
     var_temperature_qc.C_format = "%1d"
     # Salinity
     if "CTDSAL" not in self.columns:
-        raise RuntimeError("(XXX) 'CTDSAL' not in self.columns; abort")
+        raise AttributeError("(XXX) 'CTDSAL' not in self.columns; abort")
     var_salinity = nc_file.createVariable("salinity", "d", ("pressure", ))
     var_salinity.long_name = "salinity"
     var_salinity.units = "pss-78"
@@ -224,7 +224,7 @@ def write(self, handle):
     var_salinity_qc.C_format = "%1d"
     # Oxygen
     if "CTDOXY" not in self.columns:
-        raise "(XXX) 'oxygen' not in self.columns; abort"
+        raise AttributeError("(XXX) 'oxygen' not in self.columns; abort")
     var_oxygen = nc_file.createVariable("oxygen", "d", ("pressure", ))
     var_oxygen.long_name = "oxygen"
     var_oxygen.units = "umol/kg"
@@ -242,7 +242,7 @@ def write(self, handle):
     var_oxygen_qc.C_format = "%1d"
     # Latitude
     if "LATITUDE" not in self.globals:
-        raise "(XXX) 'LATITUDE' not in self.globals; abort"
+        raise AttributeError("(XXX) 'LATITUDE' not in self.globals; abort")
     var_latitude = nc_file.createVariable("latitude", "d", ("latitude", ))
     var_latitude.long_name = "latitude"
     var_latitude.units = "degrees_N"
@@ -251,7 +251,7 @@ def write(self, handle):
     var_latitude.C_format = "%9.4f"
     # Longitude
     if "LONGITUDE" not in self.globals:
-        raise "(XXX) 'LONGITUDE' not in self.globals; abort"
+        raise AttributeError("(XXX) 'LONGITUDE' not in self.globals; abort")
     var_longitude = nc_file.createVariable("longitude", "d", ("longitude", ))
     var_longitude.long_name = "longitude"
     var_longitude.units = "degrees_E"
@@ -260,7 +260,7 @@ def write(self, handle):
     var_longitude.C_format = "%9.4f"
     # WOCE date
     if "DATE" not in self.globals:
-        raise "(XXX) 'DATE' not in self.globals; abort"
+        raise AttributeError("(XXX) 'DATE' not in self.globals; abort")
     var_woce_date = nc_file.createVariable("woce_date", "i", ("time", ))
     var_woce_date.long_name = "WOCE date"
     var_woce_date.units = "yyyymmdd UTC"
@@ -269,7 +269,7 @@ def write(self, handle):
     var_woce_date.C_format = "%8d"
     # WOCE time
     if "TIME" not in self.globals:
-        raise "(XXX) 'TIME' not in self.globals; abort"
+        raise AttributeError("(XXX) 'TIME' not in self.globals; abort")
     var_woce_time = nc_file.createVariable("woce_time", "i", ("time", ))
     var_woce_time.long_name = "WOCE time"
     var_woce_time.units = "hhmm UTC"

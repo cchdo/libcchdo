@@ -1,4 +1,6 @@
-'''libcchdo.formats.netcdf'''
+'''
+Common utilities that NetCDF handlers need.
+'''
 
 
 try:
@@ -25,5 +27,12 @@ def get_filename(expocode, station, cast):
     cast = _pad_station_cast(cast)
     return '%s.%s' % ('_'.join((expocode, station, cast, 'hy1')),
                       FILE_EXTENSION, )
+
+
+def _simplest_str(s):
+    if type(s) is float:
+        if libcchdo.fns.equal_with_epsilon(s, int(s)):
+            s = int(s)
+    return str(s)
 
 

@@ -11,7 +11,7 @@ import libcchdo.formats.ctd.exchange as ctdxchg
 def main(argv):
     if len(argv) < 2:
         print >> sys.stderr, "Usage: %s <ctd_exchange>" % argv[0]
-        sys.exit(1)
+        return 1
     
     file = libcchdo.DataFile()
     with open(argv[1], "rb") as infile:
