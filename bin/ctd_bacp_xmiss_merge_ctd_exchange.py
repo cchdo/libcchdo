@@ -4,6 +4,7 @@ from __future__ import with_statement
 import sys
 
 import abs_import_libcchdo
+import libcchdo.model.datafile
 import libcchdo.formats.ctd.bacp as ctdbacp
 import libcchdo.formats.ctd.exchange as ctdex
 
@@ -20,8 +21,8 @@ def main(argv):
         print >> sys.stderr, "Usage: %s <ctd_bacp> <ctd_exchange>" % argv[0]
         return 1
     
-    mergefile = libcchdo.DataFile()
-    file = libcchdo.DataFile()
+    mergefile = libcchdo.model.datafile.DataFile()
+    file = libcchdo.model.datafile.DataFile()
 
     with open(argv[1], "r") as infile:
         ctdbacp.read(mergefile, infile)
@@ -48,7 +49,7 @@ def main(argv):
     except KeyError:
         pass
     if not xmiss_column:
-        xmiss_column = file.columns['XMISS'] = libcchdo.Column('XMISS')
+        xmiss_column = file.columns['XMISS'] = libcchdo.model.datafile.Column('XMISS')
         xmiss_column.values = [None] * len(file)
 
     merge_xmiss = None

@@ -3,6 +3,8 @@
 import StringIO
 import zipfile
 
+import libcchdo
+import libcchdo.model.datafile
 from ..oden import oden
 
 
@@ -13,7 +15,7 @@ def read(self, handle):
         if 'DOC' in file or 'README' in file:
             continue
         tempstream = StringIO.StringIO(zip.read(file))
-        ctdfile = libcchdo.DataFile()
+        ctdfile = libcchdo.model.datafile.DataFile()
         oden(ctdfile).read(tempstream)
         self.datafile.files.append(ctdfile)
         tempstream.close()

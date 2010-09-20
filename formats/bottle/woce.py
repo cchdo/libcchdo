@@ -3,6 +3,7 @@
 import datetime
 
 import libcchdo
+import libcchdo.model.datafile
 import libcchdo.formats.woce
 import re
 
@@ -39,14 +40,14 @@ def read(self, handle):
     try:
         self.columns['DATE']
     except KeyError:
-        self.columns['DATE'] = libcchdo.Column('DATE')
+        self.columns['DATE'] = libcchdo.model.datafile.Column('DATE')
         self.columns['DATE'].values = [None] * len(self) # XXX
     try:
         self.columns['TIME']
     except KeyError:
-        self.columns['TIME'] = libcchdo.Column('TIME')
+        self.columns['TIME'] = libcchdo.model.datafile.Column('TIME')
         self.columns['TIME'].values = [None] * len(self)
-    self.columns['_DATETIME'] = libcchdo.Column('_DATETIME')
+    self.columns['_DATETIME'] = libcchdo.model.datafile.Column('_DATETIME')
     for d,t in zip(self.columns['DATE'].values,
                    self.columns['TIME'].values):
         self.columns['_DATETIME'].append(

@@ -6,6 +6,7 @@ import os
 import unittest
 
 import libcchdo
+import libcchdo.model.datafile
 import libcchdo.formats.ctd.netcdf_oceansites as osncdf
 
 
@@ -18,4 +19,4 @@ class TestCTDNetCDFOceansites (unittest.TestCase):
         self._infile.close()
 
     def test_write (self):
-        self.datafile = libcchdo.DataFile()
+        self.datafile = libcchdo.model.datafile.DataFile()

@@ -1,4 +1,4 @@
-"""libcchdo Python
+"""libcchdo
 
 Internal Data Specification
 ---------------------------
@@ -11,8 +11,8 @@ MAX_PRESSURE with a '_', the library will not retrive the parameter definition
 from the database (there is none anyway).
 """
 
-import os
 import logging
+import __builtin__
 
 try:
     from math import isnan
@@ -23,6 +23,7 @@ except ImportError:
 
 
 class memoize(object):
+    """Memoization decorator class"""
 
     def __init__(self, callable):
         self._cache = {}
@@ -38,20 +39,59 @@ class memoize(object):
             return value
 
 
+# XXX EVIL
+
+
+def _import_decorator(old_import, post_processor):
+    """
+       Args:
+         old_import - The import function to decorate, most likely
+                      ``__builtin__.__import__``.
+         post_processor - Function of the form
+                          `post_processor(module, __import__) -> module`.
+       Returns: A new import function, most likely to be assigned to
+                ``__builtin__.__import__``.
+    """
+    assert all([callable(fun) for fun in (old_import, post_processor)])
+
+    def new_import(*args, **kwargs):
+        module = old_import(*args, **kwargs)
+
+        __builtin__.__import__ = old_import
+        module = post_processor(module)
+        return module
+
+    return new_import
+
+
+def post_import(fn):
+    """Evil post-import hook for modules.
+       The import function is decorated and then undecorated after
+       post-processing. See _import_decorator for processor specification.
+    """
+    assert callable(fn)
+
+    __builtin__.__import__ = _import_decorator(__builtin__.__import__, fn)
+
+
+# XXX END EVIL
+
+
 def get_library_abspath():
+    import os
     import inspect
     return os.path.split(os.path.abspath(inspect.getfile(
                        inspect.currentframe())))[0]
 
 
 def set_list(L, i, value, fill=None):
-    ''' Set a cell in a list. If the list is not long enough, extend it first.
+    """ Set a cell in a list. If the list is not long enough, extend it first.
         Args:
             L - the list
             i - the index
             value - the value to put at L[i]
             fill - the value to fill if the list is to be extended
-    '''
+    """
     try:
         L[i] = value
     except IndexError:
@@ -59,19 +99,7 @@ def set_list(L, i, value, fill=None):
         L[i] = value
 
 
-import db
 import formats
-
-
-# Logging
-
-_LIBLOG_HANDLER = logging.StreamHandler()
-_LIBLOG_HANDLER.setFormatter(logging.Formatter(
-    '%(asctime)s - %(name)s - %(levelname)s - %(message)s'))
-
-LOG = logging.getLogger('libcchdo')
-LOG.setLevel(logging.DEBUG)
-LOG.addHandler(_LIBLOG_HANDLER)
 
 
 # Nice constants
@@ -79,46 +107,50 @@ LOG.addHandler(_LIBLOG_HANDLER)
 RADIUS_EARTH = 6371.01 #km
 
 
-LIBVER = 'SIOCCHDLIB'
-
-
 COLOR_ESCAPE = '\x1b\x5b'
 COLORS = {
-    'RED': COLOR_ESCAPE + '1;31m',
-    'YELLOW': COLOR_ESCAPE + '1;33m',
-    'CYAN': COLOR_ESCAPE + '1;36m',
+    'BOLDRED': COLOR_ESCAPE + '1;31m',
+    'BOLDYELLOW': COLOR_ESCAPE + '1;33m',
+    'RED': COLOR_ESCAPE + '0;31m',
+    'GREEN': COLOR_ESCAPE + '0;32m',
+    'YELLOW': COLOR_ESCAPE + '0;33m',
+    'CYAN': COLOR_ESCAPE + '0;36m',
     'CLEAR': COLOR_ESCAPE + '0m',
 }
 
 
-LIBRARY_DB_FILE_PATH = os.path.join(get_library_abspath(), 
-    'db', db.connect._DB_LIBRARY_FILE)
+# Logging
+
+class _LibLogFormatter(logging.Formatter):
+    _level_to_color = {
+        logging.DEBUG: 'CYAN',
+        logging.INFO: 'GREEN',
+        logging.WARNING: 'BOLDYELLOW',
+        logging.ERROR: 'RED',
+        logging.CRITICAL: 'BOLDRED',
+    }
+
+    def __init__(self, fmt=None, datefmt=None):
+        logging.Formatter.__init__(self, fmt, datefmt)
+
+    def _get_color(self, level):
+        try:
+            return self._level_to_color[level]
+        except KeyError:
+            return 'GREEN'
+
+    def format(self, record):
+        record.__dict__['asctime'] = self.formatTime(record, self.datefmt)
+        record.__dict__['message'] = record.__dict__['msg']
+        record.__dict__['color'] = COLORS[self._get_color(record.levelno)]
+        return self._fmt % record.__dict__
 
 
-# Alias some model.datafile classes for legacy purposes
-# TODO reference these classes directly rather than aliasing them here
+_LIBLOG_HANDLER = logging.StreamHandler()
+_LIBLOG_HANDLER.setFormatter(_LibLogFormatter(
+    ''.join(('%(color)s%(asctime)s|%(name)s %(levelname)s: ',
+        COLORS['CLEAR'], '%(message)s'))))
 
-import model.datafile
-
-Column = model.datafile.Column
-File = model.datafile.File
-DataFile = model.datafile.DataFile
-SummaryFile = model.datafile.SummaryFile
-DataFileCollection = model.datafile.DataFileCollection
-
-
-# Initialize the database file, if it is not present.
-
-
-if not os.path.isfile(LIBRARY_DB_FILE_PATH):
-    LOG.info(
-        "The library's missing database file (%s) was auto-generated." % \
-        LIBRARY_DB_FILE_PATH)
-    import db.model.std
-    import db.model.convert as convert
-    db.model.std.create_all()
-
-    std_session = db.model.std.session()
-    std_session.add_all(convert.all_parameters())
-    std_session.commit()
-    std_session.close()
+LOG = logging.getLogger(__name__)
+LOG.setLevel(logging.DEBUG)
+LOG.addHandler(_LIBLOG_HANDLER)

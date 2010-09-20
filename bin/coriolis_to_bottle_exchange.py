@@ -4,6 +4,7 @@ from __future__ import with_statement
 import sys
 
 import abs_import_libcchdo
+import libcchdo.model.datafile
 import libcchdo.formats.coriolis.coriolis as coriolis
 import libcchdo.formats.bottle.exchange as botex
 
@@ -14,7 +15,7 @@ def main(argv):
         return 1
     
     with open(argv[1], 'r') as in_file:
-        file = libcchdo.DataFile()
+        file = libcchdo.model.datafile.DataFile()
         coriolis.read(file, in_file)
         botex.write(file, sys.stdout)
 

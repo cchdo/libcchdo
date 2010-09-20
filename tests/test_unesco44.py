@@ -1,8 +1,9 @@
-""" Test case for libcchdo.Column """
+""" Test case for libcchdo.model.datafile.Column """
+
+from unittest import TestCase
 
 import libcchdo
 import libcchdo.algorithms.depth as X
-from unittest import TestCase
 
 
 class TestColumn(TestCase):

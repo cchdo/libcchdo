@@ -2,11 +2,12 @@
 Handler for CTD NetCDF files
 '''
 
-import libcchdo
 import datetime
 import tempfile
 import sys
 
+import libcchdo
+import libcchdo.model.datafile
 import libcchdo.formats.woce as woce
 import libcchdo.formats.netcdf as nc
 
@@ -58,7 +59,7 @@ def read(self, handle):
             if name == 'drop':
                 continue
 
-            self.columns[name] = libcchdo.Column(name)
+            self.columns[name] = libcchdo.model.datafile.Column(name)
             self.columns[name].values = variable[:].tolist()
 
             # Do some quick transformations from NetCDF pecularities to standard data format

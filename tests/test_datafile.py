@@ -1,16 +1,17 @@
-""" Test case for libcchdo.DataFile """
+""" Test case for libcchdo.model.datafile.DataFile """
 
 
 from unittest import TestCase
 
 import libcchdo
+import libcchdo.model.datafile
 
 
 class TestDataFile(TestCase):
 
     def setUp(self):
-        self.file = libcchdo.DataFile()
-        self.file.columns['EXPOCODE'] = libcchdo.Column('EXPOCODE')
+        self.file = libcchdo.model.datafile.DataFile()
+        self.file.columns['EXPOCODE'] = libcchdo.model.datafile.Column('EXPOCODE')
         self.c = self.file.columns['EXPOCODE']
   
     def tearDown(self):
@@ -37,8 +38,8 @@ class TestDataFile(TestCase):
         self.assertEqual(len(self.file), 2)
   
     def test_sorted_columns(self):
-        self.file.columns['CASTNO'] = libcchdo.Column('CASTNO')
-        self.file.columns['STNNBR'] = libcchdo.Column('STNNBR')
+        self.file.columns['CASTNO'] = libcchdo.model.datafile.Column('CASTNO')
+        self.file.columns['STNNBR'] = libcchdo.model.datafile.Column('STNNBR')
         expected = ['EXPOCODE', 'STNNBR', 'CASTNO']
         received = map(lambda c: c.parameter.mnemonic_woce(), self.file.sorted_columns())
         # If lengths are equal and all expected in received, then assume equal
@@ -50,7 +51,7 @@ class TestDataFile(TestCase):
   
     def test_column_headers(self):
         self.assertEqual(['EXPOCODE'], self.file.column_headers())
-        self.file.columns['STNNBR'] = libcchdo.Column('STNNBR')
+        self.file.columns['STNNBR'] = libcchdo.model.datafile.Column('STNNBR')
         expected = ['EXPOCODE', 'STNNBR']
         received = self.file.column_headers()
         # If lengths are equal and all expected in received, then assume equal
@@ -58,7 +59,7 @@ class TestDataFile(TestCase):
         self.assertTrue(all( [x in received for x in expected] ))
   
     def test_formats(self):
-        self.file.columns['CTDOXY'] = libcchdo.Column('CTDOXY')
+        self.file.columns['CTDOXY'] = libcchdo.model.datafile.Column('CTDOXY')
         self.file.check_and_replace_parameters()
         self.assertEqual(['%11s', '%9.4f'], self.file.formats())
   

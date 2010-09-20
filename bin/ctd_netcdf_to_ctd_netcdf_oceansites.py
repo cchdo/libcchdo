@@ -5,6 +5,7 @@ from __future__ import with_statement
 import sys
 
 import abs_import_libcchdo
+import libcchdo.model.datafile
 import libcchdo.formats.ctd.netcdf as ctdnc
 import libcchdo.formats.ctd.netcdf_oceansites as ctdnc_oceansites
 
@@ -14,7 +15,7 @@ def main(argv):
         print 'Usage:', argv[0], '<cchdo_netcdf> [timeseries name]'
         return 1
     
-    file = libcchdo.DataFile()
+    file = libcchdo.model.datafile.DataFile()
     with open(argv[1], 'r') as in_file:
         ctdnc.read(file, in_file)
     

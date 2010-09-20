@@ -3,38 +3,46 @@
 from distutils.core import setup, Command
 from unittest import TextTestRunner, defaultTestLoader
 import glob
-import imp
-import inspect
 import os
 import sys
 
+PACKAGE_NAME = 'libcchdo'
+
+
+def absolute_import_libcchdo():
+    import inspect
+    import imp
+    module_path, module_name = os.path.split(os.path.split(os.path.abspath(
+                                   inspect.getfile(inspect.currentframe())))[0])
+    imp.load_module(PACKAGE_NAME, *imp.find_module(module_name, [module_path]))
+
+
 
 class TestCommand(Command):
-    '''
-    http://da44en.wordpress.com/2002/11/22/using-distutils/
-    '''
+    """http://da44en.wordpress.com/2002/11/22/using-distutils/"""
     description = "Runs tests"
     user_options = []
 
     def initialize_options(self):
+        absolute_import_libcchdo()
         self._dir = os.getcwd()
 
     def finalize_options(self):
         pass
 
     def run(self):
-        '''Finds all the tests modules in tests/ and runs them.'''
+        """Finds all the tests modules in tests/ and runs them."""
         testfiles = []
         for t in glob.glob(os.path.join(self._dir, 'tests', 'test_*.py')):
             testfiles.append('.'.join(
                     ['tests', os.path.splitext(os.path.basename(t))[0]]))
-        try:
-            tests = defaultTestLoader.loadTestsFromNames(testfiles)
-            TextTestRunner(verbosity = 2).run(tests)
-        except AttributeError, e:
-            raise ImportError(("It's likely there is an import error in the "
-                               "file that defines this module:\n\t%s\n\t"
-                               "The test modules are in tests/.") % e)
+        #try:
+        tests = defaultTestLoader.loadTestsFromNames(testfiles)
+        TextTestRunner(verbosity = 2).run(tests)
+        #except AttributeError, e:
+        #    raise ImportError(("It's likely there is an import error in the "
+        #                       "file that defines this module:\n\t%s\n\t"
+        #                       "The test modules are in tests/.") % e)
 
 
 class CleanCommand(Command):
@@ -60,14 +68,13 @@ class CleanCommand(Command):
 
 
 class CoverageCommand (TestCommand):
-    '''
-    API for coverage-python: http://nedbatchelder.com/code/coverage/api.html
-    '''
+    """API for coverage-python: http://nedbatchelder.com/code/coverage/api.html"""
     description = "Check test coverage"
     user_options = []
 
     def initialize_options(self):
         import coverage
+        absolute_import_libcchdo()
         # distutils.core.Command is an old-style class so
         # use old supermethod call
         TestCommand.initialize_options(self)
@@ -87,16 +94,9 @@ class CoverageCommand (TestCommand):
 
 
 if __name__ == '__main__':
-    package_name = 'libcchdo'
-    module_path, module_name = os.path.split(os.path.split(os.path.abspath(
-                                   inspect.getfile(inspect.currentframe())))[0])
-    sys.path.insert(0, module_path)
-
-    imp.load_module(package_name, *imp.find_module(module_name, [module_path]))
-
-    setup(name=package_name,
+    setup(name=PACKAGE_NAME,
           version='0.5',
-          description='%s setup' % package_name,
+          description='%s setup' % PACKAGE_NAME,
           requires=['sqlalchemy', 'netCDF3'],
           cmdclass = {'test': TestCommand,
                       'clean': CleanCommand,

@@ -1,3 +1,6 @@
+import libcchdo.model.datafile
+
+
 def read(meta, filename):
     PARAM_EQUIVS = {
         #"param_depth_water": None,
@@ -13,7 +16,7 @@ def read(meta, filename):
         "param_chl_fluores": "FLUOR", # FIXME
     }
 
-    datafile = libcchdo.DataFile()
+    datafile = libcchdo.model.datafile.DataFile()
 
     preamble = """\
 # Auto-generated Exchange CTD file from ctd_polarstern_to_ctd_exchange
@@ -99,7 +102,7 @@ def read(meta, filename):
                 continue
 
             final_params.append(PARAM_EQUIVS[param])
-            col = libcchdo.Column(PARAM_EQUIVS[param])
+            col = libcchdo.model.datafile.Column(PARAM_EQUIVS[param])
             col.parameter.units = meta[param]["units"] if \
                     meta[param]["units"] else \
                     col.parameter.units

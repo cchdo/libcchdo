@@ -1,5 +1,6 @@
 import StringIO
 import libcchdo
+import libcchdo.model.datafile
 import libcchdo.formats.ctd.woce as wctd
 import unittest
 import sys
@@ -60,13 +61,13 @@ INSTRUMENT NO. 0     SAMPLING RATE 42.00  HZ
 """
 
     def test_read(self):
-        self.file = libcchdo.DataFile()
+        self.file = libcchdo.model.datafile.DataFile()
         self.bufr = StringIO.StringIO(self.input)
         wctd.read(self.file, self.bufr)
         self.bufr.close()
 
     def test_read_write(self):
-        self.file = libcchdo.DataFile()
+        self.file = libcchdo.model.datafile.DataFile()
         self.bufr = StringIO.StringIO(self.input)
         wctd.read(self.file, self.bufr)
         self.bufr.close()

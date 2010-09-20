@@ -4,6 +4,7 @@ import StringIO
 from unittest import TestCase
 
 import libcchdo
+import libcchdo.model.datafile
 import libcchdo.formats.summary.woce as sumwoce
 import libcchdo.formats.summary.hot as sumhot
 
@@ -32,7 +33,7 @@ EXPOCODE     SECT   STNNBR CASTNO TYPE DATE   TIME  CODE LATITUDE   LONGITUDE   
 """
 
   def test_read_summary_woce(self):
-    self.file = libcchdo.SummaryFile()
+    self.file = libcchdo.model.datafile.SummaryFile()
     self.buff = StringIO.StringIO(self.sample_woce)
     sumwoce.read(self.file, self.buff)
 
@@ -62,7 +63,7 @@ EXPOCODE     SECT   STNNBR CASTNO TYPE DATE   TIME  CODE LATITUDE   LONGITUDE   
     self.assertEqual([None] * 3, cs['_COMMENTS'].values)
 
   def test_read_summary_hot(self):
-    self.file = libcchdo.SummaryFile()
+    self.file = libcchdo.model.datafile.SummaryFile()
     self.buff = StringIO.StringIO(self.sample_hot)
     sumhot.read(self.file, self.buff)
 

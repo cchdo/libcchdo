@@ -22,6 +22,7 @@ from __future__ import with_statement
 import sys
 
 import abs_import_libcchdo
+import libcchdo.model.datafile
 import libcchdo.units.convert as cvt
 import libcchdo.db.model.std as std
 import libcchdo.formats.bottle.exchange as botex
@@ -31,8 +32,7 @@ import libcchdo.algorithms.volume
 def check_and_replace_parameters(self):
     for column in self.columns.values():
         parameter = column.parameter
-        std_parameter = libcchdo.db.parameters.find_by_mnemonic_std(
-                            parameter.name)
+        std_parameter = std.find_by_mnemonic(parameter.name)
 
         if not std_parameter and not parameter.name.startswith('_'):
             libcchdo.LOG.warn("Unknown parameter '%s'" % parameter.name)
@@ -87,7 +87,7 @@ def main(argv):
     else:
         outputfile = argv[2]
 
-    file = libcchdo.DataFile()
+    file = libcchdo.model.datafile.DataFile()
 
     with open(filename, 'r') as f:
         botex.read(file, f)

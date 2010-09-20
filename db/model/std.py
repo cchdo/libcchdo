@@ -6,11 +6,55 @@ import sqlalchemy.orm
 import sqlalchemy.ext.declarative
 
 import libcchdo
-import libcchdo.db.model as model
+import libcchdo.db
+import libcchdo.db.connect
 
 
 Base = S.ext.declarative.declarative_base()
 _metadata = Base.metadata
+
+
+LIBRARY_DB_FILE_PATH = os.path.join(libcchdo.get_library_abspath(), 
+    'db', libcchdo.db.connect._DB_LIBRARY_FILE)
+
+
+def _ensure_database_parameters_exist():
+    """Convert the legacy parameters into std parameters f there are no stored
+       parameters.
+    """
+    std_session = session()
+
+    if not std_session.query(Parameter).count():
+        libcchdo.LOG.info("Populating database with parameters.")
+        import libcchdo.db.model.convert as convert
+
+        std_session.add_all(convert.all_parameters())
+        std_session.commit()
+
+    std_session.close()
+
+
+def _auto_generate_library_database_file():
+    libcchdo.LOG.info("Auto-generating the library's database file (%s)." % \
+        LIBRARY_DB_FILE_PATH)
+    create_all()
+    
+    std_session = session()
+    std_session.commit()
+    std_session.close()
+
+    _ensure_database_parameters_exist()
+
+
+def ensure_database_file():
+    """Initialize the database file, if it is not present.
+       WARNING: Do not call this from libcchdo.db.model.std. There will be a
+       circular dependency.
+    """
+    if not os.path.isfile(LIBRARY_DB_FILE_PATH):
+        _auto_generate_library_database_file()
+    else:
+        _ensure_database_parameters_exist()
 
 
 @libcchdo.memoize
@@ -405,3 +449,34 @@ class DataBottle(Base):
         return "<DataBottle('%s', '%s', '%s', '%s', '%s')>" % \
             (self.bottle, self.parameter, self.value,
              self.flag_woce, self.flag_igoss)
+
+
+def make_contrived_parameter(name, format=None, units=None, bound_lower=None,
+                             bound_upper=None, display_order=sys.maxint):
+    return Parameter(
+        name,
+        full_name=name,
+        format=format or '%11s', 
+        units=Unit(units, units) if units else None,
+        bound_lower=bound_lower,
+        bound_upper=bound_upper,
+        display_order=display_order)
+
+
+def find_by_mnemonic(name):
+    parameter = session().query(Parameter).filter(
+        Parameter.name == name).first()
+    if not parameter:
+        alias = session().query(ParameterAlias).filter(
+            ParameterAlias.name == name).first()
+        if alias:
+            parameter = alias.parameter
+    return parameter
+
+
+def _post_import(module):
+    ensure_database_file()
+    return module
+
+
+libcchdo.post_import(_post_import)

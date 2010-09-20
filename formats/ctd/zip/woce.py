@@ -3,6 +3,7 @@
 import StringIO
 import zipfile
 
+import libcchdo.model.datafile
 from ..woce import woce
 
 
@@ -12,7 +13,7 @@ def read(self, handle):
     for file in zip.namelist():
         if 'README' in file or 'DOC' in file: continue
         tempstream = StringIO.StringIO(zip.read(file))
-        ctdfile = DataFile()
+        ctdfile = model.datafile.DataFile()
         woce(ctdfile).read(tempstream)
         self.datafile.files.append(ctdfile)
         tempstream.close()

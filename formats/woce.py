@@ -139,10 +139,7 @@ def read_data(self, handle, parameters_line, units_line, asterisk_line):
             else:
                 self.columns[parameter].set(i, datum)
 
-    # Expand globals into columns
-    #@header.each_pair do |header, value|
-    #  column = @column_hash[header] = Column.new(header)
-    #  column.values = Array.new(num_entries) {|i| value}
+    # Expand globals into columns TODO?
 
 
 def write_data(self, handle, ):

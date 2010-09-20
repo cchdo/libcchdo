@@ -8,7 +8,8 @@ from __future__ import with_statement
 import sys
 
 import abs_import_libcchdo
-import libcchdo.db.parameters
+import libcchdo.model.datafile
+import libcchdo.db.model.legacy
 import libcchdo.formats.bottle.exchange as exbot
 
 
@@ -17,7 +18,7 @@ def get_legacy_parameter(parameter):
         return None
     name = parameter.name
     if name != '_DATETIME':
-        return libcchdo.db.parameters.find_legacy_parameter(name)
+        return libcchdo.db.model.legacy.find_parameter(name)
     return None
 
 
@@ -27,7 +28,7 @@ def main(argv):
         return 1
     
     with open(argv[1], 'r') as in_file:
-        file = libcchdo.DataFile()
+        file = libcchdo.model.datafile.DataFile()
         exbot.read(file, in_file)
     
         # Get STD parameters from bottle file

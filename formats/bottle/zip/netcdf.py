@@ -4,6 +4,7 @@ import StringIO
 import zipfile
 
 import libcchdo
+import libcchdo.model.datafile
 import libcchdo.formats.netcdf as nc
 import libcchdo.formats.bottle.netcdf as botnc
 
@@ -15,7 +16,7 @@ def read(self, handle):
         if '.csv' not in file:
             continue
         tempstream = StringIO.StringIO(zip.read(file))
-        file = libcchdo.DataFile()
+        file = libcchdo.model.datafile.DataFile()
         botnc.read(file, tempstream)
         self.files.append(file)
         tempstream.close()

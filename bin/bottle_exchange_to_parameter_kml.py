@@ -4,6 +4,7 @@ from __future__ import with_statement
 import sys
 
 import abs_import_libcchdo
+import libcchdo.model.datafile
 import libcchdo.formats.bottle.exchange as botex
 
 
@@ -24,7 +25,7 @@ def main(argv):
         print 'Usage:', argv[0], '<exbot file>'
         return 1
     
-    file = libcchdo.DataFile()
+    file = libcchdo.model.datafile.DataFile()
     with open(argv[1], 'r') as in_file:
         botex.read(file, in_file)
     

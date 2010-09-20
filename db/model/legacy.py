@@ -214,3 +214,31 @@ class ParameterStatus(Base):
             self.pi = pi
 
 
+def find_parameter(name):
+    sesh = session()
+    legacy_parameter = sesh.query(Parameter).filter(
+        Parameter.name == name).first()
+
+    if not legacy_parameter:
+        # Try aliases
+        libcchdo.LOG.warn(
+            "No legacy parameter found for '%s'. Falling back to aliases." % \
+            name)
+        legacy_parameter = sesh.query(Parameter).filter(
+            Parameter.alias.like('%%%s%%' % name)).first()
+        
+        if not legacy_parameter:
+            # Try known overrides
+            libcchdo.LOG.warn(
+                ("No legacy parameter found for '%s'. Falling back on known "
+                 "override parameters.") % name)
+            legacy_parameter = Parameter.find_known(name)
+    else:
+        try:
+            legacy_parameter.display_order = \
+                MYSQL_PARAMETER_DISPLAY_ORDERS[
+                    legacy_parameter.name]
+        except:
+            legacy_parameter.display_order = sys.maxint
+
+    return legacy_parameter

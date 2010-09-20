@@ -7,6 +7,7 @@ import struct
 import sys
 
 import abs_import_libcchdo
+import libcchdo.model.datafile
 import libcchdo.formats.summary.woce
 import libcchdo.formats.bottle.exchange as botex
 import libcchdo.datadir.util
@@ -27,11 +28,11 @@ def ensure_nav(root, dirs, files):
         # TODO Collections have to have some regular way to be merged before
         # they can be outputted to nav.
         #['CTD Exchange', 'ct1.zip',
-        #  libcchdo.DataFileCollection.read_CTDZip_Exchange],
+        #  libcchdo.model.datafile.DataFileCollection.read_CTDZip_Exchange],
         #['Bottle NetCDF', 'nc_hyd.zip',
-        #  libcchdo.DataFileCollection.read_BottleZip_NetCDF],
+        #  libcchdo.model.datafile.DataFileCollection.read_BottleZip_NetCDF],
         #['CTD NetCDF', 'nc_ctd.zip',
-        #  libcchdo.DataFileCollection.read_CTDZip_NetCDF],
+        #  libcchdo.model.datafile.DataFileCollection.read_CTDZip_NetCDF],
     ]
     for methodname, extension, readfn in generation_methods:
         basefiles = filter(lambda f: f.endswith(extension), files)

@@ -7,6 +7,7 @@ import operator
 import sys
 
 import abs_import_libcchdo
+import libcchdo.model.datafile
 import libcchdo.formats.bottle.exchange as botex
 
 
@@ -78,7 +79,7 @@ def main(argv):
     else:
         outputfile = sys.argv[2]
 
-    file = libcchdo.DataFile()
+    file = libcchdo.model.datafile.DataFile()
 
     with open(inputfile, 'r') as f:
         botex.read(file, f)

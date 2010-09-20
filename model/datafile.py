@@ -1,6 +1,7 @@
 import libcchdo
 import libcchdo.fns
-import libcchdo.db.parameters
+import libcchdo.db
+import libcchdo.db.model.std as std
 
 
 COLORS = libcchdo.COLORS
@@ -12,9 +13,8 @@ class Column(object):
        if type(parameter) != str:
            self.parameter = parameter
        else:
-           self.parameter = \
-               libcchdo.db.parameters.make_contrived_parameter(parameter,
-                                                               units=units)
+           self.parameter = std.make_contrived_parameter(parameter,
+                                                         units=units)
        self.values = []
        self.flags_woce = []
        self.flags_igoss = []
@@ -105,8 +105,7 @@ class File(object):
     def check_and_replace_parameters(self):
         for column in self.columns.values():
             parameter = column.parameter
-            std_parameter = libcchdo.db.parameters.find_by_mnemonic_std(
-                                parameter.name)
+            std_parameter = std.find_by_mnemonic(parameter.name)
             
             if parameter.name.startswith('_'):
                 continue

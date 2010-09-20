@@ -4,6 +4,7 @@ from __future__ import with_statement
 import sys
 
 import abs_import_libcchdo
+import libcchdo.model.datafile
 
 
 def main(argv):
@@ -12,7 +13,7 @@ def main(argv):
         return 1
     
     with open(argv[1], 'r') as in_file:
-        file = libcchdo.SummaryFile()
+        file = libcchdo.model.datafile.SummaryFile()
         file.read_HOT_Summary(in_file)
         file.write_WOCE_Summary(sys.stdout)
 

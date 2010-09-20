@@ -4,6 +4,7 @@ import re
 import datetime
 
 import libcchdo
+import libcchdo.model.datafile
 import libcchdo.formats.woce
 
 
@@ -101,15 +102,15 @@ def read(self, handle):
     try:
         self.columns['DATE']
     except KeyError:
-        self.columns['DATE'] = libcchdo.Column('DATE')
+        self.columns['DATE'] = libcchdo.model.datafile.Column('DATE')
         self.columns['DATE'].values = [None] * len(self)
     try:
         self.columns['TIME']
     except KeyError:
-        self.columns['TIME'] = libcchdo.Column('TIME')
+        self.columns['TIME'] = libcchdo.model.datafile.Column('TIME')
         self.columns['TIME'].values = [None] * len(self)
 
-    self.columns['_DATETIME'] = libcchdo.Column('_DATETIME')
+    self.columns['_DATETIME'] = libcchdo.model.datafile.Column('_DATETIME')
     self.columns['_DATETIME'].values = [
         libcchdo.formats.woce.strptime_woce_date_time(*x) for x in zip(
             self.columns['DATE'].values, self.columns['TIME'].values)]
@@ -127,8 +128,8 @@ def write(self, handle):
 
     # Convert from internal data format to bottle exchange
     # Separate _DATETIME into DATE and TIME
-    date = self.columns['DATE'] = libcchdo.Column('DATE')
-    time = self.columns['TIME'] = libcchdo.Column('TIME')
+    date = self.columns['DATE'] = libcchdo.model.datafile.Column('DATE')
+    time = self.columns['TIME'] = libcchdo.model.datafile.Column('TIME')
     for dtime in self.columns['_DATETIME'].values:
         if dtime:
             date.append(dtime.strftime('%Y%m%d'))

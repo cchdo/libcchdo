@@ -5,6 +5,7 @@ import zipfile
 import datetime
 
 import libcchdo
+import libcchdo.model.datafile
 import libcchdo.formats.ctd.exchange as ctdex
 
 
@@ -14,7 +15,7 @@ def read(self, handle):
     for file in zip.namelist():
         if '.csv' not in file: continue
         tempstream = StringIO.StringIO(zip.read(file))
-        ctdfile = libcchdo.DataFile()
+        ctdfile = libcchdo.model.datafile.DataFile()
         ctdex.read(ctdfile, tempstream)
         self.files.append(ctdfile)
         tempstream.close()

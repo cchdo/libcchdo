@@ -6,6 +6,7 @@ import tempfile
 import zipfile
 
 import libcchdo
+import libcchdo.model.datafile
 import libcchdo.formats.ctd.netcdf as netcdf
 
 
@@ -17,7 +18,7 @@ def read(self, handle):
         tmpfile = tempfile.NamedTemporaryFile()
         tmpfile.write(zip.read(file))
         tmpfile.flush()
-        ctdfile = libcchdo.DataFile()
+        ctdfile = libcchdo.model.datafile.DataFile()
         with open(tmpfile.name, 'r') as f:
             netcdf.read(ctdfile, f)
         self.files.append(ctdfile)

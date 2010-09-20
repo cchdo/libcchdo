@@ -5,6 +5,7 @@ import StringIO
 from unittest import TestCase
 
 import libcchdo
+import libcchdo.model.datafile
 import libcchdo.formats.bottle.exchange as botex
 
 
@@ -36,7 +37,7 @@ END_DATA
 '''
 
     def setUp(self):
-        self.file = libcchdo.DataFile()
+        self.file = libcchdo.model.datafile.DataFile()
 
     def test_read(self):
         self.buff = StringIO.StringIO(TestBottleExchange.sample)

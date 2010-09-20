@@ -7,6 +7,7 @@ import os
 from unittest import TestCase
 
 import libcchdo
+import libcchdo.model.datafile
 import libcchdo.formats.bottle.netcdf as netcdfbot
 
 class TestBottleNetCDF(TestCase):
@@ -22,7 +23,7 @@ class TestBottleNetCDF(TestCase):
           self.assertAlmostEqual(x, y)
 
   def test_read(self):
-      self.file = libcchdo.DataFile()
+      self.file = libcchdo.model.datafile.DataFile()
       netcdfbot.read(self.file, self.infile)
       self.infile.close()
 
@@ -45,7 +46,7 @@ class TestBottleNetCDF(TestCase):
       self.assertEqual(expocodes, self.file.columns['EXPOCODE'].values)
 
   def test_read_multiple(self):
-      self.file = libcchdo.DataFile()
+      self.file = libcchdo.model.datafile.DataFile()
       netcdfbot.read(self.file, self.infile)
       self.infile.close()
 
@@ -100,6 +101,6 @@ class TestBottleNetCDF(TestCase):
       infile2.close()
 
   def test_write(self):
-      self.file = libcchdo.DataFile()
+      self.file = libcchdo.model.datafile.DataFile()
       # TODO
       self.infile.close()

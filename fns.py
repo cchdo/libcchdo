@@ -5,6 +5,7 @@ import math
 import os.path
 
 import libcchdo
+import libcchdo.model.datafile
 
 
 def uniquify(seq):
@@ -34,11 +35,11 @@ def read_arbitrary(handle):
         raise ValueError("The file '%s' does not exist" % filename)
 
     if filename.endswith('zip'):
-        datafile = libcchdo.DataFileCollection()
+        datafile = libcchdo.model.datafile.DataFileCollection()
     elif filename.endswith('su.txt'):
-        datafile = libcchdo.SummaryFile()
+        datafile = libcchdo.model.datafile.SummaryFile()
     else:
-        datafile = libcchdo.DataFile()
+        datafile = libcchdo.model.datafile.DataFile()
 
     if filename.endswith('su.txt'):
         import formats.summary.woce

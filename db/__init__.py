@@ -1,7 +1,5 @@
-'''Abstractions for the CCHDO databases'''
+"""Abstractions for the CCHDO databases"""
 
-import connect
-import model
 
 # Enum type for sqlalchemy
 from sqlalchemy import types, exceptions
