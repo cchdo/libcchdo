@@ -18,4 +18,4 @@ import db.connect # cchdo_data()
 
 #def read(self):
 def write(self):
-    print self.to_hash()
+    print self.to_dict()

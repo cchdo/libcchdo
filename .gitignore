@@ -4,6 +4,8 @@
 .*~
 *~
 *.pyc
-dev
 .coverage
+dev
 db/*.db
+db/*.db-journal
+doc

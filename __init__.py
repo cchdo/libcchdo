@@ -78,25 +78,12 @@ def post_import(fn):
 
 
 def get_library_abspath():
+    """Give the absolute path of the directory that is the root of the 
+       package, i.e. it contains this file.
+    """
     import os
     import inspect
-    return os.path.split(os.path.abspath(inspect.getfile(
-                       inspect.currentframe())))[0]
-
-
-def set_list(L, i, value, fill=None):
-    """ Set a cell in a list. If the list is not long enough, extend it first.
-        Args:
-            L - the list
-            i - the index
-            value - the value to put at L[i]
-            fill - the value to fill if the list is to be extended
-    """
-    try:
-        L[i] = value
-    except IndexError:
-        L.extend([fill] * (i - len(L) + 1))
-        L[i] = value
+    return os.path.split(os.path.abspath(inspect.stack()[0][1]))[0]
 
 
 import formats

@@ -3,7 +3,6 @@
 
 from unittest import TestCase
 
-import libcchdo
 import libcchdo.model.datafile
 
 
@@ -21,7 +20,7 @@ class TestDataFile(TestCase):
         self.assertEqual(len(self.file.columns), 1)
         self.assertEqual(self.file.footer, None)
         self.assertEqual(self.file.globals, {'stamp': '', 'header': ''})
-  
+
     def test_expocodes(self):
         self.c.append('A')
         self.assertEqual(['A'], self.file.expocodes())
@@ -31,6 +30,10 @@ class TestDataFile(TestCase):
         self.assertEqual(['A', 'B'], self.file.expocodes()) # Expocodes returns unique expocodes.
   
     def test_len(self):
+        c = self.file.columns['EXPOCODE']
+        del self.file.columns['EXPOCODE']
+        self.assertEqual(len(self.file), 0)
+        self.file.columns['EXPOCODE'] = c
         self.assertEqual(len(self.file), 0)
         self.c.append('A')
         self.assertEqual(len(self.file), 1)
@@ -63,8 +66,12 @@ class TestDataFile(TestCase):
         self.file.check_and_replace_parameters()
         self.assertEqual(['%11s', '%9.4f'], self.file.formats())
   
-    def test_to_hash(self):
+    def test_to_dict(self):
+        self.file.to_dict()
         pass # TODO
+
+    def test_str(self):
+        str(self.file)
   
     def test_create_columns(self):
         parameters = ['CTDOXY']

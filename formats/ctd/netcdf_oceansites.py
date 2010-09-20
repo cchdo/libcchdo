@@ -173,7 +173,10 @@ def write(self, handle, timeseries=None, timeseries_info={}):
     nc_file.time_coverage_end = libcchdo.fns.strftime_iso(isowocedate)
 
     nc_file.createDimension('TIME')
-    nc_file.createDimension('DEPTH', len(self))
+    try:
+        nc_file.createDimension('DEPTH', len(self))
+    except RuntimeError:
+        raise AttributeError("There is no data to be written.")
     nc_file.createDimension('LATITUDE', 1)
     nc_file.createDimension('LONGITUDE', 1)
     nc_file.createDimension('POSITION', 1)

@@ -214,7 +214,7 @@ def write(self, handle):
     nc_file.BOTTOM_DEPTH_METERS = int(max(self['DEPTH'].values))
     nc_file.BOTTLE_NUMBERS = ' '.join(map(nc.simplest_str, self['BTLNBR'].values))
     if self['BTLNBR'].is_flagged_woce():
-        nc_file.BOTTLE_QUALITY_CODES = ' '.join(self['BTLNBR'].flags_woce)
+        nc_file.BOTTLE_QUALITY_CODES = ' '.join(map(str, self['BTLNBR'].flags_woce))
     nc_file.Creation_Time = libcchdo.fns.strftime_iso(datetime.datetime.utcnow())
 
     header_filter = re.compile('BOTTLE|db_to_exbot|jjward')
@@ -291,8 +291,9 @@ def write(self, handle):
         if parameter_name in STATIC_PARAMETERS_PER_CAST:
             continue
         var = nc_file.createVariable(parameter.name, 'f8', ('pressure',))
-        var.long_name = parameter.name
-        var.units = parameter.units.name if parameter.units else UNSPECIFIED_UNITS
+        var.long_name = parameter.name.encode('ascii', 'replace')
+        var.units = parameter.units.name.encode('ascii', 'replace') if \
+            parameter.units else UNSPECIFIED_UNITS
         compact_column = filter(None, column)
         if compact_column:
             var.data_min = min(compact_column)
@@ -300,12 +301,12 @@ def write(self, handle):
         else:
             var.data_min = float('-inf')
             var.data_max = float('inf')
-        var.C_format = parameter.format
+        var.C_format = parameter.format.encode('ascii', 'replace')
         var[:] = column.values
 
         if column.is_flagged_woce():
             vfw = nc_file.createVariable(parameter.name + nc.QC_SUFFIX, 'i2', ('pressure',))
-            vfw.long_name = parameter.name + nc.QC_SUFFIX
+            vfw.long_name = parameter.name.encode('ascii', 'replace') + nc.QC_SUFFIX
             vfw[:] = column.flags_woce
 
     nc_file.close()

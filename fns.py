@@ -18,6 +18,21 @@ def uniquify(seq):
     return [x for x in seq if x not in seen and not a(x)]
 
 
+def set_list(L, i, value, fill=None):
+    """ Set a cell in a list. If the list is not long enough, extend it first.
+        Args:
+            L - the list
+            i - the index
+            value - the value to put at L[i]
+            fill - the value to fill if the list is to be extended
+    """
+    try:
+        L[i] = value
+    except IndexError:
+        L.extend([fill] * (i - len(L) + 1))
+        L[i] = value
+
+
 def strip_all(list):
     return map(lambda x: x.strip(), list)
 
@@ -31,8 +46,6 @@ def read_arbitrary(handle):
            a DataFile(Collection) or *SummaryFile that matches the file type.
     '''
     filename = handle.name
-    if not os.path.exists(filename):
-        raise ValueError("The file '%s' does not exist" % filename)
 
     if filename.endswith('zip'):
         datafile = libcchdo.model.datafile.DataFileCollection()

@@ -1,6 +1,5 @@
 import libcchdo
 import libcchdo.fns
-import libcchdo.db
 import libcchdo.db.model.std as std
 
 
@@ -29,11 +28,11 @@ class Column(object):
            self.values.append(None)
            self.flags_woce.append(None)
            self.flags_igoss.append(None)
-       libcchdo.set_list(self.values, index, value)
+       libcchdo.fns.set_list(self.values, index, value)
        if flag_woce is not None:
-           libcchdo.set_list(self.flags_woce, index, flag_woce)
+           libcchdo.fns.set_list(self.flags_woce, index, flag_woce)
        if flag_igoss is not None:
-           libcchdo.set_list(self.flags_igoss, index, flag_igoss)
+           libcchdo.fns.set_list(self.flags_igoss, index, flag_igoss)
 
    def append(self, value=None, flag_woce=None, flag_igoss=None):
        self.values.append(value)
@@ -193,7 +192,7 @@ class DataFile(File):
                                      COLORS['CLEAR'])
         return s.encode('ascii', 'replace')
 
-    def to_hash(self):
+    def to_dict(self):
         hash = {}
         for column in self.columns:
             c = self[column]

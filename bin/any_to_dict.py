@@ -14,7 +14,7 @@ def main(argv):
     
     with open(argv[1], 'r') as in_file:
         file = libcchdo.fns.read_arbitrary(in_file)
-        print file.to_hash()
+        print file.to_dict()
 
 
 if __name__ == '__main__':
