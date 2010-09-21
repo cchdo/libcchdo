@@ -1,4 +1,4 @@
-""" Functions used globally by libcchdo """
+"""Functions used globally."""
 
 
 import math
@@ -6,6 +6,14 @@ import os.path
 
 import libcchdo
 import libcchdo.model.datafile
+
+
+# Define isnan for python <2.6
+if math.isnan:
+    isnan = math.isnan
+else:
+    def isnan(n):
+        return n != n
 
 
 def uniquify(seq):
@@ -54,12 +62,12 @@ def read_arbitrary(handle):
     else:
         datafile = libcchdo.model.datafile.DataFile()
 
-    if filename.endswith('su.txt'):
-        import formats.summary.woce
-        formats.summary.woce.read(datafile, handle)
-    elif filename.endswith('.hot.su.txt'):
+    if filename.endswith('.hot.su.txt'):
         import formats.summary.hot
         formats.summary.hot.read(datafile, handle)
+    elif filename.endswith('su.txt'):
+        import formats.summary.woce
+        formats.summary.woce.read(datafile, handle)
     elif filename.endswith('hy.txt'):
         import formats.bottle.woce
         formats.bottle.woce.read(datafile, handle)
@@ -75,9 +83,6 @@ def read_arbitrary(handle):
     elif filename.endswith('ct1.csv'):
         import formats.ctd.exchange
         formats.ctd.exchange.read(datafile, handle)
-    elif filename.endswith('ct.zip'):
-        import formats.bottle.zip.woce
-        formats.ctd.zip.woce.read(datafile, handle)
     elif filename.endswith('ct1.zip'):
         import formats.ctd.zip.exchange
         formats.ctd.zip.exchange.read(datafile, handle)

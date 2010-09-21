@@ -7,15 +7,6 @@ import libcchdo
 
 class TestInit(TestCase):
 
-    def test_less_than_python26(self):
-        import sys
-        sys.modules['math'] = None
-
-    def test_isnan(self):
-        self.assertFalse(libcchdo.isnan(1))
-        self.assertFalse(libcchdo.isnan(1.0))
-        self.assertTrue(libcchdo.isnan(float('nan')))
-    
     def test_memoize(self):
         @libcchdo.memoize
         def fib(n):

@@ -2,7 +2,7 @@
 
 import datetime
 
-import libcchdo
+import libcchdo.fns
 
 def _column_type(col):
     if col == 'EXPOCODE' or col == 'SECT_ID':
@@ -15,7 +15,7 @@ def _column_type(col):
 
 def _raw_to_str(raw, json=False):
     if isinstance(raw, float):
-        if libcchdo.isnan(raw):
+        if libcchdo.fns.isnan(raw):
             if json:
                 return None
             else:

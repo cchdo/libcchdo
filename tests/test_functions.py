@@ -1,15 +1,27 @@
 """ Test case for libcchdo global functions """
 
 from unittest import TestCase
-from math import pi
+import math
 import tempfile
 import os
 import datetime
+import zipfile
 
-import libcchdo
+import libcchdo.fns
 
 
 class TestFunctions(TestCase):
+
+    def test_python_less_than_26(self):
+        math.isnan = None
+        reload(libcchdo.fns)
+        self.assertFalse(libcchdo.fns.isnan(1))
+        self.assertTrue(libcchdo.fns.isnan(float('nan')))
+
+    def test_isnan(self):
+        self.assertFalse(libcchdo.fns.isnan(1))
+        self.assertFalse(libcchdo.fns.isnan(1.0))
+        self.assertTrue(libcchdo.fns.isnan(float('nan')))
 
     def test_uniquify(self):
         xs = ['a', 'b', 'a', 'a', 'b']
@@ -75,3 +87,38 @@ class TestFunctions(TestCase):
         self.assertEqual(5, libcchdo.fns.polynomial(5, [0, 1]))
         self.assertEqual(30, libcchdo.fns.polynomial(5, [0, 1, 1]))
         self.assertEqual(50, libcchdo.fns.polynomial(5, [0, 5, 1]))
+
+    def test_read_arbitrary(self):
+        # TODO
+        t = tempfile.NamedTemporaryFile(suffix='su.txt')
+        libcchdo.fns.read_arbitrary(t)
+
+        t = tempfile.NamedTemporaryFile(suffix='.hot.su.txt')
+        libcchdo.fns.read_arbitrary(t)
+
+        t = tempfile.NamedTemporaryFile(suffix='hy.txt')
+        self.assertRaises(ValueError, libcchdo.fns.read_arbitrary, t)
+
+        t = tempfile.NamedTemporaryFile(suffix='hy1.csv')
+        self.assertRaises(ValueError, libcchdo.fns.read_arbitrary, t)
+
+        t = tempfile.NamedTemporaryFile(suffix='hy1.nc')
+        self.assertRaises(RuntimeError, libcchdo.fns.read_arbitrary, t)
+
+        t = tempfile.NamedTemporaryFile(suffix='nc_hyd.zip')
+        self.assertRaises(zipfile.BadZipfile, libcchdo.fns.read_arbitrary, t)
+
+        t = tempfile.NamedTemporaryFile(suffix='ct1.csv')
+        self.assertRaises(ValueError, libcchdo.fns.read_arbitrary, t)
+
+        t = tempfile.NamedTemporaryFile(suffix='ct1.zip')
+        self.assertRaises(zipfile.BadZipfile, libcchdo.fns.read_arbitrary, t)
+
+        t = tempfile.NamedTemporaryFile(suffix='ctd.nc')
+        self.assertRaises(RuntimeError, libcchdo.fns.read_arbitrary, t)
+
+        t = tempfile.NamedTemporaryFile(suffix='nc_ctd.zip')
+        self.assertRaises(zipfile.BadZipfile, libcchdo.fns.read_arbitrary, t)
+
+        t = tempfile.NamedTemporaryFile(suffix='unk.unk')
+        self.assertRaises(ValueError, libcchdo.fns.read_arbitrary, t)

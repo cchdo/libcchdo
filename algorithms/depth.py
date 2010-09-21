@@ -1,4 +1,5 @@
-import libcchdo
+import math
+
 import libcchdo.fns
 
 
@@ -36,12 +37,14 @@ def depth(grav, p, rho):
     depth = []
 
     num_intervals = len(p)
-    if not (num_intervals == len(rho)):
-        raise ValueError("The number of series intervals must be the same.")
+    assert num_intervals == len(rho), \
+           "The number of series intervals must be the same."
 
     # When calling depth() repeatedly with a two-element
     # series, the first call should be with a one-element series to
     # initialize the starting value (see depth_(), below).
+    # TODO figure out what this does. The original C version has the caller
+    # maintain a depth array that is constantly modified.
 
     # Initialize the series
     if num_intervals is not 2:

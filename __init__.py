@@ -14,13 +14,6 @@ from the database (there is none anyway).
 import logging
 import __builtin__
 
-try:
-    from math import isnan
-except ImportError:
-    # Define if python < 2.6
-    def isnan(n):
-        return n != n
-
 
 class memoize(object):
     """Memoization decorator class"""
