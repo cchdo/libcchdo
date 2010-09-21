@@ -247,6 +247,9 @@ class DataFileCollection(object):
     def stamps(self):
         return [file.globals['stamp'] for file in self.files.values()]
 
+    def append(self, x):
+        self.files.append(x)
+
     def __str__(self):
         s = u''
         for i, file in enumerate(self.files):

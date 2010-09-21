@@ -29,9 +29,9 @@ def clone_file_structure(file):
 
 
 def split_bottle(file):
-    ''' Split apart the bottle exchange file into a data file collection based
+    """ Split apart the bottle exchange file into a data file collection based
         on station cast. Each cast is a new 'file'.
-    '''
+    """
     coll = libcchdo.model.datafile.DataFileCollection()
 
     file_parameters = get_parameters(file)
@@ -50,7 +50,8 @@ def split_bottle(file):
         if expocodes[i] != expocode or \
            stations[i] != station or \
            casts[i] != cast:
-            coll.files.append(current_file)
+            current_file.check_and_replace_parameters()
+            coll.append(current_file)
             current_file = clone_file_structure(file)
         expocode = expocodes[i]
         station = stations[i]
@@ -70,7 +71,8 @@ def split_bottle(file):
                 flag_igoss = None
             current_file[p].append(value, flag_woce, flag_igoss)
 
-    coll.files.append(current_file)
+    current_file.check_and_replace_parameters()
+    coll.append(current_file)
 
     return coll
 

@@ -255,10 +255,12 @@ def write(self, handle):
     # Create data variables and fill them
     for param, column in self.columns.iteritems():
         parameter = column.parameter
-        parameter_name = parameter.mnemonic_woce()
-        if parameter_name in STATIC_PARAMETERS_PER_CAST:
+        libcchdo.LOG.debug(parameter)
+        parameter_name = (parameter.name_netcdf or 
+                          parameter.name).encode('ascii', 'replace')
+        if parameter.mnemonic_woce() in STATIC_PARAMETERS_PER_CAST:
             continue
-        var = nc_file.createVariable(parameter.name, 'f8', ('pressure',))
+        var = nc_file.createVariable(parameter_name, 'f8', ('pressure',))
         var.long_name = parameter.name.encode('ascii', 'replace')
         var.units = parameter.units.name.encode('ascii', 'replace') if \
             parameter.units else UNSPECIFIED_UNITS
@@ -273,8 +275,8 @@ def write(self, handle):
         var[:] = column.values
 
         if column.is_flagged_woce():
-            vfw = nc_file.createVariable(parameter.name + nc.QC_SUFFIX, 'i2', ('pressure',))
-            vfw.long_name = parameter.name.encode('ascii', 'replace') + nc.QC_SUFFIX
+            vfw = nc_file.createVariable(parameter_name + nc.QC_SUFFIX, 'i2', ('pressure',))
+            vfw.long_name = parameter_name + nc.QC_SUFFIX
             vfw[:] = column.flags_woce
 
     nc_file.close()
