@@ -18,6 +18,15 @@ LIBRARY_DB_FILE_PATH = os.path.join(libcchdo.get_library_abspath(),
     'db', libcchdo.db.connect._DB_LIBRARY_FILE)
 
 
+def _populate_library_database_parameters():
+    libcchdo.LOG.info("Populating database with parameters.")
+    import libcchdo.db.model.convert as convert
+
+    std_session = session()
+    std_session.add_all(convert.all_parameters(std_session))
+    std_session.commit()
+    std_session.close()
+
 def _ensure_database_parameters_exist():
     """Convert the legacy parameters into std parameters f there are no stored
        parameters.
@@ -25,11 +34,7 @@ def _ensure_database_parameters_exist():
     std_session = session()
 
     if not std_session.query(Parameter).count():
-        libcchdo.LOG.info("Populating database with parameters.")
-        import libcchdo.db.model.convert as convert
-
-        std_session.add_all(convert.all_parameters())
-        std_session.commit()
+        _populate_library_database_parameters()
 
     std_session.close()
 
@@ -228,6 +233,9 @@ class Unit(Base):
         return "<Unit('%s', '%s')>" % (self.name, self.mnemonic)
 
 
+S.Index('units_name', Unit.name, unique=True)
+
+
 class ParameterAlias(Base):
     __tablename__ = 'parameter_aliases'
 
@@ -247,6 +255,7 @@ class Parameter(Base):
     id = S.Column(S.Integer, primary_key=True)
     name = S.Column(S.String(255))
     full_name = S.Column(S.String(255))
+    name_netcdf = S.Column(S.String(255))
     format = S.Column(S.String(10))
     unit_id = S.Column(S.ForeignKey('units.id'))
     bound_lower = S.Column(S.Numeric)
@@ -285,6 +294,9 @@ class Parameter(Base):
 
     def __repr__(self):
         return "<Parameter('%s', '%s', '%s', '%s')>" % (self.name, self.format, self.units, self.aliases)
+
+
+S.Index('parameters_name_netcdf', Parameter.name_netcdf, unique=True)
 
 
 class Cast(Base):

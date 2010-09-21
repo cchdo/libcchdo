@@ -42,8 +42,8 @@ class TestFormatsWoce(TestCase):
         self.assertEqual(None, fw.strptime_woce_date_time(1234, None))
         self.assertEqual(None, fw.strptime_woce_date_time(None, 5432))
 
-        self.assertRaises(ValueError, fw.strptime_woce_date_time, 'a', 12345)
-        self.assertRaises(ValueError, fw.strptime_woce_date_time, 12345, 'a')
+        self.assertTrue(fw.strptime_woce_date_time('a', 12345) is None)
+        self.assertTrue(fw.strptime_woce_date_time(12345, 'a') is None)
 
         self.assertEqual(
             datetime.datetime(2010, 03, 31, 16, 59),

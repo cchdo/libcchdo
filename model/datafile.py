@@ -9,9 +9,11 @@ COLORS = libcchdo.COLORS
 class Column(object):
 
    def __init__(self, parameter, units=None):
-       if type(parameter) != str:
+       if not type(parameter) is str and not type(parameter) is unicode:
            self.parameter = parameter
        else:
+           if type(parameter) is unicode:
+           	   parameter = parameter.encode('ascii', 'replace')
            self.parameter = std.make_contrived_parameter(parameter,
                                                          units=units)
        self.values = []

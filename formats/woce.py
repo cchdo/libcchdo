@@ -9,6 +9,47 @@ import struct
 import libcchdo
 
 
+BOTTLE_FLAGS = {
+    1: 'Bottle information unavailable.',
+    2: 'No problems noted.',
+    3: 'Leaking.',
+    4: 'Did not trip correctly.',
+    5: 'Not reported.',
+    6: ('Significant discrepancy in measured values between Gerard and Niskin '
+        'bottles.'),
+    7: 'Unknown problem.',
+    8: ('Pair did not trip correctly. Note that the Niskin bottle can trip at '
+        'an unplanned depth while the Gerard trips correctly and vice versa.'),
+    9: 'Samples not drawn from this bottle.',
+}
+
+
+WATER_SAMPLE_FLAGS = {
+    1: ('Sample for this measurement was drawn from water bottle but analysis '
+        'not received.'),
+    2: 'Acceptable measurement.',
+    3: 'Questionable measurement.',
+    4: 'Bad measurement.',
+    5: 'Not reported.',
+    6: 'Mean of replicate measurements.',
+    7: 'Manual chromatographic peak measurement.',
+    8: 'Irregular digital chromatographic peak integration.',
+    9: 'Sample not drawn for this measurement from this bottle.',
+}
+
+
+BOTTLE_FLAG_DESCRIPTION = ':'.join([':'] + \
+    ['%d = %s' % (i + 1, BOTTLE_FLAGS[i + 1]) for i in \
+        range(len(BOTTLE_FLAGS))] + \
+    ["\n"])
+
+
+WATER_SAMPLE_FLAG_DESCRIPTION = ':'.join([':'] + \
+    ['%d = %s' % (i + 1, WATER_SAMPLE_FLAGS[i + 1]) for i in \
+        range(len(WATER_SAMPLE_FLAGS))] + \
+    ["\n"])
+
+
 def woce_lat_to_dec_lat(lattoks):
     '''Convert a latitude in WOCE format to decimal.'''
     lat = int(lattoks[0]) + float(lattoks[1]) / 60.0
@@ -66,9 +107,7 @@ def strptime_woce_date_time(woce_date, woce_time):
         return datetime.datetime.strptime(
              "%08d%04d" % (i_woce_date, i_woce_time), '%Y%m%d%H%M')
     except:
-        raise ValueError(
-                  "The time given (%s, %s) is not in the WOCE date format." % \
-                  (woce_date, woce_time))
+        return None
 
 
 def read_data(self, handle, parameters_line, units_line, asterisk_line):

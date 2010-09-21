@@ -232,13 +232,17 @@ def find_parameter(name):
             libcchdo.LOG.warn(
                 ("No legacy parameter found for '%s'. Falling back on known "
                  "override parameters.") % name)
-            legacy_parameter = Parameter.find_known(name)
+            try:
+                legacy_parameter = Parameter.find_known(name)
+            except EnvironmentError:
+                return None
     else:
         try:
             legacy_parameter.display_order = \
-                MYSQL_PARAMETER_DISPLAY_ORDERS[
-                    legacy_parameter.name]
+                MYSQL_PARAMETER_DISPLAY_ORDERS[legacy_parameter.name]
         except:
             legacy_parameter.display_order = sys.maxint
 
     return legacy_parameter
+
+

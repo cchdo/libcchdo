@@ -4,70 +4,14 @@ import re
 import tempfile
 
 import libcchdo
+import libcchdo.db.model.std
 import libcchdo.formats.netcdf as nc
 import libcchdo.formats.woce as woce
 
 
-
-
-NC_BOTTLE_VAR_TO_WOCE_PARAM = {
-    'pressure': 'CTDPRS',
-    'temperature': 'CTDTMP',
-    'oxygen': 'CTDOXY',
-    'salinity': 'CTDSAL',
-    'silicate': 'SILCAT',
-    'nitrate': 'NITRAT',
-    'nitrite': 'NITRIT',
-    'freon_11': 'CFC-11',
-    'partial_co2_temperature': 'PCO2TMP',
-    'alkalinity': 'ALKALI',
-    'freon_113': 'CFC113',
-    'total_carbon': 'TCARBN',
-    'ctd_raw': 'CTDRAW',
-    'freon_12': 'CFC-12',
-    'theta': 'THETA',
-    'bottle_oxygen': 'OXYGEN',
-    'bottle_oxygen': 'OXYGEN',
-    'phosphate': 'PHSPHT',
-    'partial_pressure_of_co2': 'PCO2',
-    'bottle_salinity': 'SALNTY',
-    'tritium': 'TRITUM',
-    'helium': 'HELIUM',
-    'delta_helium_3': 'DELHE3',
-    'tritium_error': 'TRITER',
-}
-
-
-WOCE_BOTTLE_FLAG_DESCRIPTION = ':'.join([
-    ':',
-    '1 = Bottle information unavailable.',
-    '2 = No problems noted.',
-    '3 = Leaking.',
-    '4 = Did not trip correctly.',
-    '5 = Not reported.',
-    ('6 = Significant discrepancy in measured values between Gerard '
-     'and Niskin bottles.'),
-    '7 = Unknown problem.',
-    ('8 = Pair did not trip correctly. Note that the Niskin bottle '
-     'can trip at an unplanned depth while the Gerard trips '
-     'correctly and vice versa.'),
-    '9 = Samples not drawn from this bottle.',
-    "\n"])
-
-
-WOCE_WATER_SAMPLE_FLAG_DESCRIPTION = ':'.join([
-    ':',
-    ('1 = Sample for this measurement was drawn from water bottle '
-     'but analysis not received.'),
-    '2 = Acceptable measurement.',
-    '3 = Questionable measurement.',
-    '4 = Bad measurement.',
-    '5 = Not reported.',
-    '6 = Mean of replicate measurements.',
-    '7 = Manual chromatographic peak measurement.',
-    '8 = Irregular digital chromatographic peak integration.',
-    '9 = Sample not drawn for this measurement from this bottle.',
-    "\n"])
+NC_BOTTLE_VAR_TO_WOCE_PARAM = dict(libcchdo.db.model.std.session().query(
+        libcchdo.db.model.std.Parameter.name_netcdf,
+        libcchdo.db.model.std.Parameter.name).all())
 
 
 VARATTRS = frozenset(('time', 'latitude', 'longitude', 'woce_date',
@@ -80,14 +24,38 @@ def read(self, handle):
     nc_file = nc.Dataset(filename, 'r')
     
     attrs = nc_file.__dict__
-    expocode = attrs['EXPOCODE']
-    self.globals['header'] = attrs['ORIGINAL_HEADER']
-    station = attrs['STATION_NUMBER']
-    cast = attrs['CAST_NUMBER']
-    bottle_numbers = attrs['BOTTLE_NUMBERS'].split()
-    bottle_flags = attrs['BOTTLE_QUALITY_CODES'][:]
-    section_id = attrs['WOCE_ID']
-    bottom_depth = attrs['BOTTOM_DEPTH_METERS']
+    try:
+        expocode = attrs['EXPOCODE']
+    except KeyError:
+        expocode = None
+    try:
+        self.globals['header'] = attrs['ORIGINAL_HEADER']
+    except KeyError:
+        self.globals['header'] = None
+    try:
+        station = attrs['STATION_NUMBER']
+    except KeyError:
+        station = None
+    try:
+        cast = attrs['CAST_NUMBER']
+    except KeyError:
+        cast = None
+    try:
+        bottle_numbers = attrs['BOTTLE_NUMBERS'].split()
+    except KeyError:
+        bottle_numbers = []
+    try:
+        bottle_flags = attrs['BOTTLE_QUALITY_CODES'][:]
+    except KeyError:
+        bottle_flags = []
+    try:
+        section_id = attrs['WOCE_ID']
+    except KeyError:
+        section_id = ''
+    try:
+        bottom_depth = attrs['BOTTOM_DEPTH_METERS']
+    except KeyError:
+        bottom_depth = None
 
     vars = nc_file.variables
 
@@ -222,8 +190,8 @@ def write(self, handle):
         [x for x in self.globals['header'].split("\n") if not header_filter.match(x)])
     nc_file.ORIGINAL_HEADER = header
 
-    nc_file.WOCE_BOTTLE_FLAG_DESCRIPTION = WOCE_BOTTLE_FLAG_DESCRIPTION
-    nc_file.WOCE_WATER_SAMPLE_FLAG_DESCRIPTION = WOCE_WATER_SAMPLE_FLAG_DESCRIPTION
+    nc_file.WOCE_BOTTLE_FLAG_DESCRIPTION = woce.BOTTLE_FLAG_DESCRIPTION
+    nc_file.WOCE_WATER_SAMPLE_FLAG_DESCRIPTION = woce.WATER_SAMPLE_FLAG_DESCRIPTION
 
     # Coordinate variables
     dtime = min(self['_DATETIME'])

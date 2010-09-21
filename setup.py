@@ -9,15 +9,14 @@ import inspect
 import shutil
 
 PACKAGE_NAME = 'libcchdo'
-PACKAGE_DIR = os.path.abspath(os.path.split(inspect.stack()[0][1])[0])
-COVERAGE_PATH = os.path.join(PACKAGE_DIR, 'doc/coverage')
+PACKAGE_PATH = os.path.abspath(os.path.split(inspect.stack()[0][1])[0])
+COVERAGE_PATH = os.path.join(PACKAGE_PATH, 'doc/coverage')
 
 
 def absolute_import_libcchdo():
     import imp
-    module_path, module_name = os.path.split(PACKAGE_DIR)
+    module_path, module_name = os.path.split(PACKAGE_PATH)
     imp.load_module(PACKAGE_NAME, *imp.find_module(module_name, [module_path]))
-
 
 
 class TestCommand(Command):
@@ -62,8 +61,12 @@ class CleanCommand(Command):
         print "All clean."
 
     def run(self):
+        db_file = os.path.join(PACKAGE_PATH, 'db', 'cchdo_data.db')
+        if os.path.exists(db_file):
+        	os.unlink(db_file)
         if os.path.isdir(COVERAGE_PATH):
             shutil.rmtree(COVERAGE_PATH)
+
         for clean_me in self._clean_me:
             try:
                 os.unlink(clean_me)
