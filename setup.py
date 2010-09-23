@@ -46,34 +46,6 @@ class TestCommand(Command):
                                "The test modules are in tests/.") % e)
 
 
-class CleanCommand(Command):
-    description = "Cleans directories of .pyc files"
-    user_options = []
-
-    def initialize_options(self):
-        self._clean_me = [ ]
-        for root, dirs, files in os.walk('.'):
-            for f in files:
-                if f.endswith('.pyc'):
-                    self._clean_me.append(os.path.join(root, f))
-
-    def finalize_options(self):
-        print "All clean."
-
-    def run(self):
-        db_file = os.path.join(PACKAGE_PATH, 'db', 'cchdo_data.db')
-        if os.path.exists(db_file):
-        	os.unlink(db_file)
-        if os.path.isdir(COVERAGE_PATH):
-            shutil.rmtree(COVERAGE_PATH)
-
-        for clean_me in self._clean_me:
-            try:
-                os.unlink(clean_me)
-            except:
-                pass
-
-
 class CoverageCommand(TestCommand):
     """API for coverage-python: http://nedbatchelder.com/code/coverage/api.html"""
     description = "Check test coverage"
@@ -105,13 +77,41 @@ class CoverageCommand(TestCommand):
         print os.path.join(COVERAGE_PATH, 'index.html')
 
 
+class CleanCommand(Command):
+    description = "Cleans directories of .pyc files"
+    user_options = []
+
+    def initialize_options(self):
+        self._clean_me = [ ]
+        for root, dirs, files in os.walk('.'):
+            for f in files:
+                if f.endswith('.pyc'):
+                    self._clean_me.append(os.path.join(root, f))
+
+    def finalize_options(self):
+        print "All clean."
+
+    def run(self):
+        db_file = os.path.join(PACKAGE_PATH, 'db', 'cchdo_data.db')
+        if os.path.exists(db_file):
+        	os.unlink(db_file)
+        if os.path.isdir(COVERAGE_PATH):
+            shutil.rmtree(COVERAGE_PATH)
+
+        for clean_me in self._clean_me:
+            try:
+                os.unlink(clean_me)
+            except:
+                pass
+
+
 if __name__ == '__main__':
     setup(name=PACKAGE_NAME,
           version='0.5',
           description='%s setup' % PACKAGE_NAME,
           requires=['sqlalchemy (>=0.5.8)', 'netCDF3'],
           cmdclass = {'test': TestCommand,
-                      'clean': CleanCommand,
                       'coverage': CoverageCommand,
+                      'clean': CleanCommand,
                      }
          )
