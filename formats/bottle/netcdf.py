@@ -92,7 +92,7 @@ def read(self, handle):
             qc_vars[NC_BOTTLE_VAR_TO_WOCE_PARAM[
                 name[:-len(nc.QC_SUFFIX)]]] = variable
         else:
-            name = NC_BOTTLE_VAR_TO_WOCE_PARAM[name]
+            name = NC_BOTTLE_VAR_TO_WOCE_PARAM.get(name, name)
             
             if name == 'drop':
                 continue
