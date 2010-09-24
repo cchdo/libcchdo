@@ -78,37 +78,35 @@ def read(self, handle):
                 pass
             if column.endswith('_FLAG_W'):
                 try:
-                    self.columns[column[:-7]].flags_woce.append(int(value))
+                    self[column[:-7]].flags_woce.append(int(value))
                 except KeyError:
                     libcchdo.LOG.warn(
                         ("Flag WOCE column exists for parameter %s but "
                          "parameter column does not exist.") % column[:-7])
             elif column.endswith('_FLAG_I'):
                 try:
-                    self.columns[column[:-7]].flags_igoss.append(int(value))
+                    self[column[:-7]].flags_igoss.append(int(value))
                 except KeyError:
                     libcchdo.LOG.warn(
                         ("Flag IGOSS column exists for parameter %s but "
                          "parameter column does not exist.") % column[:-7])
             else:
-                self.columns[column].append(value)
+                self[column].append(value)
         l = handle.readline().strip()
 
     # Format all data to be what it is
-    self.columns['LATITUDE'].values = map(
-        float, self.columns['LATITUDE'].values)
-    self.columns['LONGITUDE'].values = map(
-        float, self.columns['LONGITUDE'].values)
+    self['LATITUDE'].values = map(float, self['LATITUDE'].values)
+    self['LONGITUDE'].values = map(float, self['LONGITUDE'].values)
     try:
-        self.columns['DATE']
+        self['DATE']
     except KeyError:
-        self.columns['DATE'] = libcchdo.model.datafile.Column('DATE')
-        self.columns['DATE'].values = [None] * len(self)
+        self['DATE'] = libcchdo.model.datafile.Column('DATE')
+        self['DATE'].values = [None] * len(self)
     try:
-        self.columns['TIME']
+        self['TIME']
     except KeyError:
-        self.columns['TIME'] = libcchdo.model.datafile.Column('TIME')
-        self.columns['TIME'].values = [None] * len(self)
+        self['TIME'] = libcchdo.model.datafile.Column('TIME')
+        self['TIME'].values = [None] * len(self)
 
     libcchdo.formats.woce.fuse_datetime(self)
 

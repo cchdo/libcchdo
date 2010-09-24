@@ -24,49 +24,26 @@ def read(self, handle):
     nc_file = nc.Dataset(filename, 'r')
     
     attrs = nc_file.__dict__
-    try:
-        expocode = attrs['EXPOCODE']
-    except KeyError:
-        expocode = None
-    try:
-        self.globals['header'] = attrs['ORIGINAL_HEADER']
-    except KeyError:
-        self.globals['header'] = None
-    try:
-        station = attrs['STATION_NUMBER']
-    except KeyError:
-        station = None
-    try:
-        cast = attrs['CAST_NUMBER']
-    except KeyError:
-        cast = None
-    try:
-        bottle_numbers = attrs['BOTTLE_NUMBERS'].split()
-    except KeyError:
-        bottle_numbers = []
-    try:
-        bottle_flags = attrs['BOTTLE_QUALITY_CODES'][:]
-    except KeyError:
-        bottle_flags = []
-    try:
-        section_id = attrs['WOCE_ID']
-    except KeyError:
-        section_id = ''
-    try:
-        bottom_depth = attrs['BOTTOM_DEPTH_METERS']
-    except KeyError:
-        bottom_depth = None
+    expocode = attrs.get('EXPOCODE')
+    self.globals['header'] = attrs.get('ORIGINAL_HEADER')
+    station = attrs.get('STATION_NUMBER')
+    cast = attrs.get('CAST_NUMBER')
+    bottle_numbers = attrs.get('BOTTLE_NUMBERS', '').split()
+    bottle_flags = attrs.get('BOTTLE_QUALITY_CODES', [])[:]
+    section_id = attrs.get('WOCE_ID')
+    bottom_depth = attrs.get('BOTTOM_DEPTH_METERS')
 
     vars = nc_file.variables
 
     time = vars['time'][:][0]
     latitude = vars['latitude'][:][0]
     longitude = vars['longitude'][:][0]
-    dtime = libcchdo.formats.woce.strptime_woce_date_time(
-        vars['woce_date'][:][0], vars['woce_time'][:][0])
+    woce_date = vars['woce_date'][:][0]
+    woce_time = vars.get('woce_time', [None])[:][0]
+    dtime = libcchdo.formats.woce.strptime_woce_date_time(woce_date, woce_time)
 
     calculated_time = nc.EPOCH + datetime.timedelta(minutes=int(time))
-    # Probably should trust dtime more because it is translated directly
+    # TODO Probably should trust dtime more because it is translated directly
     # from WOCE time.
     if dtime != calculated_time:
         libcchdo.LOG.warn(('Datetime declarations in Bottle NetCDF file '
@@ -230,13 +207,14 @@ def write(self, handle):
     var_woce_date.C_format = '%8d'
     var_woce_date[:] = var_woce_date.data_min
     
-    var_woce_time = nc_file.createVariable('woce_time', 'i2', ('time',))
-    var_woce_time.long_name = 'WOCE time'
-    var_woce_time.units = 'hhmm UTC'
-    var_woce_time.data_min = int(woce_datetime[1] or -9)
-    var_woce_time.data_max = var_woce_time.data_min
-    var_woce_time.C_format = '%4d'
-    var_woce_time[:] = var_woce_time.data_min
+    if woce_datetime[1]:
+        var_woce_time = nc_file.createVariable('woce_time', 'i2', ('time',))
+        var_woce_time.long_name = 'WOCE time'
+        var_woce_time.units = 'hhmm UTC'
+        var_woce_time.data_min = int(woce_datetime[1] or -9)
+        var_woce_time.data_max = var_woce_time.data_min
+        var_woce_time.C_format = '%4d'
+        var_woce_time[:] = var_woce_time.data_min
     
     # Hydrographic specific
     

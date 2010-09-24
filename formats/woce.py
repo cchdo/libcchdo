@@ -89,10 +89,12 @@ def dec_lng_to_woce_lng(lng):
     return '%3d %05.2f %1s' % (lng_deg, lng_dec, lng_hem)
 
 
-def strftime_woce_date_time(dtime):
-    if dtime is None:
+def strftime_woce_date_time(dt):
+    if dt is None:
         return (None, None)
-    return (dtime.strftime('%Y%m%d'), dtime.strftime('%H%M'))
+    if type(dt) is datetime.date:
+    	return (dt.strftime('%Y%m%d'), None)
+    return (dt.strftime('%Y%m%d'), dt.strftime('%H%M'))
 
 
 def strptime_woce_date_time(woce_date, woce_time):
@@ -271,13 +273,11 @@ def fuse_datetime(file):
         Arg:
             file - a DataFile object
     """
-    datecol = file['DATE']
-    timecol = file['TIME']
     file['_DATETIME'] = libcchdo.model.datafile.Column('_DATETIME')
     file['_DATETIME'].values = [strptime_woce_date_time(*x) for x in zip(
-            datecol.values, timecol.values)]
-    del datecol
-    del timecol
+            file['DATE'].values, file['TIME'].values)]
+    del file['DATE']
+    del file['TIME']
 
 
 def split_datetime(file):

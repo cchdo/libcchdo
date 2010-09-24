@@ -46,10 +46,12 @@ def get_filename(expocode, station, cast, extension='hy1'):
                       FILE_EXTENSION, )
 
 
-def minutes_since_epoch(dtime, error=-9):
-    if not dtime:
+def minutes_since_epoch(dt, error=-9):
+    if not dt:
         return error
-    delta = dtime - EPOCH
+    if type(dt) is datetime.date:
+    	dt = datetime.datetime(dt.year, dt.month, dt.day)
+    delta = dt - EPOCH
     minutes_in_day = 60 * 24
     minutes_in_seconds = 1.0 / 60
     minutes_in_microseconds = minutes_in_seconds / 1.0e6
