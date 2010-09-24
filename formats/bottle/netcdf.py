@@ -26,8 +26,8 @@ def read(self, handle):
     attrs = nc_file.__dict__
     expocode = attrs.get('EXPOCODE')
     self.globals['header'] = attrs.get('ORIGINAL_HEADER')
-    station = attrs.get('STATION_NUMBER')
-    cast = attrs.get('CAST_NUMBER')
+    station = attrs.get('STATION_NUMBER').strip()
+    cast = attrs.get('CAST_NUMBER').strip()
     bottle_numbers = attrs.get('BOTTLE_NUMBERS', '').split()
     bottle_flags = attrs.get('BOTTLE_QUALITY_CODES', [])[:]
     section_id = attrs.get('WOCE_ID')
@@ -45,12 +45,14 @@ def read(self, handle):
     calculated_time = nc.EPOCH + datetime.timedelta(minutes=int(time))
     # TODO Probably should trust dtime more because it is translated directly
     # from WOCE time.
+    if type(dtime) is datetime.date:
+    	calculated_time = calculated_time.date()
     if dtime != calculated_time:
         libcchdo.LOG.warn(('Datetime declarations in Bottle NetCDF file '
                            'do not match (%s, %s)') % (dtime, calculated_time))
 
-    varstation = ''.join(filter(None, vars['station'][:].tolist()))
-    varcast = ''.join(filter(None, vars['cast'][:].tolist()))
+    varstation = ''.join(filter(None, vars['station'][:].tolist())).strip()
+    varcast = ''.join(filter(None, vars['cast'][:].tolist())).strip()
 
     if varstation != station:
         libcchdo.LOG.warn(('Station declarations in Bottle NetCDF file '

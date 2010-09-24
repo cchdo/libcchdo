@@ -101,7 +101,11 @@ COLORS = {
 
 # Logging
 
+import datetime
+import os
+
 class _LibLogFormatter(logging.Formatter):
+
     _level_to_color = {
         logging.DEBUG: 'CYAN',
         logging.INFO: 'GREEN',
@@ -121,15 +125,21 @@ class _LibLogFormatter(logging.Formatter):
 
     def format(self, record):
         record.__dict__['asctime'] = self.formatTime(record, self.datefmt)
-        record.__dict__['message'] = record.__dict__['msg']
+        record.__dict__['message'] = record.getMessage()
         record.__dict__['color'] = COLORS[self._get_color(record.levelno)]
         return self._fmt % record.__dict__
+
+    def formatTime(self, record, fmt):
+        if not fmt:
+        	fmt = self.datefmt
+        now = datetime.datetime.utcnow()
+        return '%s,%d' % (now.strftime(fmt), now.microsecond / 1000.0)
 
 
 _LIBLOG_HANDLER = logging.StreamHandler()
 _LIBLOG_HANDLER.setFormatter(_LibLogFormatter(
-    ''.join(('%(color)s%(asctime)s|%(name)s %(levelname)s: ',
-        COLORS['CLEAR'], '%(message)s'))))
+    ''.join(('%(color)s%(asctime)s_%(pathname)s:%(lineno)d_%(name)s %(levelname)s: ',
+        COLORS['CLEAR'], '%(message)s')), "%Y-%j %H%M:%S"))
 
 LOG = logging.getLogger(__name__)
 LOG.setLevel(logging.DEBUG)
