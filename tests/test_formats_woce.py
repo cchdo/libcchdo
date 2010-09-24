@@ -39,8 +39,12 @@ class TestFormatsWoce(TestCase):
 
     def test_strptime_woce_date_time(self):
         self.assertEqual(None, fw.strptime_woce_date_time(None, None))
-        self.assertEqual(None, fw.strptime_woce_date_time(1234, None))
         self.assertEqual(None, fw.strptime_woce_date_time(None, 5432))
+
+        today = datetime.date.today()
+        self.assertEqual(
+            today,
+            fw.strptime_woce_date_time(today.strftime('%Y%m%d'), None))
 
         self.assertTrue(fw.strptime_woce_date_time('a', 12345) is None)
         self.assertTrue(fw.strptime_woce_date_time(12345, 'a') is None)

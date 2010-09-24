@@ -10,7 +10,7 @@ import shutil
 
 PACKAGE_NAME = 'libcchdo'
 PACKAGE_PATH = os.path.abspath(os.path.split(inspect.stack()[0][1])[0])
-COVERAGE_PATH = os.path.join(PACKAGE_PATH, 'doc/coverage')
+COVERAGE_PATH = os.path.join(PACKAGE_PATH, 'doc', 'coverage')
 
 
 def absolute_import_libcchdo():

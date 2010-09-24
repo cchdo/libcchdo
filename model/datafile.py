@@ -97,6 +97,9 @@ class File(object):
     def __setitem__(self, key, value):
         self.columns[key] = value
 
+    def __delitem__(self, key):
+        del self.columns[key]
+
     def __len__(self):
         try:
             return len(self.columns.values()[0])

@@ -1,4 +1,4 @@
-"""libcchdo.formats.bottle.exchange"""
+""" libcchdo.formats.bottle.exchange """
 
 import re
 import datetime
@@ -9,7 +9,7 @@ import libcchdo.formats.woce
 
 
 def read(self, handle):
-    '''How to read a Bottle Exchange file.'''
+    """ How to read a Bottle Exchange file. """
     # Read identifier and stamp
     stamp = re.compile('BOTTLE,(\d{8}\w+)')
     m = stamp.match(handle.readline())
@@ -110,44 +110,29 @@ def read(self, handle):
         self.columns['TIME'] = libcchdo.model.datafile.Column('TIME')
         self.columns['TIME'].values = [None] * len(self)
 
-    self.columns['_DATETIME'] = libcchdo.model.datafile.Column('_DATETIME')
-    self.columns['_DATETIME'].values = [
-        libcchdo.formats.woce.strptime_woce_date_time(*x) for x in zip(
-            self.columns['DATE'].values, self.columns['TIME'].values)]
-    del self.columns['DATE']
-    del self.columns['TIME']
+    libcchdo.formats.woce.fuse_datetime(self)
 
     self.check_and_replace_parameters()
 
 
 def write(self, handle):
-    '''How to write a Bottle Exchange file.'''
+    """ How to write a Bottle Exchange file. """
     handle.write('BOTTLE,%s\n' % self.globals['stamp'])
     handle.write('# Original header:\n')
     handle.write(self.globals['header'])
 
-    # Convert from internal data format to bottle exchange
-    # Separate _DATETIME into DATE and TIME
-    date = self.columns['DATE'] = libcchdo.model.datafile.Column('DATE')
-    time = self.columns['TIME'] = libcchdo.model.datafile.Column('TIME')
-    for dtime in self.columns['_DATETIME'].values:
-        if dtime:
-            date.append(dtime.strftime('%Y%m%d'))
-            time.append(dtime.strftime('%H%M'))
-        else:
-            date.append(None)
-            time.append(None)
-    del self.columns['_DATETIME']
+    libcchdo.formats.woce.split_datetime(self)
 
     # Convert all float stnnbr, castno, sampno, btlnbr to ints
     def if_float_then_int(x):
         if type(x) is float:
             return int(x)
         return x
-    self.columns['STNNBR'].values = [if_float_then_int(x) for x in self.columns['STNNBR'].values]
-    self.columns['CASTNO'].values = [if_float_then_int(x) for x in self.columns['CASTNO'].values]
-    self.columns['SAMPNO'].values = [if_float_then_int(x) for x in self.columns['SAMPNO'].values]
-    self.columns['BTLNBR'].values = [if_float_then_int(x) for x in self.columns['BTLNBR'].values]
+
+    self['STNNBR'].values = map(if_float_then_int, self['STNNBR'].values)
+    self['CASTNO'].values = map(if_float_then_int, self['CASTNO'].values)
+    self['SAMPNO'].values = map(if_float_then_int, self['SAMPNO'].values)
+    self['BTLNBR'].values = map(if_float_then_int, self['BTLNBR'].values)
     self.check_and_replace_parameters()
 
     columns = self.sorted_columns()

@@ -18,10 +18,10 @@ def read(self, handle):
     if m:
         self.globals['EXPOCODE'] = m.group(1)
         self.globals['SECT_ID'] = m.group(2)
-        self.globals["_DATETIME"] = datetime.datetime.strptime(
+        self.globals['_DATETIME'] = datetime.datetime.strptime(
             m.group(len(m.groups())), '%m%d%y')
         self.globals['DATE'], self.globals['TIME'] = \
-            fmtwoce.strftime_woce_date_time(self.globals["_DATETIME"])
+            fmtwoce.strftime_woce_date_time(self.globals['_DATETIME'])
     else:
         raise ValueError("Expected stamp. Invalid record 1 in WOCE CTD file.")
     # Get identifier line
@@ -83,7 +83,7 @@ def write(self, handle):
     station = stations   # XXX
     cast = casts         # XXX
 
-    date = int(self.globals["_DATETIME"].strftime("%m%d%y"))
+    date = int(self.globals['_DATETIME'].strftime('%m%d%y'))
 
     handle.write('EXPOCODE %-14s WHP-ID %-5s DATE %06d\n' % \
                  (expocode, section, date))

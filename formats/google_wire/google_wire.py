@@ -4,11 +4,14 @@ import datetime
 
 import libcchdo.fns
 
-def _column_type(col):
+def _column_type(col, obj):
     if col == 'EXPOCODE' or col == 'SECT_ID':
         return 'string'
     elif col == '_DATETIME':
-        return 'datetime'
+        if type(obj) is datetime.datetime:
+            return 'datetime'
+        elif type(obj) is datetime.date:
+            return 'date'
     else:
         return 'number'
 
@@ -45,7 +48,8 @@ def _json_row(self, i, global_values, column_headers):
 
 def _json(self, handle, column_headers, columns, global_values):
     import json
-    json_columns = [{'id': col, 'label': col, 'type': _column_type(col)} \
+    json_columns = [{'id': col, 'label': col,
+                     'type': _column_type(col, global_values[0])} \
                for col in columns]
     json_rows = [_json_row(self, i, global_values, column_headers) \
                  for i in range(len(self))]
@@ -63,7 +67,8 @@ def _wire_row(self, i, global_values, column_headers):
 
 def _wire(self, handle, column_headers, columns, global_values):
     wire_columns = ["{id:'%s',label:'%s',type:'%s'}" % \
-                    (col, col, _column_type(col)) for col in columns]
+                    (col, col, _column_type(col, global_values[0]))\
+                    for col in columns]
 
     wire_rows = [_wire_row(self, i, global_values, column_headers) \
                  for i in range(len(self))]

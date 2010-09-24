@@ -255,13 +255,14 @@ def write(self, handle):
     # Create data variables and fill them
     for param, column in self.columns.iteritems():
         parameter = column.parameter
-        libcchdo.LOG.debug(parameter)
-        parameter_name = (parameter.name_netcdf or 
-                          parameter.name).encode('ascii', 'replace')
+        if not parameter:
+        	continue
         if parameter.mnemonic_woce() in STATIC_PARAMETERS_PER_CAST:
             continue
+        parameter_name = (parameter.name_netcdf or 
+                          parameter.name).encode('ascii', 'replace')
         var = nc_file.createVariable(parameter_name, 'f8', ('pressure',))
-        var.long_name = parameter.name.encode('ascii', 'replace')
+        var.long_name = parameter_name
         var.units = parameter.units.name.encode('ascii', 'replace') if \
             parameter.units else UNSPECIFIED_UNITS
         compact_column = filter(None, column)

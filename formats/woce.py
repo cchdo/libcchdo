@@ -7,6 +7,7 @@ import struct
 
 
 import libcchdo
+import libcchdo.model.datafile
 
 
 BOTTLE_FLAGS = {
@@ -95,19 +96,40 @@ def strftime_woce_date_time(dtime):
 
 
 def strptime_woce_date_time(woce_date, woce_time):
-    if woce_date is None or woce_time is None:
-        return None
+    """ Parses WOCE date and time into a datetime or date object.
+        Args:
+            woce_date - a string representing a WOCE date YYYYMMDD
+            woce_time - a string representing a WOCE time HHMM
+        Returns:
+            There are three non-trivial cases:
+            1. DATE and TIME both exist
+                datetime.datetime object representing the combination of the
+                two objects.
+            2. DATE exists and TIME does not
+                datetime.date object representing the date.
+            3. DATE does not exist but TIME does
+                None
+    """
     try:
         i_woce_date = int(woce_date)
+        d = datetime.datetime.strptime('%08d' % i_woce_date, '%Y%m%d').date()
+    except TypeError:
+        return None
+    except ValueError:
+        return None
+    
+    try:
         i_woce_time = int(woce_time)
         if i_woce_time >= 2400:
-            libcchdo.LOG.warn(
-                "Illegal time greater than 2400 found. Setting to 0.")
+            libcchdo.LOG.warn("Illegal time > 2400. Setting to 0.")
             i_woce_time = 0
-        return datetime.datetime.strptime(
-             "%08d%04d" % (i_woce_date, i_woce_time), '%Y%m%d%H%M')
-    except:
-        return None
+        t = datetime.datetime.strptime('%04d' % i_woce_time, '%H%M').time()
+    except TypeError:
+        return d
+    except ValueError:
+        return d
+
+    return datetime.datetime.combine(d, t)
 
 
 def read_data(self, handle, parameters_line, units_line, asterisk_line):
@@ -233,3 +255,61 @@ def write_data(self, handle, ):
 
         values.append("".join(flags))
         handle.write(base_format % tuple(values))
+
+
+def fuse_datetime(file):
+    """ Fuses a file's "DATE" and "TIME" columns into a "_DATETIME" column.
+        There are three cases:
+        1. DATE and TIME both exist
+            A datetime.datetime object is inserted representing the combination
+            of the two objects.
+        2. DATE exists and TIME does not
+            A datetime.date object is inserted only representing the date.
+        3. DATE does not exist but TIME does
+            None is inserted because date is required.
+
+        Arg:
+            file - a DataFile object
+    """
+    datecol = file['DATE']
+    timecol = file['TIME']
+    file['_DATETIME'] = libcchdo.model.datafile.Column('_DATETIME')
+    file['_DATETIME'].values = [strptime_woce_date_time(*x) for x in zip(
+            datecol.values, timecol.values)]
+    del datecol
+    del timecol
+
+
+def split_datetime(file):
+    """ Splits a file's "_DATETIME" columns into "DATE" and "TIME" columns.
+
+        There are three cases:
+        1. datetime
+            DATE and TIME are populated appropriately.
+        2. date
+            Only DATE is populated.
+        3. None
+            Both DATE and TIME are None
+
+        If there are absolutely no TIMEs in the file the TIME column is not
+        kept.
+
+        Arg:
+            file - a DataFile object
+    """
+    date = file['DATE'] = libcchdo.model.datafile.Column('DATE')
+    time = file['TIME'] = libcchdo.model.datafile.Column('TIME')
+    for dtime in file['_DATETIME'].values:
+        if dtime:
+            date.append(dtime.strftime('%Y%m%d'))
+            if type(dtime) is datetime.datetime:
+                time.append(dtime.strftime('%H%M'))
+        else:
+            date.append(None)
+            time.append(None)
+    del file['_DATETIME']
+
+    if not any(file['TIME'].values):
+    	del file['TIME']
+
+

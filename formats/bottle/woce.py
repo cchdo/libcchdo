@@ -47,13 +47,8 @@ def read(self, handle):
     except KeyError:
         self.columns['TIME'] = libcchdo.model.datafile.Column('TIME')
         self.columns['TIME'].values = [None] * len(self)
-    self.columns['_DATETIME'] = libcchdo.model.datafile.Column('_DATETIME')
-    for d,t in zip(self.columns['DATE'].values,
-                   self.columns['TIME'].values):
-        self.columns['_DATETIME'].append(
-            libcchdo.formats.woce.strptime_woce_date_time(d, t))
-    del self.columns['DATE']
-    del self.columns['TIME']
+
+    libcchdo.formats.woce.fuse_datetime(self)
     
     self.check_and_replace_parameters()
 
