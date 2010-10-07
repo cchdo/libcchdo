@@ -66,7 +66,7 @@ def read(self, handle):
             if name in ['STNNBR', 'CASTNO']:
                 # CCHDO NetCDFs have STNNBR and CASTNO as an array of characters.
                 # Collapse them into a string.
-                self.columns[name].values = [''.join(self.columns[name].values)]
+                self.columns[name].values = [''.join(filter(None, self.columns[name].values))]
             elif name in ['DATE']:
                 # Translate string date YYYYMMDD to date object
                 string = str(self.columns[name].values[0])
@@ -135,9 +135,10 @@ def write(self, handle):
     tmp = tempfile.NamedTemporaryFile()
     strdate = str(self.globals['DATE'])
     strtime = str(self.globals['TIME'])
-    isowocedate = datetime.datetime(
-            int(strdate[:4]), int(strdate[4:6]), int(strdate[6:]),
-            int(strtime[:2]), int(strtime[2:]))
+    #isowocedate = datetime.datetime(
+    #        int(strdate[:4]), int(strdate[4:6]), int(strdate[6:]),
+    #        int(strtime[:2]), int(strtime[2:]))
+    isowocedate = woce.strptime_woce_date_time(strdate, strtime)
     nc_file = nc.Dataset(tmp.name, 'w', format='NETCDF3_CLASSIC')
 
     # Define dimensions variables
@@ -258,7 +259,7 @@ def write(self, handle):
 
         if column.is_flagged_woce():
             vfw = nc_file.createVariable(parameter.name + nc.QC_SUFFIX, 'i2', ('pressure',))
-            vfw.long_name = parameter.name + nc.QC_SUFFIX
+            vfw.long_name = str(parameter.name.encode('ascii', 'replace') + nc.QC_SUFFIX)
             vfw[:] = column.flags_woce
 
     nc_file.close()

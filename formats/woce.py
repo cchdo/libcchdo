@@ -112,12 +112,12 @@ def strptime_woce_date_time(woce_date, woce_time):
             3. DATE does not exist but TIME does
                 None
     """
+    if '-' in str(woce_date):
+        woce_date = str(woce_date).translate(None, '-')
     try:
         i_woce_date = int(woce_date)
         d = datetime.datetime.strptime('%08d' % i_woce_date, '%Y%m%d').date()
-    except TypeError:
-        return None
-    except ValueError:
+    except (TypeError, ValueError):
         return None
     
     try:
@@ -126,9 +126,7 @@ def strptime_woce_date_time(woce_date, woce_time):
             libcchdo.LOG.warn("Illegal time > 2400. Setting to 0.")
             i_woce_time = 0
         t = datetime.datetime.strptime('%04d' % i_woce_time, '%H%M').time()
-    except TypeError:
-        return d
-    except ValueError:
+    except (TypeError, ValueError):
         return d
 
     return datetime.datetime.combine(d, t)
