@@ -74,10 +74,10 @@ def read(self, handle):
        
        # Check columns and values to match length
        if len(columns) is not len(values):
-           raise ValueError(("Expected as many columns as values "
-                             "in file. Found %d columns and %d values "
-                             "at data line %d") % \
-                            (len(columns), len(values), len(self) + 1))
+           raise ValueError(
+               ("Expected as many columns as values in file (%s). Found %d "
+                "columns and %d values at data line %d") % \
+                (handle.name, len(columns), len(values), len(self) + 1))
 
        for column, value in zip(columns, values):
            value = value.strip()

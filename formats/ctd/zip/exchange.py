@@ -15,6 +15,7 @@ def read(self, handle):
     for file in zip.namelist():
         if '.csv' not in file: continue
         tempstream = StringIO.StringIO(zip.read(file))
+        tempstream.name = file
         ctdfile = libcchdo.model.datafile.DataFile()
         ctdex.read(ctdfile, tempstream)
         self.files.append(ctdfile)
