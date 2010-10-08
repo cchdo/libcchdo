@@ -1,11 +1,13 @@
 import StringIO
-import libcchdo
-import libcchdo.model.datafile
-import libcchdo.formats.ctd.woce as wctd
 import unittest
 import sys
 
+from ..model import datafile
+from ..formats.ctd import woce as ctdwoce
+
+
 class TestCTDWoceAlpha (unittest.TestCase):
+
     def setUp(self):
         self.input = """\
 EXPOCODE 99XX19800101   WHP-ID XX00  DATE 010180
@@ -61,18 +63,18 @@ INSTRUMENT NO. 0     SAMPLING RATE 42.00  HZ
 """
 
     def test_read(self):
-        self.file = libcchdo.model.datafile.DataFile()
+        self.file = datafile.DataFile()
         self.bufr = StringIO.StringIO(self.input)
-        wctd.read(self.file, self.bufr)
+        ctdwoce.read(self.file, self.bufr)
         self.bufr.close()
 
     def test_read_write(self):
-        self.file = libcchdo.model.datafile.DataFile()
+        self.file = datafile.DataFile()
         self.bufr = StringIO.StringIO(self.input)
-        wctd.read(self.file, self.bufr)
+        ctdwoce.read(self.file, self.bufr)
         self.bufr.close()
         self.bufr = StringIO.StringIO()
-        wctd.write(self.file, self.bufr)
+        ctdwoce.write(self.file, self.bufr)
         self.assertEqual(self.expected_output, self.bufr.getvalue())
         self.bufr.close()
 

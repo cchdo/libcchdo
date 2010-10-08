@@ -1,12 +1,9 @@
-""" Test case for libcchdo.model.datafile.Column """
+import unittest
 
-from unittest import TestCase
-
-import libcchdo
-import libcchdo.algorithms.depth as X
+from ..algorithms import depth as X
 
 
-class TestColumn(TestCase):
+class TestColumn(unittest.TestCase):
 
 #  def test_specific_volume(self):
 #    self.assertEqual(1.000033251, X.specific_volume(0, 5, 0))

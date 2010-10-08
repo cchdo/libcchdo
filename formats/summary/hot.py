@@ -1,11 +1,11 @@
-""" libcchdo.formats.summary.hot """
-
 import re
 import datetime
-import libcchdo.formats.woce
+
+from .. import woce
+
 
 def read(self, handle):
-    '''How to read a Summary file for HOT.'''
+    """How to read a Summary file for HOT."""
     header = True
     header_delimiter = re.compile('^-+$')
     for line in handle:
@@ -31,9 +31,9 @@ def read(self, handle):
               "%4d%02d%02d" % (date.year, date.month, date.day))
           self.columns['TIME'].append(int(tokens[6]))
           self.columns['_CODE'].append(tokens[7])
-          lat = libcchdo.formats.woce.woce_lat_to_dec_lat(tokens[8:11])
+          lat = woce.woce_lat_to_dec_lat(tokens[8:11])
           self.columns['LATITUDE'].append(lat)
-          lng = libcchdo.formats.woce.woce_lng_to_dec_lng(tokens[11:14])
+          lng = woce.woce_lng_to_dec_lng(tokens[11:14])
           self.columns['LONGITUDE'].append(lng)
           self.columns['_NAV'].append(tokens[14])
           self.columns['DEPTH'].append(int(tokens[15]))
@@ -44,6 +44,7 @@ def read(self, handle):
           self.columns['_COMMENTS'].append(' '.join(tokens[20:]))
 
     self.check_and_replace_parameters()
+
 
 def write(self, handle):
     raise NotImplementedError # OMIT

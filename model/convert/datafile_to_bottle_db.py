@@ -1,43 +1,43 @@
 import sqlalchemy as S
 import sys
 
-import libcchdo
-import libcchdo.db.model.std as STD
+from ... import memoize
+from ...db.model import std
 
-@libcchdo.memoize
+@memoize
 def find_or_create_project(session, project):
     print 'FINDORCREATE PROJECT', project
-    project = session.query(STD.Project).filter(
-        STD.Project.name==project).first()
+    project = session.query(std.Project).filter(
+        std.Project.name==project).first()
 
     if not project:
-        project = STD.Project(project)
+        project = std.Project(project)
 
     return project
 
 
-@libcchdo.memoize
+@memoize
 def find_or_create_cruise(session, expocode):
     print 'FINDORCREATE CRUISE', expocode
-    cruise = session.query(STD.Cruise).filter(
-        STD.Cruise.expocode==expocode).first()
+    cruise = session.query(std.Cruise).filter(
+        std.Cruise.expocode==expocode).first()
 
     if not cruise:
-        cruise = STD.Cruise(expocode)
+        cruise = std.Cruise(expocode)
         session.add(cruise)
 
     return cruise
 
 
-@libcchdo.memoize
+@memoize
 def find_or_create_cast(session, cruise, castno, station):
     print 'FINDORCREATE CAST', castno, station
     cast = cruise.casts.filter(
-        S.and_(STD.Cast.name==str(castno),
-               STD.Cast.station==str(station))).first()
+        S.and_(std.Cast.name==str(castno),
+               std.Cast.station==str(station))).first()
 
     if not cast:
-        cast = STD.Cast(cruise, castno, station)
+        cast = std.Cast(cruise, castno, station)
 
     if cast not in cruise.casts:
         cruise.casts.append(cast)
@@ -45,17 +45,17 @@ def find_or_create_cast(session, cruise, castno, station):
     return cast
 
 
-@libcchdo.memoize
+@memoize
 def find_or_create_location(session, latitude, longitude, bottom_depth, datetime):
     print 'FINDORCREATE LOCATION', latitude, longitude, bottom_depth, datetime
-    location = session.query(STD.Location).filter(
-        S.and_(STD.Location.latitude == latitude,
-               STD.Location.longitude == longitude,
-               STD.Location.bottom_depth == bottom_depth,
-               STD.Location.datetime == datetime)).first()
+    location = session.query(std.Location).filter(
+        S.and_(std.Location.latitude == latitude,
+               std.Location.longitude == longitude,
+               std.Location.bottom_depth == bottom_depth,
+               std.Location.datetime == datetime)).first()
 
     if not location:
-        location = STD.Location(
+        location = std.Location(
             datetime, latitude, longitude, bottom_depth)
 
     return location
@@ -69,7 +69,7 @@ def convert(datafile):
     print [(x.parameter, x.parameter.id) for x in datafile.columns.values()]
 
     cruises = {}
-    session = STD.session()
+    session = std.session()
 
     columns = datafile.sorted_columns()
     data = datafile.columns
@@ -130,11 +130,11 @@ def convert(datafile):
             btl_flag_igoss = btl_col.flags_igoss[i]
 
         bottle = cast.bottles.filter(
-            S.and_(STD.Bottle.location_id == location.id,
-                   STD.Bottle.name == str(btlnbr))).first()
+            S.and_(std.Bottle.location_id == location.id,
+                   std.Bottle.name == str(btlnbr))).first()
 
         if not bottle:
-            bottle = STD.Bottle(cast, location, btlnbr, sampno,
+            bottle = std.Bottle(cast, location, btlnbr, sampno,
                                 btl_flag_woce, btl_flag_igoss)
             cast.bottles.append(bottle)
 
@@ -148,8 +148,8 @@ def convert(datafile):
                 'flag_woce': column.flags_woce[i] if flagged_woce else None,
                 'flag_igoss': column.flags_woce[i] if flagged_igoss else None
             })
-        session.execute(STD.DataBottle.__table__.insert(), data_bottles)
-#            STD.DataBottle(bottle, column.parameter, column.values[i],
+        session.execute(std.DataBottle.__table__.insert(), data_bottles)
+#            std.DataBottle(bottle, column.parameter, column.values[i],
 #                           column.flags_woce[i] if flagged_woce else None,
 #                           column.flags_woce[i] if flagged_igoss else None)
         print >> sys.stderr, '.',

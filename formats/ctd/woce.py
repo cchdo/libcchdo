@@ -1,9 +1,8 @@
-"""libcchdo.formats.ctd.woce"""
-
-import libcchdo
-import libcchdo.formats.woce as fmtwoce
 import re
 import datetime
+
+from ... import fns
+from .. import woce
 
 
 def read(self, handle):
@@ -21,7 +20,7 @@ def read(self, handle):
         self.globals['_DATETIME'] = datetime.datetime.strptime(
             m.group(len(m.groups())), '%m%d%y')
         self.globals['DATE'], self.globals['TIME'] = \
-            fmtwoce.strftime_woce_date_time(self.globals['_DATETIME'])
+            woce.strftime_woce_date_time(self.globals['_DATETIME'])
     else:
         raise ValueError("Expected stamp. Invalid record 1 in WOCE CTD file.")
     # Get identifier line
@@ -52,7 +51,7 @@ def read(self, handle):
     units_line = handle.readline()
     asterisk_line = handle.readline()
 
-    fmtwoce.read_data(self, handle, parameters_line, units_line, asterisk_line)
+    woce.read_data(self, handle, parameters_line, units_line, asterisk_line)
 
     self.check_and_replace_parameters()
 
@@ -62,9 +61,9 @@ def write(self, handle):
     # We can only write the CTD file if there is a unique
     # EXPOCODE, STNNBR, and CASTNO in the file.
     expocodes = self.globals["EXPOCODE"] #self.expocodes()
-    sections = self.globals["SECT_ID"] #libcchdo.fns.uniquify(self.columns['SECT_ID'].values)
-    stations = self.globals["STNNBR"] #libcchdo.fns.uniquify(self.columns['STNNBR'].values)
-    casts = self.globals["CASTNO"] #libcchdo.fns.uniquify(self.columns['CASTNO'].values)
+    sections = self.globals["SECT_ID"] #fns.uniquify(self.columns['SECT_ID'].values)
+    stations = self.globals["STNNBR"] #fns.uniquify(self.columns['STNNBR'].values)
+    casts = self.globals["CASTNO"] #fns.uniquify(self.columns['CASTNO'].values)
 
     #def has_multiple_values(a):
     #    return len(a) is not 1
@@ -98,4 +97,4 @@ def write(self, handle):
     #handle.write(' ******* ******* ******* *******              *') # TODO
     #handle.write('     3.0 28.7977 31.8503   209.5      42   2222') # TODO
 
-    fmtwoce.write_data(self, handle)
+    woce.write_data(self, handle)

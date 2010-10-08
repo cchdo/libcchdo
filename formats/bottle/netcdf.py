@@ -3,15 +3,15 @@ import os
 import re
 import tempfile
 
-import libcchdo
-import libcchdo.db.model.std
-import libcchdo.formats.netcdf as nc
-import libcchdo.formats.woce as woce
+from ... import LOG
+from ... import fns
+from ...db.model import std
+from .. import netcdf as nc
+from .. import woce
 
 
-NC_BOTTLE_VAR_TO_WOCE_PARAM = dict(libcchdo.db.model.std.session().query(
-        libcchdo.db.model.std.Parameter.name_netcdf,
-        libcchdo.db.model.std.Parameter.name).all())
+NC_BOTTLE_VAR_TO_WOCE_PARAM = dict(std.session().query(
+    std.Parameter.name_netcdf, std.Parameter.name).all())
 
 
 VARATTRS = frozenset(('time', 'latitude', 'longitude', 'woce_date',
@@ -40,7 +40,7 @@ def read(self, handle):
     longitude = vars['longitude'][:][0]
     woce_date = vars['woce_date'][:][0]
     woce_time = vars.get('woce_time', [None])[:][0]
-    dtime = libcchdo.formats.woce.strptime_woce_date_time(woce_date, woce_time)
+    dtime = woce.strptime_woce_date_time(woce_date, woce_time)
 
     calculated_time = nc.EPOCH + datetime.timedelta(minutes=int(time))
     # TODO Probably should trust dtime more because it is translated directly
@@ -48,18 +48,18 @@ def read(self, handle):
     if type(dtime) is datetime.date:
     	calculated_time = calculated_time.date()
     if dtime != calculated_time:
-        libcchdo.LOG.warn(('Datetime declarations in Bottle NetCDF file '
+        LOG.warn(('Datetime declarations in Bottle NetCDF file '
                            'do not match (%s, %s)') % (dtime, calculated_time))
 
     varstation = ''.join(filter(None, vars['station'][:].tolist())).strip()
     varcast = ''.join(filter(None, vars['cast'][:].tolist())).strip()
 
     if varstation != station:
-        libcchdo.LOG.warn(('Station declarations in Bottle NetCDF file '
+        LOG.warn(('Station declarations in Bottle NetCDF file '
                            'do not match (%s, %s)') % (station, varstation))
 
     if varcast != cast:
-        libcchdo.LOG.warn(('Cast declarations in Bottle NetCDF file '
+        LOG.warn(('Cast declarations in Bottle NetCDF file '
                            'do not match (%s, %s)') % (cast, varcast))
 
     # Create global columns if they do not exist
@@ -102,7 +102,7 @@ def read(self, handle):
 
             # Quick conversions to uniform data format
             self[name].values[vlo:vhi] = map(
-                libcchdo.fns.in_band_or_none,
+                fns.in_band_or_none,
                 self[name].values[vlo:vhi])
 
     # Second pass to put in flags
@@ -162,7 +162,7 @@ def write(self, handle):
     nc_file.BOTTLE_NUMBERS = ' '.join(map(nc.simplest_str, self['BTLNBR'].values))
     if self['BTLNBR'].is_flagged_woce():
         nc_file.BOTTLE_QUALITY_CODES = ' '.join(map(str, self['BTLNBR'].flags_woce))
-    nc_file.Creation_Time = libcchdo.fns.strftime_iso(datetime.datetime.utcnow())
+    nc_file.Creation_Time = fns.strftime_iso(datetime.datetime.utcnow())
 
     header_filter = re.compile('BOTTLE|db_to_exbot|jjward')
     header = '# Previous stamp: %s\n' % self.globals['stamp'] + "\n".join(
@@ -177,7 +177,7 @@ def write(self, handle):
 
     var_time = nc_file.createVariable('time', 'i', ('time',))
     var_time.long_name = 'time'
-    var_time.units = 'minutes since %s' % libcchdo.fns.strftime_iso(nc.EPOCH)
+    var_time.units = 'minutes since %s' % fns.strftime_iso(nc.EPOCH)
     var_time.data_min = nc.minutes_since_epoch(dtime)
     var_time.data_max = var_time.data_min
     var_time.C_format = '%10d'

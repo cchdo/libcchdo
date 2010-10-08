@@ -1,9 +1,7 @@
-import libcchdo
-import libcchdo.fns
-import libcchdo.db.model.std as std
-
-
-COLORS = libcchdo.COLORS
+from .. import LOG
+from .. import COLORS
+from .. import fns
+from ..db.model import std
 
 
 class Column(object):
@@ -30,11 +28,11 @@ class Column(object):
            self.values.append(None)
            self.flags_woce.append(None)
            self.flags_igoss.append(None)
-       libcchdo.fns.set_list(self.values, index, value)
+       fns.set_list(self.values, index, value)
        if flag_woce is not None:
-           libcchdo.fns.set_list(self.flags_woce, index, flag_woce)
+           fns.set_list(self.flags_woce, index, flag_woce)
        if flag_igoss is not None:
-           libcchdo.fns.set_list(self.flags_igoss, index, flag_igoss)
+           fns.set_list(self.flags_igoss, index, flag_igoss)
 
    def append(self, value=None, flag_woce=None, flag_igoss=None):
        self.values.append(value)
@@ -115,7 +113,7 @@ class File(object):
                 continue
 
             if not std_parameter:
-                libcchdo.LOG.warn("Unknown parameter '%s'" % parameter.name)
+                LOG.warn("Unknown parameter '%s'" % parameter.name)
                 continue
 
             given_units = parameter.units.mnemonic if parameter.units else None
@@ -125,18 +123,16 @@ class File(object):
 
             if given_units and expected_units and \
                given_units != expected_units:
-                libcchdo.LOG.warn(("Mismatched units for '%s'. Found '%s' but "
+                LOG.warn(("Mismatched units for '%s'. Found '%s' but "
                           "expected '%s'") % ((parameter.name,) + from_to))
                 try:
                     unit_converter = self.unit_converters[from_to]
-                    libcchdo.LOG.info(
-                        ("Converting from '%s' -> '%s' for %s.") % \
-                        (from_to + (column.parameter.name,)))
+                    LOG.info(("Converting from '%s' -> '%s' for %s.") % \
+                             (from_to + (column.parameter.name,)))
                     column = unit_converter(self, column)
                 except KeyError:
-                    libcchdo.LOG.info(
-                        ("No unit converter registered with file for "
-                         "'%s' -> '%s'. Skipping conversion.") % from_to)
+                    LOG.info(("No unit converter registered with file for "
+                              "'%s' -> '%s'. Skipping conversion.") % from_to)
                     continue
 
             column.parameter = std_parameter
@@ -170,7 +166,7 @@ class DataFile(File):
         self.allow_contrived = allow_contrived
 
     def expocodes(self):
-        return libcchdo.fns.uniquify(self['EXPOCODE'].values)
+        return fns.uniquify(self['EXPOCODE'].values)
 
     def column_headers(self):
         return self.get_property_for_columns(
@@ -235,10 +231,9 @@ class DataFile(File):
             if units and expected_units:
                 given_unit = units[i]
                 if expected_units != given_unit:
-                    libcchdo.LOG.warn(
-                        ("Mismatched units for %s. Expected '%s' and "
-                         "received '%s'") % (parameter, expected_units,
-                                             given_unit))
+                    LOG.warn(("Mismatched units for %s. Expected '%s' and "
+                              "received '%s'") % (parameter, expected_units,
+                                                  given_unit))
 
 
 class DataFileCollection(object):

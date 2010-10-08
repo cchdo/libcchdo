@@ -1,13 +1,10 @@
-""" Test case for libcchdo.formats.woce """
-
-from unittest import TestCase
+import unittest
 import datetime
 
-import libcchdo
-import libcchdo.formats.woce as fw
+from ..formats import woce as fw
 
 
-class TestFormatsWoce(TestCase):
+class TestFormatsWoce(unittest.TestCase):
 
     def test_woce_lat_to_dec_lat(self):
         toks = ['12', '34.567', 'N']

@@ -1,9 +1,9 @@
 import math
 
-import libcchdo.fns
+from .. import fns
 
 
-polynomial = libcchdo.fns.polynomial
+polyn = fns.polynomial
 
 
 def grav_ocean_surface_wrt_latitude(latitude):
@@ -84,23 +84,23 @@ def secant_bulk_modulus(salinity, temperature, pressure):
 
     if pressure == 0:
         E = (19652.21, 148.4206, -2.327105, 1.360477e-2, -5.155288e-5)
-        Kw = polynomial(t, E)
+        Kw = polyn(t, E)
         F = (54.6746, -0.603459, 1.09987e-2, -6.1670e-5)
         G = (7.944e-2, 1.6483e-2, -5.3009e-4)
-        return Kw + polynomial(t, F) * salinity + \
-               polynomial(t, G) * salinity ** (3.0 / 2.0)
+        return Kw + polyn(t, F) * salinity + \
+               polyn(t, G) * salinity ** (3.0 / 2.0)
 
     H = (3.239908, 1.43713e-3, 1.16092e-4, -5.77905e-7)
-    Aw = polynomial(t, H)
+    Aw = polyn(t, H)
     I = (2.2838e-3, -1.0981e-5, -1.6078e-6)
     j0 = 1.91075e-4
-    A = Aw + polynomial(t, I) * salinity + j0 * salinity ** (3.0 / 2.0)
+    A = Aw + polyn(t, I) * salinity + j0 * salinity ** (3.0 / 2.0)
 
     K = (8.50935e-5, -6.12293e-6, 5.2787e-8)
-    Bw = polynomial(t, K)
+    Bw = polyn(t, K)
     M = (-9.9348e-7, 2.0816e-8, 9.1697e-10)
-    B = Bw + polynomial(t, M) * salinity
-    return polynomial(pressure,
+    B = Bw + polyn(t, M) * salinity
+    return polyn(pressure,
                       (secant_bulk_modulus(salinity, temperature, 0), A, B))
 
 
@@ -113,12 +113,12 @@ def density(salinity, temperature, pressure):
     if pressure == 0:
         A = (999.842594, 6.793952e-2, -9.095290e-3,
              1.001685e-4, -1.120083e-6, 6.536332e-9)
-        pw = polynomial(t, A)
+        pw = polyn(t, A)
         B = (8.24493e-1, -4.0899e-3, 7.6438e-5, -8.2467e-7, 5.3875e-9)
         C = (-5.72466e-3, 1.0227e-4, -1.6546e-6)
         d0 = 4.8314e-4
-        return pw + polynomial(t, B) * salinity + \
-               polynomial(t, C) * salinity ** (3.0 / 2.0) + d0 * salinity ** 2
+        return pw + polyn(t, B) * salinity + \
+               polyn(t, C) * salinity ** (3.0 / 2.0) + d0 * salinity ** 2
 
     pressure /= 10 # Strange correction of one order of magnitude needed?
     return density(salinity, t, 0) / \

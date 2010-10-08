@@ -1,7 +1,4 @@
-"""libcchdo.formats.ctd.oden"""
-
-import libcchdo
-import libcchdo.model.datafile
+from ...model import datafile
 
 
 def read(self, handle):
@@ -34,11 +31,11 @@ def read(self, handle):
             self.globals['DEPTH'] = line[45:50] # PDR Bottom Depth
             #self.globals['remarks'] = line[50:-1]
 
-            self.columns['CTDPRS'] = libcchdo.model.datafile.Column('CTDPRS')
-            self.columns['CTDTMP'] = libcchdo.model.datafile.Column('CTDTMP')
-            self.columns['CTDCND'] = libcchdo.model.datafile.Column('CTDCND')
-            self.columns['CTDSAL'] = libcchdo.model.datafile.Column('CTDSAL')
-            self.columns['POTTMP'] = libcchdo.model.datafile.Column('POTTMP')
+            self.columns['CTDPRS'] = datafile.Column('CTDPRS')
+            self.columns['CTDTMP'] = datafile.Column('CTDTMP')
+            self.columns['CTDCND'] = datafile.Column('CTDCND')
+            self.columns['CTDSAL'] = datafile.Column('CTDSAL')
+            self.columns['POTTMP'] = datafile.Column('POTTMP')
         else:
             data = line.split()
             row = lineno-2

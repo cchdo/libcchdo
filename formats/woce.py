@@ -1,13 +1,11 @@
-'''libcchdo.formats.woce'''
-
-
 import datetime
 import re
 import struct
 
 
-import libcchdo
-import libcchdo.model.datafile
+from .. import LOG
+from .. import fns
+from ..model import datafile
 
 
 BOTTLE_FLAGS = {
@@ -123,7 +121,7 @@ def strptime_woce_date_time(woce_date, woce_time):
     try:
         i_woce_time = int(woce_time)
         if i_woce_time >= 2400:
-            libcchdo.LOG.warn("Illegal time > 2400. Setting to 0.")
+            LOG.warn("Illegal time > 2400. Setting to 0.")
             i_woce_time = 0
         t = datetime.datetime.strptime('%04d' % i_woce_time, '%H%M').time()
     except (TypeError, ValueError):
@@ -148,26 +146,26 @@ def read_data(self, handle, parameters_line, units_line, asterisk_line):
 
     # Unpack the column headers
     unpack_str = '8s' * num_param_columns
-    parameters = libcchdo.fns.strip_all(struct.unpack(unpack_str,
+    parameters = fns.strip_all(struct.unpack(unpack_str,
                                   parameters_line[:num_param_columns*8]))
-    units = libcchdo.fns.strip_all(struct.unpack(unpack_str,
+    units = fns.strip_all(struct.unpack(unpack_str,
                                     units_line[:num_param_columns*8]))
-    asterisks = libcchdo.fns.strip_all(struct.unpack(unpack_str,
+    asterisks = fns.strip_all(struct.unpack(unpack_str,
                                  asterisk_line[:num_param_columns*8]))
 
     # Warn if the header lines break 8 character column rules
     def warn_broke_character_column_rule(headername, headers):
         for header in headers:
             if len(header) > safe_column_width:
-                libcchdo.LOG.warn("%s '%s' has too many characters (>%d)." % \
-                                  (headername, header, safe_column_width))
+                LOG.warn("%s '%s' has too many characters (>%d)." % \
+                         (headername, header, safe_column_width))
 
     warn_broke_character_column_rule("Parameter", parameters)
     warn_broke_character_column_rule("Unit", units)
     warn_broke_character_column_rule("Asterisks", asterisks)
 
     # Die if parameters are not unique
-    if not parameters == libcchdo.fns.uniquify(parameters):
+    if not parameters == fns.uniquify(parameters):
         raise ValueError(('There were duplicate parameters in the file; '
                           'cannot continue without data corruption.'))
 
@@ -271,7 +269,7 @@ def fuse_datetime(file):
         Arg:
             file - a DataFile object
     """
-    file['_DATETIME'] = libcchdo.model.datafile.Column('_DATETIME')
+    file['_DATETIME'] = datafile.Column('_DATETIME')
     file['_DATETIME'].values = [strptime_woce_date_time(*x) for x in zip(
             file['DATE'].values, file['TIME'].values)]
     del file['DATE']
@@ -295,8 +293,8 @@ def split_datetime(file):
         Arg:
             file - a DataFile object
     """
-    date = file['DATE'] = libcchdo.model.datafile.Column('DATE')
-    time = file['TIME'] = libcchdo.model.datafile.Column('TIME')
+    date = file['DATE'] = datafile.Column('DATE')
+    time = file['TIME'] = datafile.Column('TIME')
     for dtime in file['_DATETIME'].values:
         if dtime:
             date.append(dtime.strftime('%Y%m%d'))

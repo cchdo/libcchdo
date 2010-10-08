@@ -1,13 +1,10 @@
-"""libcchdo.formats.ctd.zip.netcdf"""
-
 from __future__ import with_statement
 import datetime
 import tempfile
 import zipfile
 
-import libcchdo
-import libcchdo.model.datafile
-import libcchdo.formats.ctd.netcdf as netcdf
+from ....model import datafile
+from ...ctd import netcdf
 
 
 def read(self, handle):
@@ -18,7 +15,7 @@ def read(self, handle):
         tmpfile = tempfile.NamedTemporaryFile()
         tmpfile.write(zip.read(file))
         tmpfile.flush()
-        ctdfile = libcchdo.model.datafile.DataFile()
+        ctdfile = datafile.DataFile()
         with open(tmpfile.name, 'r') as f:
             netcdf.read(ctdfile, f)
         self.files.append(ctdfile)

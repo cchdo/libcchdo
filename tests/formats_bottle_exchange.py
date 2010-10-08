@@ -1,15 +1,11 @@
-""" Test case for libcchdo.formats.bottle.exchange """
-
-# Unit test loading considers the file a module and tries to load it if using from module import.
+import unittest
 import StringIO
-from unittest import TestCase
 
-import libcchdo
-import libcchdo.model.datafile
-import libcchdo.formats.bottle.exchange as botex
+from ..model import datafile
+from ..formats.bottle import exchange as botex
 
 
-class TestBottleExchange(TestCase):
+class TestBottleExchange(unittest.TestCase):
 
     sample = '''\
 BOTTLE,20071011WHPSIODBK
@@ -37,7 +33,7 @@ END_DATA
 '''
 
     def setUp(self):
-        self.file = libcchdo.model.datafile.DataFile()
+        self.file = datafile.DataFile()
 
     def test_read(self):
         self.buff = StringIO.StringIO(TestBottleExchange.sample)

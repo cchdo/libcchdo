@@ -1,12 +1,9 @@
-'''libcchdo.formats.ctd.bacp'''
-
 import re
 import datetime
 
-import libcchdo
 
 def read(self, handle):
-    '''How to read a CTD BACp file.'''
+    """How to read a CTD BACp file."""
     if not handle.readline().startswith('CLIVAR BACp data'):
         raise ValueError('This file is not a BACp file.')
 

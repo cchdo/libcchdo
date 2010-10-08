@@ -1,21 +1,18 @@
-#!/usr/bin/env python
-
 import datetime
 import sys
 import os
 import unittest
 import tempfile
 
-import libcchdo
-import libcchdo.model.datafile
-import libcchdo.formats.ctd.netcdf_oceansites as ctdncos
+from ..model import datafile
+from ..formats.ctd import netcdf_oceansites as ctdncos
 
 
 class TestCTDNetCDFOceansites (unittest.TestCase):
 
     def setUp (self):
         self._infile = open('tests/samples/nc_hyd/i08s_33RR20070204_00001_00001_hy1.nc', 'r')
-        self.datafile = libcchdo.model.datafile.DataFile()
+        self.datafile = datafile.DataFile()
         self._outfile = tempfile.NamedTemporaryFile()
 
         g = self.datafile.globals
@@ -32,7 +29,7 @@ class TestCTDNetCDFOceansites (unittest.TestCase):
         self._infile.close()
 
     def _setupData(self):
-        self.datafile['CTDOXY'] = libcchdo.model.datafile.Column('CTDOXY')
+        self.datafile['CTDOXY'] = datafile.Column('CTDOXY')
         self.datafile['CTDOXY'].append(1, 2)
         self.datafile.check_and_replace_parameters()
         p = self.datafile['CTDOXY'].parameter

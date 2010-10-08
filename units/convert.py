@@ -2,8 +2,9 @@
 '''
 
 
-import libcchdo
-import libcchdo.db.model.std as std
+from .. import LOG
+from ..algorithms import volume
+from ..db.model import std
 
 
 APPROXIMATION_SALINITY = 34.8
@@ -31,7 +32,7 @@ def oxygen_method_is_whole_not_aliquot():
         if whole_or_aliquot == 'w':
             return True
         elif whole_or_aliquot == 'a':
-            libcchdo.LOG.warn('Will use temp=25. for oxygen conversion.')
+            LOG.warn('Will use temp=25. for oxygen conversion.')
             return False
         else:
             print 'Please enter W or A.'
@@ -49,7 +50,7 @@ def milliliter_per_liter_to_umol_per_kg(file, column):
         if salinity <= 0:
             salinity = APPROXIMATION_SALINITY
         elif salinity < 20 or salinity > 60:
-            libcchdo.LOG.warn('Salinity (%f) is ridiculous' % salinity)
+            LOG.warn('Salinity (%f) is ridiculous' % salinity)
 
         temperature = _get_first_value_of_parameters(
             file, ('CTDTMP', 'THETA', 'REVTMP'), i)
@@ -65,9 +66,9 @@ def milliliter_per_liter_to_umol_per_kg(file, column):
                 temperature = APPROXIMATION_TEMPERATURE
             elif temperature_missing:
                 temperature = APPROXIMATION_TEMPERATURE
-                libcchdo.LOG.warn(('Temperature is missing. Using %f at '
+                LOG.warn(('Temperature is missing. Using %f at '
                                    'record#%d') % (temperature, i))
-            sigt = libcchdo.algorithms.volume.sigma_r(
+            sigt = algorithms.volume.sigma_r(
                 0.0, 0.0, temperature, salinity)
             o2_atomic_weight = 31.9988
             density_o2 = 1.42905481 # g/l @ 273.15K
@@ -96,7 +97,7 @@ def mol_per_liter_to_mol_per_kg(file, column):
         if salinity <= 0:
             salinity = APPROXIMATION_SALINITY
         elif salinity < 20 or salinity > 60:
-            libcchdo.LOG.warn('Salinity (%f) is ridiculous' % salinity)
+            LOG.warn('Salinity (%f) is ridiculous' % salinity)
 
         temperature = _get_first_value_of_parameters(
             file, ('CTDTMP', 'THETA', 'REVTMP'), i)
@@ -106,7 +107,7 @@ def mol_per_liter_to_mol_per_kg(file, column):
             # Missing
             column.values[i] = None
         else:
-            column.values[i] /= (libcchdo.algorithms.volume.sigma_r(
+            column.values[i] /= (algorithms.volume.sigma_r(
                                      0.0, 0.0, 25.0, salinity) / 1.0e3 + 1.0)
 
     # Change the units

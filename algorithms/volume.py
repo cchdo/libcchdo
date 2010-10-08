@@ -4,8 +4,7 @@ newvol.f -> volume.py
 '''
 
 
-import libcchdo
-import libcchdo.fns
+from .. import fns
 
 
 CDMISS = 3.2e4
@@ -18,8 +17,8 @@ COEFF_KW_1 = (0, -0.0040899, 7.6438e-5, -8.2467e-7, 5.3875e-9)
 COEFF_K_ST0 = (-0.00572466, 1.0227e-4, -1.6546e-6)
 
 
-equal_with_epsilon = libcchdo.fns.equal_with_epsilon
-polynomial = libcchdo.fns.polynomial
+equal_with_epsilon = fns.equal_with_epsilon
+polynomial = fns.polynomial
 
 
 def _missing(x):

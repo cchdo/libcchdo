@@ -1,11 +1,7 @@
-"""libcchdo.formats.summary.woce """
-
-#from sys import path
-#path.insert(0, os.path.join(os.path.split(path[0])[0]))
-
 import re
 import datetime
-import libcchdo.formats.woce
+
+from .. import woce
 
 
 def read(self, handle):
@@ -50,9 +46,9 @@ def read(self, handle):
                               (date.year, date.month, date.day))
             cs['TIME'].append(int_or_none(tokens[6]))
             cs['_CODE'].append(tokens[7])
-            lat = libcchdo.formats.woce.woce_lat_to_dec_lat(tokens[8].split())
+            lat = woce.woce_lat_to_dec_lat(tokens[8].split())
             cs['LATITUDE'].append(lat)
-            lng = libcchdo.formats.woce.woce_lng_to_dec_lng(tokens[9].split())
+            lng = woce.woce_lng_to_dec_lng(tokens[9].split())
             cs['LONGITUDE'].append(lng)
             cs['_NAV'].append(tokens[10])
             cs['DEPTH'].append(int_or_none(tokens[11]))
@@ -64,6 +60,7 @@ def read(self, handle):
             cs['_COMMENTS'].append(identity_or_none(tokens[17]))
 
     self.check_and_replace_parameters()
+
 
 def write(self, handle):
     '''How to write a Summary file for WOCE.'''

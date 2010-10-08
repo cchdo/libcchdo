@@ -1,6 +1,4 @@
-'''libcchdo.common.nav'''
-
-import libcchdo
+from ... import fns
 
 
 #def read(self, handle):
@@ -14,6 +12,6 @@ def write(self, handle):
         codes = ['BO'] * len(self.datafile)
     coords = zip(columns['LONGITUDE'].values, columns['LATITUDE'].values,
                  columns['STNNBR'].values, dates, codes)
-    nav = libcchdo.fns.uniquify(map(
+    nav = fns.uniquify(map(
         lambda coord: '%3.3f\t%3.3f\t%d\t%s\t%s\n' % coord, coords))
     handle.write(''.join(nav))

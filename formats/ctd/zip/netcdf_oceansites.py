@@ -1,10 +1,8 @@
-"""libcchdo.formats.ctd.zip.netcdf_oceansites"""
-
 import datetime
 import StringIO
 import zipfile
 
-import libcchdo.formats.ctd.netcdf_oceansites as nco
+from .. import netcdf_oceansites as nco
 
 
 #def read(self, handle):

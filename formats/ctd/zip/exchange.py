@@ -1,12 +1,9 @@
-"""libcchdo.formats.ctd.zip.exchange"""
-
 import StringIO
 import zipfile
 import datetime
 
-import libcchdo
-import libcchdo.model.datafile
-import libcchdo.formats.ctd.exchange as ctdex
+from ....model import datafile
+from ...ctd import exchange as ctdex
 
 
 def read(self, handle):
@@ -16,7 +13,7 @@ def read(self, handle):
         if '.csv' not in file: continue
         tempstream = StringIO.StringIO(zip.read(file))
         tempstream.name = file
-        ctdfile = libcchdo.model.datafile.DataFile()
+        ctdfile = datafile.DataFile()
         ctdex.read(ctdfile, tempstream)
         self.files.append(ctdfile)
         tempstream.close()

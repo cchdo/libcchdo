@@ -1,8 +1,9 @@
-
 import datetime
 import re
 
+
 def read(self, handle):
+    """How to read a Coriolis file."""
     expocode, sect, sectid, ship, program = handle.readline()[1:].split()
     dates = handle.readline()
     unknown = handle.readline()

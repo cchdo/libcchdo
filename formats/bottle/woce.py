@@ -1,11 +1,9 @@
-'''libcchdo.bottle.woce'''
-
 import datetime
-
-import libcchdo
-import libcchdo.model.datafile
-import libcchdo.formats.woce
 import re
+
+from ... import fns
+from ...model import datafile
+from .. import woce
 
 
 def read(self, handle):
@@ -25,7 +23,7 @@ def read(self, handle):
     m = stamp.match(stamp_line)
     if m:
         self.globals['EXPOCODE'] = m.group(1)
-        self.globals['SECT_ID'] = libcchdo.fns.strip_all(m.group(2).split(','))
+        self.globals['SECT_ID'] = fns.strip_all(m.group(2).split(','))
         self.globals['_BEGIN_DATE'] = m.group(4)
         self.globals['_END_DATE'] = m.group(5)
         self.globals['stamp'] = m.groups()[-1] # XXX
@@ -35,20 +33,20 @@ def read(self, handle):
     # Validate the parameter line
     if 'STNNBR' not in parameters_line or 'CASTNO' not in parameters_line:
         raise ValueError('Expected STNNBR and CASTNO in parameters record')
-    libcchdo.formats.woce.read_data(self, handle, parameters_line,
+    woce.read_data(self, handle, parameters_line,
                                     units_line, asterisk_line)
     try:
         self.columns['DATE']
     except KeyError:
-        self.columns['DATE'] = libcchdo.model.datafile.Column('DATE')
+        self.columns['DATE'] = datafile.Column('DATE')
         self.columns['DATE'].values = [None] * len(self) # XXX
     try:
         self.columns['TIME']
     except KeyError:
-        self.columns['TIME'] = libcchdo.model.datafile.Column('TIME')
+        self.columns['TIME'] = datafile.Column('TIME')
         self.columns['TIME'].values = [None] * len(self)
 
-    libcchdo.formats.woce.fuse_datetime(self)
+    woce.fuse_datetime(self)
     
     self.check_and_replace_parameters()
 
@@ -71,5 +69,5 @@ def write(self, handle):
     #         BEGIN_DATE,
     #         END_DATE,
     #         self.globals['stamp']))
-    #libcchdo.formats.woce.write_data(self, handle)
+    #woce.write_data(self, handle)
     return NotImplementedError("Not to be used, nitwit!")

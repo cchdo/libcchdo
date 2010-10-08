@@ -1,11 +1,13 @@
 """ libcchdo.formats.bottle.exchange """
 
+
 import re
 import datetime
 
-import libcchdo
-import libcchdo.model.datafile
-import libcchdo.formats.woce
+from ... import fns
+from ... import LOG
+from ...model import datafile
+from .. import woce
 
 
 def read(self, handle):
@@ -70,7 +72,7 @@ def read(self, handle):
 
         for column, raw in zip(columns, values):
             value = raw.strip()
-            if libcchdo.fns.out_of_band(value):
+            if fns.out_of_band(value):
                 value = None
             try:
                 value = float(value)
@@ -80,14 +82,14 @@ def read(self, handle):
                 try:
                     self[column[:-7]].flags_woce.append(int(value))
                 except KeyError:
-                    libcchdo.LOG.warn(
+                    LOG.warn(
                         ("Flag WOCE column exists for parameter %s but "
                          "parameter column does not exist.") % column[:-7])
             elif column.endswith('_FLAG_I'):
                 try:
                     self[column[:-7]].flags_igoss.append(int(value))
                 except KeyError:
-                    libcchdo.LOG.warn(
+                    LOG.warn(
                         ("Flag IGOSS column exists for parameter %s but "
                          "parameter column does not exist.") % column[:-7])
             else:
@@ -100,15 +102,15 @@ def read(self, handle):
     try:
         self['DATE']
     except KeyError:
-        self['DATE'] = libcchdo.model.datafile.Column('DATE')
+        self['DATE'] = datafile.Column('DATE')
         self['DATE'].values = [None] * len(self)
     try:
         self['TIME']
     except KeyError:
-        self['TIME'] = libcchdo.model.datafile.Column('TIME')
+        self['TIME'] = datafile.Column('TIME')
         self['TIME'].values = [None] * len(self)
 
-    libcchdo.formats.woce.fuse_datetime(self)
+    woce.fuse_datetime(self)
 
     self.check_and_replace_parameters()
 
@@ -119,7 +121,7 @@ def write(self, handle):
     handle.write('# Original header:\n')
     handle.write(self.globals['header'])
 
-    libcchdo.formats.woce.split_datetime(self)
+    woce.split_datetime(self)
 
     # Convert all float stnnbr, castno, sampno, btlnbr to ints
     def if_float_then_int(x):
@@ -174,8 +176,8 @@ def write(self, handle):
                 else:
                     values.append(f % -999.0)
             except Exception, e:
-                libcchdo.LOG.warn('Arguments at %d:' % i)
-                libcchdo.LOG.warn('\t%s and %s' % (f, c[i]))
+                LOG.warn('Arguments at %d:' % i)
+                LOG.warn('\t%s and %s' % (f, c[i]))
                 raise 
 
         handle.write(','.join(values))

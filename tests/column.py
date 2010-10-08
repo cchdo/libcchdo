@@ -1,17 +1,16 @@
-""" Test case for libcchdo.Column """
+""" Test case for ..model.datafile.Column """
 
 
 from unittest import TestCase
 
-import libcchdo
-import libcchdo.model.datafile
-import libcchdo.db.model.std as std
+from ..model import datafile
+from ..db.model import std
 
 
 class TestColumn(TestCase):
 
     def setUp(self):
-        self.column = libcchdo.model.datafile.Column('EXPOCODE')
+        self.column = datafile.Column('EXPOCODE')
   
     def test_initialization(self):
         parameter = std.find_by_mnemonic('EXPOCODE')
@@ -32,9 +31,8 @@ class TestColumn(TestCase):
         """Creating a column with a given parameter object should set it as
            that column's parameter object.
         """
-        import libcchdo.db.model.std
-        param = libcchdo.db.model.std.make_contrived_parameter('testparameter')
-        column = libcchdo.model.datafile.Column(param)
+        param = std.make_contrived_parameter('testparameter')
+        column = datafile.Column(param)
         self.assertEqual(column.parameter, param)
     
     def test_get(self):

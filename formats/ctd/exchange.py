@@ -1,9 +1,8 @@
-'''libcchdo.formats.ctd.exchange'''
-
 import re
 import datetime
 
-import libcchdo
+from ... import LOG
+from ... import fns
 
 
 REQUIRED_HEADERS = ('EXPOCODE', 'SECT_ID', 'STNNBR', 'CASTNO', 'DATE',
@@ -60,7 +59,7 @@ def read(self, handle):
     if not all(columns):
         #raise ValueError(("Malformed parameters/unit line; make sure there "
         #                  "are no blank parameters (e.g. extra comma at end)"))
-        libcchdo.LOG.warn("Stripped blank parameter from MALFORMED EXCHANGE FILE")
+        LOG.warn("Stripped blank parameter from MALFORMED EXCHANGE FILE")
         columns = filter(None, columns)
 
     self.create_columns(columns, units)
@@ -86,7 +85,7 @@ def read(self, handle):
            elif column.endswith('_FLAG_I'):
                self.columns[column[:-7]].flags_igoss.append(int(value))
            else:
-               if libcchdo.fns.out_of_band(float(value)):
+               if fns.out_of_band(float(value)):
                    self.columns[column].append(None)
                else:
                    self.columns[column].append(float(value))

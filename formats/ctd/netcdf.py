@@ -1,15 +1,14 @@
-'''
-Handler for CTD NetCDF files
-'''
+"""Handler for CTD NetCDF files"""
 
 import datetime
 import tempfile
 import sys
 
-import libcchdo
-import libcchdo.model.datafile
-import libcchdo.formats.woce as woce
-import libcchdo.formats.netcdf as nc
+from ... import LOG
+from ... import fns
+from ...model import datafile
+from .. import woce
+from .. import netcdf as nc
 
 
 NC_CTD_VAR_TO_WOCE_PARAM = {
@@ -59,7 +58,7 @@ def read(self, handle):
             if name == 'drop':
                 continue
 
-            self.columns[name] = libcchdo.model.datafile.Column(name)
+            self.columns[name] = datafile.Column(name)
             self.columns[name].values = variable[:].tolist()
 
             # Do some quick transformations from NetCDF pecularities to standard data format
@@ -74,7 +73,7 @@ def read(self, handle):
                     (string[0:4], string[4:6], string[6:8])
             if name == 'CTDSAL':
                 self.columns[name].values = map(
-                    lambda x: None if libcchdo.fns.equal_with_epsilon(-9.99, x) \
+                    lambda x: None if fns.equal_with_epsilon(-9.99, x) \
                               else x,
                     self.columns[name].values)
 
@@ -161,7 +160,7 @@ def write(self, handle):
     nc_file.STATION_NUMBER = self.globals['STNNBR'] or UNKNOWN
     nc_file.CAST_NUMBER = self.globals['CASTNO'] or UNKNOWN
     nc_file.BOTTOM_DEPTH_METERS = nc.simplest_str(float(self.globals['DEPTH']))
-    nc_file.Creation_Time = libcchdo.fns.strftime_iso(datetime.datetime.utcnow())
+    nc_file.Creation_Time = fns.strftime_iso(datetime.datetime.utcnow())
     nc_file.ORIGINAL_HEADER = self.globals['header']
     nc_file.WOCE_CTD_FLAG_DESCRIPTION = WOCE_CTD_FLAG_DESCRIPTION
 
@@ -171,7 +170,7 @@ def write(self, handle):
     else:
         var_time = nc_file.createVariable('time', 'i', ('time', ))
         var_time.long_name = 'time'
-        var_time.units = 'minutes since %s' % libcchdo.fns.strftime_iso(nc.EPOCH)
+        var_time.units = 'minutes since %s' % fns.strftime_iso(nc.EPOCH)
         var_time.data_min = nc.minutes_since_epoch(isowocedate)
         var_time.data_max = var_time.data_min
         var_time.C_format = '%10d'

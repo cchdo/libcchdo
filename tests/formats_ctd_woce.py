@@ -1,14 +1,11 @@
-""" Test case for libcchdo.formats.ctd.woce """
-
 import StringIO
 import sys
 import os
-from unittest import TestCase
+import unittest
 
-import libcchdo
-import libcchdo.formats.ctd.woce as ctdw
+from ..formats.ctd import woce as ctdwoce
 
-class TestCTDWOCE(TestCase):
+class TestCTDWOCE(unittest.TestCase):
 
   def setUp(self):
       pass

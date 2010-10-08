@@ -1,12 +1,10 @@
-""" Test case for libcchdo.formats.netcdf """
-
-from unittest import TestCase
 import datetime
 import sys
+import unittest
 
-import libcchdo.formats.netcdf as fnc
+from ..formats import netcdf as fnc
 
-class TestFormatsNetCDF(TestCase):
+class TestFormatsNetCDF(unittest.TestCase):
 
     def test_import(self):
         # clobber path
@@ -15,6 +13,9 @@ class TestFormatsNetCDF(TestCase):
 
         try:
             del sys.modules['netCDF3']
+        except KeyError:
+            self.fail('Module netCDF3 should already be imported')
+        try:
             reload(fnc)
             self.assertTrue(False)
         except ImportError:

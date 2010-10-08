@@ -4,10 +4,6 @@ import logging
 import re
 import os
 
-from sys import argv, exit, path
-path.insert(0, '/'.join(path[0].split('/')[:-1]))
-import libcchdo
-
 logger = logging.getLogger()
 logger.setLevel(logging.DEBUG)
 logger.addHandler(logging.StreamHandler())

@@ -11,7 +11,7 @@ except ImportError, e:
          "netcdf4-python and install the NetCDF 3 module as directed by the "
          "README.")))
 
-import libcchdo
+from .. import fns
 
 
 QC_SUFFIX = '_QC'
@@ -25,7 +25,7 @@ def simplest_str(s):
        integer.
     """
     if type(s) is float:
-        if libcchdo.fns.equal_with_epsilon(s, int(s)):
+        if fns.equal_with_epsilon(s, int(s)):
             s = int(s)
     return str(s)
 

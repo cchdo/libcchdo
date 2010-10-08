@@ -1,12 +1,8 @@
-#!/usr/bin/env python
-
 import StringIO
 import unittest
 
-
-import libcchdo
-import libcchdo.model.datafile
-import libcchdo.formats.ctd.netcdf as ctdnc
+from ..model import datafile
+from ..formats.ctd import netcdf as ctdnc
 
 
 class TestCTDNetCDF (unittest.TestCase):
@@ -18,12 +14,12 @@ class TestCTDNetCDF (unittest.TestCase):
         self.infile.close()
 
     def test_read (self):
-        self.datafile = libcchdo.model.datafile.DataFile()
+        self.datafile = datafile.DataFile()
         ctdnc.read(self.datafile, self.infile)
         self.assertTrue(True)
 
     def test_read_write (self):
-        self.datafile = libcchdo.model.datafile.DataFile()
+        self.datafile = datafile.DataFile()
         ctdnc.read(self.datafile, self.infile)
         self.output_buffer = StringIO.StringIO()
         ctdnc.write(self.datafile, self.output_buffer)

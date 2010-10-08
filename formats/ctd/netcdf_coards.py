@@ -1,15 +1,12 @@
-"""
-Handler for CTD NetCDF files
-"""
+"""Handler for CTD NetCDF files."""
 
 import datetime
 import tempfile
 import sys
 
-import libcchdo
-import libcchdo.model.datafile
-import libcchdo.formats.woce as woce
-import libcchdo.formats.netcdf as nc
+from ...model import datafile
+from .. import woce
+from .. import netcdf as nc
 
 
 NC_CTD_VAR_TO_WOCE_PARAM = {
@@ -60,7 +57,7 @@ def read(self, handle):
 #           if name == 'drop':
 #               continue
 
-#           self.columns[name] = libcchdo.model.datafile.Column(name)
+#           self.columns[name] = datafile.Column(name)
 #           self.columns[name].values = variable[:].tolist()
 
 #           # Do some quick transformations from NetCDF pecularities to standard data format

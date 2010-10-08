@@ -22,9 +22,6 @@
 
 import math
 
-import libcchdo
-import libcchdo.fns
-
 
 ABS_ZERO = -273.15
 

@@ -11,10 +11,7 @@ data_bottles: bottle_id, parameter_id, value, flag_woce, flag_igoss
 data_ctds: ctd_id, parameter_id, value, flag_woce, flag_igoss
 """
 
-from sys import path
-path.insert(0, '/'.join(path[0].split('/')[:-1]))
-
-import db.connect # cchdo_data()
+from ...db import connect # cchdo_data()
 
 #def read(self):
 def write(self):

@@ -4,9 +4,7 @@
 import math
 import os.path
 
-import libcchdo
-import libcchdo.model.datafile
-
+from . import RADIUS_EARTH
 
 # Define isnan for python <2.6
 if math.isnan:
@@ -53,14 +51,16 @@ def read_arbitrary(handle):
        Returns:
            a DataFile(Collection) or *SummaryFile that matches the file type.
     '''
+    import model.datafile
+
     filename = handle.name
 
     if filename.endswith('zip'):
-        datafile = libcchdo.model.datafile.DataFileCollection()
+        datafile = model.datafile.DataFileCollection()
     elif filename.endswith('su.txt'):
-        datafile = libcchdo.model.datafile.SummaryFile()
+        datafile = model.datafile.SummaryFile()
     else:
-        datafile = libcchdo.model.datafile.DataFile()
+        datafile = model.datafile.DataFile()
 
     if filename.endswith('.hot.su.txt'):
         import formats.summary.hot
@@ -119,7 +119,7 @@ def great_circle_distance(lat_stand, lng_stand, lat_fore, lng_fore):
                               math.cos(delta_lng) + \
                               sin_lat_stand * sin_lat_fore)
 
-    arc_length = libcchdo.RADIUS_EARTH * central_angle
+    arc_length = RADIUS_EARTH * central_angle
     return arc_length
 
 

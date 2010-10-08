@@ -1,9 +1,5 @@
 [run]
-
 branch = True
-
-[report]
-
 omit = 
-    tests
-    setup
+    setup.py
+    tests/*

@@ -1,17 +1,16 @@
-""" Test case for libcchdo.formats.summary """
-
 import StringIO
-from unittest import TestCase
+import unittest
 
-import libcchdo
-import libcchdo.model.datafile
-import libcchdo.formats.summary.woce as sumwoce
-import libcchdo.formats.summary.hot as sumhot
+from ..model import datafile
+from ..formats.summary import woce as sumwoce
+from ..formats.summary import hot as sumhot
+
 
 def fp_eq(a, b, epsilon=0.00001):
   return abs(a-b) < epsilon
 
-class TestSummaryFile(TestCase):
+
+class TestSummaryFile(unittest.TestCase):
   def setUp(self):
     self.sample_woce = """\
 I8S     R/V Revelle     15 Feb 2007 - 13 Mar 2007  20070502CCHDOSCD
@@ -33,7 +32,7 @@ EXPOCODE     SECT   STNNBR CASTNO TYPE DATE   TIME  CODE LATITUDE   LONGITUDE   
 """
 
   def test_read_summary_woce(self):
-    self.file = libcchdo.model.datafile.SummaryFile()
+    self.file = datafile.SummaryFile()
     self.buff = StringIO.StringIO(self.sample_woce)
     sumwoce.read(self.file, self.buff)
 
@@ -63,7 +62,7 @@ EXPOCODE     SECT   STNNBR CASTNO TYPE DATE   TIME  CODE LATITUDE   LONGITUDE   
     self.assertEqual([None] * 3, cs['_COMMENTS'].values)
 
   def test_read_summary_hot(self):
-    self.file = libcchdo.model.datafile.SummaryFile()
+    self.file = datafile.SummaryFile()
     self.buff = StringIO.StringIO(self.sample_hot)
     sumhot.read(self.file, self.buff)
 

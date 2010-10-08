@@ -1,10 +1,10 @@
-"""Test cases for libcchdo.algorithms.depth """
+"""Test cases for ..algorithms.depth """
 
 from unittest import TestCase
 import datetime
 import sys
 
-import libcchdo.algorithms.depth as depth
+from ..algorithms import depth
 
 class TestAlgorithmsDepth(TestCase):
 

@@ -6,7 +6,8 @@ import os
 import sqlalchemy as S
 import sqlalchemy.orm
 
-import libcchdo
+
+from .. import memoize
 
 
 _DRIVER = {
@@ -48,7 +49,7 @@ _DBS = {
 # Internal connection abstractions
 
 
-@libcchdo.memoize
+@memoize
 def _connect(url):
     """Create an engine for the given sqlalchemy url with default settings.
        Args:
@@ -73,7 +74,7 @@ def cchdo():
     #return _connect(_DBS['watershed'])
 
 
-@libcchdo.memoize
+@memoize
 def sessionmaker(engine):
     return S.orm.sessionmaker(bind=engine)
 

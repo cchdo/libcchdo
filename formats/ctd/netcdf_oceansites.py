@@ -1,14 +1,13 @@
-"""libcchdo.ctd.netcdf_oceansites"""
-
 import datetime
 import string
 import math
 import sys
 import tempfile
 
-import libcchdo
-import libcchdo.formats.netcdf as nc
-import libcchdo.algorithms.depth
+from ... import LOG
+from ... import fns
+from ...algorithms import depth
+from .. import netcdf as nc
 
 
 WOCE_to_OceanSITES_flag = {
@@ -115,7 +114,7 @@ def _WOCE_to_OceanSITES_flag(woce_flag):
     try:
         return WOCE_to_OceanSITES_flag[woce_flag]
     except KeyError:
-        libcchdo.LOG.warn(('WOCE flag %d was given that does not have '
+        LOG.warn(('WOCE flag %d was given that does not have '
                            'translation into OceanSITES.') % woce_flag)
         return 6
 
@@ -136,7 +135,7 @@ def write(self, handle, timeseries=None, timeseries_info={}):
     nc_file = nc.Dataset(tmp.name, 'w', format='NETCDF3_CLASSIC')
     nc_file.data_type = 'OceanSITES time-series CTD data'
     nc_file.format_version = '1.1'
-    nc_file.date_update = libcchdo.fns.strftime_iso(datetime.datetime.utcnow())
+    nc_file.date_update = fns.strftime_iso(datetime.datetime.utcnow())
     nc_file.wmo_platform_code = ''
     nc_file.source = 'Shipborne observation'
     nc_file.history = ''.join([isowocedate.isoformat(), "Z data collected\n",
@@ -169,8 +168,8 @@ def write(self, handle, timeseries=None, timeseries_info={}):
                         'national programs that contribute to it.')
     nc_file.update_interval = 'void'
     nc_file.qc_manual = "OceanSITES User's Manual v1.1"
-    nc_file.time_coverage_start = libcchdo.fns.strftime_iso(isowocedate)
-    nc_file.time_coverage_end = libcchdo.fns.strftime_iso(isowocedate)
+    nc_file.time_coverage_start = fns.strftime_iso(isowocedate)
+    nc_file.time_coverage_end = fns.strftime_iso(isowocedate)
 
     nc_file.createDimension('TIME')
     try:
@@ -283,20 +282,20 @@ def write(self, handle, timeseries=None, timeseries_info={}):
         if name is 'PRES':
             # Fun using Sverdrup's depth integration with density.
             localgrav = \
-                libcchdo.algorithms.depth.grav_ocean_surface_wrt_latitude(
+                depth.grav_ocean_surface_wrt_latitude(
                     self.globals['LATITUDE'])
             sal_tmp_pres = zip(self.columns['CTDSAL'].values,
                                self.columns['CTDTMP'].values,
                                column.values)
             density_series = filter(
-                None, [libcchdo.algorithms.depth.density(*args) for args in sal_tmp_pres])
+                None, [depth.density(*args) for args in sal_tmp_pres])
 
             try: 
-                depth_series = libcchdo.algorithms.depth.depth(
+                depth_series = depth.depth(
                     localgrav, column.values, density_series)
             except ValueError:
                 depth_series = map(
-                    lambda pres: libcchdo.algorithms.depth.depth_unesco(
+                    lambda pres: depth.depth_unesco(
                         pres, self.globals['LATITUDE']),
                     self.columns['CTDPRS'].values)
 
