@@ -1,5 +1,4 @@
-"""libcchdo
-
+"""
 Internal Data Specification
 ---------------------------
 Any unreported values must be represented as None. This includes -9, -999.000,

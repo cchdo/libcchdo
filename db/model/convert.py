@@ -1,15 +1,12 @@
 import sys
 import re
 
-import libcchdo
-import libcchdo.db
-import libcchdo.db.model as model
-import libcchdo.db.model.legacy
-import libcchdo.db.model.std
+from ...db.model import legacy
+from ...db.model import std
 
 
 def _get_parameter_alias(session, name):
-    return model.std.session().merge(model.std.ParameterAlias(name))
+    return std.session().merge(std.ParameterAlias(name))
 
 
 UNITS_MAP = {
@@ -53,47 +50,47 @@ def convert_unit(session, name, mnemonic):
     except KeyError:
         pass
 
-    units = session.query(model.std.Unit).filter(
-         model.std.Unit.name == units_name and \
-         model.std.Unit.mnemonic == units_mnemonic).first()
+    units = session.query(std.Unit).filter(
+         std.Unit.name == units_name and \
+         std.Unit.mnemonic == units_mnemonic).first()
     if not units:
-        units = model.std.Unit(units_name, units_mnemonic)
+        units = std.Unit(units_name, units_mnemonic)
         session.add(units)
     return units
 
 
-def convert_parameter(session, legacy):
-    if not legacy:
+def convert_parameter(session, legacy_param):
+    if not legacy_param:
         return None
 
-    parameter = model.std.Parameter(legacy.name)
-    parameter.full_name = (legacy.full_name or '').strip()
+    parameter = std.Parameter(legacy_param.name)
+    parameter.full_name = (legacy_param.full_name or '').strip()
     try:
-        parameter.format = '%' + legacy.ruby_precision.strip() if \
-            legacy.ruby_precision else '%11s'
+        parameter.format = '%' + legacy_param.ruby_precision.strip() if \
+            legacy_param.ruby_precision else '%11s'
     except AttributeError:
         parameter.format = '%11s'
-    parameter.description = legacy.description or ''
+    parameter.description = legacy_param.description or ''
 
-    range = legacy.range.split(',') if legacy.range else [None, None]
+    range = legacy_param.range.split(',') if legacy_param.range else [None, None]
     parameter.bound_lower = float(range[0]) if range[0] else None
     parameter.bound_upper = float(range[1]) if range[1] else None
 
-    if legacy.units:
-        parameter.units = convert_unit(session, legacy.units,
-                                       legacy.unit_mnemonic)
+    if legacy_param.units:
+        parameter.units = convert_unit(session, legacy_param.units,
+                                       legacy_param.unit_mnemonic)
     else:
         parameter.units = None
 
-    parameter.mnemonic = legacy.name
+    parameter.mnemonic = legacy_param.name
 
-    aliases = map(lambda x: x.strip(), legacy.alias.split(',')) if \
-        legacy.alias else []
+    aliases = map(lambda x: x.strip(), legacy_param.alias.split(',')) if \
+        legacy_param.alias else []
     parameter.aliases = map(lambda x: _get_parameter_alias(session, x),
                             aliases)
 
     try:
-        parameter.display_order = legacy.display_order
+        parameter.display_order = legacy_param.display_order
     except AttributeError:
         parameter.display_order = sys.maxint
 
@@ -108,9 +105,9 @@ def _name_to_netcdf_name(n):
 
 
 def all_parameters(session):
-    legacy_parameters = [model.legacy.find_parameter(x[0]) for x in \
-                         model.legacy.session().query(
-                             model.legacy.Parameter.name).all()]
+    legacy_parameters = [legacy.find_parameter(x[0]) for x in \
+                         legacy.session().query(
+                             legacy.Parameter.name).all()]
 
     std_parameters = map(lambda x: convert_parameter(session, x),
                          legacy_parameters)
@@ -119,10 +116,10 @@ def all_parameters(session):
     # Additional modifications
     # Add EXPOCODE and SECT_ID to known parameters
     display_order = 1
-    std_parameters['EXPOCODE'] = model.std.Parameter(
+    std_parameters['EXPOCODE'] = std.Parameter(
         'EXPOCODE', 'ExpoCode', '%11s', display_order=display_order)
     display_order += 1
-    std_parameters['SECT_ID'] = model.std.Parameter(
+    std_parameters['SECT_ID'] = std.Parameter(
         'SECT_ID', 'Section ID', '%11s', display_order=display_order)
     display_order += 1
 

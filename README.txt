@@ -1,6 +1,6 @@
-libcchdo README
+README
 
-libcchdo provides a format-less data model for the CCHDO and a centralized
+This library provides a format-less data model for the CCHDO and a centralized
 place to put ways to read and write from it. Said format-less data model is
 based on DataFiles which have Columns that are associated with Parameters. From
 the data model, the user may write out to a database model of the data or read
@@ -21,7 +21,7 @@ netcdf4-python - http://code.google.com/p/netcdf4-python/
     - netcdf
     - numpy - http://numpy.scipy.org/
 sqlalchemy - http://sqlalchemy.org
-  >=0.6.3
+  >=0.5.8
 
 ,------------------------------------------------------------------------------
 | Testing

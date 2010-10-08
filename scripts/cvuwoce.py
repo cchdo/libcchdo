@@ -27,17 +27,13 @@ Port to Python from Fortran 77 Matt Shen 2010-07-26
 '''
 
 
-import sys
-sys.path.insert(0, '/'.join(sys.path[0].split('/')[:-2]))
-
-
-import libcchdo.algorithms.volume
+from algorithms import volume
 
 
 def main():
-    '''Program cvuwoce converts ML/L and UMOL/L units in WOCE format data
+    """Program cvuwoce converts ML/L and UMOL/L units in WOCE format data
        to /KG.
-    '''
+    """
     
     print 'cvuwoce converts WOCE format L/L units to /KG.'
     print 'enter input (.sea) filename:'
@@ -257,11 +253,11 @@ def main():
                 elif tmiss:
                     t = 25.0
                     print 'T missing. using 25. at rec#=%d' % nlw + 1
-                sigt = libcchdo.algorithms.volume.sigma_r(0, 0, t, s)
+                sigt = volume.sigma_r(0, 0, t, s)
                 v = v / (0.022392 * (sigt / 1e3 + 1.0))
             else:
                 # everything, but oxygen
-                pden = libcchdo.algorithms.volume.sigma_r(0, 0, 25.0, s)
+                pden = volume.sigma_r(0, 0, 25.0, s)
                 v = v / (pden / 1e3 + 1.0)
 
             # done converting. print to string.

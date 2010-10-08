@@ -7,7 +7,7 @@ import os
 import string
 import sys
 
-import abs_import_libcchdo
+import abs_import_library
 import libcchdo.db.connect
 
 def color_arr_to_str(color):

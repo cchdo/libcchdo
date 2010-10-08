@@ -7,7 +7,7 @@ file.
 from __future__ import with_statement
 import sys
 
-import abs_import_libcchdo
+import abs_import_library
 import libcchdo.model.datafile
 import libcchdo.db.model.legacy
 import libcchdo.formats.bottle.exchange as exbot
