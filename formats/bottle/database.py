@@ -1,5 +1,4 @@
-"""libcchdo.bottle.database
-
+"""
 This writer expects the database to be using a schema like so:
 
 cruises: expocode, etc...

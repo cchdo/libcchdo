@@ -1,14 +1,15 @@
 #!/usr/bin/env python
 
+
 from __future__ import with_statement
 import logging
 import os.path
 import struct
 import sys
 
-import abs_import_libcchdo
-import libcchdo.model.datafile
-import libcchdo.formats.summary.woce
+import abs_import_library
+import libcchdo.model.datafile as datafile
+import libcchdo.formats.summary.woce as sumwoce
 import libcchdo.formats.bottle.exchange as botex
 import libcchdo.datadir.util
 
@@ -23,16 +24,16 @@ def ensure_nav(root, dirs, files):
     # Try to use easiest generation method first
     generation_methods = [
         ['Bottle Exchange', 'hy1.csv', botex.read],
-        ['Summary', 'su.txt', libcchdo.formats.summary.woce.read],
+        ['Summary', 'su.txt', sumwoce.read],
         # Other WOCE files do not have lng lat (they're in the Summary file)
         # TODO Collections have to have some regular way to be merged before
         # they can be outputted to nav.
         #['CTD Exchange', 'ct1.zip',
-        #  libcchdo.model.datafile.DataFileCollection.read_CTDZip_Exchange],
+        #  datafile.DataFileCollection.read_CTDZip_Exchange],
         #['Bottle NetCDF', 'nc_hyd.zip',
-        #  libcchdo.model.datafile.DataFileCollection.read_BottleZip_NetCDF],
+        #  datafile.DataFileCollection.read_BottleZip_NetCDF],
         #['CTD NetCDF', 'nc_ctd.zip',
-        #  libcchdo.model.datafile.DataFileCollection.read_CTDZip_NetCDF],
+        #  datafile.DataFileCollection.read_CTDZip_NetCDF],
     ]
     for methodname, extension, readfn in generation_methods:
         basefiles = filter(lambda f: f.endswith(extension), files)

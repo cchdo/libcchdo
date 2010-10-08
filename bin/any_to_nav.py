@@ -4,7 +4,7 @@
 from __future__ import with_statement
 import sys
 
-import abs_import_libcchdo
+import abs_import_library
 import libcchdo.formats.bottle.exchange as botex
 import libcchdo.formats.common.nav as nav
 

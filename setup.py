@@ -94,14 +94,31 @@ class CleanCommand(distutils.core.Command):
     user_options = []
 
     def initialize_options(self):
-        self._clean_me = [ ]
+        self._clean_me = []
         for root, dirs, files in os.walk('.'):
             for f in files:
                 if f.endswith('.pyc'):
                     self._clean_me.append(os.path.join(root, f))
 
     def finalize_options(self):
-        print "All clean."
+        print "Clean."
+
+    def run(self):
+        for clean_me in self._clean_me:
+            try:
+                os.unlink(clean_me)
+            except:
+                pass
+
+class PurgeCommand(CleanCommand):
+    description = "Purges directories of .pyc files, caches, and documentation"
+    user_options = []
+
+    def initialize_options(self):
+        CleanCommand.initialize_options(self)
+
+    def finalize_options(self):
+        print "Purged."
 
     def run(self):
         db_file = os.path.join(DIRECTORY, 'db', 'cchdo_data.db')
@@ -114,11 +131,7 @@ class CleanCommand(distutils.core.Command):
         if os.path.isdir(doc_dir):
         	shutil.rmtree(doc_dir)
 
-        for clean_me in self._clean_me:
-            try:
-                os.unlink(clean_me)
-            except:
-                pass
+        CleanCommand.run(self)
 
 
 if __name__ == "__main__":
@@ -130,5 +143,6 @@ if __name__ == "__main__":
           cmdclass = {'test': TestCommand,
                       'coverage': CoverageCommand,
                       'clean': CleanCommand,
+                      'purge': PurgeCommand,
                      }
          )

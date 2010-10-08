@@ -1,6 +1,3 @@
-""" libcchdo.formats.bottle.exchange """
-
-
 import re
 import datetime
 

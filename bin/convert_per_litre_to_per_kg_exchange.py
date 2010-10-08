@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-''' 
+"""
 A small percentage of WOCE format hydro data is submitted with oxygens
 (both bottle and CTD) in ML/L and with nutrients in UMOL/L.  This program
 will detect and convert data in /L units and convert them to /KG units.
@@ -15,18 +15,20 @@ notes:
       and in upper case.  ie.  oxygens are ML/L
     Oxygen conversion uses sigma T for density. T is set at
       25 C for aliquot oxygens and when T is missing.  
-'''
+"""
 
 
 from __future__ import with_statement
 import sys
 
-import abs_import_libcchdo
-import libcchdo.model.datafile
+import abs_import_library
+import libcchdo.model.datafile as datafile
 import libcchdo.units.convert as cvt
 import libcchdo.db.model.std as std
 import libcchdo.formats.bottle.exchange as botex
-import libcchdo.algorithms.volume
+
+
+LOG = libcchdo.LOG
 
 
 def check_and_replace_parameters(self):
@@ -35,7 +37,7 @@ def check_and_replace_parameters(self):
         std_parameter = std.find_by_mnemonic(parameter.name)
 
         if not std_parameter and not parameter.name.startswith('_'):
-            libcchdo.LOG.warn("Unknown parameter '%s'" % parameter.name)
+            LOG.warn("Unknown parameter '%s'" % parameter.name)
             continue
 
         given_units = parameter.units.mnemonic if parameter.units else None
@@ -44,50 +46,49 @@ def check_and_replace_parameters(self):
         from_to = (given_units, expected_units)
 
         if given_units and expected_units and given_units != expected_units:
-            libcchdo.LOG.warn(("Mismatched units for '%s'. Found '%s' but "
-                                   "expected '%s'") % \
-                                   ((parameter.name,) + from_to))
+            LOG.warn(("Mismatched units for '%s'. "
+                      "Found '%s' but expected '%s'") % \
+                      ((parameter.name,) + from_to))
             try:
                 unit_converter = self.unit_converters[from_to]
                 convert = None
                 while not convert or convert.lower() not in ('y', 'n'):
                     try:
-                        convert = raw_input(("Convert from '%s' to '%s' for "
-                                             "'%s'? (y/n)") % \
-                                             (from_to + (parameter.name,)))
+                        convert = raw_input(
+                            ("Convert from '%s' to '%s' for '%s'? (y/n)") % \
+                            (from_to + (parameter.name,)))
                     except EOFError:
                         pass
                 if convert == 'y':
-                    libcchdo.LOG.info(
-                        "Converting from '%s' -> '%s' for %s." % \
-                        (from_to + (column.parameter.name,)))
+                    LOG.info("Converting from '%s' -> '%s' for %s." % \
+                             (from_to + (column.parameter.name,)))
                     column = unit_converter(self, column)
                 else:
                     # Skip conversion and unit change.
                     continue
             except KeyError:
-                libcchdo.LOG.info(("No unit converter registered with "
-                    "file for '%s' -> '%s'. Skipping conversion.") % from_to)
+                LOG.info(("No unit converter registered with file for "
+                          "'%s' -> '%s'. Skipping conversion.") % from_to)
                 continue
 
         column.parameter = std_parameter
 
 
 def main(argv):
-    '''Converts WOCE format /L units to /KG.'''
+    """Converts WOCE format /L units to /KG."""
     if len(argv) < 2:
-        filename = raw_input(('Please give an input Exchange filename '
-                              '(hy1.csv):')).strip()
+        filename = raw_input(("Please give an input Exchange filename "
+                              "(hy1.csv):")).strip()
     else:
         filename = argv[1]
 
     if len(argv) < 3:
-        outputfile = raw_input(('Please give an output Exchange filename '
-                                '(hy1.csv):')).strip()
+        outputfile = raw_input(("Please give an output Exchange filename "
+                                "(hy1.csv):")).strip()
     else:
         outputfile = argv[2]
 
-    file = libcchdo.model.datafile.DataFile()
+    file = datafile.DataFile()
 
     with open(filename, 'r') as f:
         botex.read(file, f)

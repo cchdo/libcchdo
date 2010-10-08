@@ -5,22 +5,24 @@ import sqlalchemy as S
 import sqlalchemy.orm
 import sqlalchemy.ext.declarative
 
-import libcchdo
-import libcchdo.db
-import libcchdo.db.connect
+from ... import get_library_abspath
+from ... import LOG
+from ... import memoize
+from ... import post_import
+from ...db import connect
 
 
 Base = S.ext.declarative.declarative_base()
 _metadata = Base.metadata
 
 
-LIBRARY_DB_FILE_PATH = os.path.join(libcchdo.get_library_abspath(), 
-    'db', libcchdo.db.connect._DB_LIBRARY_FILE)
+LIBRARY_DB_FILE_PATH = os.path.join(get_library_abspath(), 
+    'db', connect._DB_LIBRARY_FILE)
 
 
 def _populate_library_database_parameters():
-    libcchdo.LOG.info("Populating database with parameters.")
-    import libcchdo.db.model.convert as convert
+    LOG.info("Populating database with parameters.")
+    from ...db.model import convert
 
     std_session = session()
     std_session.add_all(convert.all_parameters(std_session))
@@ -40,7 +42,7 @@ def _ensure_database_parameters_exist():
 
 
 def _auto_generate_library_database_file():
-    libcchdo.LOG.info("Auto-generating the library's database file (%s)." % \
+    LOG.info("Auto-generating the library's database file (%s)." % \
         LIBRARY_DB_FILE_PATH)
     create_all()
     
@@ -53,7 +55,7 @@ def _auto_generate_library_database_file():
 
 def ensure_database_file():
     """Initialize the database file, if it is not present.
-       WARNING: Do not call this from libcchdo.db.model.std. There will be a
+       WARNING: Do not call this from ...db.model.std. There will be a
        circular dependency.
     """
     if not os.path.isfile(LIBRARY_DB_FILE_PATH):
@@ -62,13 +64,13 @@ def ensure_database_file():
         _ensure_database_parameters_exist()
 
 
-@libcchdo.memoize
+@memoize
 def session():
-    return libcchdo.db.connect.session(libcchdo.db.connect.cchdo_data())
+    return connect.session(connect.cchdo_data())
 
 
 def create_all():
-    _metadata.create_all(libcchdo.db.connect.cchdo_data())
+    _metadata.create_all(connect.cchdo_data())
 
 
 class Country(Base):
@@ -491,4 +493,4 @@ def _post_import(module):
     return module
 
 
-libcchdo.post_import(_post_import)
+post_import(_post_import)

@@ -4,18 +4,18 @@ import sqlalchemy as S
 import sqlalchemy.orm
 import sqlalchemy.ext.declarative
 
-import libcchdo
-import libcchdo.db
-import libcchdo.db.connect
-import libcchdo.db.model
+from ... import memoize
+from ... import LOG
+from ...db import connect
+from ...db import Enum
 
 Base = S.ext.declarative.declarative_base()
 metadata = Base.metadata
 
 
-@libcchdo.memoize
+@memoize
 def session():
-    return libcchdo.db.connect.session(libcchdo.db.connect.cchdo())
+    return connect.session(connect.cchdo())
 
 
 OVERRIDE_PARAMETERS = {
@@ -102,7 +102,7 @@ def _mysql_parameter_order_to_array(order):
                                map(lambda x: x.strip(), order.split(','))))
 
 
-_sesh = libcchdo.db.connect.session(libcchdo.db.connect.cchdo())
+_sesh = connect.session(connect.cchdo())
 _query = _sesh.query(ParameterGroup)
 
 _primary = _query.filter(ParameterGroup.group == \
@@ -200,7 +200,7 @@ class ParameterStatus(Base):
     parameter_id = S.Column(S.ForeignKey('parameter_descriptions.id'),
                             primary_key=True)
     pi_id = S.Column(S.ForeignKey('contacts.id'), nullable=True)
-    status = S.Column(libcchdo.db.Enum([u'PRELIMINARY', u'NON-PRELIMINARY']),
+    status = S.Column(Enum([u'PRELIMINARY', u'NON-PRELIMINARY']),
                       default=u'PRELIMINARY')
 
     parameter = S.orm.relation(Parameter)
@@ -221,7 +221,7 @@ def find_parameter(name):
 
     if not legacy_parameter:
         # Try aliases
-        libcchdo.LOG.warn(
+        LOG.warn(
             "No legacy parameter found for '%s'. Falling back to aliases." % \
             name)
         legacy_parameter = sesh.query(Parameter).filter(
@@ -229,7 +229,7 @@ def find_parameter(name):
         
         if not legacy_parameter:
             # Try known overrides
-            libcchdo.LOG.warn(
+            LOG.warn(
                 ("No legacy parameter found for '%s'. Falling back on known "
                  "override parameters.") % name)
             try:
