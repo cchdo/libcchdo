@@ -194,16 +194,16 @@ class DataFile(File):
         return s.encode('ascii', 'replace')
 
     def to_dict(self):
-        hash = {}
+        d = {}
         for column in self.columns:
             c = self[column]
             woce = c.parameter.mnemonic_woce()
-            hash[woce] = c.values
+            d[woce] = c.values
             if c.is_flagged_woce():
-                hash[woce+'_FLAG_W'] = c.flags_woce
+                d[woce+'_FLAG_W'] = c.flags_woce
             if c.is_flagged_igoss():
-                hash[woce+'_FLAG_I'] = c.flags_igoss
-        return hash
+                d[woce+'_FLAG_I'] = c.flags_igoss
+        return d
 
     # Refactored common code
 
@@ -247,6 +247,12 @@ class DataFileCollection(object):
 
     def append(self, x):
         self.files.append(x)
+
+    def to_dict(self):
+        d = {'files': []}
+        for file in self.files:
+        	d['files'].append(file.to_dict())
+        return d
 
     def __str__(self):
         s = u''

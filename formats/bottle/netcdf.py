@@ -158,7 +158,7 @@ def write(self, handle):
     nc_file.DATA_TYPE = 'WOCE Bottle'
     nc_file.STATION_NUMBER = nc.simplest_str(self['STNNBR'][0]) or UNKNOWN
     nc_file.CAST_NUMBER = nc.simplest_str(self['CASTNO'][0]) or UNKNOWN
-    nc_file.BOTTOM_DEPTH_METERS = int(max(self['DEPTH'].values))
+    nc_file.BOTTOM_DEPTH_METERS = int(max(self['DEPTH'].values) or -999)
     nc_file.BOTTLE_NUMBERS = ' '.join(map(nc.simplest_str, self['BTLNBR'].values))
     if self['BTLNBR'].is_flagged_woce():
         nc_file.BOTTLE_QUALITY_CODES = ' '.join(map(str, self['BTLNBR'].flags_woce))
