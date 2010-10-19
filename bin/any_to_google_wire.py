@@ -12,7 +12,7 @@ from libcchdo.formats.google_wire import google_wire
 
 def main(argv):
     opts, args = getopt.getopt(argv[1:], 'jh', ['json', 'help'])
-    usage = 'Usage:', argv[0], '[-j|--json] <any recognized CCHDO file>'
+    usage = "Usage: %s [-j|--json] <any recognized CCHDO file>" % argv[0]
 
     if len(args) < 1:
         print >> sys.stderr, usage
