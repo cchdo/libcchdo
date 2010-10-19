@@ -97,12 +97,21 @@ def read(self, handle):
 def write(self, handle):
     '''How to write a CTD Exchange file.'''
     handle.write('CTD,%s\n' % self.globals['stamp'])
-    handle.write(self.globals['header'])
+    handle.write('%s\n' % self.globals['header'])
+
+    stamp = self.globals['stamp']
+    header = self.globals['header']
+    del self.globals['stamp']
+    del self.globals['header']
+
     handle.write('NUMBER_HEADERS = '+str(len(self.globals.keys())+1)+"\n")
     for header in REQUIRED_HEADERS:
-        handle.write(header+' = '+str(self.globals['header'])+"\n")
+        handle.write(header+' = '+str(self.globals[header])+"\n")
     for key in set(self.globals.keys()) - set(REQUIRED_HEADERS):
         handle.write(key+' = '+str(self.globals[key])+"\n")
+
+    self.globals['stamp'] = stamp
+    self.globals['header'] = header
 
     headers = []
     for c in self.sorted_columns():
