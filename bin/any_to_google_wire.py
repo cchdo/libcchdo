@@ -6,30 +6,33 @@ import getopt
 import sys
 
 import abs_import_library
-import libcchdo.formats.google_wire.google_wire as google_wire
+import libcchdo.fns
+from libcchdo.formats.google_wire import google_wire
 
 
 def main(argv):
-    opts, args = getopt.getopt(argv[1:], 'j', ['json'])
+    opts, args = getopt.getopt(argv[1:], 'jh', ['json', 'help'])
+    usage = "Usage: %s [-j|--json] <any recognized CCHDO file>" % argv[0]
 
     if len(args) < 1:
-        print 'Usage:', argv[0], '[-j|--json] <any recognized CCHDO file>'
+        print >> sys.stderr, usage
         return 1
 
-    # XXX hidden option: if program is supplied two args with the last as true
-    # the output format is selected to be json
-    json = len(args) > 1 and args[1].lower() == 'true'
+    flag_json = False
 
     for o, a in opts:
         if o in ('-j', '--json'):
-            json = True
+            flag_json = True
+        elif o in ('-h', '--help'):
+        	print >> sys.stderr, usage
+        	return 1
         else:
             assert False, "unhandled option"
 
     with open(args[0], 'r') as in_file:
         file = libcchdo.fns.read_arbitrary(in_file)
-        google_wire.write(file, sys.stdout, json=json)
+        google_wire.write(file, sys.stdout, json=flag_json)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     sys.exit(main(sys.argv))

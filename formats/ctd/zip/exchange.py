@@ -2,6 +2,7 @@ import StringIO
 import zipfile
 import datetime
 
+from .... import LOG
 from ....model import datafile
 from ...ctd import exchange as ctdex
 
@@ -27,9 +28,19 @@ def write(self, handle):
         tempstream = StringIO.StringIO()
         ctdex.write(file, tempstream)
 
-        station = int(file.globals['STNNBR'].strip())
-        cast = int(file.globals['CASTNO'].strip())
-        info = zipfile.ZipInfo('%s_%05d_%05d_ct1.csv' % \
+        station = file.globals['STNNBR'].strip()
+        try:
+            station = '%05d' % int(station)
+        except:
+            station = station[:5]
+
+        cast = file.globals['CASTNO'].strip()
+        try:
+            cast = '%05d' % int(cast)
+        except:
+            cast = cast[:5]
+
+        info = zipfile.ZipInfo('%s_%5s_%5s_ct1.csv' % \
                        (file.globals['EXPOCODE'], station, cast))
         dt = datetime.datetime.now()
         info.date_time = (dt.year, dt.month, dt.day,
