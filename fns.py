@@ -43,7 +43,7 @@ def strip_all(list):
     return map(lambda x: x.strip(), list)
 
 
-def read_arbitrary(handle):
+def read_arbitrary(handle, file_type=None):
     '''Takes any CCHDO recognized file and tries to open it.
        The recognition is done by file extension.
        Args:
@@ -55,41 +55,44 @@ def read_arbitrary(handle):
 
     filename = handle.name
 
-    if filename.endswith('zip'):
+    if not file_type:
+        file_type = ''
+
+    if filename.endswith('zip') or file_type.find('zip') > 0: # XXX
         datafile = model.datafile.DataFileCollection()
-    elif filename.endswith('su.txt'):
+    elif filename.endswith('su.txt') or file_type.startswith('sum'):
         datafile = model.datafile.SummaryFile()
     else:
         datafile = model.datafile.DataFile()
 
-    if filename.endswith('.hot.su.txt'):
+    if filename.endswith('.hot.su.txt') or file_type =='sumhot':
         import formats.summary.hot
         formats.summary.hot.read(datafile, handle)
-    elif filename.endswith('su.txt'):
+    elif filename.endswith('su.txt') or file_type == 'sumwoce':
         import formats.summary.woce
         formats.summary.woce.read(datafile, handle)
-    elif filename.endswith('hy.txt'):
+    elif filename.endswith('hy.txt') or file_type == 'botwoce':
         import formats.bottle.woce
         formats.bottle.woce.read(datafile, handle)
-    elif filename.endswith('hy1.csv'):
+    elif filename.endswith('hy1.csv') or file_type == 'botex':
         import formats.bottle.exchange
         formats.bottle.exchange.read(datafile, handle)
-    elif filename.endswith('hy1.nc'):
+    elif filename.endswith('hy1.nc') or file_type == 'botnc':
         import formats.bottle.netcdf
         formats.bottle.netcdf.read(datafile, handle)
-    elif filename.endswith('nc_hyd.zip'):
+    elif filename.endswith('nc_hyd.zip') or file_type == 'botzipnc':
         import formats.bottle.zip.netcdf
         formats.bottle.zip.netcdf.read(datafile, handle)
-    elif filename.endswith('ct1.csv'):
+    elif filename.endswith('ct1.csv') or file_type == 'ctdex':
         import formats.ctd.exchange
         formats.ctd.exchange.read(datafile, handle)
-    elif filename.endswith('ct1.zip'):
+    elif filename.endswith('ct1.zip') or file_type == 'ctdzipex':
         import formats.ctd.zip.exchange
         formats.ctd.zip.exchange.read(datafile, handle)
-    elif filename.endswith('ctd.nc'):
+    elif filename.endswith('ctd.nc') or file_type == 'ctdnc':
         import formats.ctd.netcdf
         formats.ctd.netcdf.read(datafile, handle)
-    elif filename.endswith('nc_ctd.zip'):
+    elif filename.endswith('nc_ctd.zip') or file_type == 'ctdzipnc':
         import formats.ctd.zip.netcdf
         formats.ctd.zip.netcdf.read(datafile, handle)
     else:

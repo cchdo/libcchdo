@@ -11,18 +11,21 @@ from libcchdo.formats.google_wire import google_wire
 
 
 def main(argv):
-    opts, args = getopt.getopt(argv[1:], 'jh', ['json', 'help'])
-    usage = "Usage: %s [-j|--json] <any recognized CCHDO file>" % argv[0]
+    opts, args = getopt.getopt(argv[1:], 'jt:h', ['json', 'type=', 'help'])
+    usage = "Usage: %s [-j|--json,-t|--type] <any recognized CCHDO file>" % argv[0]
 
     if len(args) < 1:
         print >> sys.stderr, usage
         return 1
 
     flag_json = False
+    file_type = None
 
     for o, a in opts:
         if o in ('-j', '--json'):
             flag_json = True
+        elif o in ('-t', '--type'):
+            file_type = a
         elif o in ('-h', '--help'):
         	print >> sys.stderr, usage
         	return 1
@@ -30,7 +33,7 @@ def main(argv):
             assert False, "unhandled option"
 
     with open(args[0], 'r') as in_file:
-        file = libcchdo.fns.read_arbitrary(in_file)
+        file = libcchdo.fns.read_arbitrary(in_file, file_type)
         google_wire.write(file, sys.stdout, json=flag_json)
 
 
