@@ -10,7 +10,7 @@ REQUIRED_HEADERS = ('EXPOCODE', 'SECT_ID', 'STNNBR', 'CASTNO', 'DATE',
 
 
 def read(self, handle):
-    '''How to read a CTD Exchange file.'''
+    """ How to read a CTD Exchange file. """
     # Read identifier and stamp
     stamp = re.compile('CTD,(\d{8}\w+)')
     m = stamp.match(handle.readline())
@@ -57,45 +57,63 @@ def read(self, handle):
 
     # Check all parameters are non-trivial
     if not all(columns):
-        #raise ValueError(("Malformed parameters/unit line; make sure there "
-        #                  "are no blank parameters (e.g. extra comma at end)"))
-        LOG.warn("Stripped blank parameter from MALFORMED EXCHANGE FILE")
+        LOG.warn(("Stripped blank parameter from MALFORMED EXCHANGE FILE\n"
+                  "This may be caused by an extra comma at the end of a line."))
         columns = filter(None, columns)
 
     self.create_columns(columns, units)
 
     # Read data
+    numberlike = re.compile('\d+(.\d+)?')
     l = handle.readline().strip()
     while l:
-       if l == 'END_DATA':
-           break
-       values = l.split(',')
-       
-       # Check columns and values to match length
-       if len(columns) is not len(values):
-           raise ValueError(
-               ("Expected as many columns as values in file (%s). Found %d "
-                "columns and %d values at data line %d") % \
-                (handle.name, len(columns), len(values), len(self) + 1))
+        if l == 'END_DATA':
+            break
+        values = l.split(',')
+        
+        # Check columns and values to match length
+        if len(columns) is not len(values):
+            raise ValueError(
+                ("Expected as many columns as values in file (%s). Found %d "
+                 "columns and %d values at data line %d") % \
+                 (handle.name, len(columns), len(values), len(self) + 1))
 
-       for column, value in zip(columns, values):
-           value = value.strip()
-           if column.endswith('_FLAG_W'):
-               self.columns[column[:-7]].flags_woce.append(int(value))
-           elif column.endswith('_FLAG_I'):
-               self.columns[column[:-7]].flags_igoss.append(int(value))
-           else:
-               if fns.out_of_band(float(value)):
-                   self.columns[column].append(None)
-               else:
-                   self.columns[column].append(float(value))
-       l = handle.readline().strip()
+        for column, value in zip(columns, values):
+            value = value.strip()
+            if column.endswith('_FLAG_W'):
+                self.columns[column[:-7]].flags_woce.append(int(value))
+            elif column.endswith('_FLAG_I'):
+                self.columns[column[:-7]].flags_igoss.append(int(value))
+            else:
+                if fns.out_of_band(float(value)):
+                    self.columns[column].append(None)
+                else:
+                    if numberlike.match(value):
+                        parts = value.split('.')
+                        i = parts[0]
+                        try:
+                            d = parts[1]
+                        except IndexError:
+                            d = None
+                        format = '%%%d%sf' % (len(i),
+                                              ('.%d' % len(d) if d else ''))
+                        col = self.columns[column]
+                        if col.parameter and \
+                           col.parameter.format != '%11s' and \
+                           col.parameter.format != format:
+                            LOG.info(("The guessed format for %s is %s. This "
+                                      "does not match a previous format "
+                                      "guess: %s") % \
+                                      (column, format, col.parameter.format))
+                    col.parameter.format = format
+                    col.append(float(value))
+        l = handle.readline().strip()
 
     self.check_and_replace_parameters()
 
 
 def write(self, handle):
-    '''How to write a CTD Exchange file.'''
+    """ How to write a CTD Exchange file. """
     handle.write('CTD,%s\n' % self.globals['stamp'])
     handle.write('%s\n' % self.globals['header'])
 

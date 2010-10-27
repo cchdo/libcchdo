@@ -76,6 +76,38 @@ class Column(object):
        except:
            return -1
 
+   def check_and_replace_parameter(self, file):
+       parameter = self.parameter
+       std_parameter = std.find_by_mnemonic(parameter.name)
+       
+       if parameter.name.startswith('_'):
+           return
+
+       if not std_parameter:
+           LOG.warn("Unknown parameter '%s'" % parameter.name)
+           return
+
+       given_units = parameter.units.mnemonic if parameter.units else None
+       expected_units = std_parameter.units.mnemonic \
+           if std_parameter and std_parameter.units else None
+       from_to = (given_units, expected_units)
+
+       if given_units and expected_units and \
+          given_units != expected_units:
+           LOG.warn(("Mismatched units for '%s'. Found '%s' but "
+                     "expected '%s'") % ((parameter.name,) + from_to))
+           try:
+               unit_converter = file.unit_converters[from_to]
+               LOG.info(("Converting from '%s' -> '%s' for %s.") % \
+                        (from_to + (self.parameter.name,)))
+               self = unit_converter(file, self)
+           except KeyError:
+               LOG.info(("No unit converter registered with file for "
+                         "'%s' -> '%s'. Skipping conversion.") % from_to)
+               return
+
+       self.parameter = std_parameter
+
 
 class File(object):
 
@@ -104,38 +136,12 @@ class File(object):
         except:
             return 0
 
-    def check_and_replace_parameters(self):
+    def each_column(self, func):
         for column in self.columns.values():
-            parameter = column.parameter
-            std_parameter = std.find_by_mnemonic(parameter.name)
-            
-            if parameter.name.startswith('_'):
-                continue
+        	func(column, self)
 
-            if not std_parameter:
-                LOG.warn("Unknown parameter '%s'" % parameter.name)
-                continue
-
-            given_units = parameter.units.mnemonic if parameter.units else None
-            expected_units = std_parameter.units.mnemonic \
-                if std_parameter and std_parameter.units else None
-            from_to = (given_units, expected_units)
-
-            if given_units and expected_units and \
-               given_units != expected_units:
-                LOG.warn(("Mismatched units for '%s'. Found '%s' but "
-                          "expected '%s'") % ((parameter.name,) + from_to))
-                try:
-                    unit_converter = self.unit_converters[from_to]
-                    LOG.info(("Converting from '%s' -> '%s' for %s.") % \
-                             (from_to + (column.parameter.name,)))
-                    column = unit_converter(self, column)
-                except KeyError:
-                    LOG.info(("No unit converter registered with file for "
-                              "'%s' -> '%s'. Skipping conversion.") % from_to)
-                    continue
-
-            column.parameter = std_parameter
+    def check_and_replace_parameters(self):
+        self.each_column(Column.check_and_replace_parameter)
 
 
 class SummaryFile(File):
