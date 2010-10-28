@@ -57,7 +57,7 @@ def read(self, handle):
     # Read data
     l = handle.readline().strip()
     while l:
-        if l == 'END_DATA': break
+        if l.startswith('END_DATA'): break
         values = l.split(',')
         
         # Check columns and values to match length
@@ -94,8 +94,14 @@ def read(self, handle):
         l = handle.readline().strip()
 
     # Format all data to be what it is
-    self['LATITUDE'].values = map(float, self['LATITUDE'].values)
-    self['LONGITUDE'].values = map(float, self['LONGITUDE'].values)
+    try:
+        self['LATITUDE'].values = map(float, self['LATITUDE'].values)
+    except KeyError:
+        pass
+    try:
+        self['LONGITUDE'].values = map(float, self['LONGITUDE'].values)
+    except KeyError:
+        pass
     try:
         self['DATE']
     except KeyError:
