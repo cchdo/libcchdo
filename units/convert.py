@@ -1,6 +1,7 @@
-'''Unit converters
-'''
+""" Unit converters """
 
+
+import decimal
 
 from .. import LOG
 from ..algorithms import volume
@@ -114,6 +115,22 @@ def mol_per_liter_to_mol_per_kg(file, column):
     prefix = column.parameter.units.name.strip()[:-1]
     column.parameter.unit = std.Unit(prefix + 'KG')
 
+    return column
+
+
+def ctdoxy_micromole_per_liter_to_micromole_per_kilogram(file, column):
+    sigtheta = file['CTDSIGTH']
+    if not sigtheta:
+    	LOG.warn('Unable to find sigma theta column. Cannot convert.')
+        return column
+    for i, value in enumerate(column):
+    	precision = len(str(column[i].to_integral())) + \
+    	    min(-sigtheta[i].as_tuple().exponent,
+    	        -column[i].as_tuple().exponent)
+        with decimal.localcontext() as ctx:
+            factor = sigtheta[i].fma(decimal.Decimal('1.0e-3'), 1)
+            ctx.prec = precision
+            column[i] /= factor
     return column
 
 

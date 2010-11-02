@@ -1,35 +1,40 @@
 import re
 import datetime
+import decimal
 
 from ... import LOG
 from ... import fns
+from .. import pre_write
 
 
 REQUIRED_HEADERS = ('EXPOCODE', 'SECT_ID', 'STNNBR', 'CASTNO', 'DATE',
                     'TIME', 'LATITUDE', 'LONGITUDE', 'DEPTH', )
 
 
-def read(self, handle):
+def read(self, handle, retain_order=False):
     """ How to read a CTD Exchange file. """
     # Read identifier and stamp
     stamp = re.compile('CTD,(\d{8}\w+)')
-    m = stamp.match(handle.readline())
+    stampline = handle.readline()
+    m = stamp.match(stampline)
     if m:
         self.globals['stamp'] = m.group(1)
     else:
         raise ValueError(('Expected identifier line with stamp '
-                          '(e.g. CTD,YYYYMMDDdivINSwho)'))
+                          '(e.g. CTD,YYYYMMDDdivINSwho).\n'
+                          'Instead got: %s') % stampline)
     # Read comments
     l = handle.readline()
     while l and l.startswith('#'):
-        self.globals['header'] += l
+        self.globals['header'] += l.strip() + '\n'
         l = handle.readline()
+
     # Read NUMBER_HEADERS
-    num_headers = re.compile('NUMBER_HEADERS\s+=\s+(\d+)')
+    num_headers = re.compile('NUMBER_HEADERS\s*=\s*(\d+)')
     m = num_headers.match(l)
     if m:
-        num_headers = int(m.group(1))-1 # NUMBER_HEADERS counts itself
-                                        # as a header
+         # NUMBER_HEADERS counts itself as a header
+        num_headers = int(m.group(1))-1
     else:
         raise ValueError(('Expected NUMBER_HEADERS as the second line in '
                           'the file.'))
@@ -39,7 +44,7 @@ def read(self, handle):
         if m:
             if m.group(1) in REQUIRED_HEADERS and m.group(1) in ['LATITUDE',
                                                                  'LONGITUDE']:
-                self.globals[m.group(1)] = float(m.group(2))
+                self.globals[m.group(1)] = decimal.Decimal(m.group(2))
             else:
                 self.globals[m.group(1)] = m.group(2)
         else:
@@ -61,10 +66,10 @@ def read(self, handle):
                   "This may be caused by an extra comma at the end of a line."))
         columns = filter(None, columns)
 
-    self.create_columns(columns, units)
+    self.create_columns(columns, units, retain_order)
 
     # Read data
-    numberlike = re.compile('\d+(.\d+)?')
+    numberlike = re.compile('-?\d+(.\d+)?([eE]-?\d+)?')
     l = handle.readline().strip()
     while l:
         if l == 'END_DATA':
@@ -82,31 +87,18 @@ def read(self, handle):
             value = value.strip()
             if column.endswith('_FLAG_W'):
                 self.columns[column[:-7]].flags_woce.append(int(value))
+                continue
             elif column.endswith('_FLAG_I'):
                 self.columns[column[:-7]].flags_igoss.append(int(value))
-            else:
-                if fns.out_of_band(float(value)):
-                    self.columns[column].append(None)
-                else:
-                    if numberlike.match(value):
-                        parts = value.split('.')
-                        i = parts[0]
-                        try:
-                            d = parts[1]
-                        except IndexError:
-                            d = None
-                        format = '%%%d%sf' % (len(i),
-                                              ('.%d' % len(d) if d else ''))
-                        col = self.columns[column]
-                        if col.parameter and \
-                           col.parameter.format != '%11s' and \
-                           col.parameter.format != format:
-                            LOG.info(("The guessed format for %s is %s. This "
-                                      "does not match a previous format "
-                                      "guess: %s") % \
-                                      (column, format, col.parameter.format))
-                    col.parameter.format = format
-                    col.append(float(value))
+                continue
+            if fns.out_of_band(float(value)):
+                self.columns[column].append(None)
+                continue
+
+            if numberlike.match(value):
+                value = decimal.Decimal(str(value))
+            col = self.columns[column]
+            col.append(value)
         l = handle.readline().strip()
 
     self.check_and_replace_parameters()
@@ -114,8 +106,10 @@ def read(self, handle):
 
 def write(self, handle):
     """ How to write a CTD Exchange file. """
+    pre_write(self)
+
     handle.write('CTD,%s\n' % self.globals['stamp'])
-    handle.write('%s\n' % self.globals['header'])
+    handle.write('%s' % self.globals['header'])
 
     stamp = self.globals['stamp']
     header = self.globals['header']
@@ -124,9 +118,13 @@ def write(self, handle):
 
     handle.write('NUMBER_HEADERS = '+str(len(self.globals.keys())+1)+"\n")
     for header in REQUIRED_HEADERS:
-        handle.write(header+' = '+str(self.globals[header])+"\n")
+        try:
+            handle.write(header+' = '+str(self.globals[header])+"\n")
+        except KeyError:
+            LOG.warn('Missing required header %s' % header)
     for key in set(self.globals.keys()) - set(REQUIRED_HEADERS):
         handle.write(key+' = '+str(self.globals[key])+"\n")
+
 
     self.globals['stamp'] = stamp
     self.globals['header'] = header
@@ -158,8 +156,24 @@ def write(self, handle):
     for i in range(len(self)):
         data = []
         for c in columns:
-            data.append(
-                c.parameter.format % (float(c[i]) if c[i] else -999.0))
+            fmt = c.parameter.format
+            if fmt.endswith('f'):
+                parts = fmt[:-1].split('.')
+                assert len(parts) <=2 and len(parts) >= 1
+                if len(parts) == 2:
+                    # Should do this check before printing to prevent ragged columns.
+                    if type(c[i]) is decimal.Decimal:
+                        exponent = \
+                            -(c[i] - c[i].to_integral()).as_tuple().exponent
+                        if exponent > -1 and exponent > parts[1]:
+                            fmt = '%%%d.%df' % (parts[0], exponent)
+            try:
+                string = c.parameter.format % (c[i] if c[i] else -999.0)
+            except TypeError:
+                print type(c[i]), c[i]
+                raise
+
+            data.append(string)
             if c.is_flagged_woce():
                 data.append(c.flags_woce[i])
             if c.is_flagged_igoss():
