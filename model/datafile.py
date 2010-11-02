@@ -98,13 +98,22 @@ class Column(object):
                      "expected '%s'") % ((parameter.name,) + from_to))
            try:
                unit_converter = file.unit_converters[from_to]
-               LOG.info(("Converting from '%s' -> '%s' for %s.") % \
-                        (from_to + (self.parameter.name,)))
-               self = unit_converter(file, self)
            except KeyError:
                LOG.info(("No unit converter registered with file for "
                          "'%s' -> '%s'. Skipping conversion.") % from_to)
                return
+           LOG.info(("Converting from '%s' -> '%s' for %s.") % \
+                    (from_to + (self.parameter.name,)))
+           self = unit_converter(file, self)
+           file.changes_to_report.append((
+               'Converted %(parameter)s from %(startunit)s to %(endunit)s '
+               'using %(technique)s') % {
+               	   'parameter': self.parameter.name,
+                   'startunit': from_to[0],
+                   'endunit': from_to[1],
+                   'technique': file.unit_converter_technique.get(
+                                    unit_converter, 'undescribed')
+               })
 
        self.parameter = std_parameter
 
@@ -114,9 +123,26 @@ class File(object):
     def __init__(self):
         self.columns = {}
         self.unit_converters = {}
+        self.unit_converter_technique = {}
+        # Allow files to override column sorting by parameter display order.
+        # Contains the columns in the order that they should appear.
+        self.ordered_columns = []
+
+        # Will report changes by inserting the stamp above the file's header
+        # and prepending the changes. e.g.
+        # # change[0]
+        # # change[1]
+        # # change[2]
+        # # old stamp
+        # # old header
+        self.changes_to_report = []
 
     def sorted_columns(self):
-        return sorted(self.columns.values())
+        columns = self.columns.values()
+        if self.ordered_columns:
+        	return filter(None,
+        	              [x for x in self.ordered_columns if x in columns])
+        return sorted(columns)
 
     def get_property_for_columns(self, property_getter):
         return map(property_getter, self.sorted_columns())
@@ -213,7 +239,7 @@ class DataFile(File):
 
     # Refactored common code
 
-    def create_columns(self, parameters, units=None):
+    def create_columns(self, parameters, units=None, ordered=False):
         '''Create columns given parameters and their units.
            Args:
                parameters - parameter names as WOCE mnemonics
@@ -227,6 +253,8 @@ class DataFile(File):
             try:
                 self[parameter] = Column(
                     parameter, units[i] if units else None)
+                if ordered:
+                    self.ordered_columns.append(self[parameter])
             except Exception, e:
                 raise e
 
@@ -266,6 +294,5 @@ class DataFileCollection(object):
             s += '%sFILE %d %s\n' % (COLORS['RED'], i, COLORS['CLEAR'])
             s += str(file)
         return s.encode('ascii', 'replace')
-
 
 
