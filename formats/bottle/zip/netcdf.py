@@ -30,7 +30,10 @@ def write(self, handle):
     station_i = 0
     cast_i = 0
 
-    zip = zipfile.ZipFile(handle, 'w')
+    try:
+        zip = zipfile.ZipFile(handle, 'w', zipfile.ZIP_DEFLATED)
+    except RuntimeError:
+        zip = zipfile.ZipFile(handle, 'w')
 
     for file in self.files:
         temp = StringIO.StringIO()
@@ -48,6 +51,6 @@ def write(self, handle):
             cast_i += 1
         filename = nc.get_filename(expocode, station, cast)
 
-        zip.writestr(filename, temp.getvalue())
+        zip.writestr(filename, temp.getvalue(), zipfile.ZIP_DEFLATED)
         temp.close()
     zip.close()

@@ -30,7 +30,11 @@ def read(self, handle, retain_order=False):
 
 def write(self, handle):
     """How to write CTD Exchange files to a Zip."""
-    zip = zipfile.ZipFile(handle, 'w')
+    try:
+        zip = zipfile.ZipFile(handle, 'w', zipfile.ZIP_DEFLATED)
+    except RuntimeError:
+        LOG.info('Unable to write deflated zip file. Using store algorithm instead.')
+        zip = zipfile.ZipFile(handle, 'w')
     for file in self.files:
         tempstream = StringIO.StringIO()
         ctdex.write(file, tempstream)
@@ -56,6 +60,7 @@ def write(self, handle):
         info.date_time = (dt.year, dt.month, dt.day,
                           dt.hour, dt.minute, dt.second)
         info.external_attr = 0644 << 16L
+        info.compress_type = zipfile.ZIP_DEFLATED
 
         zip.writestr(info, tempstream.getvalue())
         tempstream.close()
