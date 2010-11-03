@@ -6,8 +6,6 @@ import datetime
 import os
 import sys
 
-sys.path.insert(0, '/Users/myshen/Documents/libcchdo/bin')
-
 import abs_import_library
 from libcchdo import LOG
 from libcchdo import config
