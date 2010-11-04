@@ -3,7 +3,7 @@ import datetime
 import os
 
 
-_CONFIG_FILE_NAME = '.libcchdo.cfg'
+_CONFIG_FILE_NAME = '.%s.cfg' % get_library_name()
 _CONFIG_PATHS = [
     os.path.join(os.getcwd(), _CONFIG_FILE_NAME),
     os.path.join(os.path.expanduser('~'), _CONFIG_FILE_NAME),

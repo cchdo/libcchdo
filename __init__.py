@@ -69,6 +69,10 @@ def post_import(fn):
 # XXX END EVIL
 
 
+def get_library_name():
+    return os.path.split(get_library_abspath())[1]
+
+
 @memoize
 def get_library_abspath():
     """Give the absolute path of the directory that is the root of the 
