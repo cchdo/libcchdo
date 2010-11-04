@@ -110,6 +110,7 @@ class CleanCommand(distutils.core.Command):
             except:
                 pass
 
+
 class PurgeCommand(CleanCommand):
     description = "Purges directories of .pyc files, caches, and documentation"
     user_options = []
