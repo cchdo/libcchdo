@@ -30,7 +30,5 @@ class TestInit(unittest.TestCase):
                   inspect.stack()[0][1]))[0])[0]
         self.assertEqual(get_library_abspath(), path)
 
-
     def test_log_unknown_level(self):
         LOG.log(11, 'test unknown log level')
-

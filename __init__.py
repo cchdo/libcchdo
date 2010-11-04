@@ -69,6 +69,7 @@ def post_import(fn):
 # XXX END EVIL
 
 
+@memoize
 def get_library_abspath():
     """Give the absolute path of the directory that is the root of the 
        package, i.e. it contains this file.
@@ -115,6 +116,7 @@ class _LibLogFormatter(logging.Formatter):
 
     def __init__(self, fmt=None, datefmt=None):
         logging.Formatter.__init__(self, fmt, datefmt)
+        self.library_abspath = get_library_abspath()
 
     def _get_color(self, level):
         try:
@@ -123,10 +125,12 @@ class _LibLogFormatter(logging.Formatter):
             return 'GREEN'
 
     def format(self, record):
-        record.__dict__['asctime'] = self.formatTime(record, self.datefmt)
-        record.__dict__['message'] = record.getMessage()
-        record.__dict__['color'] = COLORS[self._get_color(record.levelno)]
-        return self._fmt % record.__dict__
+        d = record.__dict__
+        d['asctime'] = self.formatTime(record, self.datefmt)
+        d['message'] = record.getMessage()
+        d['color'] = COLORS[self._get_color(record.levelno)]
+        d['pathname'] = d['pathname'].replace(self.library_abspath, '')
+        return self._fmt % d
 
     def formatTime(self, record, fmt):
         if not fmt:
@@ -137,7 +141,7 @@ class _LibLogFormatter(logging.Formatter):
 
 _LIBLOG_HANDLER = logging.StreamHandler()
 _LIBLOG_HANDLER.setFormatter(_LibLogFormatter(
-    ''.join(('%(color)s%(asctime)s_%(pathname)s:%(lineno)d_%(name)s %(levelname)s: ',
+    ''.join(('%(color)s%(asctime)s %(name)s%(pathname)s:%(lineno)d %(levelname)s: ',
         COLORS['CLEAR'], '%(message)s')), "%Y-%j %H%M:%S"))
 
 LOG = logging.getLogger(__name__)
