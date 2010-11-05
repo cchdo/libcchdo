@@ -25,7 +25,12 @@ def operate_healy_file(df, stamp):
     def change_stamp(self):
         self.globals['stamp'] = stamp
 
+    def add_sect_id(self):
+        self.globals['SECT_ID'] = 'CAA'
+
     add_pre_write(change_stamp)
+    df.changes_to_report.append('Added SECT_ID = CAA')
+    add_pre_write(add_sect_id)
 
     df.check_and_replace_parameters()
 
