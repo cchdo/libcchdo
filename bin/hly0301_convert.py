@@ -40,9 +40,11 @@ def operate_healy_file(df, stamp):
                 'CTDOXSAT CTDNOBS').split()
     deleted = []
     for c in unwanted:
-        if df[c]:
+        try:
             del df[c]
             deleted.append(c)
+        except KeyError:
+            pass
     if deleted:
         df.changes_to_report.append('Removed columns: %s' % ', '.join(deleted))
 
