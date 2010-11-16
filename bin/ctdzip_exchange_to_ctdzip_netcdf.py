@@ -3,10 +3,10 @@
 from __future__ import with_statement
 import sys
 
-import implib
-import libcchdo.model.datafile
-import libcchdo.formats.ctd.zip.exchange as ctdzipex
-import libcchdo.formats.ctd.zip.netcdf as ctdzipnc
+import implib as L
+import implib.model.datafile
+import implib.formats.ctd.zip.exchange as ctdzipex
+import implib.formats.ctd.zip.netcdf as ctdzipnc
 
 
 def main(argv):
@@ -14,7 +14,7 @@ def main(argv):
         print 'Usage:', argv[0], '<ctd exchange zip>'
         return 1
     
-    file = libcchdo.model.datafile.DataFileCollection()
+    file = L.model.datafile.DataFileCollection()
     with open(argv[1], 'r') as in_file:
         ctdzipex.read(file, in_file)
     

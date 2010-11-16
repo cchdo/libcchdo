@@ -6,13 +6,13 @@ import datetime
 import os
 import sys
 
-import implib
-from libcchdo import LOG
-from libcchdo import config
-from libcchdo.formats import add_pre_write
-from libcchdo.model.datafile import DataFileCollection
-from libcchdo.formats.ctd.zip import exchange as ctdzipex
-from libcchdo.units import convert as ucvt
+import implib as L
+from implib import LOG
+from implib import config
+from implib.formats import add_pre_write
+from implib.model.datafile import DataFileCollection
+from implib.formats.ctd.zip import exchange as ctdzipex
+from implib.units import convert as ucvt
 
 
 def operate_healy_file(df, stamp):

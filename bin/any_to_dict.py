@@ -4,8 +4,8 @@
 from __future__ import with_statement
 import sys
 
-import implib
-import libcchdo.fns
+import implib as L
+import implib.fns
 
 
 def main(argv):
@@ -14,7 +14,7 @@ def main(argv):
         return 1
     
     with open(argv[1], 'r') as in_file:
-        file = libcchdo.fns.read_arbitrary(in_file)
+        file = L.fns.read_arbitrary(in_file)
         print file.to_dict()
 
 

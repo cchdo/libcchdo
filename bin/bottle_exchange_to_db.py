@@ -3,10 +3,10 @@
 from __future__ import with_statement
 import sys
 
-import implib
-import libcchdo.model.datafile
-import libcchdo.formats.bottle.database as db
-import libcchdo.formats.bottle.exchange as botex
+import implib as L
+import implib.model.datafile
+import implib.formats.bottle.database as db
+import implib.formats.bottle.exchange as botex
 
 
 def main(argv):
@@ -15,7 +15,7 @@ def main(argv):
         return 1
     
     with open(argv[1], 'r') as in_file:
-        file = libcchdo.model.datafile.DataFile()
+        file = L.model.datafile.DataFile()
         botex.read(file, in_file)
         db.write(file)
 

@@ -21,14 +21,11 @@ notes:
 from __future__ import with_statement
 import sys
 
-import implib
-import libcchdo.model.datafile as datafile
-import libcchdo.units.convert as cvt
-import libcchdo.db.model.std as std
-import libcchdo.formats.bottle.exchange as botex
-
-
-LOG = libcchdo.LOG
+import implib as L
+import implib.model.datafile as datafile
+import implib.units.convert as cvt
+import implib.db.model.std as std
+import implib.formats.bottle.exchange as botex
 
 
 def check_and_replace_parameters(self):
@@ -37,7 +34,7 @@ def check_and_replace_parameters(self):
         std_parameter = std.find_by_mnemonic(parameter.name)
 
         if not std_parameter and not parameter.name.startswith('_'):
-            LOG.warn("Unknown parameter '%s'" % parameter.name)
+            L.LOG.warn("Unknown parameter '%s'" % parameter.name)
             continue
 
         given_units = parameter.units.mnemonic if parameter.units else None
@@ -46,7 +43,7 @@ def check_and_replace_parameters(self):
         from_to = (given_units, expected_units)
 
         if given_units and expected_units and given_units != expected_units:
-            LOG.warn(("Mismatched units for '%s'. "
+            L.LOG.warn(("Mismatched units for '%s'. "
                       "Found '%s' but expected '%s'") % \
                       ((parameter.name,) + from_to))
             try:
@@ -60,14 +57,14 @@ def check_and_replace_parameters(self):
                     except EOFError:
                         pass
                 if convert == 'y':
-                    LOG.info("Converting from '%s' -> '%s' for %s." % \
+                    L.LOG.info("Converting from '%s' -> '%s' for %s." % \
                              (from_to + (column.parameter.name,)))
                     column = unit_converter(self, column)
                 else:
                     # Skip conversion and unit change.
                     continue
             except KeyError:
-                LOG.info(("No unit converter registered with file for "
+                L.LOG.info(("No unit converter registered with file for "
                           "'%s' -> '%s'. Skipping conversion.") % from_to)
                 continue
 

@@ -3,8 +3,8 @@
 from __future__ import with_statement
 import string
 
-import implib
-import libcchdo.db.connect
+import implib as L
+import implib.db.connect
 
 def color_arr_to_str(color):
     return 'ff'+''.join(map(lambda x: '%02x' % x, color[::-1]))
@@ -45,7 +45,7 @@ kml_footer = """</Document></kml>"""
 
 directory = './KML_CCHDO_holdings'
 
-connection = libcchdo.db.connect.cchdo()
+connection = L.db.connect.cchdo()
 cursor = connection.cursor()
 cursor.execute((
     'SELECT track_lines.ExpoCode,'

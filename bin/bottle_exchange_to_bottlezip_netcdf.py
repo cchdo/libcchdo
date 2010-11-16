@@ -4,13 +4,13 @@ from __future__ import with_statement
 
 import sys
 
-import implib
-import libcchdo.model.datafile
-import libcchdo.formats.bottle.exchange as botex
-import libcchdo.formats.bottle.zip.netcdf as botzipnc
+import implib as L
+import implib.model.datafile
+import implib.formats.bottle.exchange as botex
+import implib.formats.bottle.zip.netcdf as botzipnc
 
 
-@libcchdo.memoize
+@L.memoize
 def get_parameters(file):
     parameters = file.get_property_for_columns(
         lambda c: c.parameter.mnemonic_woce() if c and c.parameter else '')
@@ -18,7 +18,7 @@ def get_parameters(file):
 
 
 def clone_file_structure(file):
-    clone = libcchdo.model.datafile.DataFile()
+    clone = L.model.datafile.DataFile()
 
     parameters = get_parameters(file)
     clone.create_columns(parameters)
@@ -32,7 +32,7 @@ def split_bottle(file):
     """ Split apart the bottle exchange file into a data file collection based
         on station cast. Each cast is a new 'file'.
     """
-    coll = libcchdo.model.datafile.DataFileCollection()
+    coll = L.model.datafile.DataFileCollection()
 
     file_parameters = get_parameters(file)
 
@@ -82,7 +82,7 @@ def main(argv):
         print 'Usage: %s <bottle exchange zip>' % argv[0]
         return 1
     
-    incoming = libcchdo.model.datafile.DataFile()
+    incoming = L.model.datafile.DataFile()
     with open(argv[1], 'r') as in_file:
         botex.read(incoming, in_file)
 

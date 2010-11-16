@@ -3,8 +3,8 @@
 from __future__ import with_statement
 import sys
 
-import implib
-import libcchdo.model.datafile
+import implib as L
+import implib.model.datafile
 
 
 def main(argv):
@@ -13,7 +13,7 @@ def main(argv):
         return 1
     
     with open(argv[1], 'r') as in_file:
-        file = libcchdo.model.datafile.SummaryFile()
+        file = L.model.datafile.SummaryFile()
         file.read_HOT_Summary(in_file)
         file.write_WOCE_Summary(sys.stdout)
 

@@ -4,10 +4,10 @@ from __future__ import with_statement
 
 import sys
 
-import implib
-import libcchdo.model.datafile
-import libcchdo.formats.ctd.zip.netcdf as ctdzipnc
-import libcchdo.formats.ctd.zip.netcdf_oceansites as ctdzipnc_oceansites
+import implib as L
+import implib.model.datafile
+import implib.formats.ctd.zip.netcdf as ctdzipnc
+import implib.formats.ctd.zip.netcdf_oceansites as ctdzipnc_oceansites
 
 
 def main(argv):
@@ -15,7 +15,7 @@ def main(argv):
         print 'Usage:', argv[0], '<cchdo_netcdf zip> [timeseries name]'
         return 1
     
-    file = libcchdo.model.datafile.DataFileCollection()
+    file = L.model.datafile.DataFileCollection()
     with open(argv[1], 'r') as in_file:
         ctdzipnc.read(file, in_file)
     

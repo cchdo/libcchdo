@@ -6,9 +6,9 @@ from __future__ import with_statement
 import operator
 import sys
 
-import implib
-import libcchdo.model.datafile
-import libcchdo.formats.bottle.exchange as botex
+import implib as L
+import implib.model.datafile
+import implib.formats.bottle.exchange as botex
 
 
 PRESSURE_PARAMETERS = ('CTDPRS', 'CTDRAW', )
@@ -79,7 +79,7 @@ def main(argv):
     else:
         outputfile = sys.argv[2]
 
-    file = libcchdo.model.datafile.DataFile()
+    file = L.model.datafile.DataFile()
 
     with open(inputfile, 'r') as f:
         botex.read(file, f)

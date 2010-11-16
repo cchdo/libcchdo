@@ -5,9 +5,9 @@ from __future__ import with_statement
 import getopt
 import sys
 
-import implib
-import libcchdo.fns
-from libcchdo.formats.google_wire import google_wire
+import implib as L
+import implib.fns
+from implib.formats.google_wire import google_wire
 
 
 def main(argv):
@@ -33,7 +33,7 @@ def main(argv):
             assert False, "unhandled option"
 
     with open(args[0], 'r') as in_file:
-        file = libcchdo.fns.read_arbitrary(in_file, file_type)
+        file = L.fns.read_arbitrary(in_file, file_type)
         google_wire.write(file, sys.stdout, json=flag_json)
 
 

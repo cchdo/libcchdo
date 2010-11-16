@@ -7,11 +7,11 @@ import os.path
 import struct
 import sys
 
-import implib
-import libcchdo.model.datafile as datafile
-import libcchdo.formats.summary.woce as sumwoce
-import libcchdo.formats.bottle.exchange as botex
-import libcchdo.datadir.util
+import implib as L
+import implib.model.datafile as datafile
+import implib.formats.summary.woce as sumwoce
+import implib.formats.bottle.exchange as botex
+import implib.datadir.util
 
 
 def ensure_nav(root, dirs, files):
@@ -77,4 +77,4 @@ def ensure_nav(root, dirs, files):
 
 
 if __name__ == '__main__':
-    libcchdo.datadir.util.do_for_cruise_directories(ensure_nav)
+    L.datadir.util.do_for_cruise_directories(ensure_nav)

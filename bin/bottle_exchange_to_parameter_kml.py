@@ -3,9 +3,9 @@
 from __future__ import with_statement
 import sys
 
-import implib
-import libcchdo.model.datafile
-import libcchdo.formats.bottle.exchange as botex
+import implib as L
+import implib.model.datafile
+import implib.formats.bottle.exchange as botex
 
 
 def color_arr_to_str(color):
@@ -25,7 +25,7 @@ def main(argv):
         print 'Usage:', argv[0], '<exbot file>'
         return 1
     
-    file = libcchdo.model.datafile.DataFile()
+    file = L.model.datafile.DataFile()
     with open(argv[1], 'r') as in_file:
         botex.read(file, in_file)
     

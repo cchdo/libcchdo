@@ -3,8 +3,8 @@
 from __future__ import with_statement
 import sys
 
-import implib
-import libcchdo.formats.common.track_lines as track_lines
+import implib as L
+import implib.formats.common.track_lines as track_lines
 
 
 def main(argv):
@@ -13,7 +13,7 @@ def main(argv):
         return 1
     
     with open(argv[1], 'r') as in_file:
-        file = libcchdo.fns.read_arbitrary(in_file)
+        file = L.fns.read_arbitrary(in_file)
         track_lines.write(file, sys.stdout)
 
 

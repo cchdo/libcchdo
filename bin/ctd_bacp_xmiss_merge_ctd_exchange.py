@@ -3,10 +3,10 @@
 from __future__ import with_statement
 import sys
 
-import implib
-import libcchdo.model.datafile
-import libcchdo.formats.ctd.bacp as ctdbacp
-import libcchdo.formats.ctd.exchange as ctdex
+import implib as L
+import implib.model.datafile
+import implib.formats.ctd.bacp as ctdbacp
+import implib.formats.ctd.exchange as ctdex
 
 
 PRESSURE_COLUMNS = ('CTDPRS', 'CTDRAW', )
@@ -21,8 +21,8 @@ def main(argv):
         print >> sys.stderr, "Usage: %s <ctd_bacp> <ctd_exchange>" % argv[0]
         return 1
     
-    mergefile = libcchdo.model.datafile.DataFile()
-    file = libcchdo.model.datafile.DataFile()
+    mergefile = L.model.datafile.DataFile()
+    file = L.model.datafile.DataFile()
 
     with open(argv[1], "r") as infile:
         ctdbacp.read(mergefile, infile)
@@ -49,7 +49,7 @@ def main(argv):
     except KeyError:
         pass
     if not xmiss_column:
-        xmiss_column = file.columns['XMISS'] = libcchdo.model.datafile.Column('XMISS')
+        xmiss_column = file.columns['XMISS'] = L.model.datafile.Column('XMISS')
         xmiss_column.values = [None] * len(file)
 
     merge_xmiss = None

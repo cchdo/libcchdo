@@ -7,8 +7,8 @@ from string import translate, maketrans
 from os import path, makedirs, getcwd
 import sys
 
-import implib
-import libcchdo.datadir.util
+import implib as L
+import implib.datadir.util
 
 
 def color_arr_to_str(color):
@@ -113,4 +113,4 @@ def generate_kml_from_nav_into(dir):
                                          root, dirs, files, dir)
 
 
-libcchdo.datadir.util.do_for_cruise_directories(generate_kml_from_nav_into(directory))
+L.datadir.util.do_for_cruise_directories(generate_kml_from_nav_into(directory))

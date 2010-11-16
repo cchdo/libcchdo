@@ -4,9 +4,9 @@
 from __future__ import with_statement
 import sys
 
-import implib
-import libcchdo.fns
-import libcchdo.formats.common.nav as nav
+import implib as L
+import implib.fns
+import implib.formats.common.nav as nav
 
 
 def main(argv):
@@ -15,7 +15,7 @@ def main(argv):
         return 1
 
     with open(argv[1], 'r') as in_file:
-        file = libcchdo.fns.read_arbitrary(in_file)
+        file = L.fns.read_arbitrary(in_file)
         nav.write(file, sys.stdout)
 
  

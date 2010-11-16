@@ -5,8 +5,8 @@ import datetime
 import os
 import string
 
-import implib
-import libcchdo.db.connect
+import implib as L
+import implib.db.connect
 
 
 def color_arr_to_str(color):
@@ -29,7 +29,7 @@ if not os.path.exists(directory):
 cycle_colors = map(color_arr_to_str, [[255, 0, 0], [0, 255, 0],
                                       [0, 0, 255], [255, 255, 0]])
 
-connection = libcchdo.db.connect.cchdo()
+connection = L.db.connect.cchdo()
 cursor = connection.cursor()
 cursor.execute('SELECT ExpoCode,ASTEXT(track) FROM track_lines')
 rows = cursor.fetchall()

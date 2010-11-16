@@ -7,9 +7,9 @@ import sys
 import os
 import datetime
 
-import implib
-import libcchdo.formats.ctd.exchange as ctdex
-import libcchdo.formats.ctd.polarstern as ctd_polarstern
+import implib as L
+import implib.formats.ctd.exchange as ctdex
+import implib.formats.ctd.polarstern as ctd_polarstern
 
 
 COMMIT_TO_FILE = True
