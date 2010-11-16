@@ -5,7 +5,7 @@ from __future__ import with_statement
 import getopt
 import sys
 
-import abs_import_library
+import implib
 import libcchdo.fns
 from libcchdo.formats.google_wire import google_wire
 

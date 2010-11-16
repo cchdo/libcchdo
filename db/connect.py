@@ -1,6 +1,7 @@
-'''Abstractions for SQLAlchemy connections'''
+"""
+Abstractions for SQLAlchemy connections
+"""
 
-import inspect
 import os
 
 import sqlalchemy as S
@@ -24,7 +25,7 @@ _HOST = {
 }
 
 
-_DB_MODULE_PATH = os.path.split(inspect.currentframe().f_code.co_filename)[0]
+_DB_MODULE_PATH = os.path.split(__file__)[0]
 
 
 _DB_LIBRARY_FILE = 'cchdo_data.db'

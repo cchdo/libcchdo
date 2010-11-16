@@ -5,7 +5,7 @@ import datetime
 import os
 import string
 
-import abs_import_library
+import implib
 import libcchdo.db.connect
 
 

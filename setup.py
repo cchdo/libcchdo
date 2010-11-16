@@ -6,12 +6,11 @@ import unittest
 import glob
 import os
 import sys
-import inspect
 import shutil
 
 
 # DIRECTORY is the absolute path to the directory that contains setup.py
-DIRECTORY = os.path.abspath(os.path.split(inspect.stack()[0][1])[0])
+DIRECTORY = os.path.split(os.path.realpath(__file__))[0]
 
 
 PACKAGE_PATH, PACKAGE_NAME = os.path.split(DIRECTORY)

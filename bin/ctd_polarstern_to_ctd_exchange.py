@@ -7,7 +7,7 @@ import sys
 import os
 import datetime
 
-import abs_import_library
+import implib
 import libcchdo.formats.ctd.exchange as ctdex
 import libcchdo.formats.ctd.polarstern as ctd_polarstern
 

@@ -3,7 +3,7 @@
 from __future__ import with_statement
 import sys
 
-import abs_import_library
+import implib
 import libcchdo.formats.common.track_lines as track_lines
 
 

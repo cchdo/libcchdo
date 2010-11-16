@@ -21,7 +21,7 @@ notes:
 from __future__ import with_statement
 import sys
 
-import abs_import_library
+import implib
 import libcchdo.model.datafile as datafile
 import libcchdo.units.convert as cvt
 import libcchdo.db.model.std as std

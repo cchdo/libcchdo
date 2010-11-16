@@ -7,7 +7,7 @@ from string import translate, maketrans
 from os import path, makedirs, getcwd
 import sys
 
-import abs_import_library
+import implib
 import libcchdo.datadir.util
 
 

@@ -10,7 +10,9 @@ MAX_PRESSURE with a '_', the library will not retrive the parameter definition
 from the database (there is none anyway).
 """
 
+import datetime
 import logging
+import os
 import __builtin__
 
 
@@ -69,18 +71,12 @@ def post_import(fn):
 # XXX END EVIL
 
 
-def get_library_name():
-    return os.path.split(get_library_abspath())[1]
-
-
 @memoize
 def get_library_abspath():
     """Give the absolute path of the directory that is the root of the 
        package, i.e. it contains this file.
     """
-    import os
-    import inspect
-    return os.path.split(os.path.abspath(inspect.stack()[0][1]))[0]
+    return os.path.split(os.path.realpath(__file__))[0]
 
 
 import formats
@@ -88,10 +84,13 @@ import formats
 
 # Nice constants
 
+
 RADIUS_EARTH = 6371.01 #km
 
 
 COLOR_ESCAPE = '\x1b\x5b'
+
+
 COLORS = {
     'BOLDRED': COLOR_ESCAPE + '1;31m',
     'BOLDYELLOW': COLOR_ESCAPE + '1;33m',
@@ -105,8 +104,6 @@ COLORS = {
 
 # Logging
 
-import datetime
-import os
 
 class _LibLogFormatter(logging.Formatter):
 

@@ -3,7 +3,7 @@
 from __future__ import with_statement
 import sys
 
-import abs_import_library
+import implib
 import libcchdo.model.datafile
 import libcchdo.formats.ctd.bacp as ctdbacp
 import libcchdo.formats.ctd.exchange as ctdex

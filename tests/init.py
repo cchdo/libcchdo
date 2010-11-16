@@ -25,9 +25,8 @@ class TestInit(unittest.TestCase):
 
     def test_get_library_abspath(self):
         import os
-        import inspect
-        path = os.path.split(os.path.split(os.path.abspath(
-                  inspect.stack()[0][1]))[0])[0]
+        s = os.path.split
+        path = s(s(__file__)[0])[0]
         self.assertEqual(get_library_abspath(), path)
 
     def test_log_unknown_level(self):

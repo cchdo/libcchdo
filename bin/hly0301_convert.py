@@ -6,7 +6,7 @@ import datetime
 import os
 import sys
 
-import abs_import_library
+import implib
 from libcchdo import LOG
 from libcchdo import config
 from libcchdo.formats import add_pre_write

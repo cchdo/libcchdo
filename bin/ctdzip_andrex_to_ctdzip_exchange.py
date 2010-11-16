@@ -3,7 +3,7 @@
 from __future__ import with_statement
 import sys
 
-import abs_import_library
+import implib
 from libcchdo.model import datafile
 from libcchdo.formats.ctd.zip import exchange as ctdzipex
 from libcchdo.formats.ctd.zip import netcdf_andrex as ctdzipnc_andrex

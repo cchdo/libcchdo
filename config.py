@@ -2,10 +2,8 @@ import ConfigParser
 import datetime
 import os
 
-from . import get_library_name
 
-
-_CONFIG_FILE_NAME = '.%s.cfg' % get_library_name()
+_CONFIG_FILE_NAME = '.%s.cfg' % __package__
 _CONFIG_PATHS = [
     os.path.join(os.getcwd(), _CONFIG_FILE_NAME),
     os.path.join(os.path.expanduser('~'), _CONFIG_FILE_NAME),

@@ -7,7 +7,7 @@ import os.path
 import struct
 import sys
 
-import abs_import_library
+import implib
 import libcchdo.model.datafile as datafile
 import libcchdo.formats.summary.woce as sumwoce
 import libcchdo.formats.bottle.exchange as botex

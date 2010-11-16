@@ -3,7 +3,7 @@
 from __future__ import with_statement
 import sys
 
-import abs_import_library
+import implib
 import libcchdo.model.datafile
 import libcchdo.formats.coriolis.coriolis as coriolis
 import libcchdo.formats.bottle.exchange as botex

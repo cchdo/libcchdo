@@ -3,7 +3,7 @@
 from __future__ import with_statement
 import string
 
-import abs_import_library
+import implib
 import libcchdo.db.connect
 
 def color_arr_to_str(color):

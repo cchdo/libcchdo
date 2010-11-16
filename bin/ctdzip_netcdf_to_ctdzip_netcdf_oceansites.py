@@ -4,7 +4,7 @@ from __future__ import with_statement
 
 import sys
 
-import abs_import_library
+import implib
 import libcchdo.model.datafile
 import libcchdo.formats.ctd.zip.netcdf as ctdzipnc
 import libcchdo.formats.ctd.zip.netcdf_oceansites as ctdzipnc_oceansites
