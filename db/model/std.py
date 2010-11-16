@@ -232,7 +232,8 @@ class Unit(Base):
         self.mnemonic = mnemonic
 
     def __repr__(self):
-        return "<Unit('%s', '%s')>" % (self.name, self.mnemonic)
+        return "<Unit('%s', '%s')>" % (self.name.encode('ascii', 'replace'),
+                                       self.mnemonic.encode('ascii', 'replace'))
 
 
 S.Index('units_name', Unit.name, unique=True)
@@ -266,7 +267,7 @@ class Parameter(Base):
 
     units = S.orm.relation(Unit)
     aliases = S.orm.relation(
-        ParameterAlias, backref=S.orm.backref('parameter', lazy='dynamic'))
+        ParameterAlias, backref=S.orm.backref('parameter'))
 
     def mnemonic_woce(self):
         return self.name.encode('ascii', 'replace')
@@ -481,10 +482,13 @@ def find_by_mnemonic(name):
     parameter = session().query(Parameter).filter(
         Parameter.name == name).first()
     if not parameter:
+        LOG.debug("Looking through aliases for %s" % name)
         alias = session().query(ParameterAlias).filter(
             ParameterAlias.name == name).first()
         if alias:
             parameter = alias.parameter
+        else:
+        	parameter = None
     return parameter
 
 

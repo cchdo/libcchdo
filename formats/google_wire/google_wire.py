@@ -2,6 +2,7 @@ import datetime
 
 from ... import fns
 
+
 def _column_type(col, obj):
     if col == 'EXPOCODE' or col == 'SECT_ID':
         return 'string'

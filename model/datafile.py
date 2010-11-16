@@ -6,116 +6,123 @@ from ..db.model import std
 
 class Column(object):
 
-   def __init__(self, parameter, units=None):
-       if not type(parameter) is str and not type(parameter) is unicode:
-           self.parameter = parameter
-       else:
-           if type(parameter) is unicode:
-           	   parameter = parameter.encode('ascii', 'replace')
-           self.parameter = std.make_contrived_parameter(parameter,
-                                                         units=units)
-       self.values = []
-       self.flags_woce = []
-       self.flags_igoss = []
+    def __init__(self, parameter, units=None):
+        if not type(parameter) is str and not type(parameter) is unicode:
+            self.parameter = parameter
+        else:
+            if type(parameter) is unicode:
+                   parameter = parameter.encode('ascii', 'replace')
+            self.parameter = std.make_contrived_parameter(parameter,
+                                                          units=units)
+        self.values = []
+        self.flags_woce = []
+        self.flags_igoss = []
 
-   def get(self, index):
-       if index >= len(self.values):
-           return None
-       return self.values[index]
+    def get(self, index):
+        if index >= len(self.values):
+            return None
+        return self.values[index]
 
-   def set(self, index, value, flag_woce=None, flag_igoss=None):
-       while index > len(self.values):
-           self.values.append(None)
-           self.flags_woce.append(None)
-           self.flags_igoss.append(None)
-       fns.set_list(self.values, index, value)
-       if flag_woce is not None:
-           fns.set_list(self.flags_woce, index, flag_woce)
-       if flag_igoss is not None:
-           fns.set_list(self.flags_igoss, index, flag_igoss)
+    def set(self, index, value, flag_woce=None, flag_igoss=None):
+        while index > len(self.values):
+            self.values.append(None)
+            self.flags_woce.append(None)
+            self.flags_igoss.append(None)
+        fns.set_list(self.values, index, value)
+        if flag_woce is not None:
+            fns.set_list(self.flags_woce, index, flag_woce)
+        if flag_igoss is not None:
+            fns.set_list(self.flags_igoss, index, flag_igoss)
 
-   def append(self, value=None, flag_woce=None, flag_igoss=None):
-       self.values.append(value)
-       i = len(self.values) - 1
-       if flag_woce is not None:
-           self.flags_woce.insert(i, flag_woce)
-       if flag_igoss is not None:
-           self.flags_igoss.insert(i, flag_igoss)
+    def append(self, value=None, flag_woce=None, flag_igoss=None):
+        self.values.append(value)
+        i = len(self.values) - 1
+        if flag_woce is not None:
+            self.flags_woce.insert(i, flag_woce)
+        if flag_igoss is not None:
+            self.flags_igoss.insert(i, flag_igoss)
 
-   def __getitem__(self, key):
-       return self.get(key)
+    def __getitem__(self, key):
+        return self.get(key)
 
-   def __setitem__(self, key, value):
-       self.set(key, value)
+    def __setitem__(self, key, value):
+        self.set(key, value)
 
-   def __iter__(self):
-       return self.values.__iter__()
+    def __iter__(self):
+        return self.values.__iter__()
 
-   def __contains__(self, v):
-       return v in self.values
+    def __contains__(self, v):
+        return v in self.values
 
-   def __len__(self):
-       return len(self.values)
+    def __len__(self):
+        return len(self.values)
 
-   def is_flagged(self):
-       return self.is_flagged_woce() or self.is_flagged_igoss()
+    def is_flagged(self):
+        return self.is_flagged_woce() or self.is_flagged_igoss()
 
-   def is_flagged_woce(self):
-       return not (self.flags_woce is None or len(self.flags_woce) == 0)
+    def is_flagged_woce(self):
+        return not (self.flags_woce is None or len(self.flags_woce) == 0)
 
-   def is_flagged_igoss(self):
-       return not (self.flags_igoss is None or len(self.flags_igoss) == 0)
+    def is_flagged_igoss(self):
+        return not (self.flags_igoss is None or len(self.flags_igoss) == 0)
 
-   def __str__(self):
-       return '%sColumn(%s): %s%s' % (COLORS['YELLOW'], self.parameter,
-                                      COLORS['CLEAR'], self.values)
+    def __str__(self):
+        return '%sColumn(%s): %s%s' % (COLORS['YELLOW'], self.parameter,
+                                       COLORS['CLEAR'], self.values)
 
-   def __cmp__(self, other):
-       try:
-           return self.parameter.display_order - other.parameter.display_order
-       except:
-           return -1
+    def __cmp__(self, other):
+        try:
+            return self.parameter.display_order - other.parameter.display_order
+        except:
+            return -1
 
-   def check_and_replace_parameter(self, file):
-       parameter = self.parameter
-       std_parameter = std.find_by_mnemonic(parameter.name)
-       
-       if parameter.name.startswith('_'):
-           return
+    def check_and_replace_parameter(self, file):
+        parameter = self.parameter
+        std_parameter = std.find_by_mnemonic(parameter.name)
 
-       if not std_parameter:
-           LOG.warn("Unknown parameter '%s'" % parameter.name)
-           return
+        if not std_parameter:
+            return
 
-       given_units = parameter.units.mnemonic if parameter.units else None
-       expected_units = std_parameter.units.mnemonic \
-           if std_parameter and std_parameter.units else None
-       from_to = (given_units, expected_units)
+        if std_parameter.name != parameter.name:
+            file[std_parameter.name] = file[parameter.name]
+            del file[parameter.name]
 
-       if given_units and expected_units and \
-          given_units != expected_units:
-           LOG.warn(("Mismatched units for '%s'. Found '%s' but "
-                     "expected '%s'") % ((parameter.name,) + from_to))
-           try:
-               unit_converter = file.unit_converters[from_to]
-           except KeyError:
-               LOG.info(("No unit converter registered with file for "
-                         "'%s' -> '%s'. Skipping conversion.") % from_to)
-               return
-           LOG.info(("Converting from '%s' -> '%s' for %s.") % \
-                    (from_to + (self.parameter.name,)))
-           self = unit_converter(file, self)
-           file.changes_to_report.append((
-               'Converted %(parameter)s from %(startunit)s to %(endunit)s '
-               'using %(technique)s') % {
-               	   'parameter': self.parameter.name,
-                   'startunit': from_to[0],
-                   'endunit': from_to[1],
-                   'technique': file.unit_converter_technique.get(
-                                    unit_converter, 'undescribed')
-               })
+        if parameter.name.startswith('_'):
+            return
 
-       self.parameter = std_parameter
+        if not std_parameter:
+            LOG.warn("Unknown parameter '%s'" % parameter.name)
+            return
+
+        given_units = parameter.units.mnemonic if parameter.units else None
+        expected_units = std_parameter.units.mnemonic \
+            if std_parameter and std_parameter.units else None
+        from_to = (given_units, expected_units)
+
+        if given_units and expected_units and \
+           given_units != expected_units:
+            LOG.warn(("Mismatched units for '%s'. Found '%s' but "
+                      "expected '%s'") % ((parameter.name,) + from_to))
+            try:
+                unit_converter = file.unit_converters[from_to]
+            except KeyError:
+                LOG.info(("No unit converter registered with file for "
+                          "'%s' -> '%s'. Skipping conversion.") % from_to)
+                return
+            LOG.info(("Converting from '%s' -> '%s' for %s.") % \
+                     (from_to + (self.parameter.name,)))
+            self = unit_converter(file, self)
+            file.changes_to_report.append((
+                'Converted %(parameter)s from %(startunit)s to %(endunit)s '
+                'using %(technique)s') % {
+                    'parameter': self.parameter.name,
+                    'startunit': from_to[0],
+                    'endunit': from_to[1],
+                    'technique': file.unit_converter_technique.get(
+                                     unit_converter, 'undescribed')
+                })
+
+        self.parameter = std_parameter
 
 
 class File(object):
@@ -140,8 +147,8 @@ class File(object):
     def sorted_columns(self):
         columns = self.columns.values()
         if self.ordered_columns:
-        	return filter(None,
-        	              [x for x in self.ordered_columns if x in columns])
+            return filter(None,
+                          [x for x in self.ordered_columns if x in columns])
         return sorted(columns)
 
     def get_property_for_columns(self, property_getter):
@@ -164,7 +171,7 @@ class File(object):
 
     def each_column(self, func):
         for column in self.columns.values():
-        	func(column, self)
+            func(column, self)
 
     def check_and_replace_parameters(self):
         self.each_column(Column.check_and_replace_parameter)
@@ -285,7 +292,7 @@ class DataFileCollection(object):
     def to_dict(self):
         d = {'files': []}
         for file in self.files:
-        	d['files'].append(file.to_dict())
+            d['files'].append(file.to_dict())
         return d
 
     def __str__(self):
