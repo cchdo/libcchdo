@@ -1,0 +1,4 @@
+MySQL-python
+sqlalchemy>=0.5.8
+numpy
+netCDF4

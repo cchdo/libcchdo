@@ -1,0 +1,51 @@
+#!python
+
+
+from __future__ import with_statement
+import getopt
+import sys
+
+import libcchdo as L
+import libcchdo.fns
+
+
+def main(argv):
+    opts, args = getopt.getopt(argv[1:], 't:h', ['type=', 'help'])
+    usage = ("Usage: %s [-t|--type] <any recognized CCHDO file>\n"
+             "\t-t|--type\tValid types:\n"
+             "\t\t\t * dict\n"
+             "\t\t\t * nav") % argv[0]
+
+    if len(args) < 1:
+        print >> sys.stderr, usage
+        return 1
+
+    file_type = None
+
+    for o, a in opts:
+        if o in ('-t', '--type'):
+            file_type = a
+        elif o in ('-h', '--help'):
+            print >> sys.stderr, usage
+            return 1
+        else:
+            assert False, "unhandled option"
+
+    if not file_type:
+        print >> sys.stderr, usage
+        return 1
+    
+    with open(args[0], 'r') as in_file:
+        file = L.fns.read_arbitrary(in_file)
+
+        if file_type == 'dict':
+            print file.to_dict()
+        elif file_type == 'nav':
+            from libcchdo.formats.common import nav
+            nav.write(file, sys.stdout)
+
+    return 0
+
+
+if __name__ == '__main__':
+    sys.exit(main(sys.argv))

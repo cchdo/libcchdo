@@ -5,7 +5,9 @@
 *~
 *.pyc
 .coverage
+doc/coverage
 dev
-db/*.db
-db/*.db-journal
-doc
+libcchdo/db/*.db
+libcchdo/db/*.db-journal
+build
+dist

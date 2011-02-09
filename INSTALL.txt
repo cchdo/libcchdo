@@ -1,0 +1,19 @@
+=======
+Install
+=======
+
+Just do the usual:
+
+        python setup.py install
+
+You'll probably run into dependency issues. You'll want to install pip and then
+run this to install all dependencies:
+
+        pip install --requirement=DEPENDENCIES.txt
+
+Pip may run into problems installing numpy and netCDF4 in sequence. You should
+first install numpy
+
+        pip install numpy
+
+and try again.

@@ -1,19 +1,18 @@
-#!/usr/bin/env python
-
-
 import distutils.core
 import unittest
 import glob
 import os
 import sys
 import shutil
+import re
+import imp
 
 
 # DIRECTORY is the absolute path to the directory that contains setup.py
 DIRECTORY = os.path.split(os.path.realpath(__file__))[0]
 
 
-PACKAGE_PATH, PACKAGE_NAME = os.path.split(DIRECTORY)
+PACKAGE_NAME = 'libcchdo'
 
 
 COVERAGE_PATH = os.path.join(DIRECTORY, 'doc', 'coverage')
@@ -25,8 +24,8 @@ class TestCommand(distutils.core.Command):
     user_options = []
 
     def initialize_options(self):
-        sys.path.insert(0, PACKAGE_PATH)
-        self._dir = DIRECTORY
+        self._dir = os.path.join(DIRECTORY, PACKAGE_NAME)
+        sys.path.insert(0, self._dir)
 
     def finalize_options(self):
         pass
@@ -131,18 +130,80 @@ class PurgeCommand(CleanCommand):
         if os.path.isdir(doc_dir):
         	shutil.rmtree(doc_dir)
 
+        build_dir = os.path.join(DIRECTORY, 'build')
+        if os.path.isdir(build_dir):
+        	shutil.rmtree(build_dir)
+
+        dist_dir = os.path.join(DIRECTORY, 'dist')
+        if os.path.isdir(dist_dir):
+        	shutil.rmtree(dist_dir)
+
         CleanCommand.run(self)
 
 
+class REPLCommand(distutils.core.Command):
+    description = "Launch a REPL with the library loaded"
+    user_options = []
+
+    def initialize_options(self):
+        pass
+
+    def finalize_options(self):
+        pass
+
+    def run(self):
+        import code
+        import readline
+        console = code.InteractiveConsole()
+        map(console.runsource, """\
+import sys
+import os
+import libcchdo as L
+import libcchdo.db.model.legacy as DBML
+import libcchdo.db.model.convert as DBMC
+import libcchdo.db.model.std as STD
+#"FIND = L.db.parameters.find_by_mnemonic
+
+#"f = open(os.path.join(mpath, 'testfiles/hy1/i05_33RR20090320_hy1.csv')
+#"f = open(os.path.join(mpath, 'testfiles/hy1/p16s_hy1.csv')
+#"f = open(os.path.join(mpath, 'testfiles/hy1/tenline_hy1.csv')
+
+#"import cProfile
+#"cProfile.run('x = file_to_botdb.convert(d)', 'convert.profile')
+#"print 'x = ', x
+""".split('\n'))
+        console.interact('db: DBML <- DBMC -> STD')
+
+
 if __name__ == "__main__":
-    distutils.core.setup(name=PACKAGE_NAME,
-          version='0.5',
-          description="CLIVAR and Carbon Hydrographic Data Office library",
-          long_description="Tools for operating on CCHDO's data",
-          requires=['sqlalchemy (>=0.5.8)', 'netCDF3'],
-          cmdclass = {'test': TestCommand,
-                      'coverage': CoverageCommand,
-                      'clean': CleanCommand,
-                      'purge': PurgeCommand,
-                     }
-         )
+    long_description = ''
+    try:
+        with open(os.path.join(DIRECTORY, 'README.txt')) as f:
+            long_description = f.read()
+    except IOError:
+        pass
+
+    lib = imp.load_module(PACKAGE_NAME, *imp.find_module(PACKAGE_NAME, [DIRECTORY]))
+
+    distutils.core.setup(
+        name=PACKAGE_NAME,
+        version=lib.__version__,
+        description="CLIVAR and Carbon Hydrographic Data Office library",
+        long_description=long_description,
+        provides=[PACKAGE_NAME],
+        packages=['%s%s' % (PACKAGE_NAME, x) for x in (
+            '', '.algorithms', '.datadir',
+            '.db', '.db.model', '.formats',
+            '.formats.ctd', '.formats.ctd.zip',
+            '.formats.bottle', '.formats.bottle.zip',
+            '.formats.common', '.formats.summary',
+            '.model', '.model.convert', '.region',
+            '.units', )],
+        scripts=glob.glob('bin/*'),
+        cmdclass={'test': TestCommand,
+                  'coverage': CoverageCommand,
+                  'clean': CleanCommand,
+                  'purge': PurgeCommand,
+                  'REPL': REPLCommand,
+                 }
+       )
