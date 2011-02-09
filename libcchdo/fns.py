@@ -7,9 +7,9 @@ import os.path
 from . import RADIUS_EARTH
 
 # Define isnan for python <2.6
-if math.isnan:
+try:
     isnan = math.isnan
-else:
+except AttributeError:
     def isnan(n):
         return n != n
 
