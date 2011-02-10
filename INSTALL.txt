@@ -2,44 +2,54 @@
 Install
 =======
 
-Just do the usual:
+First work through the dependencies and then do the usual::
 
-        python setup.py install
+    python setup.py install
 
 Dependencies
 ============
 
-External libraries you should install before trying to install python module
-dependencies:
-
- * MySQL - for database access
- * netCDF4 - (optional) for netCDF file manipulation
-   * HDF5 - library needed by netCDF 4 to write files
-
-You'll want to install pip (a package manager for Python).
+Dependencies are listed in DEPENDENCIES.txt but don't worry about them. Read
+this first to find out whether you need all of them.
 
 Dependency tree
 ---------------
 
-All nodes are python packages except those marked external.
+All nodes are python packages except those marked as libraries.
 
- * libcchdo
-   * sqlalchemy
-     * MySQL-python
-       * MySQL (external)
-   * netCDF4
-     * numpy
-     * netCDF 4 (external)
-       * HDF5 (external)
+* libcchdo
+  * SQLAlchemy
+    * MySQL-python (optional)
+      * MySQL (library)
+  * netCDF4 (optional)
+    * numpy
+    * netCDF 4 (library)
+      * HDF5 (library, needed to write netCDF 4 files)
 
-Notes about order
------------------
+External Libraries
+------------------
 
-Pip runs into problems installing numpy and netCDF4 in sequence. You should
+* MySQL - (optional) if you have downloaded a cached database
+* netCDF4 - (optional) for netCDF file manipulation
+  * HDF5 - library needed by netCDF 4 to write files
+
+Python packages
+---------------
+
+You'll want to install pip (a package manager for Python) to make installation
+easier. If you do not want any optional packages you can simply install
+sqlalchemy::
+
+    pip install SQLAlchemy
+
+Note about order
+----------------
+
+Pip runs into problems installing numpy and netCDF4 in one go. You should
 first install numpy
 
-        pip install numpy
+    pip install numpy
 
-And then run this to install all dependencies:
+and then use pip to install all dependencies
 
-        pip install --requirement=DEPENDENCIES.txt
+    pip install --requirement=DEPENDENCIES.txt

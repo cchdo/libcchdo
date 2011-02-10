@@ -8,6 +8,7 @@ import sqlalchemy as S
 import sqlalchemy.orm
 
 
+from .. import config
 from .. import memoize
 
 
@@ -21,29 +22,16 @@ _DRIVER = {
 _HOST = {
     'cchdo': 'cchdo.ucsd.edu',
     'goship': 'goship.ucsd.edu',
-    'watershed': 'watershed.ucsd.edu',
 }
-
-
-_DB_MODULE_PATH = os.path.split(__file__)[0]
-
-
-_DB_LIBRARY_FILE = 'cchdo_data.db'
 
 
 _DBS = {
     'cchdo_data': S.engine.url.URL(
         _DRIVER['SQLITE'], None, None, None,
-        database=os.path.join(_DB_MODULE_PATH, _DB_LIBRARY_FILE)),
-    #'cchdo': S.engine.url.URL(
-    #     _DRIVER['MYSQL'], 'cchdo_server', '((hd0hydr0d@t@', _HOST['cchdo'],
-    #     database='cchdo'),
+        database=config.get_option('db', 'cache')),
     'cchdo': S.engine.url.URL(
-        _DRIVER['MYSQL'], 'jfields', 'c@keandc00kies', _HOST['cchdo'],
-        database='cchdo', query={'charset': 'utf8'}),
-    'watershed': S.engine.url.URL(
-        _DRIVER['MYSQL'], 'jfields', 'c@keandc00kies', _HOST['watershed'],
-        database='cchdo', query={'charset': 'utf8'}),
+         _DRIVER['MYSQL'], 'cchdo_web', '((hd0hydr0d@t@', _HOST['cchdo'],
+         database='cchdo'),
 }
 
 
@@ -72,7 +60,6 @@ def cchdo_data():
 def cchdo():
     """Connect to CCHDO's database"""
     return _connect(_DBS['cchdo'])
-    #return _connect(_DBS['watershed'])
 
 
 @memoize

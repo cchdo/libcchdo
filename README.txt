@@ -10,7 +10,13 @@ in more data and mash it together or write it out in a different format. When
 it is said the data is format-less, it is actually in a neutral format that
 lets it be manipulated easily into other formats.
 
-Utility scripts are included in bin.
+Package Structure
+=================
+
+* libcchdo
+  * bin - Utility scripts
+  * libcchdo - library source files
+  * scripts - a collection of scripts (yes I'm a pack-rat)
 
 Testing
 =======

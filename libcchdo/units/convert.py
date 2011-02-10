@@ -1,6 +1,7 @@
 """ Unit converters """
 
 
+from __future__ import with_statement
 import decimal
 
 from .. import LOG
@@ -69,7 +70,7 @@ def milliliter_per_liter_to_umol_per_kg(file, column):
                 temperature = APPROXIMATION_TEMPERATURE
                 LOG.warn(('Temperature is missing. Using %f at '
                                    'record#%d') % (temperature, i))
-            sigt = algorithms.volume.sigma_r(
+            sigt = volume.sigma_r(
                 0.0, 0.0, temperature, salinity)
             o2_atomic_weight = 31.9988
             density_o2 = 1.42905481 # g/l @ 273.15K
@@ -108,7 +109,7 @@ def mol_per_liter_to_mol_per_kg(file, column):
             # Missing
             column.values[i] = None
         else:
-            column.values[i] /= (algorithms.volume.sigma_r(
+            column.values[i] /= (volume.sigma_r(
                                      0.0, 0.0, 25.0, salinity) / 1.0e3 + 1.0)
 
     # Change the units
