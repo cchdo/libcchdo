@@ -7,7 +7,7 @@ import sys
 
 import libcchdo as L
 import libcchdo.fns
-from libcchdo.formats.google_wire import google_wire
+from libcchdo.formats import google_wire
 
 
 def main(argv):

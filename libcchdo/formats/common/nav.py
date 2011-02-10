@@ -12,5 +12,5 @@ def write(self, handle):
     coords = zip(self['LONGITUDE'].values, self['LATITUDE'].values,
                  self['STNNBR'].values, dates, codes)
     nav = fns.uniquify(map(
-        lambda coord: '%3.3f\t%3.3f\t%d\t%s\t%s\n' % coord, coords))
+        lambda coord: '%3.3f\t%3.3f\t%s\t%s\t%s\n' % coord, coords))
     handle.write(''.join(nav))

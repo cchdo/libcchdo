@@ -6,8 +6,34 @@ Just do the usual:
 
         python setup.py install
 
-You'll probably run into dependency issues. You'll want to install pip (a
-package manager for Python.
+Dependencies
+============
+
+External libraries you should install before trying to install python module
+dependencies:
+
+ * MySQL - for database access
+ * netCDF4 - (optional) for netCDF file manipulation
+   * HDF5 - library needed by netCDF 4 to write files
+
+You'll want to install pip (a package manager for Python).
+
+Dependency tree
+---------------
+
+All nodes are python packages except those marked external.
+
+ * libcchdo
+   * sqlalchemy
+     * MySQL-python
+       * MySQL (external)
+   * netCDF4
+     * numpy
+     * netCDF 4 (external)
+       * HDF5 (external)
+
+Notes about order
+-----------------
 
 Pip runs into problems installing numpy and netCDF4 in sequence. You should
 first install numpy

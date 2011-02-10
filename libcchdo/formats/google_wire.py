@@ -1,6 +1,6 @@
 import datetime
 
-from ... import fns
+from .. import fns
 
 
 def _column_type(col, obj):
