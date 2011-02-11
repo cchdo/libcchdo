@@ -181,11 +181,11 @@ def write(self, handle, timeseries=None, timeseries_info={}):
     nc_file.createDimension('POSITION', 1)
 
     # OceanSITES coordinate variables
-    var_time = nc_file.createVariable('TIME', 'd', ('TIME',))
+    var_time = nc_file.createVariable(
+        'TIME', 'd', ('TIME',), fill_value=999999.0)
     var_time.long_name = 'time'
     var_time.standard_name = 'time'
     var_time.units = 'days since 1950-01-01T00:00:00Z'
-    var_time._FillValue = 999999.0
     var_time.valid_min = 0.0
     var_time.valid_max = 90000.0
     var_time.QC_indicator = 7 # Matthias Lankhorst
@@ -194,11 +194,11 @@ def write(self, handle, timeseries=None, timeseries_info={}):
     var_time.uncertainty = 0.0417
     var_time.axis = 'T'
 
-    var_latitude = nc_file.createVariable('LATITUDE', 'f', ('LATITUDE',))
+    var_latitude = nc_file.createVariable(
+        'LATITUDE', 'f', ('LATITUDE',), fill_value=99999.0)
     var_latitude.long_name = 'Latitude of each location'
     var_latitude.standard_name = 'latitude'
     var_latitude.units = 'degrees_north'
-    var_latitude._FillValue = 99999.0
     var_latitude.valid_min = -90.0
     var_latitude.valid_max = 90.0
     var_time.QC_indicator = 7 # Matthias Lankhorst
@@ -206,12 +206,11 @@ def write(self, handle, timeseries=None, timeseries_info={}):
     var_latitude.uncertainty = 0.0045 # Matthias Lankhorst
     var_latitude.axis = 'Y'
 
-    var_longitude = nc_file.createVariable('LONGITUDE', 'f',
-                                           ('LONGITUDE',))
+    var_longitude = nc_file.createVariable(
+        'LONGITUDE', 'f', ('LONGITUDE',), fill_value=99999.0)
     var_longitude.long_name = 'Longitude of each location'
     var_longitude.standard_name = 'longitude'
     var_longitude.units = 'degrees_east'
-    var_longitude._FillValue = 99999.0
     var_longitude.valid_min = -180.0
     var_longitude.valid_max = 180.0
     var_time.QC_indicator = 7 # Matthias Lankhorst
@@ -221,11 +220,11 @@ def write(self, handle, timeseries=None, timeseries_info={}):
         float(self.globals['LATITUDE']))
     var_longitude.axis = 'X'
 
-    var_depth = nc_file.createVariable('DEPTH', 'f', ('DEPTH',))
+    var_depth = nc_file.createVariable(
+        'DEPTH', 'f', ('DEPTH',), fill_value=-99999.0)
     var_depth.long_name = 'Depth of each measurement'
     var_depth.standard_name = 'depth'
     var_depth.units = 'meters'
-    var_depth._FillValue = -99999.0
     var_depth.valid_min = 0.0
     var_depth.valid_max = 12000.0
     # Subject: OceanSITES: more on QC flags, uncertainty, depth
@@ -250,12 +249,13 @@ def write(self, handle, timeseries=None, timeseries_info={}):
         if name in param_to_oceansites.keys():
             name = param_to_oceansites[name]
             # Write variable
-            var = nc_file.createVariable(name, 'f8', ('DEPTH',))
+            var = nc_file.createVariable(
+                name, 'f8', ('DEPTH',), fill_value=float('nan'))
+            # TODO ref table 3 for fill_value
             variable = oceansites_variables[name]
             var.long_name = variable['long'] or ''
             var.standard_name = variable['std'] or ''
             var.units = variable['units'] or ''
-            var._FillValue = float('nan') # TODO ref table 3
             var.QC_procedure = 5 # Data manually reviewed
             var.QC_indicator = 2 # Probably good data
             var.valid_min = column.parameter.bound_lower
@@ -270,10 +270,10 @@ def write(self, handle, timeseries=None, timeseries_info={}):
             # Write QC variable
             if column.is_flagged_woce():
                 var.ancillary_variables = name+'_QC'
-                flag = nc_file.createVariable(name+'_QC', 'b', ('DEPTH',))
+                flag = nc_file.createVariable(
+                    name+'_QC', 'b', ('DEPTH',), fill_value=-128)
                 flag.long_name = 'quality flag'
                 flag.conventions = 'OceanSITES reference table 2'
-                flag._FillValue = -128
                 flag.valid_min = 0
                 flag.valid_max = 9
                 flag.flag_values = 0#, 1, 2, 3, 4, 5, 6, 7, 8, 9 TODO??

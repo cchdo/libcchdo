@@ -19,22 +19,6 @@ _DRIVER = {
 }
 
 
-_HOST = {
-    'cchdo': 'cchdo.ucsd.edu',
-    'goship': 'goship.ucsd.edu',
-}
-
-
-_DBS = {
-    'cchdo_data': S.engine.url.URL(
-        _DRIVER['SQLITE'], None, None, None,
-        database=config.get_option('db', 'cache')),
-    'cchdo': S.engine.url.URL(
-         _DRIVER['MYSQL'], 'cchdo_web', '((hd0hydr0d@t@', _HOST['cchdo'],
-         database='cchdo'),
-}
-
-
 # Internal connection abstractions
 
 
@@ -54,12 +38,19 @@ def _connect(url):
 
 def cchdo_data():
     """Connect to cchdo_data"""
-    return _connect(_DBS['cchdo_data'])
+    url = S.engine.url.URL(
+        _DRIVER['SQLITE'], None, None, None,
+        database=config.get_option('db', 'cache'))
+    return _connect(url)
 
 
+@memoize
 def cchdo():
     """Connect to CCHDO's database"""
-    return _connect(_DBS['cchdo'])
+    cred = config.get_db_credentials_cchdo()
+    url = S.engine.url.URL(_DRIVER['MYSQL'], cred[0], cred[1], 'cchdo.ucsd.edu',
+                           database='cchdo')
+    return _connect(url)
 
 
 @memoize

@@ -11,7 +11,11 @@ from .. import fns
 class TestFunctions(unittest.TestCase):
 
     def test_python_less_than_26(self):
+        isnan = math.isnan
         math.isnan = None
+        reload(fns)
+        self.assertTrue(fns.isnan == None)
+        math.isnan = isnan
         reload(fns)
         self.assertFalse(fns.isnan(1))
         self.assertTrue(fns.isnan(float('nan')))

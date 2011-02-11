@@ -9,15 +9,12 @@ from ... import get_library_abspath
 from ... import LOG
 from ... import memoize
 from ... import post_import
+from ... import config
 from ...db import connect
 
 
 Base = S.ext.declarative.declarative_base()
 _metadata = Base.metadata
-
-
-LIBRARY_DB_FILE_PATH = os.path.join(get_library_abspath(), 
-    'db', connect._DB_LIBRARY_FILE)
 
 
 def _populate_library_database_parameters():
@@ -30,7 +27,7 @@ def _populate_library_database_parameters():
     std_session.close()
 
 def _ensure_database_parameters_exist():
-    """Convert the legacy parameters into std parameters f there are no stored
+    """Convert the legacy parameters into std parameters if there are no stored
        parameters.
     """
     std_session = session()
@@ -41,9 +38,9 @@ def _ensure_database_parameters_exist():
     std_session.close()
 
 
-def _auto_generate_library_database_file():
-    LOG.info("Auto-generating the library's database file (%s)." % \
-        LIBRARY_DB_FILE_PATH)
+def _auto_generate_library_database_cache():
+    LOG.info("Auto-generating the library's cache (%s)." % \
+        config.get_option('db', 'cache'))
     create_all()
     
     std_session = session()
@@ -53,13 +50,13 @@ def _auto_generate_library_database_file():
     _ensure_database_parameters_exist()
 
 
-def ensure_database_file():
-    """Initialize the database file, if it is not present.
+def ensure_database_cache():
+    """Initialize the database cache if it is not present.
        WARNING: Do not call this from ...db.model.std. There will be a
-       circular dependency.
+       circular dependency as ...db.model.convert needs this module defined.
     """
-    if not os.path.isfile(LIBRARY_DB_FILE_PATH):
-        _auto_generate_library_database_file()
+    if not os.path.isfile(config.get_option('db', 'cache')):
+        _auto_generate_library_database_cache()
     else:
         _ensure_database_parameters_exist()
 
@@ -493,7 +490,7 @@ def find_by_mnemonic(name):
 
 
 def _post_import(module):
-    ensure_database_file()
+    ensure_database_cache()
     return module
 
 

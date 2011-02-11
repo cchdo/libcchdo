@@ -12,9 +12,9 @@ class TestFormatsNetCDF(unittest.TestCase):
         sys.path = []
 
         try:
-            del sys.modules['netCDF3']
+            del sys.modules['netCDF4']
         except KeyError:
-            self.fail('Module netCDF3 should already be imported')
+            self.fail('Module netCDF4 should already be imported')
         try:
             reload(fnc)
             self.assertTrue(False)

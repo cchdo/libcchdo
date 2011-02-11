@@ -1,6 +1,7 @@
 import ConfigParser
 import datetime
 import os
+import getpass
 
 
 from . import LOG
@@ -67,29 +68,59 @@ def get_option(section, option, default_function=None):
 
     save_config()
     return val
+
+
+_STORAGE_NOTICE = \
+    "(Your answer will be saved in %s for future use)" % _CONFIG_PATHS[-1]
+
+
+def get_db_credentials_cchdo():
+    def input_cchdo_username():
+        return raw_input(('What is your username for the database '
+                          'cchdo.ucsd.edu/cchdo? %s ') % _STORAGE_NOTICE)
+
+    username = get_option('db_cred', 'cchdo/cchdo_user', input_cchdo_username)
+    # Passwords will not be saved.
+    try:
+        password = get_option('db_cred', 'cchdo/cchdo_pass')
+    except ConfigParser.Error:
+        password = getpass.getpass(
+            ('Password for database %s@cchdo.ucsd.edu/cchdo (to avoid this '
+             'question, put your password in plain text as cchdo/cchdo_pass'
+             'under [db_cred] in %s):') % (username, _CONFIG_PATHS[-1]))
+    return (username, password)
     
 
 def get_merger_division():
     def input_division():
-        return (raw_input(('What division do you work for [CCH]? (Your answer '
-                           'will be saved in %s for future use) ') % \
-                           _CONFIG_PATHS[-1]) or 'CCH').upper()
+        def get():
+            return (raw_input('What division do you work for [CCH]? %s ' % \
+                              _STORAGE_NOTICE) or 'CCH').upper()
+        input = get()
+        while len(input) != 3:
+            print 'Your division identifier must be three characters: '
+            input = get()
+        return input
     return get_option('Merger', 'division', input_division)
 
 
 def get_merger_institution():
     def input_institution():
-        return (raw_input(('What institution do you work for [SIO]? (Your answer '
-                           'will be saved in %s for future use) ') % \
-                           _CONFIG_PATHS[-1]) or 'SIO').upper()
+        def get():
+            return (raw_input('What institution do you work for [SIO]? %s ' % \
+                              _STORAGE_NOTICE) or 'SIO').upper()
+        input = get()
+        while len(input) != 3:
+            print 'Your institution identifier must be three characters: '
+            input = get()
+        return input
     return get_option('Merger', 'institution', input_institution)
 
 
 def get_merger_initials():
     def input_initials():
-        return raw_input(('What are your initials? (Your answer will be '
-                          'saved in %s for future use) ') % \
-                          _CONFIG_PATHS[-1]).upper()
+        return raw_input('What are your initials? %s ' % \
+                          _STORAGE_NOTICE).upper()
     return get_option('Merger', 'initials', input_initials)
 
 

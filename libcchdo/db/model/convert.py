@@ -1,6 +1,7 @@
 import sys
 import re
 
+from ... import LOG
 from ...db.model import legacy
 from ...db.model import std
 
@@ -64,7 +65,8 @@ def convert_parameter(session, legacy_param):
         return None
 
     parameter = std.Parameter(legacy_param.name)
-    parameter.full_name = (legacy_param.full_name or '').strip()
+    parameter.full_name = \
+        unicode((legacy_param.full_name or '').strip(), errors='replace')
     try:
         parameter.format = '%' + legacy_param.ruby_precision.strip() if \
             legacy_param.ruby_precision else '%11s'
@@ -77,6 +79,7 @@ def convert_parameter(session, legacy_param):
     parameter.bound_upper = float(range[1]) if range[1] else None
 
     if legacy_param.units:
+        legacy_param.units = unicode(legacy_param.units, errors='replace')
         parameter.units = convert_unit(session, legacy_param.units,
                                        legacy_param.unit_mnemonic)
     else:
