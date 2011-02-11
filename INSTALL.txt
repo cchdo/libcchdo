@@ -19,28 +19,33 @@ All nodes are python packages except those marked as libraries.
 
 * libcchdo
   * SQLAlchemy
-    * MySQL-python (optional)
+    * MySQL-python (optional if you have downloaded a cached database)
       * MySQL (library)
-  * netCDF4 (optional)
+  * netCDF4 (optional) for netCDF file manipulation
     * numpy
     * netCDF 4 (library)
       * HDF5 (library, needed to write netCDF 4 files)
+  * coverage (optional) only needed for test coverage
 
 External Libraries
 ------------------
 
-* MySQL - (optional) if you have downloaded a cached database
-* netCDF4 - (optional) for netCDF file manipulation
+* MySQL
+* netCDF4
   * HDF5 - library needed by netCDF 4 to write files
 
 Python packages
 ---------------
 
-You'll want to install pip (a package manager for Python) to make installation
-easier. If you do not want any optional packages you can simply install
-sqlalchemy::
+You'll want to install pip (a package manager for Python).
+
+If you do not want any optional packages you can simply install sqlalchemy::
 
     pip install SQLAlchemy
+
+If you want everything::
+
+    pip install --requirement=DEPENDENCIES.txt
 
 Note about order
 ----------------
@@ -49,7 +54,3 @@ Pip runs into problems installing numpy and netCDF4 in one go. You should
 first install numpy
 
     pip install numpy
-
-and then use pip to install all dependencies
-
-    pip install --requirement=DEPENDENCIES.txt
