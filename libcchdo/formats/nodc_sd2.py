@@ -164,17 +164,45 @@ COLUMN
 
  ** FIELD DEFINED BY NODC, NO DATA SAMPLED OR
        CALCULATION NOT DONE BY THIS FACILITY.
+
+NODC numeric CODES
+http://www.nodc.noaa.gov/General/NODC-Archive/numcode.txt
 """
+
+
+import decimal
+import datetime
+import collections
+
+
+_MAX_GRATICULE_PRECISION = 4
+
+
+_DATA_TYPE_CODES = {
+    19: 'NANSEN CAST',
+    22: 'NODC SELECTED DEPTHS FROM CTD/STD',
+    62: 'ORIGINATOR SELECTED DEPTHS FROM CTD/STD',
+}
+
+
+_NODC_0608_TO_WOCE_FLAGS = collections.defaultdict(lambda: 2, {
+        # Depth measured by uncorrected wire-out (possible error)
+        6: 3,
+        7: 3,
+        8: 3,
+        # TODO do WOCE flags care about density inversion?
+        9: 2,
+    })
 
 
 def read(self, handle):
     """How to read an NODC SD2 file."""
 
     self.create_columns(
-        ('EXPOCODE', 'SECT_ID', '_DATETIME', 'LATITUDE', 'LONGITUDE'))
+        ('EXPOCODE', 'STNNBR', 'CASTNO', '_DATETIME', 'LATITUDE', 'LONGITUDE', ))
     self.create_columns(
-        ('CTDPRS', 'CTDTMP', 'SALNTY', 'OXYGEN', 'PHSPHT', 'NO2'),
-        ('DBAR', 'DEG C', 'PSU', 'ML/L', 'UMOL/L', 'UMOL/L'))
+        ('BOTTOM', 'DEPTH', 'CTDTMP', 'SALNTY', 'OXYGEN', 'PHSPHT', 'SILCAT', 'NITRIT', 'NITRAT', 'PH'),
+        ('METERS', 'METERS', 'DEG C', 'PSU', 'ML/L', 'UMOL/L', 'UMOL/L', 'UMOL/L', 'UMOL/L', '', ))
 
 
     def int_or_none(i):
@@ -184,15 +212,22 @@ def read(self, handle):
             return None
 
     current_station = None
+    current_cast = 1
 
     while handle:
         line = handle.readline()
         if not line:
             break
 
-        print 'line:', line,
-        print 'rule:', '|-`-*+-`-*' * 8
+        if line[79] == '2':
+            # Nothing in MR 2 that matters.
+            continue
+
+        #print 'line:', line,
+        #print 'rule:', '|-`-*+-`-*' * 8
+
         if line[79] == '1':
+            station = {}
             raw_line = {
                 'continuation_indicator': int_or_none(line[0]),
                 'nodc_ref_num_country': int_or_none(line[2:4]),
@@ -217,7 +252,11 @@ def read(self, handle):
                 'month_of_year_gmt': int_or_none(line[42:44]),
                 'day_of_month_gmt': int_or_none(line[44:46]),
                 'station_time_gmt_hours_to_tenths': line[46:49],
+
+                # This is marked as platform on 
+                # http://www.nodc.noaa.gov/General/NODC-Archive/sd2.html
                 'data_origin_country': line[49:51],
+                # These two are marked blank
                 'data_origin_institution': line[51:53],
                 'data_origin_platform': line[53:55],
                 'bottom_depth': line[55:60],
@@ -228,10 +267,71 @@ def read(self, handle):
                 'minimum_depth': int_or_none(line[70:74]),
                 'maximum_depth': int_or_none(line[74:78]),
                 'always_2_next_record_indicator': line[78],
-                'always_1_record_indicator': int_or_none(line[79]),
+                'always_1_record_indicator': line[79],
             }
+
+            assert raw_line['file_code'] == 5, \
+                "Master Record 1 is corrupt. File Code should always be 5."
+            assert raw_line['always_2_next_record_indicator'] == '2' or \
+                   raw_line['always_2_next_record_indicator'].strip() == '', \
+                "Master Record 1 is corrupt."
+            assert raw_line['always_1_record_indicator'] == '1', \
+                "Not master record 1. Algorithm is wrong."
+
             if raw_line['continuation_indicator']:
                 continuation_indicator = raw_line['continuation_indicator']
+                # 0 - one station record
+                # 1 - first station record
+                # 2-8 - intermediate records
+                # 9 - last station record
+                # TODO handle multiple records per stations
+
+            station['EXPOCODE'] = raw_line['nodc_ref_num_cruise_number']
+            station['STNNBR'] = raw_line['nodc_consecutive_station_number']
+            station['_DATA_TYPE'] = _DATA_TYPE_CODES.get(raw_line['data_type'],
+                                                         'UNKNOWN')
+
+            if not raw_line['hemisphere_of_latitude'] in ('N', 'S'):
+                raise ValueError(
+                    ("Master Record 1 is corrupt. Latitude hemisphere must be "
+                     "N or S."))
+
+            latitude = str(
+                (1 if raw_line['hemisphere_of_latitude'] == 'N' else -1) * \
+                (raw_line['degrees_latitude'] + 
+                 raw_line['minutes_latitude'] / 60.0 + 
+                 raw_line['minutes_latitude_tenths'] / 600.0))
+            latitude = latitude[:latitude.find('.') + \
+                                 _MAX_GRATICULE_PRECISION + 1]
+            station['LATITUDE'] = decimal.Decimal(latitude)
+
+            if not raw_line['hemisphere_of_longitude'] in ('E', 'W'):
+                raise ValueError(
+                    ("Master Record 1 is corrupt. Longitude hemisphere must be "
+                     "E or W."))
+
+            longitude = str(
+                (1 if raw_line['hemisphere_of_longitude'] == 'E' else -1) * \
+                (raw_line['degrees_longitude'] + 
+                 raw_line['minutes_longitude'] / 60.0 + 
+                 raw_line['minutes_longitude_tenths'] / 600.0))
+            longitude = longitude[:longitude.find('.') + \
+                                   _MAX_GRATICULE_PRECISION + 1]
+            station['LONGITUDE'] = decimal.Decimal(longitude)
+
+            hours = int(raw_line['station_time_gmt_hours_to_tenths'][:2])
+            minutes = int(raw_line['station_time_gmt_hours_to_tenths'][2]) * 6
+
+            station['_DATETIME'] = datetime.datetime(
+                *(1900 + raw_line['year_gmt'], raw_line['month_of_year_gmt'],
+                  raw_line['day_of_month_gmt']), hour=hours, minute=minutes)
+
+            try:
+                station['BOTTOM'] = int(raw_line['bottom_depth'])
+            except ValueError:
+                station['BOTTOM'] = None
+
+            current_station = station
         elif line[79] == '2':
             raw_line = {
                 'depth_difference': line[0:4],
@@ -271,6 +371,7 @@ def read(self, handle):
                 'next_record_indicator': line[78],
                 'always_2_record_indicator': line[79],
             }
+            # Effectively nothing here to care about.
         elif line[79] == '3':
             raw_line = {
                 'depth': int_or_none(line[0:5]),
@@ -278,7 +379,7 @@ def read(self, handle):
                 'thermometric_depth_flag': line[6],
                 'temperature': line[7:12],
                 'temperature_precision': int_or_none(line[12]),
-                'temperature quality indicator': int_or_none(line[13]),
+                'temperature_quality_indicator': int_or_none(line[13]),
                 'salinity': line[14:19],
                 'salinity_precision': int_or_none(line[19]),
                 'salinity_quality_indicator': int_or_none(line[20]),
@@ -314,7 +415,121 @@ def read(self, handle):
                 'next_record_type': int_or_none(line[78]),
                 'record_type': int_or_none(line[79]),
             }
-        print raw_line
+
+            sample = {}
+
+            assert raw_line['record_type'] == 3, \
+                ("Only observations are handled by this reader. "
+                 "Interpolations are not handled.")
+
+            sample['DEPTH'] = raw_line['depth']
+            sample['DEPTH_QC'] = raw_line['depth_quality_indicator']
+            p = raw_line['temperature_precision']
+            if p and p != 9:
+                x = raw_line['temperature'].strip()
+                sample['TEMPERATURE'] = decimal.Decimal(
+                    '%s.%s' % (x[:-p], x[-p:])) 
+                sample['TEMPERATURE_QC'] = \
+                    raw_line['temperature_quality_indicator']
+            p = raw_line['salinity_precision']
+            if p and p != 9:
+                x = raw_line['salinity'].strip()
+                sample['SALINITY'] = decimal.Decimal(
+                    '%s.%s' % (x[:-p], x[-p:]))
+                sample['SALINITY_QC'] = raw_line['salinity_quality_indicator']
+            p = raw_line['oxygen_precision']
+            if p and p != 9:
+                x = raw_line['oxygen'].strip()
+                sample['OXYGEN'] = decimal.Decimal(
+                    '%s.%s' % (x[:-p], x[-p:]))
+                sample['OXYGEN_QC'] = raw_line['oxygen_quality_indicator']
+            try:
+                x = raw_line['cast_start_time_or_messenger_release_time']
+                sample['TIME'] = x[:2] + str(int(x[2]) / 600.0)
+            except ValueError:
+                pass
+            sample['CASTNO'] = raw_line['cast_number']
+            # TODO ensure this is inorganic
+            p = raw_line['inorganic_phosphate_precision']
+            if p and p != 9:
+                x = raw_line['inorganic_phosphate'].strip()
+                sample['PHSPHT'] = decimal.Decimal('%s.%s' % (x[:-p], x[-p:]))
+            p = raw_line['silicate_precision']
+            if p and p != 9:
+                x = raw_line['silicate'].strip()
+                sample['SILCAT'] = decimal.Decimal('%s.%s' % (x[:-p], x[-p:]))
+            p = raw_line['nitrite_precision']
+            if p and p != 9:
+                x = raw_line['nitrite'].strip()
+                sample['NITRIT'] = decimal.Decimal('%s.%s' % (x[:-p], x[-p:]))
+            p = raw_line['nitrate_precision']
+            if p and p != 9:
+                x = raw_line['nitrate'].strip()
+                sample['NITRAT'] = decimal.Decimal('%s.%s' % (x[:-p], x[-p:]))
+            # TODO which PH is this?
+            p = raw_line['ph_precision']
+            if p and p != 9:
+                x = raw_line['ph'].strip()
+                sample['PH'] = decimal.Decimal('%s.%s' % (x[:-p], x[-p:]))
+
+            if not current_station:
+                raise ValueError(("Malformed SD2 file: Data record found "
+                                  "before master record"))
+            if current_station['_DATA_TYPE'] == 'NANSEN CAST':
+                merged_row = {
+                    'EXPOCODE': current_station['EXPOCODE'],
+                    'STNNBR': current_station['STNNBR'],
+                    'LATITUDE': current_station['LATITUDE'],
+                    'LONGITUDE': current_station['LONGITUDE'],
+                    '_DATETIME': current_station['_DATETIME'],
+                    'BOTTOM': current_station['BOTTOM'],
+                    'CASTNO': sample['CASTNO'],
+                    'DEPTH': sample['DEPTH'],
+                    'DEPTH_FLAG_W': _NODC_0608_TO_WOCE_FLAGS[sample['DEPTH_QC']],
+                    # TODO figure out what parameter this should be
+                    'CTDTMP': sample['TEMPERATURE'],
+                    'CTDTMP_FLAG_W': _NODC_0608_TO_WOCE_FLAGS[sample['TEMPERATURE_QC']],
+                    'SALNTY': sample['SALINITY'],
+                    'SALNTY_FLAG_W': _NODC_0608_TO_WOCE_FLAGS[sample['SALINITY_QC']],
+                    'OXYGEN': sample['OXYGEN'],
+                    'OXYGEN_FLAG_W': _NODC_0608_TO_WOCE_FLAGS[sample['OXYGEN_QC']],
+                    'PHSPHT': sample.get('PHSPHT', None),
+                    'SILCAT': sample.get('SILCAT', None),
+                    'NITRIT': sample.get('NITRIT', None),
+                    'NITRAT': sample.get('NITRAT', None),
+                    'PH': sample.get('PH', None),
+                }
+                try:
+                    merged_row['_DATETIME'].hour = sample['TIME'][:2]
+                    merged_row['_DATETIME'].minute = sample['TIME'][2:]
+                except KeyError:
+                    pass
+                i = len(self)
+                self['EXPOCODE'].set(i, merged_row['EXPOCODE'])
+                self['STNNBR'].set(i, merged_row['STNNBR'])
+                self['CASTNO'].set(i, merged_row['CASTNO'])
+                self['LATITUDE'].set(i, merged_row['LATITUDE'])
+                self['LONGITUDE'].set(i, merged_row['LONGITUDE'])
+                self['_DATETIME'].set(i, merged_row['_DATETIME'])
+                self['BOTTOM'].set(i, merged_row['BOTTOM'])
+                self['DEPTH'].set(i, merged_row['DEPTH'], merged_row['DEPTH_FLAG_W'])
+                self['CTDTMP'].set(i, merged_row['CTDTMP'], merged_row['CTDTMP_FLAG_W'])
+                self['SALNTY'].set(i, merged_row['SALNTY'], merged_row['SALNTY_FLAG_W'])
+                self['OXYGEN'].set(i, merged_row['OXYGEN'], merged_row['OXYGEN_FLAG_W'])
+                self['PHSPHT'].set(i, merged_row['PHSPHT'])
+                self['SILCAT'].set(i, merged_row['SILCAT'])
+                self['NITRIT'].set(i, merged_row['NITRIT'])
+                self['NITRAT'].set(i, merged_row['NITRAT'])
+                self['PH'].set(i, merged_row['PH'])
+            else:
+                # CTD
+                raise NotImplementedError("Can't read SD2 CTDs yet")
+
+    for key, column in self.columns.items():
+        if len(filter(None, column.values)) == 0 and \
+           len(filter(None, column.flags_woce)) == 0 and \
+           len(filter(None, column.flags_igoss)) == 0:
+           del self.columns[key]
 
     self.globals['stamp'] = ''
     self.globals['header'] = ''

@@ -12,9 +12,10 @@ import libcchdo.fns
 def main(argv):
     opts, args = getopt.getopt(argv[1:], 't:i:jh',
                                ['type=', 'input-type=', 'json', 'help'])
-    usage = ("Usage: %s -t <output type> <any recognized CCHDO file>\n"
-             "\t-t|--type\t(REQUIRED) valid output types:\n"
-             "\t\t\t * dict (default)\n"
+    usage = ("Usage: %s <any recognized CCHDO file>\n"
+             "\t-t|--type\tValid output types:\n"
+             "\t\t\t * str (default)\n"
+             "\t\t\t * dict\n"
              "\t\t\t * google_wire\n"
              "\t\t\t * nav\n"
              "\t-i|--input-type\tforce the input file to be read as the "
@@ -31,7 +32,7 @@ def main(argv):
 
     flag_json = False
     input_file_type = None
-    output_file_type = None
+    output_file_type = 'str'
 
     for o, a in opts:
         if o in ('-t', '--type'):
@@ -55,8 +56,10 @@ def main(argv):
         elif output_file_type == 'google_wire':
             from libcchdo.formats import google_wire
             google_wire.write(file, sys.stdout, json=flag_json)
-        else:
+        elif output_file_type == 'dict':
             print file.to_dict()
+        else:
+            print file
 
     return 0
 
