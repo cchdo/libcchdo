@@ -2,8 +2,8 @@
 Install
 =======
 
-First work through the dependencies and then do the usual::
-
+    # Not all dependencies are required! See below.
+    pip install --requirement=DEPENDENCIES.txt && \
     python setup.py install
 
 Dependencies

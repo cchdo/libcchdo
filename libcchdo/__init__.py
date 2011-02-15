@@ -1,6 +1,20 @@
 """
+This library provides a format-less data model for the CCHDO and a centralized
+place to put ways to read and write from it. Said format-less data model is
+based on DataFiles which have Columns that are associated with Parameters. From
+the data model, the user may write out to a database model of the data or read
+in more data and mash it together or write it out in a different format. When
+it is said the data is format-less, it is actually in a neutral format that
+lets it be manipulated easily into other formats.
+
+Reading/writing data to files
+=============================
+Data is represented internally as described in the model package. Currently
+the main model used is datafile. Refer to the formats package for more with 
+regard to file formats.
+
 Internal Data Specification
----------------------------
+===========================
 Any unreported values must be represented as None. This includes -9, -999.000,
 unspecified dates, times, etc.
 

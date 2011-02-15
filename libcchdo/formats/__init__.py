@@ -1,3 +1,44 @@
+"""Formats
+
+Reading/Writing
+===============
+
+Formats are allowed to specify two operations::
+
+* read(DataFile_or_Collection, file_handle)
+* write(DataFile_or_Collection, file_handle)
+
+Formats are *not* required to specify both reading and writing.
+
+Hierarchy
+---------
+
+Formats are specified in the formats package broken into a hierarchy based on
+the type of file (bottle, CTD, etc), whether it is a collection of files, and
+the format of the type of file (WOCE, Exchange, etc).
+
+Example
+=======
+
+Convert CTD Exchange file into CTD NetCDF file::
+
+    # Since CTD Exchange is actually a Zip file containing single CTD casts one
+    # expects to find the format under formats.ctd.zip.exchange.
+    import formats.ctd.zip.exchange as ctdzipex
+    
+    # The same follows for NetCDF (a collection of smaller .nc files)
+    import formats.ctd.zip.netcdf as ctdzipnc
+    
+    import models.datafile
+    
+    
+    dfc = models.datafile.DataFileCollection()
+    
+    with open(ctd_exchange_file_path, 'r') as fh:
+        ctdzipex.read(dfc, fh)
+    with open(ctd_netcdf_file_path, 'w') as fh:
+        ctdzipnc.write(dfc, fh)
+"""
 
 
 _pre_write_functions = []

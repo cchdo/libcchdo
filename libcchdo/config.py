@@ -23,7 +23,7 @@ _CONFIG = ConfigParser.SafeConfigParser()
 _CONFIG.read(_CONFIG_PATHS)
 
 
-def save_config():
+def _save_config():
     config_path = os.path.realpath(_CONFIG_PATHS[-1])
 
     if not os.path.isdir(os.path.dirname(config_path)):
@@ -45,7 +45,7 @@ except ConfigParser.Error, e:
     _CONFIG.set('db', 'cache',
                 os.path.expanduser(os.path.join('~', _CONFIG_DIR,
                                                 'cchdo_data.db')))
-    save_config()
+    _save_config()
 
 
 def get_option(section, option, default_function=None):
@@ -66,7 +66,7 @@ def get_option(section, option, default_function=None):
         pass
     _CONFIG.set(section, option, val)
 
-    save_config()
+    _save_config()
     return val
 
 

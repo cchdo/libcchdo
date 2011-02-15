@@ -1,4 +1,10 @@
-"""Abstractions for the CCHDO databases"""
+"""Abstractions for the CCHDO database
+Database
+========
+CCHDO information about parameters is read and cached from the CCHDO database.
+The cache is stored in the user's configuration. Refer to the config module
+for more information.
+"""
 
 
 # Enum type for sqlalchemy

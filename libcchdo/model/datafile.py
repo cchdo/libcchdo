@@ -278,6 +278,11 @@ class DataFile(File):
 
 
 class DataFileCollection(object):
+    """Stores a collection of DataFiles
+
+       A DataFileCollection represents data files that are actually a
+       collection of many sub files (e.g. Exchange CTD files).
+    """
 
     def __init__(self, allow_contrived=False):
         self.files = []
@@ -294,6 +299,20 @@ class DataFileCollection(object):
         for file in self.files:
             d['files'].append(file.to_dict())
         return d
+
+    def __len__(self):
+        return len(self.files)
+
+    def get(self, index):
+        if index >= len(self.files):
+            return None
+        return self.files[index]
+
+    def __getitem__(self, key):
+        return self.get(key)
+
+    def __iter__(self):
+        return self.files.__iter__()
 
     def __str__(self):
         s = u''

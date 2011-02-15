@@ -15,33 +15,10 @@ def _column_type(col, obj):
         return 'number'
 
 
-def _raw_to_str(raw, json=False):
-    if isinstance(raw, float):
-        if fns.isnan(raw):
-            if json:
-                return None
-            else:
-                return '-Infinity'
-        return raw
-    if isinstance(raw, datetime.datetime):
-        if json:
-            nums = (','.join(['%d'] * 5)) % \
-                   (raw.year, raw.month, raw.day, raw.hour, raw.minute)
-            return 'Date(%s)' % nums
-        else:
-            return 'new Date(%s)' % raw.strftime('%Y,%m,%d,%H,%M')
-    else:
-        if json:
-            return str(raw)
-        else:
-            return "'%s'" % str(raw)
-
-
 def _json_row(self, i, global_values, column_headers):
-    raw_values = global_values + \
-                 [self.columns[hdr][i] for hdr in column_headers]
-
-    row_values = [{'v': _raw_to_str(raw, True)} for raw in raw_values]
+    raw_values = global_values + [self[hdr][i] 
+                                  for hdr in column_headers]
+    row_values = [{'v': raw} for raw in raw_values]
     return {'c': row_values}
 
 
@@ -49,18 +26,43 @@ def _json(self, handle, column_headers, columns, global_values):
     import json
     json_columns = [{'id': col, 'label': col,
                      'type': _column_type(col, global_values[0])} \
-               for col in columns]
+                    for col in columns]
     json_rows = [_json_row(self, i, global_values, column_headers) \
                  for i in range(len(self))]
     wire_obj = {'cols': json_columns, 'rows': json_rows}
-    handle.write(json.dumps(wire_obj, allow_nan=False, separators=(',', ':')))
+
+    class serializer(json.JSONEncoder):
+        def default(self, o):
+            if isinstance(o, datetime.datetime):
+                nums = (','.join(['%d'] * 5)) % \
+                       (o.year, o.month, o.day, o.hour, o.minute)
+                return 'Date(%s)' % nums
+            return JSONEncoder.default(self, o)
+
+    json.dump(wire_obj, handle, allow_nan=False, separators=(',', ':'),
+              cls=serializer)
+
+
+def _raw_to_str(raw, column):
+    if raw is None:
+        return None
+    if isinstance(raw, float):
+        if fns.isnan(raw):
+            return '-Infinity'
+        if column.parameter:
+            return float(column.parameter.format % raw)
+        return raw
+    if isinstance(raw, datetime.datetime):
+        return 'new Date(%s)' % raw.strftime('%Y,%m,%d,%H,%M')
+    else:
+        return "'%s'" % str(raw)
 
 
 def _wire_row(self, i, global_values, column_headers):
     raw_values = global_values + \
-                 [self.columns[hdr][i] for hdr in column_headers]
+                 [self[hdr][i] for hdr in column_headers]
 
-    row_values = ['{v:%s}' % _raw_to_str(raw) for raw in raw_values]
+    row_values = ['{v:%s}' % _raw_to_str(raw, self[hdr]) for raw in raw_values]
     return '{c:[%s]}' % ','.join(row_values)
 
 
