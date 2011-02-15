@@ -5,6 +5,7 @@ import zipfile
 
 from ....model import datafile
 from ... import netcdf as nc
+from ... import zip as Zip
 from .. import netcdf as botnc
 
 
@@ -30,12 +31,8 @@ def write(self, handle):
     station_i = 0
     cast_i = 0
 
-    try:
-        zip = zipfile.ZipFile(handle, 'w', zipfile.ZIP_DEFLATED)
-    except RuntimeError:
-        zip = zipfile.ZipFile(handle, 'w')
-
-    for file in self.files:
+    zip = Zip.create(handle)
+    for file in self:
         temp = StringIO.StringIO()
         botnc.write(file, temp)
 
@@ -51,6 +48,6 @@ def write(self, handle):
             cast_i += 1
         filename = nc.get_filename(expocode, station, cast)
 
-        zip.writestr(filename, temp.getvalue(), zipfile.ZIP_DEFLATED)
+        zip.writestr(filename, temp.getvalue())
         temp.close()
     zip.close()

@@ -3,6 +3,7 @@ import StringIO
 import zipfile
 
 from .. import netcdf_oceansites as nco
+from ... import zip as Zip
 
 
 #def read(self, handle):
@@ -11,10 +12,7 @@ from .. import netcdf_oceansites as nco
 
 def write(self, handle, timeseries=None, timeseries_info={}):
     """How to write CTD NetCDF OceanSITES files to a Zip."""
-    try:
-        zip = zipfile.ZipFile(handle, 'w', zipfile.ZIP_DEFLATED)
-    except RuntimeError:
-        zip = zipfile.ZipFile(handle, 'w')
+    zip = Zip.create(handle)
     for i, file in enumerate(self.files):
         tempstream = StringIO.StringIO()
         nco.write(file, tempstream, timeseries, timeseries_info)

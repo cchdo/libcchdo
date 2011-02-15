@@ -61,7 +61,7 @@ def read(self, handle):
             self.columns[name] = datafile.Column(name)
             self.columns[name].values = variable[:].tolist()
 
-            # Do some quick transformations from NetCDF pecularities to standard data format
+            # Do some transformations from NetCDF pecularities to standard data format
             if name in ['STNNBR', 'CASTNO']:
                 # CCHDO NetCDFs have STNNBR and CASTNO as an array of characters.
                 # Collapse them into a string.
@@ -69,7 +69,7 @@ def read(self, handle):
             elif name in ['DATE']:
                 # Translate string date YYYYMMDD to date object
                 string = str(self.columns[name].values[0])
-                self.columns[name].values[0] = '%s-%s-%s' % \
+                self.columns[name].values[0] = '%s%s%s' % \
                     (string[0:4], string[4:6], string[6:8])
             if name == 'CTDSAL':
                 self.columns[name].values = map(
@@ -248,8 +248,8 @@ def write(self, handle):
                         parameter.units else UNSPECIFIED_UNITS
         compact_column = filter(None, column)
         if compact_column:
-            var.data_min = min(compact_column)
-            var.data_max = max(compact_column)
+            var.data_min = float(min(compact_column))
+            var.data_max = float(max(compact_column))
         else:
             var.data_min = float('-inf')
             var.data_max = float('inf')

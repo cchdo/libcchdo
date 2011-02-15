@@ -240,11 +240,12 @@ def write(self, handle, timeseries=None, timeseries_info={}):
     var_longitude[:] = [self.globals['LONGITUDE']]
 
     for column in self.columns.values():
-        if not column.parameter.description:
-            warn('Bad parameter description %s' % column.parameter)
-            return 
-        bad_chars = string.maketrans(" ()", "___")
-        name = column.parameter.description.lower().translate(bad_chars)
+        try:
+            assert column.parameter.name_netcdf
+        except AttributeError:
+            LOG.warn('No netcdf name for parameter: %s' % column.parameter)
+            continue
+        name = column.parameter.name_netcdf
 
         if name in param_to_oceansites.keys():
             name = param_to_oceansites[name]

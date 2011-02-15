@@ -1,5 +1,6 @@
 from .. import LOG
 from .. import COLORS
+from .. import memoize
 from .. import fns
 from ..db.model import std
 
@@ -214,6 +215,24 @@ class DataFile(File):
     def formats(self):
         return self.get_property_for_columns(
             lambda column: column.parameter.format)
+
+    def parameter_mnemonics_woce(self):
+        return self.get_property_for_columns(
+            lambda column: column.parameter.mnemonic_woce() \
+                           if column and column.parameter else '')
+
+    def __copy__(self):
+        """Effectively clones the structure of the DataFile
+           Creates a new DataFile and creates new columns with the same
+           parameters. A shallow copy of globals is made.
+        """
+        copy = DataFile()
+
+        parameters = self.parameter_mnemonics_woce()
+        copy.create_columns(parameters)
+
+        copy.globals = self.globals.copy()
+        return copy
 
     def __str__(self):
         s = u''

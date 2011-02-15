@@ -5,6 +5,7 @@ import re
 
 from .... import LOG
 from ....model import datafile
+from ... import zip as Zip
 from ...ctd import exchange as ctdex
 
 
@@ -30,12 +31,8 @@ def read(self, handle, retain_order=False):
 
 def write(self, handle):
     """How to write CTD Exchange files to a Zip."""
-    try:
-        zip = zipfile.ZipFile(handle, 'w', zipfile.ZIP_DEFLATED)
-    except RuntimeError:
-        LOG.info('Unable to write deflated zip file. Using store algorithm instead.')
-        zip = zipfile.ZipFile(handle, 'w')
-    for file in self.files:
+    zip = Zip.create(handle)
+    for file in self:
         tempstream = StringIO.StringIO()
         ctdex.write(file, tempstream)
 
