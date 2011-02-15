@@ -10,39 +10,53 @@ import libcchdo.fns
 
 
 def main(argv):
-    opts, args = getopt.getopt(argv[1:], 't:h', ['type=', 'help'])
-    usage = ("Usage: %s [-t|--type] <any recognized CCHDO file>\n"
-             "\t-t|--type\tValid types:\n"
-             "\t\t\t * dict\n"
-             "\t\t\t * nav") % argv[0]
+    opts, args = getopt.getopt(argv[1:], 't:i:jh',
+                               ['type=', 'input-type=', 'json', 'help'])
+    usage = ("Usage: %s -t <output type> <any recognized CCHDO file>\n"
+             "\t-t|--type\t(REQUIRED) valid output types:\n"
+             "\t\t\t * dict (default)\n"
+             "\t\t\t * google_wire\n"
+             "\t\t\t * nav\n"
+             "\t-i|--input-type\tforce the input file to be read as the "
+                 "specified type\n"
+             "\t-j|--json\tonly applies to output type google_wire. Forces "
+                 "the google_wire output to be valid JSON.\n"
+             "\t-h|--help\tprint out help and exit"
+            ) % argv[0]
 
-    if len(args) < 1:
+    if len(args) != 1:
+        print >> sys.stderr, "Please specify one input file."
         print >> sys.stderr, usage
         return 1
 
-    file_type = None
+    flag_json = False
+    input_file_type = None
+    output_file_type = None
 
     for o, a in opts:
         if o in ('-t', '--type'):
-            file_type = a
+            output_file_type = a
+        elif o in ('-i', '--input-type'):
+            input_file_type = a
+        elif o in ('-j', '--json'):
+            flag_json = True
         elif o in ('-h', '--help'):
             print >> sys.stderr, usage
             return 1
         else:
             assert False, "unhandled option"
-
-    if not file_type:
-        print >> sys.stderr, usage
-        return 1
     
     with open(args[0], 'r') as in_file:
-        file = L.fns.read_arbitrary(in_file)
+        file = L.fns.read_arbitrary(in_file, input_file_type)
 
-        if file_type == 'dict':
-            print file.to_dict()
-        elif file_type == 'nav':
+        if output_file_type == 'nav':
             from libcchdo.formats.common import nav
             nav.write(file, sys.stdout)
+        elif output_file_type == 'google_wire':
+            from libcchdo.formats import google_wire
+            google_wire.write(file, sys.stdout, json=flag_json)
+        else:
+            print file.to_dict()
 
     return 0
 
