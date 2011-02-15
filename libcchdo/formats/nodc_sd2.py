@@ -169,71 +169,71 @@ COLUMN
 
 def read(self, handle):
     """How to read an NODC SD2 file."""
-    expocode, sect, sectid, ship, program = handle.readline()[1:].split()
-    dates = handle.readline()
-    unknown = handle.readline()
-    pi = handle.readline()
-    for i in range(7):
-        handle.readline()
 
     self.create_columns(
         ('EXPOCODE', 'SECT_ID', '_DATETIME', 'LATITUDE', 'LONGITUDE'))
-
-    # PRES -> CTDPRS CCHDO has no other measurement of pressure
-    # TEMP -> CTDTMP Probably not reference nor potential
-    # PSAL -> SALNTY Probably a bottle (PSU doesn't match CCHDO's PSS-78)
-    # CPHL -> CHLORA (mg/m**3 doesn't match CCHDO's ug/kg)
-    # PHOS -> PHSPHT (umol/l doesn't match CCHDO's umol/kg)
-    # NTRZ -> NO2+NO3 (umol/l doesn't match CCHDO's umol/kg)
     self.create_columns(
-        ('CTDPRS', 'CTDTMP', 'SALNTY', 'CHLORA', 'PHSPHT', 'NO2+NO3'),
-        ('DBAR', 'DEG C', 'PSU', 'MG/M3', 'UMOL/L', 'UMOL/L'))
+        ('CTDPRS', 'CTDTMP', 'SALNTY', 'OXYGEN', 'PHSPHT', 'NO2'),
+        ('DBAR', 'DEG C', 'PSU', 'ML/L', 'UMOL/L', 'UMOL/L'))
+
+
+    def int_or_none(i):
+        try:
+            return int(i)
+        except ValueError:
+            return None
+
+    current_station = None
 
     while handle:
         line = handle.readline()
         if not line:
             break
 
+        print 'line:', line,
+        print 'rule:', '|-`-*+-`-*' * 8
         if line[79] == '1':
-            print {
-                'continuation_indicator': bool(line[0]),
-                'nodc_ref_num_country': int(line[2:4]),
-                'nodc_ref_num_file_code': int(line[4]),
-                'nodc_ref_num_cruise_number': int(line[5:9]),
-                'nodc_consecutive_station_number': int(line[9:13]),
-                'data_type': int(line[13:15]),
-                'ten-degree_square': int(line[17:21]),
-                'one-degree_square': int(line[21:23]),
-                'two-degree_square': int(line[23:25]),
-                'five-degree_square': int(line[25]),
+            raw_line = {
+                'continuation_indicator': int_or_none(line[0]),
+                'nodc_ref_num_country': int_or_none(line[2:4]),
+                'file_code': int_or_none(line[4]),
+                'nodc_ref_num_cruise_number': int_or_none(line[5:9]),
+                'nodc_consecutive_station_number': int_or_none(line[9:13]),
+                'data_type': int_or_none(line[13:15]),
+                'ten-degree_square': int_or_none(line[17:21]),
+                'one-degree_square': int_or_none(line[21:23]),
+                'two-degree_square': int_or_none(line[23:25]),
+                'five-degree_square': int_or_none(line[25]),
                 'hemisphere_of_latitude': line[26],
-                'degrees_latitude': int(line[27:29]),
-                'minutes_latitude': int(line[29:31]),
-                'minutes_latitude_tenths': int(line[31]),
+                'degrees_latitude': int_or_none(line[27:29]),
+                'minutes_latitude': int_or_none(line[29:31]),
+                'minutes_latitude_tenths': int_or_none(line[31]),
                 'hemisphere_of_longitude': line[32],
-                'degrees_longitude': int(line[33:36]),
-                'minutes_longitude': int(line[36:38]),
-                'minutes_longitude_tenths': int(line[38]),
-                'quarter_of_one_degree_square': int(line[39]),
-                'year_gmt': int(line[40:42]),
-                'month_of_year_gmt': int(line[42:44]),
-                'day_of_month_gmt': int(line[44:46]),
+                'degrees_longitude': int_or_none(line[33:36]),
+                'minutes_longitude': int_or_none(line[36:38]),
+                'minutes_longitude_tenths': int_or_none(line[38]),
+                'quarter_of_one_degree_square': int_or_none(line[39]),
+                'year_gmt': int_or_none(line[40:42]),
+                'month_of_year_gmt': int_or_none(line[42:44]),
+                'day_of_month_gmt': int_or_none(line[44:46]),
                 'station_time_gmt_hours_to_tenths': line[46:49],
                 'data_origin_country': line[49:51],
                 'data_origin_institution': line[51:53],
                 'data_origin_platform': line[53:55],
                 'bottom_depth': line[55:60],
-                'effective_depth': int(line[60:64]),
+                'effective_depth': int_or_none(line[60:64]),
                 'cast_duration_hours_to_tenths': line[64:67],
                 'cast_direction': line[67],
                 'data_use_code': line[69],
-                'minimum_depth': int(line[70:74]),
-                'maximum_depth': int(line[74:78]),
+                'minimum_depth': int_or_none(line[70:74]),
+                'maximum_depth': int_or_none(line[74:78]),
                 'always_2_next_record_indicator': line[78],
-                'always_1_record_indicator': int(line[79]),
+                'always_1_record_indicator': int_or_none(line[79]),
             }
+            if raw_line['continuation_indicator']:
+                continuation_indicator = raw_line['continuation_indicator']
         elif line[79] == '2':
-            print {
+            raw_line = {
                 'depth_difference': line[0:4],
                 'sample_interval': line[4:6],
                 'salinity_observed': line[6],
@@ -245,33 +245,76 @@ def read(self, handle):
                 'nitrate_observed': line[12],
                 'ph_observed': line[13],
                 'originators_cruise_identifier': line[13:17],
-                'originators_station_identifier': int(line[17:28]),
-                'minutes_latitude': int(line[29:31]),
-                'minutes_latitude_tenths': int(line[31]),
-                'hemisphere_of_longitude': line[32],
-                'degrees_longitude': int(line[33:36]),
-                'minutes_longitude': int(line[36:38]),
-                'minutes_longitude_tenths': int(line[38]),
-                'quarter_of_one_degree_square': int(line[39]),
-                'year_gmt': int(line[40:42]),
-                'month_of_year_gmt': int(line[42:44]),
-                'day_of_month_gmt': int(line[44:46]),
-                'station_time_gmt_hours_to_tenths': line[46:49],
-                'data_origin_country': line[49:51],
-                'data_origin_institution': line[51:53],
-                'data_origin_platform': line[53:55],
-                'bottom_depth': line[55:60],
-                'effective_depth': int(line[60:64]),
-                'cast_duration_hours_to_tenths': line[64:67],
-                'cast_direction': line[67],
-                'data_use_code': line[69],
-                'minimum_depth': int(line[70:74]),
-                'maximum_depth': int(line[74:78]),
-                'always_2_next_record_indicator': line[78],
-                'always_1_record_indicator': int(line[79]),
+                'originators_station_identifier': int_or_none(line[17:26]),
+                'water_color': int_or_none(line[26:28]),
+                'water_transparency': int_or_none(line[28:30]),
+                'wave_direction': int_or_none(line[30:32]),
+                'wave_height': line[32],
+                'sea_state': int_or_none(line[33]),
+                'wind_force': line[34:36],
+                'file_update_code': int_or_none(line[36]),
+                'wave_period': line[37],
+                'wind_direction': int_or_none(line[38:40]),
+                'wind_speed': int_or_none(line[40:42]),
+                'barometric_pressure': line[42:47],
+                'dry_bulb_temperature': line[47:51],
+                'dry_bulb_temperature_precision': int_or_none(line[51]),
+                'wet_bulb_temperature': line[52:56],
+                'wet_bulb_temperature_precision': int_or_none(line[56]),
+                'weather': line[57:59],
+                'cloud_type': int_or_none(line[59]),
+                'cloud_amount': int_or_none(line[60]),
+                'number_of_observed_depths': int_or_none(line[61:64]),
+                'number_of_standard_depth_levels': int_or_none(line[64:66]),
+                'number_of_detail_depths': int_or_none(line[66:69]),
+                'blank': line[69:78],
+                'next_record_indicator': line[78],
+                'always_2_record_indicator': line[79],
             }
         elif line[79] == '3':
-            print 'Data'
+            raw_line = {
+                'depth': int_or_none(line[0:5]),
+                'depth_quality_indicator': int_or_none(line[5]),
+                'thermometric_depth_flag': line[6],
+                'temperature': line[7:12],
+                'temperature_precision': int_or_none(line[12]),
+                'temperature quality indicator': int_or_none(line[13]),
+                'salinity': line[14:19],
+                'salinity_precision': int_or_none(line[19]),
+                'salinity_quality_indicator': int_or_none(line[20]),
+                'sigma-t': int_or_none(line[21:25]),
+                'sigma-t_quality_indicator': int_or_none(line[25]),
+                'sound_speed': int_or_none(line[26:31]),
+                'sound_speed_precision': int_or_none(line[31]),
+                'oxygen': line[32:36],
+                'oxygen_precision': int_or_none(line[36]),
+                'oxygen_quality_indicator': int_or_none(line[37]),
+                'data_range_check_flags_phosphate': int_or_none(line[38]),
+                'data_range_check_flags_total': int_or_none(line[39]),
+                'data_range_check_flags_silicate': int_or_none(line[40]),
+                'data_range_check_flags_nitrite': int_or_none(line[41]),
+                'data_range_check_flags_nitrate': int_or_none(line[42]),
+                'data_range_check_flags_ph': int_or_none(line[43]),
+                'cast_start_time_or_messenger_release_time': line[44:47],
+                'cast_number': int_or_none(line[47]),
+                'inorganic_phosphate': line[48:52],
+                'inorganic_phosphate_precision': int_or_none(line[52]),
+                'total_phosphorous': line[53:57],
+                'total_phosphorous_precision)': int_or_none(line[57]),
+                'silicate': line[58:62],
+                'silicate_precision': int_or_none(line[62]),
+                'nitrite': line[63:66],
+                'nitrite_precision': int_or_none(line[66]),
+                'nitrate': line[67:70],
+                'nitrate_precision': int_or_none(line[70]),
+                'ph': line[71:74],
+                'ph_precision': int_or_none(line[74]),
+                'blank': line[75:77],
+                'density_inversion_flag': int_or_none(line[77]),
+                'next_record_type': int_or_none(line[78]),
+                'record_type': int_or_none(line[79]),
+            }
+        print raw_line
 
     self.globals['stamp'] = ''
     self.globals['header'] = ''

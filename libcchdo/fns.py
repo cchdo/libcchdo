@@ -98,7 +98,8 @@ def read_arbitrary(handle, file_type=None):
     elif file_type == 'coriolis':
         import formats.coriolis
         formats.coriolis.read(datafile, handle)
-    elif filename.endswith('.sd2') or file_type == 'nodc_sd2':
+    elif filename.endswith('.sd2') or file_type == 'nodc_sd2' or \
+         file_type == 'sd2':
         import formats.nodc_sd2
         formats.nodc_sd2.read(datafile, handle)
     else:
