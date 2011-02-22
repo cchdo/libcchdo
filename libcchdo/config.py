@@ -7,7 +7,7 @@ import getpass
 from . import LOG
 
 
-_CONFIG_DIR = '.%s' % os.path.split(os.getcwd())[1]
+_CONFIG_DIR = '.%s' % __package__
 
 
 _CONFIG_FILE_NAME = '.%s.cfg' % __package__
@@ -23,8 +23,16 @@ _CONFIG = ConfigParser.SafeConfigParser()
 _CONFIG.read(_CONFIG_PATHS)
 
 
+def _get_config_path():
+    config_path = _CONFIG_PATHS[-1]
+    for path in _CONFIG_PATHS:
+        if os.exists(path):
+            config_path = path
+    return os.path.realpath(config_path)
+
+
 def _save_config():
-    config_path = os.path.realpath(_CONFIG_PATHS[-1])
+    config_path = _get_config_path()
 
     if not os.path.isdir(os.path.dirname(config_path)):
         try:
@@ -42,9 +50,8 @@ try:
 except ConfigParser.Error, e:
     if isinstance(e, ConfigParser.NoSectionError):
         _CONFIG.add_section('db')
-    _CONFIG.set('db', 'cache',
-                os.path.expanduser(os.path.join('~', _CONFIG_DIR,
-                                                'cchdo_data.db')))
+    dir = os.path.dirname(_get_config_path())
+    _CONFIG.set('db', 'cache', os.path.join(dir, 'cchdo_data.db'))
     _save_config()
 
 
@@ -86,7 +93,7 @@ def get_db_credentials_cchdo():
     except ConfigParser.Error:
         password = getpass.getpass(
             ('Password for database %s@cchdo.ucsd.edu/cchdo (to avoid this '
-             'question, put your password in plain text as cchdo/cchdo_pass'
+             'question, put your password in plain text as cchdo/cchdo_pass '
              'under [db_cred] in %s):') % (username, _CONFIG_PATHS[-1]))
     return (username, password)
     
