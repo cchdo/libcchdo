@@ -1,5 +1,6 @@
 import datetime
 
+from .. import LOG
 from .. import fns
 
 
@@ -15,10 +16,24 @@ def _column_type(col, obj):
         return 'number'
 
 
+def _getter(self, hdr, i):
+    if hdr.endswith('_FLAG_W') or hdr.endswith('_FLAG_I'):
+        param = hdr[:hdr.find('_FLAG')]
+        if hdr.endswith('W'):
+            return self[param].flags_woce[i]
+        else:
+            return self[param].flags_igoss[i]
+    return self[hdr][i]
+
+
+def _raw_values(self, i, global_values, column_headers):
+    return global_values + [_getter(self, hdr, i) for hdr in column_headers]
+
+
+
 def _json_row(self, i, global_values, column_headers):
-    raw_values = global_values + [self[hdr][i] 
-                                  for hdr in column_headers]
-    row_values = [{'v': raw} for raw in raw_values]
+    row_values = [{'v': raw} for raw in _raw_values(self, i, global_values,
+                                                    column_headers)]
     return {'c': row_values}
 
 
@@ -62,7 +77,9 @@ def _wire_row(self, i, global_values, column_headers):
     raw_values = global_values + \
                  [self[hdr][i] for hdr in column_headers]
 
-    row_values = ['{v:%s}' % _raw_to_str(raw, self[hdr]) for raw in raw_values]
+    row_values = ['{v:%s}' % _raw_to_str(raw, self[hdr]) \
+                  for raw in _raw_values(self, i,
+                                         global_values, column_headers)]
     return '{c:[%s]}' % ','.join(row_values)
 
 
@@ -89,7 +106,14 @@ def write(self, handle, json=False):
            json is True.
     """
     global_headers = sorted(self.globals.keys())
-    column_headers = self.column_headers()
+    column_headers = []
+    for column in self.sorted_columns():
+        param_name = column.parameter.mnemonic_woce()
+        column_headers.append(param_name)
+        if column.is_flagged_woce():
+            column_headers.append('%s_FLAG_W' % param_name)
+        if column.is_flagged_igoss():
+            column_headers.append('%s_FLAG_I' % param_name)
     columns = global_headers + column_headers
     global_values = [self.globals[key] for key in global_headers]
 
