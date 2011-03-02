@@ -121,12 +121,6 @@ class PurgeCommand(CleanCommand):
         print "Purged."
 
     def run(self):
-        db_file = os.path.join(DIRECTORY, 'db', 'cchdo_data.db')
-        if os.path.exists(db_file):
-        	os.unlink(db_file)
-        if os.path.isdir(COVERAGE_PATH):
-            shutil.rmtree(COVERAGE_PATH)
-
         doc_dir = os.path.join(DIRECTORY, 'doc')
         if os.path.isdir(doc_dir):
         	shutil.rmtree(doc_dir)
