@@ -43,6 +43,9 @@ def read(self, handle):
     '''How to read a CTD NetCDF file.'''
     filename = handle.name
     nc_file = nc.Dataset(filename, 'r')
+
+    nc.check_variable_ranges(nc_file)
+
     # Create columns for all the variables and get all the data.
     # Map the nc_ctd variable to drop to skip the variable.
     qc_vars = {}

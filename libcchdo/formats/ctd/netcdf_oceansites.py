@@ -29,6 +29,7 @@ TIMESERIES_INFO = {
         'institution': 'Bermuda Institute of Ocean Sciences',
         'institution_references': 'http://bats.bios.edu/',
         'site_code': 'BIOS-BATS',
+        'array': 'BIOS-BATS',
         'references': 'http://cchdo.ucsd.edu/search?query=group:BATS',
         'comment': ('BIOS-BATS CTD data from SIO, translated to '
                     'OceanSITES NetCDF by SIO'),
@@ -44,6 +45,7 @@ TIMESERIES_INFO = {
         'institution': ("University of Hawai'i School of Ocean and "
                         "Earth Science and Technology"),
         'site_code': 'ALOHA',
+        'array': 'HOT',
         'references': 'http://cchdo.ucsd.edu/search?query=group:HOT',
         'comment': ('HOT CTD data from SIO, translated to OceanSITES '
                     'NetCDF by SIO'),
@@ -64,6 +66,10 @@ param_to_oceansites = {
     'ctd_temperature': 'TEMP',
     'ctd_oxygen': 'DOXY',
     'ctd_salinity': 'PSAL',
+    'pressure': 'PRES',
+    'temperature': 'TEMP',
+    'oxygen1': 'DOXY',
+    'salinity': 'PSAL',
 }
 
 
@@ -106,7 +112,7 @@ FLAG_MEANINGS = ' '.join([
 
 VARIABLES_TO_TRANSFER = (
     'platform_code institution institution_references site_code '
-    'references comment summary area institution_references '
+    'array references comment summary area institution_references '
     'contact pi_name').split()
 
 
@@ -123,8 +129,14 @@ def _WOCE_to_OceanSITES_flag(woce_flag):
 #    '''How to read a CTD NetCDF OceanSITES file.'''
 
 
-def write(self, handle, timeseries=None, timeseries_info={}):
-    '''How to write a CTD NetCDF OceanSITES file.'''
+def write(self, handle, timeseries=None, timeseries_info={}, version='1.2'):
+    '''How to write a CTD NetCDF OceanSITES file.
+    Versions:
+    1.1
+    1.2
+    '''
+    assert version in ('1.1', '1.2')
+
     # netcdf library wants to write its own files.
     tmp = tempfile.NamedTemporaryFile()
     strdate = str(self.globals['DATE']) 
@@ -134,9 +146,12 @@ def write(self, handle, timeseries=None, timeseries_info={}):
         int(strtime[0:2]), int(strtime[2:4]))
     nc_file = nc.Dataset(tmp.name, 'w', format='NETCDF3_CLASSIC')
     nc_file.data_type = 'OceanSITES time-series CTD data'
-    nc_file.format_version = '1.1'
-    nc_file.date_update = fns.strftime_iso(datetime.datetime.utcnow())
+    nc_file.format_version = version
+    # TODO determine the correct platform code
     nc_file.wmo_platform_code = ''
+    if version == '1.2':
+        nc_file.platform_code = ''
+    nc_file.date_update = fns.strftime_iso(datetime.datetime.utcnow())
     nc_file.source = 'Shipborne observation'
     nc_file.history = ''.join([isowocedate.isoformat(), "Z data collected\n",
                        datetime.datetime.utcnow().isoformat(),
@@ -144,7 +159,10 @@ def write(self, handle, timeseries=None, timeseries_info={}):
     nc_file.data_mode = 'D'
     nc_file.quality_control_indicator = '1'
     nc_file.quality_index = 'B'
-    nc_file.conventions = 'OceanSITES Manual 1.1, CF-1.1'
+    if version == '1.1':
+        nc_file.conventions = 'OceanSITES Manual 1.1, CF-1.1'
+    elif version == '1.2':
+        nc_file.Conventions = 'CF-1.4, OceanSITES 1.1'
     nc_file.netcdf_version = '3.x'
     nc_file.naming_authority = 'OceanSITES'
     nc_file.cdm_data_type = 'Station'
@@ -167,7 +185,11 @@ def write(self, handle, timeseries=None, timeseries_info={}):
                         'available by the OceanSITES project and the '
                         'national programs that contribute to it.')
     nc_file.update_interval = 'void'
-    nc_file.qc_manual = "OceanSITES User's Manual v1.1"
+    if version == '1.1':
+        nc_file.qc_manual = "OceanSITES User's Manual v1.1"
+    elif version == '1.2':
+        nc_file.qc_manual = \
+            "http://www.ocensites.org/dat a/quality_control_manual.pdf"
     nc_file.time_coverage_start = fns.strftime_iso(isowocedate)
     nc_file.time_coverage_end = fns.strftime_iso(isowocedate)
 
@@ -201,10 +223,15 @@ def write(self, handle, timeseries=None, timeseries_info={}):
     var_latitude.units = 'degrees_north'
     var_latitude.valid_min = -90.0
     var_latitude.valid_max = 90.0
-    var_time.QC_indicator = 7 # Matthias Lankhorst
-    var_time.QC_procedure = 5 # Matthias Lankhorst
+    var_latitude.QC_indicator = 7 # Matthias Lankhorst
+    var_latitude.QC_procedure = 5 # Matthias Lankhorst
     var_latitude.uncertainty = 0.0045 # Matthias Lankhorst
     var_latitude.axis = 'Y'
+    if version == '1.1':
+        pass
+    elif version == '1.2':
+        var_latitude.reference = 'WGS84'
+        var_latitude.coordinate_reference_frame = 'urn:ogc:crs:EPSG::4326'
 
     var_longitude = nc_file.createVariable(
         'LONGITUDE', 'f', ('LONGITUDE',), fill_value=99999.0)
@@ -213,12 +240,17 @@ def write(self, handle, timeseries=None, timeseries_info={}):
     var_longitude.units = 'degrees_east'
     var_longitude.valid_min = -180.0
     var_longitude.valid_max = 180.0
-    var_time.QC_indicator = 7 # Matthias Lankhorst
-    var_time.QC_procedure = 5 # Matthias Lankhorst
+    var_longitude.QC_indicator = 7 # Matthias Lankhorst
+    var_longitude.QC_procedure = 5 # Matthias Lankhorst
     # Matthias Lankhorst
     var_longitude.uncertainty = 0.0045 / math.cos(
         float(self.globals['LATITUDE']))
     var_longitude.axis = 'X'
+    if version == '1.1':
+        pass
+    elif version == '1.2':
+        var_longitude.reference = 'WGS84'
+        var_longitude.coordinate_reference_frame = 'urn:ogc:crs:EPSG::4326'
 
     var_depth = nc_file.createVariable(
         'DEPTH', 'f', ('DEPTH',), fill_value=-99999.0)
@@ -232,7 +264,13 @@ def write(self, handle, timeseries=None, timeseries_info={}):
     var_depth.QC_indicator = 8
     var_depth.QC_procedure = 2 # See above
     var_depth.uncertainty = 1.0 # A decibar
-    var_depth.axis = 'down' # oceanic
+    if version == '1.1':
+        var_depth.axis = 'down' # oceanic
+    elif version == '1.2':
+        var_depth.positive = 'down'
+        var_depth.axis = 'Z'
+        var_depth.reference = 'sea_level' # TODO is this right?
+        var_depth.coordinate_reference_frame = 'urn:ogc:crs:EPSG::5113'
 
     since_1950 = isowocedate - datetime.datetime(1950, 1, 1)
     var_time[:] = [since_1950.days + since_1950.seconds/86400.0]
@@ -251,28 +289,30 @@ def write(self, handle, timeseries=None, timeseries_info={}):
             name = param_to_oceansites[name]
             # Write variable
             var = nc_file.createVariable(
-                name, 'f8', ('DEPTH',), fill_value=float('nan'))
+                name, 'f8', ('DEPTH',), fill_value=float('nan'))# TODO fill value?
             # TODO ref table 3 for fill_value
             variable = oceansites_variables[name]
             var.long_name = variable['long'] or ''
             var.standard_name = variable['std'] or ''
             var.units = variable['units'] or ''
-            var.QC_procedure = 5 # Data manually reviewed
             var.QC_indicator = 2 # Probably good data
-            var.valid_min = column.parameter.bound_lower
-            var.valid_max = column.parameter.bound_upper
+            var.QC_procedure = 5 # Data manually reviewed
+            var.valid_min = float(column.parameter.bound_lower)
+            var.valid_max = float(column.parameter.bound_upper)
             # TODO nominal sensor depth in meters positive in direction of
             # DEPTH:positive
-            var.sensor_depth = -999
+            var.sensor_depth = 999.0
+            var.uncertainty = oceansites_uncertainty[name]
             var.cell_methods = ('TIME: point DEPTH: average '
                                 'LATITUDE: point LONGITUDE: point')
-            var.uncertainty = oceansites_uncertainty[name]
+            var.DM_indicator = 'D'
             var[:] = column.values
             # Write QC variable
             if column.is_flagged_woce():
-                var.ancillary_variables = name+'_QC'
+                qc_var_name = name + nc.QC_SUFFIX
+                var.ancillary_variables = qc_var_name
                 flag = nc_file.createVariable(
-                    name+'_QC', 'b', ('DEPTH',), fill_value=-128)
+                    qc_var_name, 'b', ('DEPTH',), fill_value=-128)
                 flag.long_name = 'quality flag'
                 flag.conventions = 'OceanSITES reference table 2'
                 flag.valid_min = 0
@@ -280,6 +320,9 @@ def write(self, handle, timeseries=None, timeseries_info={}):
                 flag.flag_values = 0#, 1, 2, 3, 4, 5, 6, 7, 8, 9 TODO??
                 flag.flag_meanings = FLAG_MEANINGS
                 flag[:] = map(_WOCE_to_OceanSITES_flag, column.flags_woce)
+        else:
+            LOG.info(("Parameter '%s' is not mapped to an OceanSITES "
+                      'variable. Skipping.') % name)
         if name is 'PRES':
             # Fun using Sverdrup's depth integration with density.
             localgrav = \
@@ -288,13 +331,22 @@ def write(self, handle, timeseries=None, timeseries_info={}):
             sal_tmp_pres = zip(self.columns['CTDSAL'].values,
                                self.columns['CTDTMP'].values,
                                column.values)
-            density_series = filter(
-                None, [depth.density(*args) for args in sal_tmp_pres])
+            density_series = [depth.density(*args) for args in sal_tmp_pres]
 
             try: 
+                if None in density_series:
+                    # Can't perform integration with missing data points.
+                    raise ValueError
+                var_depth.comment = \
+                    ('Calculated using integration of insitu density. '
+                     'Sverdrup, et al. 1942')
                 depth_series = depth.depth(
-                    localgrav, column.values, density_series)
+                    localgrav, values, density_series)
             except ValueError:
+                LOG.info(('Falling back from depth integration to Unesco '
+                          'method.'))
+                var_depth.comment = \
+                    'Calculated using Unesco 1983 Saunders and Fofonoff method.'
                 depth_series = map(
                     lambda pres: depth.depth_unesco(
                         pres, self.globals['LATITUDE']),
@@ -318,6 +370,9 @@ def write(self, handle, timeseries=None, timeseries_info={}):
         for var in VARIABLES_TO_TRANSFER:
             nc_file.__setattr__(var, timeseries_info[var])
         nc_file.id = timeseries_info['id'] % stringdate
+
+    nc.check_variable_ranges(nc_file)
+
     nc_file.close()
 
     handle.write(tmp.read())

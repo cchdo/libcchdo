@@ -2,6 +2,7 @@
 
 
 import datetime
+import decimal
 
 try:
     from netCDF4 import Dataset
@@ -10,6 +11,7 @@ except ImportError, e:
         ("Please install netCDF4. (pip install netCDF4)")))
 
 from .. import fns
+from .. import LOG
 
 
 QC_SUFFIX = '_QC'
@@ -58,3 +60,24 @@ def minutes_since_epoch(dt, error=-9):
             delta.microseconds * minutes_in_microseconds)
 
 
+def check_variable_ranges(nc_file):
+    for name, variable in nc_file.variables.items():
+        try:
+            min = decimal.Decimal(str(variable.data_min))
+            max = decimal.Decimal(str(variable.data_max))
+        except AttributeError:
+            try:
+                min = decimal.Decimal(str(variable.valid_min))
+                max = decimal.Decimal(str(variable.valid_max))
+            except AttributeError:
+                continue
+        for y in variable[:]:
+            if fns.isnan(y):
+                continue
+            x = decimal.Decimal(str(y))
+            if x < min:
+                LOG.warn('%s too small for %s range (%s, %s)' % \
+                         (str(x), name, str(min), str(max)))
+            if x > max:
+                LOG.warn('%s too large for %s range (%s, %s)' % \
+                         (str(x), name, str(min), str(max)))
