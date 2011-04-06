@@ -1,6 +1,7 @@
 import re
 import datetime
 
+from ... import fns
 from .. import woce
 
 
@@ -65,7 +66,7 @@ def read(self, handle):
 def write(self, handle):
     '''How to write a Summary file for WOCE.'''
     today = datetime.date.today()
-    uniq_sects = uniquify(self.columns['SECT_ID'].values)
+    uniq_sects = fns.uniquify(self.columns['SECT_ID'].values)
     handle.write('R/V _SHIP LEG _# WHP-ID '+','.join(uniq_sects)+
                  ' %04d%02d%02d' % (today.year, today.month, today.day)+
                  "SIOCCHDOLIB\n")
@@ -83,8 +84,8 @@ def write(self, handle):
            self.columns['STNNBR'][i], self.columns['CASTNO'][i],
            self.columns['_CAST_TYPE'][i], date_str,
            self.columns['TIME'][i], self.columns['_CODE'][i],
-           formats.woce.dec_lat_to_woce_lat(self.columns['LATITUDE'][i]),
-           formats.woce.dec_lng_to_woce_lng(self.columns['LONGITUDE'][i]),
+           woce.dec_lat_to_woce_lat(self.columns['LATITUDE'][i]),
+           woce.dec_lng_to_woce_lng(self.columns['LONGITUDE'][i]),
            self.columns['_NAV'][i], self.columns['DEPTH'][i],
            self.columns['_ABOVE_BOTTOM'][i],
            self.columns['_MAX_PRESSURE'][i],

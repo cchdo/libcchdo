@@ -5,6 +5,8 @@ import sys
 
 import libcchdo as L
 import libcchdo.model.datafile
+import libcchdo.formats.summary.hot as sumhot
+import libcchdo.formats.summary.woce as sumwoce
 
 
 def main(argv):
@@ -14,8 +16,8 @@ def main(argv):
     
     with open(argv[1], 'r') as in_file:
         file = L.model.datafile.SummaryFile()
-        file.read_HOT_Summary(in_file)
-        file.write_WOCE_Summary(sys.stdout)
+        sumhot.read(file, in_file)
+        sumwoce.write(file, sys.stdout)
 
 
 if __name__ == '__main__':
