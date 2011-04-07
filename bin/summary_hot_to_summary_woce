@@ -10,7 +10,7 @@ import libcchdo.formats.summary.woce as sumwoce
 
 
 def main(argv):
-    if len(argv) < 3:
+    if len(argv) < 2:
         print 'Usage:', argv[0], '<HOT sumfile>'
         return 1
     

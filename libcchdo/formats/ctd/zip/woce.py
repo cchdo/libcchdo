@@ -12,8 +12,8 @@ def read(self, handle):
         if 'README' in file or 'DOC' in file: continue
         tempstream = StringIO.StringIO(zip.read(file))
         ctdfile = datafile.DataFile()
-        woce(ctdfile).read(tempstream)
-        self.datafile.files.append(ctdfile)
+        woce.read(ctdfile, tempstream)
+        self.append(ctdfile)
         tempstream.close()
     zip.close()
 
