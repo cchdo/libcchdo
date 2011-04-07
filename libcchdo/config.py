@@ -26,7 +26,7 @@ _CONFIG.read(_CONFIG_PATHS)
 def _get_config_path():
     config_path = _CONFIG_PATHS[-1]
     for path in _CONFIG_PATHS:
-        if os.exists(path):
+        if os.path.exists(path):
             config_path = path
     return os.path.realpath(config_path)
 
