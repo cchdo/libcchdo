@@ -4,6 +4,7 @@ import decimal
 
 from ... import LOG
 from ... import fns
+from ... import config
 from .. import pre_write
 
 
@@ -108,7 +109,7 @@ def write(self, handle):
     """ How to write a CTD Exchange file. """
     pre_write(self)
 
-    handle.write('CTD,%s\n' % self.globals['stamp'])
+    handle.write('CTD,%s\n' % config.stamp())
     handle.write('%s' % self.globals['header'])
 
     stamp = self.globals['stamp']

@@ -178,6 +178,16 @@ class File(object):
         self.each_column(Column.check_and_replace_parameter)
 
 
+def station_equal(s0, s1):
+    # TODO figure out how to compare station "numbers" reliably.
+    return str(s0) == str(s1)
+
+
+def cast_equal(c0, c1):
+    # TODO figure out how to compare cast "numbers" reliably.
+    return str(c0) == str(c1)
+
+
 class SummaryFile(File):
   
     def __init__(self):
@@ -192,6 +202,31 @@ class SummaryFile(File):
             "_MAX_PRESSURE _NUM_BOTTLES _PARAMETERS _COMMENTS").split()
         for column in columns:
             self[column] = Column(column)
+
+    def index(self, station, cast):
+        for i, s in enumerate(self['STNNBR'].values):
+            if not station_equal(s, station):
+                continue
+            if cast_equal(self['CASTNO'][i], cast):
+                return i
+        raise ValueError('%s, %s is not in file' % (station, cast))
+
+    def __str__(self):
+        s = u''
+        s += '%sGlobals: %s\n' % (COLORS['RED'], COLORS['CLEAR'])
+        for gv in self.globals.items():
+            s += '%s: %s\n' % gv
+
+        s += '%sData: %s\n' % (COLORS['RED'], COLORS['CLEAR'])
+        for column in self.sorted_columns():
+            s += '%s\n' % column
+            if column.is_flagged_woce():
+                s += '\t%s%s%s\n' % (COLORS['CYAN'], column.flags_woce,
+                                     COLORS['CLEAR'])
+            if column.is_flagged_igoss():
+                s += '\t%s%s%s\n' % (COLORS['CYAN'], column.flags_igoss,
+                                     COLORS['CLEAR'])
+        return s.encode('ascii', 'replace')
 
 
 class DataFile(File):

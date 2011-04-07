@@ -1,6 +1,7 @@
 import datetime
 import re
 import struct
+import decimal
 
 
 from .. import LOG
@@ -51,7 +52,8 @@ WATER_SAMPLE_FLAG_DESCRIPTION = ':'.join([':'] + \
 
 def woce_lat_to_dec_lat(lattoks):
     '''Convert a latitude in WOCE format to decimal.'''
-    lat = int(lattoks[0]) + float(lattoks[1]) / 60.0
+    decimal.getcontext().prec = 3 + len(lattoks)
+    lat = int(lattoks[0]) + decimal.Decimal(lattoks[1]) / decimal.Decimal('60.0')
     if lattoks[2] != 'N':
         lat *= -1
     return lat
@@ -59,7 +61,8 @@ def woce_lat_to_dec_lat(lattoks):
 
 def woce_lng_to_dec_lng(lngtoks):
     '''Convert a longitude in WOCE format to decimal.'''
-    lng = int(lngtoks[0]) + float(lngtoks[1]) / 60.0
+    decimal.getcontext().prec = 4 + len(lngtoks)
+    lng = int(lngtoks[0]) + decimal.Decimal(lngtoks[1]) / decimal.Decimal('60.0')
     if lngtoks[2] != 'E':
         lng *= -1
     return lng
@@ -309,3 +312,28 @@ def split_datetime(file):
     	del file['TIME']
 
 
+def combine(woce_file, sum_file):
+    """Combines the given WOCE file with the Summary WOCE file so that the 
+       DataFile contains most of the information from both.
+    """
+
+    if woce_file.globals.get('STNNBR', None) is not None:
+        # This is probably a CTD file.
+        station = woce_file.globals.get('STNNBR')
+        cast = woce_file.globals.get('CASTNO')
+        sum_file_index = sum_file.index(station, cast)
+
+        headers = sum_file.get_property_for_columns(lambda c: c.parameter.name)
+        values = sum_file.get_property_for_columns(lambda c: c[sum_file_index])
+
+        info = dict(zip(headers,values))
+        woce_file.globals['EXPOCODE'] = info['EXPOCODE']
+        woce_file.globals['SECT_ID'] = info['SECT_ID']
+        woce_file.globals['DATE'] = info['DATE']
+        woce_file.globals['TIME'] = info['TIME']
+        woce_file.globals['LATITUDE'] = info['LATITUDE']
+        woce_file.globals['LONGITUDE'] = info['LONGITUDE']
+        woce_file.globals['DEPTH'] = info['DEPTH']
+    else:
+        # TODO this works differently for bottle files
+        pass
