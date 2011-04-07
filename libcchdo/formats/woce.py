@@ -331,7 +331,7 @@ def combine(woce_file, sum_file):
         headers = sum_file.get_property_for_columns(lambda c: c.parameter.name)
         values = sum_file.get_property_for_columns(lambda c: c[sum_file_index])
 
-        info = dict(zip(headers,values))
+        info = dict(zip(headers, values))
         woce_file.globals['EXPOCODE'] = info['EXPOCODE']
         woce_file.globals['SECT_ID'] = info['SECT_ID']
         woce_file.globals['DATE'] = info['DATE']
@@ -372,7 +372,7 @@ def combine(woce_file, sum_file):
             values = sum_file.get_property_for_columns(
                 lambda c: c[sum_file_index])
 
-            info = dict(zip(headers,values))
+            info = dict(zip(headers, values))
             woce_file['EXPOCODE'][i] = info['EXPOCODE']
             woce_file['SECT_ID'][i] = info['SECT_ID']
             woce_file['DATE'][i] = info['DATE']
@@ -381,3 +381,4 @@ def combine(woce_file, sum_file):
             woce_file['LONGITUDE'][i] = info['LONGITUDE']
             woce_file['DEPTH'][i] = info['DEPTH']
         woce_file.globals['header'] = ''
+        fuse_datetime(woce_file)
