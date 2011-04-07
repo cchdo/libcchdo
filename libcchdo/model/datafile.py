@@ -180,11 +180,19 @@ class File(object):
 
 def station_equal(s0, s1):
     # TODO figure out how to compare station "numbers" reliably.
+    if type(s0) is float:
+        s0 = int(s0)
+    if type(s1) is float:
+        s1 = int(s1)
     return str(s0) == str(s1)
 
 
 def cast_equal(c0, c1):
     # TODO figure out how to compare cast "numbers" reliably.
+    if type(c0) is float:
+        c0 = int(c0)
+    if type(c1) is float:
+        c1 = int(c1)
     return str(c0) == str(c1)
 
 

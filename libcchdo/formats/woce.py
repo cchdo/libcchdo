@@ -321,7 +321,12 @@ def combine(woce_file, sum_file):
         # This is probably a CTD file.
         station = woce_file.globals.get('STNNBR')
         cast = woce_file.globals.get('CASTNO')
-        sum_file_index = sum_file.index(station, cast)
+        try:
+            sum_file_index = sum_file.index(station, cast)
+        except ValueError, e:
+            LOG.error(('The station cast pair (%s, %s) was not found in '
+                       'the summary file.') % (station, cast))
+            raise e
 
         headers = sum_file.get_property_for_columns(lambda c: c.parameter.name)
         values = sum_file.get_property_for_columns(lambda c: c[sum_file_index])
@@ -336,4 +341,43 @@ def combine(woce_file, sum_file):
         woce_file.globals['DEPTH'] = info['DEPTH']
     else:
         # TODO this works differently for bottle files
-        pass
+        station_col = woce_file['STNNBR']
+        cast_col = woce_file['CASTNO']
+
+        def ensure_column(c):
+            try:
+                woce_file[c]
+            except KeyError:
+                woce_file[c] = datafile.Column(c)
+        ensure_column('EXPOCODE')
+        ensure_column('SECT_ID')
+        ensure_column('DATE')
+        ensure_column('TIME')
+        ensure_column('LATITUDE')
+        ensure_column('LONGITUDE')
+        ensure_column('DEPTH')
+
+        for i in range(len(woce_file)):
+            station = station_col[i]
+            cast = cast_col[i]
+            try:
+                sum_file_index = sum_file.index(station, cast)
+            except ValueError, e:
+                LOG.error(('The station cast pair (%s, %s) was not found in '
+                           'the summary file.') % (station, cast))
+                raise e
+
+            headers = sum_file.get_property_for_columns(
+                lambda c: c.parameter.name)
+            values = sum_file.get_property_for_columns(
+                lambda c: c[sum_file_index])
+
+            info = dict(zip(headers,values))
+            woce_file['EXPOCODE'][i] = info['EXPOCODE']
+            woce_file['SECT_ID'][i] = info['SECT_ID']
+            woce_file['DATE'][i] = info['DATE']
+            woce_file['TIME'][i] = info['TIME']
+            woce_file['LATITUDE'][i] = info['LATITUDE']
+            woce_file['LONGITUDE'][i] = info['LONGITUDE']
+            woce_file['DEPTH'][i] = info['DEPTH']
+        woce_file.globals['header'] = ''

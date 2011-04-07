@@ -1,0 +1,34 @@
+#!python
+
+from __future__ import with_statement
+import sys
+
+import libcchdo as L
+import libcchdo.model.datafile
+import libcchdo.formats.woce as woce
+import libcchdo.formats.summary.woce as sumwoce
+import libcchdo.formats.bottle.woce as bottlewoce
+import libcchdo.formats.bottle.exchange as bottleex
+
+
+def main(argv):
+    if len(argv) < 3:
+        print "Usage: %s <bottle WOCE> <SUM WOCE>" % argv[0]
+        return 1
+    
+    bottlefile = L.model.datafile.DataFile()
+    sumfile = L.model.datafile.SummaryFile()
+
+    with open(argv[1], 'r') as in_file:
+        bottlewoce.read(bottlefile, in_file)
+
+    with open(argv[2], 'r') as in_file:
+        sumwoce.read(sumfile, in_file)
+
+    woce.combine(bottlefile, sumfile)
+
+    bottleex.write(bottlefile, sys.stdout)
+
+
+if __name__ == '__main__':
+    sys.exit(main(sys.argv))
