@@ -186,7 +186,7 @@ def write(self, handle):
     var_latitude = nc_file.createVariable('latitude', 'f', ('latitude',))
     var_latitude.long_name = 'latitude'
     var_latitude.units = 'degrees_N'
-    var_latitude.data_min = self['LATITUDE'][0]
+    var_latitude.data_min = float(self['LATITUDE'][0])
     var_latitude.data_max = var_latitude.data_min
     var_latitude.C_format = '%9.4f'
     var_latitude[:] = var_latitude.data_min
@@ -194,7 +194,7 @@ def write(self, handle):
     var_longitude = nc_file.createVariable('longitude', 'f', ('longitude',))
     var_longitude.long_name = 'longitude'
     var_longitude.units = 'degrees_E'
-    var_longitude.data_min = self['LONGITUDE'][0]
+    var_longitude.data_min = float(self['LONGITUDE'][0])
     var_longitude.data_max = var_longitude.data_min
     var_longitude.C_format = '%9.4f'
     var_longitude[:] = var_longitude.data_min
