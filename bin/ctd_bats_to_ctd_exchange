@@ -1,0 +1,28 @@
+#!python
+
+from __future__ import with_statement
+
+import sys
+import os
+
+import libcchdo as L
+import libcchdo.model.datafile
+import libcchdo.formats.ctd.exchange as ctdex
+import libcchdo.formats.ctd.bermuda_atlantic_time_series_study as ctd_bats
+
+
+def main(argv):
+    if len(argv) < 2:
+        print "Usage: %s <ctd bats>" % argv[0]
+        return 1
+    
+    file = L.model.datafile.DataFile()
+    with open(argv[1], 'r') as in_file:
+        ctd_bats.read(file, in_file)
+
+    ctdex.write(file, sys.stdout)
+
+
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv))
