@@ -36,7 +36,8 @@ def read(self, handle):
     """How to read a CTD Bermuda Atlantic Time-Series Study file."""
     comments = []
 
-    columns = ('_DATETIME', 'LATITUDE', 'LONGITUDE', 'CTDPRS', 'CTDTMP', 'CTDSAL', 'CTDOXY', 'FLUOR', )
+    columns = ('_DATETIME', 'LATITUDE', 'LONGITUDE', 'CTDPRS', 'CTDTMP',
+               'CTDSAL', 'CTDOXY', 'FLUOR', )
     units = ('', '', '', 'DBAR', 'DEG C', 'PSU', 'UMOL/KG', 'RFU', )
 
     self.create_columns(columns, units)
@@ -50,12 +51,19 @@ def read(self, handle):
         year = int(year)
 
         start = datetime.datetime(year, 1, 1)
-        seconds_in_year = Decimal(str(_timedelta_to_seconds(datetime.datetime(year + 1, 1, 1) - start))) * Decimal('0.' + frac_year)
-        dt = datetime.datetime(1970, 1, 1) + datetime.timedelta(seconds=float(int(start.strftime('%s')) + seconds_in_year))
+        seconds_in_year = Decimal(
+            str(_timedelta_to_seconds(
+                    datetime.datetime(year + 1, 1, 1) - start))) * \
+            Decimal('0.' + frac_year)
+        dt = datetime.datetime(1970, 1, 1) + \
+            datetime.timedelta(
+                seconds=float(int(start.strftime('%s')) + seconds_in_year))
 
         self['_DATETIME'].append(dt)
         self['LATITUDE'].append(Decimal(parts[2]))
-        self['LONGITUDE'].append(Decimal(parts[3]))
+        # BATS files don't record negative longitude because their study area
+        # is small.
+        self['LONGITUDE'].append(Decimal('-' + parts[3]))
         self['CTDPRS'].append(Decimal(parts[4]))
         self['CTDTMP'].append(Decimal(parts[6]))
         self['CTDSAL'].append(Decimal(parts[7]))
