@@ -10,6 +10,10 @@ from ...algorithms import depth
 from .. import netcdf as nc
 
 
+# List of OceanSITES versions in increasing order
+OCEANSITES_VERSIONS = ('1.1', '1.2', )
+
+
 WOCE_to_OceanSITES_flag = {
     1: 3, # Not calibrated -> Bad data that are potentially
           #                   correctable (re-calibration)
@@ -21,6 +25,9 @@ WOCE_to_OceanSITES_flag = {
     7: 5, # Despiked -> Value changed
     9: 9  # Not sampled -> Missing value
 }
+
+
+OCEANSITES_PREFIX = 'OS'
 
 
 TIMESERIES_INFO = {
@@ -38,7 +45,8 @@ TIMESERIES_INFO = {
         'institution_references': 'http://bats.bios.edu/',
         'contact': 'rodney.johnson@bios.edu',
         'pi_name': 'Rodney Johnson',
-        'id': 'OS_BERMUDA_%s_SOT',
+        'platform_code': 'BERMUDA',
+        'data_codes': 'SOT',
     },
     'HOT': {
         'platform_code': 'HOT',
@@ -55,7 +63,8 @@ TIMESERIES_INFO = {
             'http://hahana.soest.hawaii.edu/hot/hot_jgofs.html',
         'contact': 'santiago@soest.hawaii.edu',
         'pi_name': 'Roger Lukas',
-        'id': 'OS_ALOHA_%s_SOT',
+        'platform_code': 'ALOHA',
+        'data_codes': 'SOT',
     },
 }
 
@@ -116,6 +125,29 @@ VARIABLES_TO_TRANSFER = (
     'contact pi_name').split()
 
 
+def pick_timeseries_or_timeseries_info(timeseries=None, timeseries_info=None):
+    if timeseries:
+        return TIMESERIES_INFO[timeseries]
+    else:
+        return timeseries_info
+
+
+def file_and_timeseries_info_to_id(file, timeseries_info, version='1.2'):
+    assert version in OCEANSITES_VERSIONS
+    platform_code = timeseries_info['platform_code']
+    # the default "identifier" part of the id
+    identifier = '%s%s' % (file.globals['STNNBR'], file.globals['CASTNO'])
+    if version == '1.2':
+        deployment_code = identifier
+        # Refer to nc_file.data_mode below
+        data_mode = 'D'
+        return '_'.join((OCEANSITES_PREFIX, platform_code, deployment_code, data_mode))
+    elif version == '1.1':
+        config_code = identifier
+        data_codes = timeseries_info['data_codes']
+        return '_'.join((OCEANSITES_PREFIX, platform_code, config_code, data_codes))
+
+
 def _WOCE_to_OceanSITES_flag(woce_flag):
     try:
         return WOCE_to_OceanSITES_flag[woce_flag]
@@ -135,7 +167,7 @@ def write(self, handle, timeseries=None, timeseries_info={}, version='1.2'):
     1.1
     1.2
     '''
-    assert version in ('1.1', '1.2')
+    assert version in OCEANSITES_VERSIONS
 
     # netcdf library wants to write its own files.
     tmp = tempfile.NamedTemporaryFile()
@@ -279,11 +311,16 @@ def write(self, handle, timeseries=None, timeseries_info={}, version='1.2'):
 
     for column in self.columns.values():
         try:
-            assert column.parameter.name_netcdf
+            name = column.parameter.name_netcdf
         except AttributeError:
             LOG.warn('No netcdf name for parameter: %s' % column.parameter)
             continue
-        name = column.parameter.name_netcdf
+        try:
+            assert name
+        except AssertionError:
+            LOG.warn('Netcdf name for parameter is not specified: %s' % \
+                     column.parameter)
+            continue
 
         if name in param_to_oceansites.keys():
             name = param_to_oceansites[name]
@@ -328,8 +365,8 @@ def write(self, handle, timeseries=None, timeseries_info={}, version='1.2'):
             localgrav = \
                 depth.grav_ocean_surface_wrt_latitude(
                     self.globals['LATITUDE'])
-            sal_tmp_pres = zip(self.columns['CTDSAL'].values,
-                               self.columns['CTDTMP'].values,
+            sal_tmp_pres = zip(self['CTDSAL'].values,
+                               self['CTDTMP'].values,
                                column.values)
             density_series = [depth.density(*args) for args in sal_tmp_pres]
 
@@ -341,7 +378,7 @@ def write(self, handle, timeseries=None, timeseries_info={}, version='1.2'):
                     ('Calculated using integration of insitu density. '
                      'Sverdrup, et al. 1942')
                 depth_series = depth.depth(
-                    localgrav, values, density_series)
+                    localgrav, self['CTDPRS'].values, density_series)
             except ValueError:
                 LOG.info(('Falling back from depth integration to Unesco '
                           'method.'))
@@ -350,26 +387,24 @@ def write(self, handle, timeseries=None, timeseries_info={}, version='1.2'):
                 depth_series = map(
                     lambda pres: depth.depth_unesco(
                         pres, self.globals['LATITUDE']),
-                    self.columns['CTDPRS'].values)
+                    self['CTDPRS'].values)
 
             var_depth[:] = depth_series
 
     # Write timeseries information, if given
-    if (timeseries and timeseries in TIMESERIES_INFO) or timeseries_info:
-        if timeseries:
-            timeseries_info = TIMESERIES_INFO[timeseries]
+    timeseries_info = pick_timeseries_or_timeseries_info(
+        timeseries, timeseries_info)
+    if timeseries_info:
         nc_file.title = ('%s CTD Timeseries '
                          'ExpoCode=%s Station=%s Cast=%s') % \
             (timeseries_info['platform_code'], self.globals['EXPOCODE'],
              self.globals['STNNBR'], self.globals['CASTNO'])
-        strdate = str(self.globals['DATE']) 
-        isodate = datetime.datetime(int(strdate[0:4]), int(strdate[4:6]),
-                                    int(strdate[6:8]), 0, 0)
-        stringdate = isodate.date().isoformat().replace('-', '')
 
         for var in VARIABLES_TO_TRANSFER:
             nc_file.__setattr__(var, timeseries_info[var])
-        nc_file.id = timeseries_info['id'] % stringdate
+
+        nc_file.id = file_and_timeseries_info_to_id(
+            self, timeseries_info, version)
 
     nc.check_variable_ranges(nc_file)
 
