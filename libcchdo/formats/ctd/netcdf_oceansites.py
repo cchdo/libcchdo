@@ -79,6 +79,7 @@ param_to_oceansites = {
     'temperature': 'TEMP',
     'oxygen1': 'DOXY',
     'salinity': 'PSAL',
+    'fluorescence': 'FLU2',
 }
 
 
@@ -94,6 +95,11 @@ oceansites_variables = {
     # QC_procedure = 5, uncertainty 2.0
     'PRES': {'long': 'sea water pressure', 'std': 'sea_water_pressure',
              'units': 'decibars'},
+    # TODO find out what the units for Fluorescense should be.
+    # Not Real Fluoresence Units. Supposedly is unitless but you know how that
+    # story goes.
+    'FLU2': {'long': 'fluorescense', 'std': 'fluorescense',
+             'units': 'rfu'},
 }
 
 
@@ -102,6 +108,7 @@ oceansites_uncertainty = {
     'PSAL': 0.005,
     'DOXY': float('inf'),
     'PRES': float('inf'),
+    'FLU2': float('inf'),
 }
 
 
@@ -205,7 +212,10 @@ def write(self, handle, timeseries=None, timeseries_info={}, version='1.2'):
     nc_file.geospatial_vertical_min = int(self.globals['DEPTH'])
     nc_file.geospatial_vertical_max = 0
     nc_file.author = 'Shen:Diggs (Scripps)'
-    nc_file.data_assembly_center = 'SIO'
+    if version == '1.1':
+        nc_file.data_assembly_center = 'SIO'
+    elif version == '1.2':
+        nc_file.data_assembly_center = 'CCHDO'
     nc_file.distribution_statement = (
         'Follows CLIVAR (Climate Varibility and Predictability) '
         'standards, cf. http://www.clivar.org/data/data_policy.php. '

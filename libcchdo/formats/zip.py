@@ -12,14 +12,15 @@ class MemZipFile(zipfile.ZipFile):
         return zipfile.ZipFile.__init__(self, self._mem, *args, **kwargs)
 
     def close(self):
-        try:
-            self._mem
-        except AttributeError:
-            return
         return_value = zipfile.ZipFile.close(self)
-        self._handle.write(self._mem.getvalue())
-        self._mem.close()
-        del self._mem
+        try:
+            self._handle.write(self._mem.getvalue())
+            self._mem.close()
+            del self._mem
+        except AttributeError:
+            pass
+        except ValueError:
+            pass
         return return_value
 
 

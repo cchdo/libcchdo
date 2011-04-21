@@ -232,6 +232,11 @@ class Unit(Base):
         return "<Unit('%s', '%s')>" % (self.name.encode('ascii', 'replace'),
                                        self.mnemonic.encode('ascii', 'replace'))
 
+    @classmethod
+    def find_by_name(cls, name):
+        return session().query(Unit).autoflush(False).filter(
+            Unit.name == name).first()
+
 
 S.Index('units_name', Unit.name, unique=True)
 
@@ -291,6 +296,15 @@ class Parameter(Base):
         if other is None:
             return False
         return self.name == other.name
+
+    def is_in_range(self, x):
+        if self.bound_lower is not None:
+            if x < self.bound_lower:
+                return False
+        if self.bound_upper is not None:
+            if x > self.bound_upper:
+                return False
+        return True
 
     def __repr__(self):
         return "<Parameter('%s', '%s', '%s', '%s')>" % (self.name, self.format, self.units, self.aliases)
@@ -476,11 +490,11 @@ def make_contrived_parameter(name, format=None, units=None, bound_lower=None,
 
 
 def find_by_mnemonic(name):
-    parameter = session().query(Parameter).filter(
+    parameter = session().query(Parameter).autoflush(False).filter(
         Parameter.name == name).first()
     if not parameter:
         LOG.debug("Looking through aliases for %s" % name)
-        alias = session().query(ParameterAlias).filter(
+        alias = session().query(ParameterAlias).autoflush(False).filter(
             ParameterAlias.name == name).first()
         if alias:
             parameter = alias.parameter

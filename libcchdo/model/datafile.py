@@ -77,7 +77,7 @@ class Column(object):
         except:
             return -1
 
-    def check_and_replace_parameter(self, file):
+    def check_and_replace_parameter(self, file, convert=True):
         parameter = self.parameter
         std_parameter = std.find_by_mnemonic(parameter.name)
 
@@ -99,6 +99,17 @@ class Column(object):
         expected_units = std_parameter.units.mnemonic \
             if std_parameter and std_parameter.units else None
         from_to = (given_units, expected_units)
+
+        if not convert:
+            self.parameter = std_parameter
+            if parameter.units:
+                units = std.Unit.find_by_name(parameter.units.name)
+                if not units:
+                    units = parameter.units
+                self.parameter.units = units
+            else:
+                self.parameter.units = None
+            return
 
         if given_units and expected_units and \
            given_units != expected_units:
@@ -155,6 +166,10 @@ class File(object):
     def get_property_for_columns(self, property_getter):
         return map(property_getter, self.sorted_columns())
 
+    def column_headers(self):
+        return self.get_property_for_columns(
+            lambda column: column.parameter.mnemonic_woce())
+
     def __getitem__(self, index):
         return self.columns[index]
 
@@ -170,12 +185,15 @@ class File(object):
         except:
             return 0
 
-    def each_column(self, func):
-        for column in self.columns.values():
-            func(column, self)
+    def row(self, i):
+        return [column[i] for column in self.sorted_columns()]
 
-    def check_and_replace_parameters(self):
-        self.each_column(Column.check_and_replace_parameter)
+    def each_column(self, func, *args, **kwargs):
+        for column in self.columns.values():
+            func(column, self, *args, **kwargs)
+
+    def check_and_replace_parameters(self, convert=True):
+        self.each_column(Column.check_and_replace_parameter, convert=convert)
 
 
 def station_equal(s0, s1):
@@ -250,10 +268,6 @@ class DataFile(File):
 
     def expocodes(self):
         return fns.uniquify(self['EXPOCODE'].values)
-
-    def column_headers(self):
-        return self.get_property_for_columns(
-            lambda column: column.parameter.mnemonic_woce())
 
     def formats(self):
         return self.get_property_for_columns(

@@ -32,6 +32,14 @@ def is_global(column):
     return True
 
 
+def _append_to_column(column, value):
+    flag = 2
+    if not column.parameter.is_in_range(value):
+        flag = 9
+        value = None
+    column.append(value, flag)
+
+
 def read(self, handle):
     """How to read a CTD Bermuda Atlantic Time-Series Study file."""
     comments = []
@@ -41,6 +49,7 @@ def read(self, handle):
     units = ('', '', '', 'DBAR', 'DEG C', 'PSU', 'UMOL/KG', 'RFU', )
 
     self.create_columns(columns, units)
+    self.check_and_replace_parameters(convert=False)
 
     for l in handle:
         if l.startswith('%'):
@@ -64,11 +73,12 @@ def read(self, handle):
         # BATS files don't record negative longitude because their study area
         # is small.
         self['LONGITUDE'].append(Decimal('-' + parts[3]))
-        self['CTDPRS'].append(Decimal(parts[4]))
-        self['CTDTMP'].append(Decimal(parts[6]))
-        self['CTDSAL'].append(Decimal(parts[7]))
-        self['CTDOXY'].append(Decimal(parts[8]))
-        self['FLUOR'].append(Decimal(parts[10]))
+
+        _append_to_column(self['CTDPRS'], Decimal(parts[4]))
+        _append_to_column(self['CTDTMP'], Decimal(parts[6]))
+        _append_to_column(self['CTDSAL'], Decimal(parts[7]))
+        _append_to_column(self['CTDOXY'], Decimal(parts[8]))
+        _append_to_column(self['FLUOR'], Decimal(parts[10]))
 
     self.globals['_COMMENTS'] = ';'.join(comments)
     self.globals['DEPTH'] = -999
@@ -94,9 +104,3 @@ def read(self, handle):
     if is_global(self['LONGITUDE']):
         self.globals['LONGITUDE'] = self['LONGITUDE'][0]
         del self['LONGITUDE']
-
-    for column in self.columns.values():
-        for i in range(len(column)):
-            column.flags_woce.append(2)
-
-    self.check_and_replace_parameters()

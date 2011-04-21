@@ -135,18 +135,19 @@ def great_circle_distance(lat_stand, lng_stand, lat_fore, lng_fore):
 
 
 def strftime_iso(dtime):
-    return dtime.isoformat()+'Z'
+    return dtime.isoformat() + 'Z'
 
 
-def equal_with_epsilon(a, b, epsilon=1e-6):
-    delta = abs(a - b)
+def equal_with_epsilon(a, b, epsilon=decimal.Decimal('1e-6')):
+    delta = abs(decimal.Decimal(str(a)) - decimal.Decimal(str(b)))
     return delta < epsilon
 
 
-def out_of_band(value, oob=-999, tolerance=0.1):
+def out_of_band(value, oob=decimal.Decimal(-999),
+                tolerance=decimal.Decimal('0.1')):
     try:
-        number = float(value)
-    except (ValueError):
+        number = decimal.Decimal(str(float(value)))
+    except ValueError:
         return False
     except TypeError:
         return True
