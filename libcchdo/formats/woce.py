@@ -1,7 +1,7 @@
 import datetime
 import re
 import struct
-import decimal
+from decimal import Decimal
 
 
 from .. import LOG
@@ -52,20 +52,20 @@ WATER_SAMPLE_FLAG_DESCRIPTION = ':'.join([':'] + \
 
 def woce_lat_to_dec_lat(lattoks):
     '''Convert a latitude in WOCE format to decimal.'''
-    decimal.getcontext().prec = 3 + len(lattoks)
-    lat = int(lattoks[0]) + decimal.Decimal(lattoks[1]) / decimal.Decimal('60.0')
-    if lattoks[2] != 'N':
-        lat *= -1
-    return lat
+    with fns.IncreasedPrecision(3 + len(lattoks)):
+        lat = int(lattoks[0]) + Decimal(lattoks[1]) / Decimal('60.0')
+        if lattoks[2] != 'N':
+            lat *= -1
+        return lat
 
 
 def woce_lng_to_dec_lng(lngtoks):
     '''Convert a longitude in WOCE format to decimal.'''
-    decimal.getcontext().prec = 4 + len(lngtoks)
-    lng = int(lngtoks[0]) + decimal.Decimal(lngtoks[1]) / decimal.Decimal('60.0')
-    if lngtoks[2] != 'E':
-        lng *= -1
-    return lng
+    with fns.IncreasedPrecision(4 + len(lngtoks)):
+        lng = int(lngtoks[0]) + Decimal(lngtoks[1]) / Decimal('60.0')
+        if lngtoks[2] != 'E':
+            lng *= -1
+        return lng
 
 
 def dec_lat_to_woce_lat(lat):
@@ -188,8 +188,8 @@ def read_data(self, handle, parameters_line, units_line, asterisk_line):
         # Build up the columns for the line
         flag_i = 0
         for j, parameter in enumerate(parameters):
-            datum = float(unpacked[j])
-            if datum is -9.0:
+            datum = Decimal(unpacked[j])
+            if datum == Decimal(-9):
                 datum = None
             woce_flag = None
 

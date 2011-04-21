@@ -7,7 +7,7 @@ polyn = fns.polynomial
 
 
 def _decimalify(l):
-    return map(Decimal, l)
+    return map(fns._decimal, l)
 
 
 def grav_ocean_surface_wrt_latitude(latitude):
@@ -46,6 +46,10 @@ def depth(grav, p, rho):
     num_intervals = len(p)
     assert num_intervals == len(rho), \
            "The number of series intervals must be the same."
+
+    grav = fns._decimal(grav)
+    p = _decimalify(p)
+    rho = _decimalify(rho)
 
     # When calling depth() repeatedly with a two-element
     # series, the first call should be with a one-element series to

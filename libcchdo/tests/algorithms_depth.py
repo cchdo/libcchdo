@@ -1,6 +1,7 @@
 """Test cases for ..algorithms.depth """
 
 from unittest import TestCase
+from decimal import Decimal
 import datetime
 import sys
 
@@ -9,7 +10,7 @@ from ..algorithms import depth
 class TestAlgorithmsDepth(TestCase):
 
     def test_grav_ocean_surface_wrt_latitude(self):
-        self.assertAlmostEqual(9.780318, depth.grav_ocean_surface_wrt_latitude(0))
+        self.assertAlmostEqual(Decimal('9.780318'), depth.grav_ocean_surface_wrt_latitude(0))
 
     def test_depth(self):
         print depth.depth(9.8, [1], [1])

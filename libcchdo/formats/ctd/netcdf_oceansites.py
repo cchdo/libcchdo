@@ -45,7 +45,7 @@ TIMESERIES_INFO = {
         'institution_references': 'http://bats.bios.edu/',
         'contact': 'rodney.johnson@bios.edu',
         'pi_name': 'Rodney Johnson',
-        'platform_code': 'BERMUDA',
+        'os_platform_code': 'BERMUDA',
         'data_codes': 'SOT',
     },
     'HOT': {
@@ -63,7 +63,7 @@ TIMESERIES_INFO = {
             'http://hahana.soest.hawaii.edu/hot/hot_jgofs.html',
         'contact': 'santiago@soest.hawaii.edu',
         'pi_name': 'Roger Lukas',
-        'platform_code': 'ALOHA',
+        'os_platform_code': 'ALOHA',
         'data_codes': 'SOT',
     },
 }
@@ -133,7 +133,7 @@ VARIABLES_TO_TRANSFER = (
 
 
 def pick_timeseries_or_timeseries_info(timeseries=None, timeseries_info=None):
-    if timeseries:
+    if timeseries is not None:
         return TIMESERIES_INFO[timeseries]
     else:
         return timeseries_info
@@ -141,7 +141,7 @@ def pick_timeseries_or_timeseries_info(timeseries=None, timeseries_info=None):
 
 def file_and_timeseries_info_to_id(file, timeseries_info, version='1.2'):
     assert version in OCEANSITES_VERSIONS
-    platform_code = timeseries_info['platform_code']
+    platform_code = timeseries_info.get('os_platform_code', 'UNKNOWN')
     # the default "identifier" part of the id
     identifier = '%s%s' % (file.globals['STNNBR'], file.globals['CASTNO'])
     if version == '1.2':
@@ -151,7 +151,7 @@ def file_and_timeseries_info_to_id(file, timeseries_info, version='1.2'):
         return '_'.join((OCEANSITES_PREFIX, platform_code, deployment_code, data_mode))
     elif version == '1.1':
         config_code = identifier
-        data_codes = timeseries_info['data_codes']
+        data_codes = timeseries_info.get('data_codes', 'D')
         return '_'.join((OCEANSITES_PREFIX, platform_code, config_code, data_codes))
 
 

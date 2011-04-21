@@ -53,6 +53,7 @@ class TestFunctions(unittest.TestCase):
         self.assertTrue(fns.equal_with_epsilon(1, 1 + 1e-7))
         self.assertFalse(fns.equal_with_epsilon(1, 1 + 1e-5))
         self.assertFalse(fns.equal_with_epsilon(1, 1 + 1e-7, 1e-7))
+        print '>>>>>>>>>>>>>>>>>>>>>>>>', fns.equal_with_epsilon(1, 1 + 1e-7, 1e-6)
         self.assertTrue(fns.equal_with_epsilon(1, 1 + 1e-7, 1e-6))
 
     def test_out_of_band(self):

@@ -247,8 +247,8 @@ def write(self, handle):
             parameter.units else UNSPECIFIED_UNITS
         compact_column = filter(None, column)
         if compact_column:
-            var.data_min = min(compact_column)
-            var.data_max = max(compact_column)
+            var.data_min = float(min(compact_column))
+            var.data_max = float(max(compact_column))
         else:
             var.data_min = float('-inf')
             var.data_max = float('inf')

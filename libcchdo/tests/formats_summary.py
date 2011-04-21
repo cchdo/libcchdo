@@ -1,13 +1,15 @@
 import StringIO
+from decimal import Decimal
 import unittest
 
+from ..fns import equal_with_epsilon
 from ..model import datafile
 from ..formats.summary import woce as sumwoce
 from ..formats.summary import hot as sumhot
 
 
-def fp_eq(a, b, epsilon=0.00001):
-  return abs(a-b) < epsilon
+def fp_eq(a, b):
+    return equal_with_epsilon(a, b, 1e-5)
 
 
 class TestSummaryFile(unittest.TestCase):
@@ -46,13 +48,13 @@ EXPOCODE     SECT   STNNBR CASTNO TYPE DATE   TIME  CODE LATITUDE   LONGITUDE   
     self.assertEqual([1424, 1442, 1705], cs['TIME'].values)
     self.assertEqual(['BE', 'BO', 'BE'], cs['_CODE'].values)
 
-    self.assertTrue(fp_eq(-65.81083, cs['LATITUDE'].values[0]))
-    self.assertTrue(fp_eq(-65.81083, cs['LATITUDE'].values[1]))
-    self.assertTrue(fp_eq(-65.76816, cs['LATITUDE'].values[2]))
+    self.assertTrue(fp_eq(Decimal('-65.81083'), cs['LATITUDE'].values[0]))
+    self.assertTrue(fp_eq(Decimal('-65.81083'), cs['LATITUDE'].values[1]))
+    self.assertTrue(fp_eq(Decimal('-65.76816'), cs['LATITUDE'].values[2]))
 
-    self.assertTrue(fp_eq(84.549999, cs['LONGITUDE'].values[0]))
-    self.assertTrue(fp_eq(84.55016, cs['LONGITUDE'].values[1]))
-    self.assertTrue(fp_eq(84.53483, cs['LONGITUDE'].values[2]))
+    self.assertTrue(fp_eq(Decimal('84.549999'), cs['LONGITUDE'].values[0]))
+    self.assertTrue(fp_eq(Decimal('84.55016'), cs['LONGITUDE'].values[1]))
+    self.assertTrue(fp_eq(Decimal('84.53483'), cs['LONGITUDE'].values[2]))
 
     self.assertEqual(['GPS'] * 3, cs['_NAV'].values)
     self.assertEqual([450, 450, 1257], cs['DEPTH'].values)
@@ -76,13 +78,13 @@ EXPOCODE     SECT   STNNBR CASTNO TYPE DATE   TIME  CODE LATITUDE   LONGITUDE   
     self.assertEqual([2334, 1259, 856], cs['TIME'].values)
     self.assertEqual(['BE'] * 3, cs['_CODE'].values)
 
-    self.assertTrue(fp_eq(21.344333333, cs['LATITUDE'].values[0]))
-    self.assertTrue(fp_eq(22.75, cs['LATITUDE'].values[1]))
-    self.assertTrue(fp_eq(22.74950, cs['LATITUDE'].values[2]))
+    self.assertTrue(fp_eq(Decimal('21.344333333'), cs['LATITUDE'].values[0]))
+    self.assertTrue(fp_eq(Decimal('22.75'), cs['LATITUDE'].values[1]))
+    self.assertTrue(fp_eq(Decimal('22.74950'), cs['LATITUDE'].values[2]))
 
-    self.assertTrue(fp_eq(-158.271, cs['LONGITUDE'].values[0]))
-    self.assertTrue(fp_eq(-158.001, cs['LONGITUDE'].values[1]))
-    self.assertTrue(fp_eq(-158.000166, cs['LONGITUDE'].values[2]))
+    self.assertTrue(fp_eq(Decimal('-158.271'), cs['LONGITUDE'].values[0]))
+    self.assertTrue(fp_eq(Decimal('-158.001'), cs['LONGITUDE'].values[1]))
+    self.assertTrue(fp_eq(Decimal('-158.000166'), cs['LONGITUDE'].values[2]))
 
     self.assertEqual(['GPS'] * 3, cs['_NAV'].values)
     self.assertEqual([1503, 4720, 4720], cs['DEPTH'].values)

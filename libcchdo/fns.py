@@ -138,15 +138,19 @@ def strftime_iso(dtime):
     return dtime.isoformat() + 'Z'
 
 
+def _decimal(x):
+    return decimal.Decimal(str(x))
+
+
 def equal_with_epsilon(a, b, epsilon=decimal.Decimal('1e-6')):
-    delta = abs(decimal.Decimal(str(a)) - decimal.Decimal(str(b)))
-    return delta < epsilon
+    delta = abs(_decimal(a) - _decimal(b))
+    return delta < _decimal(epsilon)
 
 
 def out_of_band(value, oob=decimal.Decimal(-999),
                 tolerance=decimal.Decimal('0.1')):
     try:
-        number = decimal.Decimal(str(float(value)))
+        number = _decimal(float(value))
     except ValueError:
         return False
     except TypeError:
@@ -205,11 +209,14 @@ def polynomial(x, coeffs):
 
 class IncreasedPrecision:
 
+    def __init__(self, inc=2):
+        self._inc = inc
+
     def __enter__(self):
-        decimal.getcontext().prec += 2
+        decimal.getcontext().prec += self._inc
 
     def __exit__(self, exc_type, exc_value, traceback):
-        decimal.getcontext().prec -= 2
+        decimal.getcontext().prec -= self._inc
 
 
 def exp(x):
