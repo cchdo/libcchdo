@@ -9,6 +9,10 @@ from .. import fns
 from ..model import datafile
 
 
+COLUMN_WIDTH = 8
+SAFE_COLUMN_WIDTH = COLUMN_WIDTH - 1
+
+
 BOTTLE_FLAGS = {
     1: 'Bottle information unavailable.',
     2: 'No problems noted.',
@@ -133,10 +137,36 @@ def strptime_woce_date_time(woce_date, woce_time):
     return datetime.datetime.combine(d, t)
 
 
-def read_data(self, handle, parameters_line, units_line, asterisk_line):
-    column_width = 8
-    safe_column_width = column_width - 1
+def _bad_column_alignment(parameters):
+    """ Determine by looking at any of the values if any column is mis-aligned.
+        If there is a space anywhere inside a parameter value it is probably
+        the result of a misalignment.
+    """
+    for i, p in enumerate(parameters):
+        space_i = p.find(' ')
+        if space_i > -1:
+            return [i, (i - 1) * COLUMN_WIDTH + space_i]
+    return [-1, -1]
 
+
+def _remove_char_column(i, *lines):
+    return [line[:i] + line[i + 1:] for line in lines]
+
+
+def _remove_char_columns(cols, *lines):
+    for col in cols:
+        lines = _remove_char_column(col, *lines)
+    return lines
+
+
+def _warn_broke_character_column_rule(headername, headers):
+    for header in headers:
+        if len(header) > SAFE_COLUMN_WIDTH:
+            LOG.warn("%s '%s' has too many characters (>%d)." % \
+                     (headername, header, SAFE_COLUMN_WIDTH))
+
+
+def read_data(self, handle, parameters_line, units_line, asterisk_line):
     # num_quality_flags = the number of asterisk-marked columns
     num_quality_flags = len(re.findall('\*{7,8}', asterisk_line))
     num_quality_words = len(parameters_line.split('QUALT'))-1
@@ -145,27 +175,39 @@ def read_data(self, handle, parameters_line, units_line, asterisk_line):
     quality_length = num_quality_words * (max(len('QUALT#'),
                                               num_quality_flags) + 1)
     num_param_columns = int((len(parameters_line) - quality_length) / \
-                             column_width)
+                             COLUMN_WIDTH)
 
     # Unpack the column headers
     unpack_str = '8s' * num_param_columns
-    parameters = fns.strip_all(struct.unpack(unpack_str,
-                                  parameters_line[:num_param_columns*8]))
-    units = fns.strip_all(struct.unpack(unpack_str,
-                                    units_line[:num_param_columns*8]))
-    asterisks = fns.strip_all(struct.unpack(unpack_str,
-                                 asterisk_line[:num_param_columns*8]))
+
+    bad_cols = []
+
+    def unpack_parameters(parameters_line):
+        parameters = fns.strip_all(
+                struct.unpack(unpack_str,
+                              parameters_line[:num_param_columns * 8]))
+        return (parameters, _bad_column_alignment(parameters))
+
+    parameters, start_bad = unpack_parameters(parameters_line)
+    while start_bad[0] > -1:
+        bad_cols.append(start_bad[1])
+        LOG.error('Bad column alignment starting at character %d' % \
+                  start_bad[1])
+        # Attempt recovery by removing that column.
+        parameters_line, units_line, asterisk_line = \
+            _remove_char_column(start_bad[1], parameters_line,
+                                units_line, asterisk_line)
+        parameters, start_bad = unpack_parameters(parameters_line)
+
+    units = fns.strip_all(
+        struct.unpack(unpack_str, units_line[:num_param_columns * 8]))
+    asterisks = fns.strip_all(
+        struct.unpack(unpack_str, asterisk_line[:num_param_columns * 8]))
 
     # Warn if the header lines break 8 character column rules
-    def warn_broke_character_column_rule(headername, headers):
-        for header in headers:
-            if len(header) > safe_column_width:
-                LOG.warn("%s '%s' has too many characters (>%d)." % \
-                         (headername, header, safe_column_width))
-
-    warn_broke_character_column_rule("Parameter", parameters)
-    warn_broke_character_column_rule("Unit", units)
-    warn_broke_character_column_rule("Asterisks", asterisks)
+    _warn_broke_character_column_rule("Parameter", parameters)
+    _warn_broke_character_column_rule("Unit", units)
+    _warn_broke_character_column_rule("Asterisks", asterisks)
 
     # Die if parameters are not unique
     if not parameters == fns.uniquify(parameters):
@@ -180,7 +222,8 @@ def read_data(self, handle, parameters_line, units_line, asterisk_line):
                               num_quality_flags, num_quality_flags)) * \
                   num_quality_words
     for i, line in enumerate(handle):
-        unpacked = struct.unpack(unpack_str, line.rstrip())
+        line = _remove_char_columns(bad_cols, line.rstrip())
+        unpacked = struct.unpack(unpack_str, line)
 
         # QUALT1 takes precedence
         quality_flags = unpacked[-num_quality_words:]
