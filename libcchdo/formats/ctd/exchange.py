@@ -21,9 +21,10 @@ def read(self, handle, retain_order=False):
     if m:
         self.globals['stamp'] = m.group(1)
     else:
-        raise ValueError(('Expected identifier line with stamp '
-                          '(e.g. CTD,YYYYMMDDdivINSwho).\n'
-                          'Instead got: %s') % stampline)
+        LOG.warn(('Expected identifier line with stamp '
+                  '(e.g. CTD,YYYYMMDDdivINSwho).\n'
+                  'Instead got: %s') % stampline)
+
     # Read comments
     l = handle.readline()
     while l and l.startswith('#'):

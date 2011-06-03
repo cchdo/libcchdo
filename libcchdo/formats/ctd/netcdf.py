@@ -23,6 +23,7 @@ NC_CTD_VAR_TO_WOCE_PARAM = {
     'longitude': 'LONGITUDE',
     'latitude': 'LATITUDE',
     'woce_time': 'TIME',
+    'TRANSM': 'XMISS', 
 }
 
 
@@ -52,11 +53,16 @@ def read(self, handle):
     # First pass to create columns
     for name, variable in nc_file.variables.items():
         if name.endswith(nc.QC_SUFFIX):
-            qc_vars[NC_CTD_VAR_TO_WOCE_PARAM[name[:-len(nc.QC_SUFFIX)]]] = variable
+            pname = name[:-len(nc.QC_SUFFIX)]
+            try:
+                qc_vars[NC_CTD_VAR_TO_WOCE_PARAM[pname]] = variable
+            except KeyError:
+                LOG.warn(
+                    'Missing NetCDF to WOCE parameter mapping for %s' % pname)
         elif name == 'sampno' or name == 'btlnbr': #XXX
             continue #XXX
         else:
-            name = NC_CTD_VAR_TO_WOCE_PARAM[name]
+            name = NC_CTD_VAR_TO_WOCE_PARAM.get(name, 'drop')
 
             if name == 'drop':
                 continue
@@ -137,9 +143,6 @@ def write(self, handle):
     tmp = tempfile.NamedTemporaryFile()
     strdate = str(self.globals['DATE'])
     strtime = str(self.globals['TIME'])
-    #isowocedate = datetime.datetime(
-    #        int(strdate[:4]), int(strdate[4:6]), int(strdate[6:]),
-    #        int(strtime[:2]), int(strtime[2:]))
     isowocedate = woce.strptime_woce_date_time(strdate, strtime)
     nc_file = nc.Dataset(tmp.name, 'w', format='NETCDF3_CLASSIC')
 
@@ -162,27 +165,78 @@ def write(self, handle):
     nc_file.DATA_TYPE = 'WOCE CTD'
     nc_file.STATION_NUMBER = self.globals['STNNBR'] or UNKNOWN
     nc_file.CAST_NUMBER = self.globals['CASTNO'] or UNKNOWN
-    nc_file.BOTTOM_DEPTH_METERS = nc.simplest_str(float(self.globals['DEPTH']))
+    nc_file.BOTTOM_DEPTH_METERS = int(self.globals['DEPTH'])
     nc_file.Creation_Time = fns.strftime_iso(datetime.datetime.utcnow())
     nc_file.ORIGINAL_HEADER = self.globals['header']
     nc_file.WOCE_CTD_FLAG_DESCRIPTION = WOCE_CTD_FLAG_DESCRIPTION
 
-    # Coordinate variables
     if 'TIME' not in self.globals:
         raise AttributeError('(XXX) "TIME" not in self.globals; abort')
     else:
         var_time = nc_file.createVariable('time', 'i', ('time', ))
         var_time.long_name = 'time'
         var_time.units = 'minutes since %s' % fns.strftime_iso(nc.EPOCH)
-        var_time.data_min = nc.minutes_since_epoch(isowocedate)
+        var_time.data_min = int(nc.minutes_since_epoch(isowocedate))
         var_time.data_max = var_time.data_min
         var_time.C_format = '%10d'
         var_time[:] = var_time.data_min
 
+    # Create data variables and fill them
+    for column in self.sorted_columns():
+        parameter = column.parameter
+        parameter_name = parameter.mnemonic_woce()
+        if parameter_name in STATIC_PARAMETERS_PER_CAST:
+            continue
+
+        try:
+            pname = parameter.name_netcdf.encode('ascii', 'replace')
+        except AttributeError:
+            LOG.warn('No netcdf name for parameter: %s' % column.parameter)
+            continue
+
+        # XXX HACK
+        if pname == 'oxygen1':
+            pname = 'oxygen'
+
+        var = nc_file.createVariable(pname, 'f8', ('pressure',))
+        var.long_name = pname
+
+        if parameter_name in ('CTDPRS', ):
+            var.positive = 'down'
+
+
+        units = UNSPECIFIED_UNITS
+        if parameter.units:
+            units = parameter.units.name
+            # TODO do some replacing here
+        units = units.encode('ascii', 'replace')
+
+        var.units = units
+        compact_column = filter(None, column)
+        if compact_column:
+            var.data_min = float(min(compact_column))
+            var.data_max = float(max(compact_column))
+        else:
+            var.data_min = float('-inf')
+            var.data_max = float('inf')
+        var.C_format = parameter.format.encode('ascii', 'replace')
+        var.WHPO_Variable_Name = parameter_name
+        var[:] = column.values
+
+        if column.is_flagged_woce():
+            qc_name = str(pname + nc.QC_SUFFIX)
+            vfw = nc_file.createVariable(qc_name, 'i2', ('pressure',))
+            vfw.long_name = qc_name + '_flag'
+            vfw.units = 'woce_flags'
+            vfw.C_format = '%1d'
+            var.OBS_QC_VARIABLE = qc_name
+            vfw[:] = column.flags_woce
+
+    # Coordinate variables
     if 'LATITUDE' not in self.globals:
         raise AttributeError('(XXX) "LATITUDE" not in self.globals; abort')
     else:
-        var_latitude = nc_file.createVariable('latitude', 'f', ('latitude',))
+        var_latitude = nc_file.createVariable('latitude', 'f8', ('latitude',))
         var_latitude.long_name = 'latitude'
         var_latitude.units = 'degrees_N'
         var_latitude.data_min = float(self.globals['LATITUDE'])
@@ -193,7 +247,7 @@ def write(self, handle):
     if 'LONGITUDE' not in self.globals:
         raise AttributeError('(XXX) "LONGITUDE" not in self.globals; abort')
     else:
-        var_longitude = nc_file.createVariable('longitude', 'f', ('longitude',))
+        var_longitude = nc_file.createVariable('longitude', 'f8', ('longitude',))
         var_longitude.long_name = 'longitude'
         var_longitude.units = 'degrees_E'
         var_longitude.data_min = float(self.globals['LONGITUDE'])
@@ -236,33 +290,6 @@ def write(self, handle):
     var_cast.units = UNSPECIFIED_UNITS
     var_cast.C_format = '%s'
     var_cast[:] = nc.simplest_str(self.globals['CASTNO']).ljust(len(var_cast))
-
-    # Create data variables and fill them
-    for param, column in self.columns.iteritems():
-        parameter = column.parameter
-        parameter_name = parameter.mnemonic_woce()
-        if parameter_name in STATIC_PARAMETERS_PER_CAST:
-            continue
-        var = nc_file.createVariable(
-                  parameter.full_name.encode('ascii', 'replace'), 'f8',
-                  ('pressure',))
-        var.long_name = parameter.full_name.encode('ascii', 'replace')
-        var.units = parameter.units.name.encode('ascii', 'replace') if \
-                        parameter.units else UNSPECIFIED_UNITS
-        compact_column = filter(None, column)
-        if compact_column:
-            var.data_min = float(min(compact_column))
-            var.data_max = float(max(compact_column))
-        else:
-            var.data_min = float('-inf')
-            var.data_max = float('inf')
-        var.C_format = parameter.format.encode('ascii', 'replace')
-        var[:] = column.values
-
-        if column.is_flagged_woce():
-            vfw = nc_file.createVariable(parameter.name + nc.QC_SUFFIX, 'i2', ('pressure',))
-            vfw.long_name = str(parameter.name.encode('ascii', 'replace') + nc.QC_SUFFIX)
-            vfw[:] = column.flags_woce
 
     nc_file.close()
     handle.write(tmp.read())

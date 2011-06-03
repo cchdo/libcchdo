@@ -46,7 +46,7 @@ def write(self, handle):
         if cast is None:
             cast = cast_i
             cast_i += 1
-        filename = nc.get_filename(expocode, station, cast)
+        filename = nc.get_filename(expocode, station, cast, extension='ctd')
 
         zip.writestr(filename, temp.getvalue())
         temp.close()

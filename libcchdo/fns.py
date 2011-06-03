@@ -49,6 +49,7 @@ def read_arbitrary(handle, file_type=None):
        The recognition is done by file extension.
        Args:
            handle - a file handle
+           file_type - forces a specific reader to be used
        Returns:
            a DataFile(Collection) or *SummaryFile that matches the file type.
     '''
@@ -57,50 +58,72 @@ def read_arbitrary(handle, file_type=None):
     filename = handle.name
 
     if not file_type:
-        file_type = ''
+        if filename.endswith('.hot.su.txt'):
+            file_type = 'sumhot'
+        elif filename.endswith('su.txt'):
+            file_type = 'sumwoce'
+        elif filename.endswith('hy.txt'):
+            file_type = 'botwoce'
+        elif filename.endswith('hy1.csv'):
+            file_type = 'botex'
+        elif filename.endswith('hy1.nc'):
+            file_type = 'botnc'
+        elif filename.endswith('nc_hyd.zip'):
+            file_type = 'botzipnc'
+        elif filename.endswith('ct1.csv'):
+            file_type = 'ctdex'
+        elif filename.endswith('ct1.zip'):
+            file_type = 'ctdzipex'
+        elif filename.endswith('ctd.nc'):
+            file_type = 'ctdnc'
+        elif filename.endswith('nc_ctd.zip'):
+            file_type = 'ctdzipnc'
+        elif file_type == 'coriolis':
+            file_type = 'coriolis'
+        elif filename.endswith('.sd2'):
+            file_type = 'nodc_sd2'
 
-    if filename.endswith('zip') or file_type.find('zip') > 0: # XXX
+    if file_type.find('zip') > 0:
         datafile = model.datafile.DataFileCollection()
-    elif filename.endswith('su.txt') or file_type.startswith('sum'):
+    elif file_type.startswith('sum'):
         datafile = model.datafile.SummaryFile()
     else:
         datafile = model.datafile.DataFile()
 
-    if filename.endswith('.hot.su.txt') or file_type =='sumhot':
+    if file_type == 'sumhot':
         import formats.summary.hot
         formats.summary.hot.read(datafile, handle)
-    elif filename.endswith('su.txt') or file_type == 'sumwoce':
+    elif file_type == 'sumwoce':
         import formats.summary.woce
         formats.summary.woce.read(datafile, handle)
-    elif filename.endswith('hy.txt') or file_type == 'botwoce':
+    elif file_type == 'botwoce':
         import formats.bottle.woce
         formats.bottle.woce.read(datafile, handle)
-    elif filename.endswith('hy1.csv') or file_type == 'botex':
+    elif file_type == 'botex':
         import formats.bottle.exchange
         formats.bottle.exchange.read(datafile, handle)
-    elif filename.endswith('hy1.nc') or file_type == 'botnc':
+    elif file_type == 'botnc':
         import formats.bottle.netcdf
         formats.bottle.netcdf.read(datafile, handle)
-    elif filename.endswith('nc_hyd.zip') or file_type == 'botzipnc':
+    elif file_type == 'botzipnc':
         import formats.bottle.zip.netcdf
         formats.bottle.zip.netcdf.read(datafile, handle)
-    elif filename.endswith('ct1.csv') or file_type == 'ctdex':
+    elif file_type == 'ctdex':
         import formats.ctd.exchange
         formats.ctd.exchange.read(datafile, handle)
-    elif filename.endswith('ct1.zip') or file_type == 'ctdzipex':
+    elif file_type == 'ctdzipex':
         import formats.ctd.zip.exchange
         formats.ctd.zip.exchange.read(datafile, handle)
-    elif filename.endswith('ctd.nc') or file_type == 'ctdnc':
+    elif file_type == 'ctdnc':
         import formats.ctd.netcdf
         formats.ctd.netcdf.read(datafile, handle)
-    elif filename.endswith('nc_ctd.zip') or file_type == 'ctdzipnc':
+    elif file_type == 'ctdzipnc':
         import formats.ctd.zip.netcdf
         formats.ctd.zip.netcdf.read(datafile, handle)
     elif file_type == 'coriolis':
         import formats.coriolis
         formats.coriolis.read(datafile, handle)
-    elif filename.endswith('.sd2') or file_type == 'nodc_sd2' or \
-         file_type == 'sd2':
+    elif file_type == 'nodc_sd2' or file_type == 'sd2':
         import formats.nodc_sd2
         formats.nodc_sd2.read(datafile, handle)
     else:
