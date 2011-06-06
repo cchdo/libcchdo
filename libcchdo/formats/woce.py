@@ -56,20 +56,22 @@ WATER_SAMPLE_FLAG_DESCRIPTION = ':'.join([':'] + \
 
 def woce_lat_to_dec_lat(lattoks):
     '''Convert a latitude in WOCE format to decimal.'''
-    with fns.IncreasedPrecision(3 + len(lattoks)):
+    precision = 3 + len(lattoks)
+    with fns.IncreasedPrecision(precision):
         lat = int(lattoks[0]) + Decimal(lattoks[1]) / Decimal('60.0')
         if lattoks[2] != 'N':
             lat *= -1
-        return lat
+        return lat.quantize(Decimal(10) ** -precision)
 
 
 def woce_lng_to_dec_lng(lngtoks):
     '''Convert a longitude in WOCE format to decimal.'''
-    with fns.IncreasedPrecision(4 + len(lngtoks)):
+    precision = 4 + len(lngtoks)
+    with fns.IncreasedPrecision(precision):
         lng = int(lngtoks[0]) + Decimal(lngtoks[1]) / Decimal('60.0')
         if lngtoks[2] != 'E':
             lng *= -1
-        return lng
+        return lng.quantize(Decimal(10) ** -precision)
 
 
 def dec_lat_to_woce_lat(lat):
@@ -222,7 +224,7 @@ def read_data(self, handle, parameters_line, units_line, asterisk_line):
                               num_quality_flags, num_quality_flags)) * \
                   num_quality_words
     for i, line in enumerate(handle):
-        line = _remove_char_columns(bad_cols, line.rstrip())
+        line = _remove_char_columns(bad_cols, line.rstrip())[0]
         unpacked = struct.unpack(unpack_str, line)
 
         # QUALT1 takes precedence

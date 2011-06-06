@@ -11,7 +11,7 @@ def read(self, handle):
     # Get the stamp
     stamp = re.compile(
         ('EXPOCODE\s*([\w/]+)\s*WHP.?IDS?\s*([\w/]+(,[\w/]+)?)\s*'
-         'DATE\s*(\d{6})'),
+         'DATE\s*(\d{6})(?:\s*1)?'),
         re.IGNORECASE)
     m = stamp.match(handle.readline())
     if m:
