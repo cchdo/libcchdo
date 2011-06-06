@@ -206,6 +206,10 @@ def read_data(self, handle, parameters_line, units_line, asterisk_line):
     asterisks = fns.strip_all(
         struct.unpack(unpack_str, asterisk_line[:num_param_columns * 8]))
 
+    LOG.debug(parameters)
+    LOG.debug(units)
+    LOG.debug(asterisks)
+
     # Warn if the header lines break 8 character column rules
     _warn_broke_character_column_rule("Parameter", parameters)
     _warn_broke_character_column_rule("Unit", units)
@@ -225,7 +229,15 @@ def read_data(self, handle, parameters_line, units_line, asterisk_line):
                   num_quality_words
     for i, line in enumerate(handle):
         line = _remove_char_columns(bad_cols, line.rstrip())[0]
-        unpacked = struct.unpack(unpack_str, line)
+        if not line:
+            raise ValueError(('Empty lines are not allowed in the data section '
+                              'of a WOCE file'))
+        try:
+            unpacked = struct.unpack(unpack_str, line)
+        except struct.error, e:
+            LOG.warn(('Record does not have expected length.\nCheck spacing '
+                      'between columns and columns and quality flags'))
+            raise e
 
         # QUALT1 takes precedence
         quality_flags = unpacked[-num_quality_words:]
