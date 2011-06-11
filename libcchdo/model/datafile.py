@@ -370,6 +370,38 @@ class DataFileCollection(object):
     def append(self, x):
         self.files.append(x)
 
+    def to_data_file(self):
+        df = DataFile()
+        length = 0
+        for file in self.files:
+            num_rows = len(file)
+            for row in range(num_rows):
+                rowi = length + row
+                # Insert globals
+                for g, v in file.globals.items():
+                    try:
+                        df[g]
+                    except KeyError:
+                        df[g] = Column(g)
+                    df[g].set(rowi, v)
+                for c in file.sorted_columns():
+                    mnemonic = c.parameter.mnemonic_woce()
+                    try:
+                        df[mnemonic]
+                    except KeyError:
+                        df[mnemonic] = Column(c.parameter)
+                    try:
+                        flag_woce = c.flags_woce[row]
+                    except IndexError:
+                        flag_woce = None
+                    try:
+                        flag_igoss = c.flags_igoss[row]
+                    except IndexError:
+                        flag_igoss = None
+                    df[mnemonic].set(rowi, c[row], flag_woce, flag_igoss)
+            length += num_rows
+        return df
+
     def to_dict(self):
         d = {'files': []}
         for file in self.files:

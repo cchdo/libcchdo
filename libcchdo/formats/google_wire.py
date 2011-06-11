@@ -2,6 +2,7 @@ import datetime
 
 from .. import LOG
 from .. import fns
+from ..model.datafile import DataFileCollection
 
 
 def _column_type(col, obj):
@@ -75,7 +76,7 @@ def _raw_to_str(raw, column):
 
 def _wire_row(self, i, global_values, column_headers):
     raw_values = global_values + \
-                 [self[hdr][i] for hdr in column_headers]
+                 [_getter(self, hdr, i) for hdr in column_headers]
 
     row_values = ['{v:%s}' % _raw_to_str(raw, self[hdr]) \
                   for raw in _raw_values(self, i,
@@ -105,6 +106,8 @@ def write(self, handle, json=False):
            This is different from a JSON object which is returned if
            json is True.
     """
+    if type(self) == DataFileCollection:
+        self = self.to_data_file()
     global_headers = sorted(self.globals.keys())
     column_headers = []
     for column in self.sorted_columns():
