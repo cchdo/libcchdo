@@ -160,7 +160,8 @@ def depth_unesco(pres, lat):
                 latitude=30 deg above
       for standard ocean: T=0 deg celsius; S=35 (PSS-78)
     """
-
+    if not pres or not lat:
+        return None
     x = fns.sin(lat / Decimal('57.29578')) ** Decimal(2)
     gr = Decimal('9.780318') * \
         (Decimal(1) + (Decimal('5.2788e-3') + Decimal('2.36e-5') * x) * x) + \
