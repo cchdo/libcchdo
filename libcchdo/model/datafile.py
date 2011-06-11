@@ -383,6 +383,7 @@ class DataFileCollection(object):
                         df[g]
                     except KeyError:
                         df[g] = Column(g)
+                        df[g].check_and_replace_parameter(df)
                     df[g].set(rowi, v)
                 for c in file.sorted_columns():
                     mnemonic = c.parameter.mnemonic_woce()

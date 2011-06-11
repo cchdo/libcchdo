@@ -1,4 +1,5 @@
 import datetime
+import decimal
 
 from .. import LOG
 from .. import fns
@@ -17,14 +18,18 @@ def _column_type(col, obj):
         return 'number'
 
 
-def _getter(self, hdr, i):
+def _get_values(self, hdr):
     if hdr.endswith('_FLAG_W') or hdr.endswith('_FLAG_I'):
         param = hdr[:hdr.find('_FLAG')]
         if hdr.endswith('W'):
-            return self[param].flags_woce[i]
+            return self[param].flags_woce
         else:
-            return self[param].flags_igoss[i]
-    return self[hdr][i]
+            return self[param].flags_igoss
+    return self[hdr]
+
+
+def _getter(self, hdr, i):
+    return _get_values(self, hdr)[i]
 
 
 def _raw_values(self, i, global_values, column_headers):
@@ -53,7 +58,9 @@ def _json(self, handle, column_headers, columns, global_values):
                 nums = (','.join(['%d'] * 5)) % \
                        (o.year, o.month, o.day, o.hour, o.minute)
                 return 'Date(%s)' % nums
-            return JSONEncoder.default(self, o)
+            if isinstance(o, decimal.Decimal):
+                return str(o)
+            return json.JSONEncoder.default(self, o)
 
     json.dump(wire_obj, handle, allow_nan=False, separators=(',', ':'),
               cls=serializer)
@@ -78,7 +85,7 @@ def _wire_row(self, i, global_values, column_headers):
     raw_values = global_values + \
                  [_getter(self, hdr, i) for hdr in column_headers]
 
-    row_values = ['{v:%s}' % _raw_to_str(raw, self[hdr]) \
+    row_values = ['{v:%s}' % _raw_to_str(raw, _get_values(self, hdr)) \
                   for raw in _raw_values(self, i,
                                          global_values, column_headers)]
     return '{c:[%s]}' % ','.join(row_values)
