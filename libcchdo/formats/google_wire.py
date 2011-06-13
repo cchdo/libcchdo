@@ -59,7 +59,7 @@ def _json(self, handle, column_headers, columns, global_values):
                        (o.year, o.month, o.day, o.hour, o.minute)
                 return 'Date(%s)' % nums
             if isinstance(o, decimal.Decimal):
-                return str(o)
+                return float(o)
             return json.JSONEncoder.default(self, o)
 
     json.dump(wire_obj, handle, allow_nan=False, separators=(',', ':'),
