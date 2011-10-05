@@ -164,6 +164,14 @@ def _WOCE_to_OceanSITES_flag(woce_flag):
         return 6
 
 
+def _fallback_depth_unesco(lat, preses, var_depth):
+    LOG.info(('Falling back from depth integration to Unesco '
+              'method.'))
+    var_depth.comment = \
+        'Calculated using Unesco 1983 Saunders and Fofonoff method.'
+    return map(lambda pres: depth.depth_unesco(pres, lat), preses)
+
+
 #def read(self, handle): TODO
 #    '''How to read a CTD NetCDF OceanSITES file.'''
 
@@ -390,14 +398,11 @@ def write(self, handle, timeseries=None, timeseries_info={}, version='1.2'):
                 depth_series = depth.depth(
                     localgrav, self['CTDPRS'].values, density_series)
             except ValueError:
-                LOG.info(('Falling back from depth integration to Unesco '
-                          'method.'))
-                var_depth.comment = \
-                    'Calculated using Unesco 1983 Saunders and Fofonoff method.'
-                depth_series = map(
-                    lambda pres: depth.depth_unesco(
-                        pres, self.globals['LATITUDE']),
-                    self['CTDPRS'].values)
+                depth_series = _fallback_depth_unesco(
+                    self.globals['LATITUDE'], self['CTDPRS'].values, var_depth)
+            except IndexError:
+                depth_series = _fallback_depth_unesco(
+                    self.globals['LATITUDE'], self['CTDPRS'].values, var_depth)
 
             var_depth[:] = depth_series
 

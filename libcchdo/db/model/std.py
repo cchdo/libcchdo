@@ -26,12 +26,15 @@ def _populate_library_database_parameters():
     std_session.commit()
     std_session.close()
 
+
 def _ensure_database_parameters_exist():
     """Convert the legacy parameters into std parameters if there are no stored
        parameters.
     """
     std_session = session()
 
+    print std_session
+    print Parameter
     if not std_session.query(Parameter).count():
         _populate_library_database_parameters()
 
@@ -63,7 +66,10 @@ def ensure_database_cache():
 
 @memoize
 def session():
-    return connect.session(connect.cchdo_data())
+    session = connect.session(connect.cchdo_data())
+    if not session:
+        raise ValueError("Unable to connect to local cache database cchdo_data")
+    return session
 
 
 def create_all():
@@ -504,7 +510,9 @@ def find_by_mnemonic(name):
 
 
 def _post_import(module):
-    ensure_database_cache()
+    from ... import check_cache
+    if check_cache:
+        ensure_database_cache()
     return module
 
 

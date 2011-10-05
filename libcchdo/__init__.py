@@ -33,6 +33,10 @@ import __builtin__
 __version__ = "0.6"
 
 
+# Database cache for parameters will be ensured
+check_cache = True
+
+
 class memoize(object):
     """Memoization decorator class"""
 

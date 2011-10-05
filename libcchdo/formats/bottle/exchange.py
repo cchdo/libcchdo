@@ -177,7 +177,7 @@ def write(self, handle):
                 if c[i] is not None:
                     values.append(f % c[i])
                 else:
-                    values.append(f % -999.0)
+                    values.append(f % woce.FILL_VALUE)
             except Exception, e:
                 LOG.warn('Arguments at %d:' % i)
                 LOG.warn('\t%s and %s' % (f, c[i]))

@@ -1,4 +1,5 @@
 from ...model import datafile
+from .. import woce
 
 
 def read(meta, filename):
@@ -115,7 +116,7 @@ def read(meta, filename):
                 if not param:
                     continue
                 if not datum or datum == '':
-                    datafile.columns[param].values.append(-999.0)
+                    datafile.columns[param].values.append(woce.FILL_VALUE)
                 else:
                     datafile.columns[param].values.append(float(datum))
 

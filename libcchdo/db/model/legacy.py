@@ -3,6 +3,7 @@ import sys
 import sqlalchemy as S
 import sqlalchemy.orm
 import sqlalchemy.ext.declarative
+from geoalchemy import GeometryColumn, LineString
 
 from ... import memoize
 from ... import LOG
@@ -83,6 +84,27 @@ OVERRIDE_PARAMETERS = {
 }
 
 
+class BottleDB(Base):
+    __tablename__ = 'bottle_dbs'
+
+    id = S.Column(S.Integer, autoincrement=True, primary_key=True, nullable=False)
+    ExpoCode = S.Column(S.String)
+    Parameters = S.Column(S.String)
+    Parameter_Persistance = S.Column(S.String)
+    Bottle_Code = S.Column(S.String)
+    Location = S.Column(S.String)
+    Entries = S.Column(S.Integer)
+    Stations = S.Column(S.Integer)
+
+
+class Codes(Base):
+    """ Codes used by CruiseParameterInfos """
+    __tablename__ = 'codes'
+
+    Code = S.Column(S.Integer, primary_key=True)
+    Status = S.Column(S.String, primary_key=True)
+
+
 # Initialize parameter display orders
 
 
@@ -93,8 +115,9 @@ class ParameterGroup(Base):
     group = S.Column(S.String)
     parameters = S.Column(S.String)
 
-    def __init__(self):
-        pass
+    @property
+    def ordered_parameters(self):
+        return _mysql_parameter_order_to_array(self.parameters)
 
 
 def _mysql_parameter_order_to_array(order):
@@ -176,6 +199,90 @@ class Parameter(Base):
                 parameter_name)
 
 
+class User(Base):
+    __tablename__ = 'users'
+
+    id = S.Column(S.Integer, primary_key=True)
+    username = S.Column(S.String)
+    password_salt = S.Column(S.String)
+    password_hash = S.Column(S.String)
+
+
+class ArgoFile(Base):
+    __tablename__ = 'argo_files'
+
+    id = S.Column(S.Integer(11), primary_key=True)
+    user_id = S.Column(S.ForeignKey('users.id'))
+    expocode = S.Column('ExpoCode', S.String)
+    description = S.Column(S.String)
+    display = S.Column(S.Boolean)
+    size = S.Column(S.Integer)
+    filename = S.Column(S.String)
+    content_type = S.Column(S.Integer)
+    created_at = S.Column(S.DateTime)
+
+    user = S.orm.relation(User)
+
+
+class ArgoDownload(Base):
+    __tablename__ = 'argo_downloads'
+
+    file_id = S.Column(S.ForeignKey('argo_files.id'), primary_key=True)
+    created_at = S.Column(S.TIMESTAMP, primary_key=True)
+    ip = S.Column(S.String, primary_key=True)
+
+    file = S.orm.relation(ArgoFile, backref='downloads')
+
+
+class ContactsCruise(Base):
+    __tablename__ = 'contacts_cruises'
+
+    cruise_id = S.Column(S.Integer, S.ForeignKey('cruises.id'), primary_key=True)
+    contact_id = S.Column(S.Integer, S.ForeignKey('contacts.id'), primary_key=True)
+    function = S.Column(S.String)
+
+    contact = S.orm.relationship('Contact', backref='contacts_cruises')
+
+
+class CollectionsCruise(Base):
+    __tablename__ = 'collections_cruises'
+
+    cruise_id = S.Column(S.Integer, S.ForeignKey('cruises.id'), primary_key=True)
+    collection_id = S.Column(S.Integer, S.ForeignKey('collections.id'), primary_key=True)
+
+    collection = S.orm.relationship('Collection', backref='collections_cruises')
+
+
+
+class TrackLine(Base):
+    __tablename__ = 'track_lines'
+
+    id = S.Column(S.Integer(11), primary_key=True)
+    ExpoCode = S.Column(S.String)
+    Track = GeometryColumn(LineString(2))
+    Basins = S.Column(S.String)
+
+
+class Cruise(Base):
+    __tablename__ = 'cruises'
+
+    id = S.Column(S.Integer(11), primary_key=True)
+    ExpoCode = S.Column(S.String)
+    Line = S.Column(S.String)
+    Country = S.Column(S.String)
+    Chief_Scientist = S.Column(S.String)
+    Begin_Date = S.Column(S.Date)
+    EndDate = S.Column(S.Date)
+    Ship_Name = S.Column(S.String)
+    Alias = S.Column(S.String)
+    Group = S.Column(S.String)
+    Program = S.Column(S.String)
+    link = S.Column(S.String)
+
+    contacts_cruises = S.orm.relationship('ContactsCruise', backref='cruise')
+    collections_cruises = S.orm.relationship('CollectionsCruise', backref='cruise')
+
+
 class Contact(Base):
     __tablename__ = 'contacts'
 
@@ -189,8 +296,41 @@ class Contact(Base):
     email = S.Column(S.String)
     title = S.Column(S.String)
 
-    def __init__(self):
-        pass
+
+class Event(Base):
+    __tablename__ = 'events'
+
+    ID = S.Column(S.Integer(255), primary_key=True)
+    ExpoCode = S.Column(S.String)
+    First_Name = S.Column(S.String)
+    LastName = S.Column(S.String)
+    Data_Type = S.Column(S.String)
+    Action = S.Column(S.String)
+    Date_Entered = S.Column(S.Date)
+    Summary = S.Column(S.String)
+    Note = S.Column(S.String)
+
+
+class Document(Base):
+    __tablename__ = 'documents'
+
+    id = S.Column(S.Integer, primary_key=True)
+    Size = S.Column(S.String)
+    FileType = S.Column(S.String)
+    FileName = S.Column(S.String)
+    ExpoCode = S.Column(S.String)
+    Files = S.Column(S.String)
+    LastModified = S.Column(S.DateTime)
+    Modified = S.Column(S.String)
+    Stamp = S.Column(S.String)
+    Preliminary = S.Column(S.Integer)
+
+
+class Collection(Base):
+    __tablename__ = 'collections'
+
+    id = S.Column(S.Integer(11), primary_key=True)
+    Name = S.Column(S.String)
 
 
 class ParameterStatus(Base):
@@ -212,6 +352,124 @@ class ParameterStatus(Base):
         self.status = status
         if pi:
             self.pi = pi
+
+
+class CruiseParameterInfo(Base):
+    __tablename__ = 'parameters'
+
+    _PARAMETERS = [
+    'THETA', 'SILCAT', 'SALNTY', 'PHSPHT', 'OXYGEN', 'NO2+NO3', 'HELIUM',
+    'DELC14', 'CTDTMP', 'CTDSAL', 'CTDPRS', 'CFC113', 'CFC-12', 'CFC-11',
+    'CCL4', 'TCARBN', 'REVTMP', 'PCO2', 'NITRIT', 'NITRAT', 'CTDRAW', 'ALKALI',
+    'O18O16', 'MCHFRM', 'DELHE3', 'CTDOXY', 'REVPRS', 'PH', 'DELC13', 'PPHYTN',
+    'CHLORA', 'CH4', 'AZOTE', 'ARGON', 'NEON', 'PCO2TMP', 'IODIDE', 'IODATE',
+    'NH4', 'RA-228', 'RA-226', 'KR-85', 'POC', 'PON', 'TDN', 'DOC', 'AR-39',
+    'BACT', 'ARAB', 'MAN', 'BRDU', 'RHAM', 'GLU', 'DCNS', 'FUC', 'PRO', 'PEUK',
+    'SYN', 'BTLNBR', 'AOU', 'TOC', 'CASTNO', 'DEPTH', 'Halocarbons', 'I-129',
+    'BARIUM', 'DON', 'SF6', 'NI', 'CU', 'CALCIUM', 'PHSPER', 'NTRIER', 'NTRAER',
+    'DELHE4', 'N2O', 'DMS', 'TRITUM', 'PHTEMP', ]
+
+    id = S.Column(S.Integer(11), primary_key=True)
+    ExpoCode = S.Column(S.String)
+
+
+for cpi in CruiseParameterInfo._PARAMETERS:
+    setattr(CruiseParameterInfo, cpi, S.Column(S.String))
+    setattr(CruiseParameterInfo, cpi + '_PI', S.Column(S.String))
+    setattr(CruiseParameterInfo, cpi + '_Date', S.Column(S.String))
+
+
+class QueueFile(Base):
+    __tablename__ = 'queue_files'
+
+    id = S.Column(S.Integer(11), primary_key=True)
+    Name = S.Column(S.String)
+    date_received = S.Column('DateRecieved', S.Date)
+    date_merged = S.Column('DateMerged', S.Date)
+    expocode = S.Column('ExpoCode', S.String)
+    merged = S.Column('Merged', S.Integer)
+    contact = S.Column('Contact', S.String)
+    processed_input = S.Column('ProcessedInput', S.String)
+    notes = S.Column('Notes', S.String)
+    unprocessed_input = S.Column('UnprocessedInput', S.String)
+    parameters = S.Column('Parameters', S.String)
+    action = S.Column('Action', S.String)
+    cchdo_contact = S.Column('CCHDOContact', S.String)
+    merge_notes = S.Column(S.String)
+    hidden = S.Column(S.Integer)
+    documentation = S.Column(S.Integer)
+
+
+class Submission(Base):
+    __tablename__ = 'submissions'
+
+    id = S.Column(S.Integer(11), primary_key=True)
+    name = S.Column(S.String)
+    institute = S.Column(S.String)
+    country = S.Column('Country', S.String)
+    email = S.Column(S.String)
+    public = S.Column(S.String)
+    expocode = S.Column('ExpoCode', S.String)
+    ship_name = S.Column('Ship_Name', S.String)
+    line = S.Column('Line', S.String)
+    cruise_date = S.Column(S.Date)
+    action = S.Column(S.String)
+    notes = S.Column(S.String)
+    file = S.Column(S.String)
+    assigned = S.Column(S.Integer)
+    assimilated = S.Column(S.Integer)
+    submission_date = S.Column(S.Date)
+    ip = S.Column(S.String)
+    user_agent = S.Column(S.String)
+
+
+class OldSubmission(Base):
+    __tablename__ = 'old_submissions'
+
+    id = S.Column(S.Integer(11), primary_key=True)
+    Date = S.Column(S.Date)
+    Stamp = S.Column(S.String)
+    Name = S.Column(S.String)
+    Line = S.Column(S.String)
+    Filename = S.Column(S.String)
+    Filetype = S.Column(S.String)
+    Location = S.Column(S.String)
+    Folder = S.Column(S.String)
+    created_at = S.Column(S.DateTime)
+    updated_at = S.Column(S.DateTime)
+
+
+class SpatialGroup(Base):
+    __tablename__ = 'spatial_groups'
+
+    id = S.Column(S.Integer, primary_key=True)
+    area = S.Column(S.String)
+    expocode = S.Column('ExpoCode', S.String)
+
+    atlantic = S.Column(S.types.BINARY)
+    arctic = S.Column(S.types.BINARY)
+    pacific = S.Column(S.types.BINARY)
+    indian = S.Column(S.types.BINARY)
+    southern = S.Column(S.types.BINARY)
+
+
+class Internal(Base):
+    __tablename__ = 'internal'
+
+    Line = S.Column(S.String, primary_key=True)
+    File = S.Column(S.String, primary_key=True)
+    expocode = S.Column('ExpoCode', S.String, primary_key=True)
+    Basin = S.Column(S.String, primary_key=True)
+
+
+class UnusedTrack(Base):
+    __tablename__ = 'unused_tracks'
+
+    id = S.Column(S.Integer(11), primary_key=True)
+    expocode = S.Column('ExpoCode', S.String)
+    filename = S.Column('FileName', S.String)
+    Basin = S.Column(S.String)
+    Track = S.Column(S.String)
 
 
 def find_parameter(name):

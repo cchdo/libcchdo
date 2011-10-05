@@ -81,7 +81,7 @@ def read(self, handle):
         _append_to_column(self['FLUOR'], Decimal(parts[10]))
 
     self.globals['_COMMENTS'] = ';'.join(comments)
-    self.globals['DEPTH'] = -999
+    self.globals['DEPTH'] = woce.FILL_VALUE
     self.globals['SECT_ID'] = 'ARS20'
 
     type_id, cruise_id, cast_id = _idparts(handle.name)

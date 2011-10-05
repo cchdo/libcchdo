@@ -9,6 +9,9 @@ from .. import fns
 from ..model import datafile
 
 
+# Where no data is known
+FILL_VALUE = -999.0
+
 COLUMN_WIDTH = 8
 SAFE_COLUMN_WIDTH = COLUMN_WIDTH - 1
 

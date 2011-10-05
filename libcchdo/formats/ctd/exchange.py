@@ -6,6 +6,7 @@ from ... import LOG
 from ... import fns
 from ... import config
 from .. import pre_write
+from .. import woce
 
 
 REQUIRED_HEADERS = ('EXPOCODE', 'SECT_ID', 'STNNBR', 'CASTNO', 'DATE',
@@ -170,7 +171,7 @@ def write(self, handle):
                         if exponent > -1 and exponent > parts[1]:
                             fmt = '%%%d.%df' % (parts[0], exponent)
             try:
-                string = c.parameter.format % (c[i] if c[i] else -999.0)
+                string = c.parameter.format % (c[i] if c[i] else woce.FILL_VALUE)
             except TypeError:
                 print type(c[i]), c[i]
                 raise

@@ -141,8 +141,8 @@ def write(self, handle):
     STRLEN = 40
 
     tmp = tempfile.NamedTemporaryFile()
-    strdate = str(self.globals['DATE'])
-    strtime = str(self.globals['TIME'])
+    strdate = str(self.globals.get('DATE', UNKNOWN))
+    strtime = str(self.globals.get('TIME', UNKNOWN))
     isowocedate = woce.strptime_woce_date_time(strdate, strtime)
     nc_file = nc.Dataset(tmp.name, 'w', format='NETCDF3_CLASSIC')
 
@@ -155,19 +155,16 @@ def write(self, handle):
     makeDim('string_dimension', STRLEN)
 
     # Define dataset attributes
-    nc_file.EXPOCODE = self.globals['EXPOCODE']
+    nc_file.EXPOCODE = self.globals.get('EXPOCODE', UNKNOWN)
     nc_file.Conventions = 'COARDS/WOCE'
     nc_file.WOCE_VERSION = '3.0'
-    try:
-        nc_file.WOCE_ID = self.globals['SECT_ID']
-    except KeyError:
-        nc_file.WOCE_ID = UNKNOWN
+    nc_file.WOCE_ID = self.globals.get('SECT_ID', UNKNOWN)
     nc_file.DATA_TYPE = 'WOCE CTD'
-    nc_file.STATION_NUMBER = self.globals['STNNBR'] or UNKNOWN
-    nc_file.CAST_NUMBER = self.globals['CASTNO'] or UNKNOWN
-    nc_file.BOTTOM_DEPTH_METERS = int(self.globals['DEPTH'])
+    nc_file.STATION_NUMBER = self.globals.get('STNNBR', UNKNOWN)
+    nc_file.CAST_NUMBER = self.globals.get('CASTNO', UNKNOWN)
+    nc_file.BOTTOM_DEPTH_METERS = int(self.globals.get('DEPTH', woce.FILL_VALUE))
     nc_file.Creation_Time = fns.strftime_iso(datetime.datetime.utcnow())
-    nc_file.ORIGINAL_HEADER = self.globals['header']
+    nc_file.ORIGINAL_HEADER = self.globals.get('header', '')
     nc_file.WOCE_CTD_FLAG_DESCRIPTION = WOCE_CTD_FLAG_DESCRIPTION
 
     if 'TIME' not in self.globals:
