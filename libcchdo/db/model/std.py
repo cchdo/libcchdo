@@ -33,8 +33,6 @@ def _ensure_database_parameters_exist():
     """
     std_session = session()
 
-    print std_session
-    print Parameter
     if not std_session.query(Parameter).count():
         _populate_library_database_parameters()
 
