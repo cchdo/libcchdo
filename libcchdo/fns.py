@@ -44,11 +44,10 @@ def strip_all(list):
     return map(lambda x: x.strip(), list)
 
 
-def guess_file_type(handle, file_type=None):
+def guess_file_type(filename, file_type=None):
     if file_type is not None:
         return file_type
 
-    filename = handle.name
     if filename.endswith('.hot.su.txt'):
         return 'sumhot'
     if filename.endswith('su.txt'):
@@ -73,6 +72,7 @@ def guess_file_type(handle, file_type=None):
       return 'coriolis'
     if filename.endswith('.sd2'):
         return 'nodc_sd2'
+    return None
 
 
 def read_arbitrary(handle, file_type=None):
@@ -86,7 +86,7 @@ def read_arbitrary(handle, file_type=None):
     '''
     import model.datafile
 
-    file_type = guess_file_type(handle, file_type)
+    file_type = guess_file_type(handle.name, file_type)
 
     if file_type.find('zip') > 0:
         datafile = model.datafile.DataFileCollection()
