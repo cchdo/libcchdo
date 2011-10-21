@@ -44,6 +44,37 @@ def strip_all(list):
     return map(lambda x: x.strip(), list)
 
 
+def guess_file_type(handle, file_type=None):
+    if file_type is not None:
+        return file_type
+
+    filename = handle.name
+    if filename.endswith('.hot.su.txt'):
+        return 'sumhot'
+    if filename.endswith('su.txt'):
+      return 'sumwoce'
+    if filename.endswith('hy.txt'):
+      return 'botwoce'
+    if filename.endswith('hy1.csv'):
+      return 'botex'
+    if filename.endswith('hy1.nc'):
+      return 'botnc'
+    if filename.endswith('nc_hyd.zip'):
+      return 'botzipnc'
+    if filename.endswith('ct1.csv'):
+      return 'ctdex'
+    if filename.endswith('ct1.zip'):
+      return 'ctdzipex'
+    if filename.endswith('ctd.nc'):
+      return 'ctdnc'
+    if filename.endswith('nc_ctd.zip'):
+      return 'ctdzipnc'
+    if file_type == 'coriolis':
+      return 'coriolis'
+    if filename.endswith('.sd2'):
+        return 'nodc_sd2'
+
+
 def read_arbitrary(handle, file_type=None):
     '''Takes any CCHDO recognized file and tries to open it.
        The recognition is done by file extension.
@@ -55,33 +86,7 @@ def read_arbitrary(handle, file_type=None):
     '''
     import model.datafile
 
-    filename = handle.name
-
-    if not file_type:
-        if filename.endswith('.hot.su.txt'):
-            file_type = 'sumhot'
-        elif filename.endswith('su.txt'):
-            file_type = 'sumwoce'
-        elif filename.endswith('hy.txt'):
-            file_type = 'botwoce'
-        elif filename.endswith('hy1.csv'):
-            file_type = 'botex'
-        elif filename.endswith('hy1.nc'):
-            file_type = 'botnc'
-        elif filename.endswith('nc_hyd.zip'):
-            file_type = 'botzipnc'
-        elif filename.endswith('ct1.csv'):
-            file_type = 'ctdex'
-        elif filename.endswith('ct1.zip'):
-            file_type = 'ctdzipex'
-        elif filename.endswith('ctd.nc'):
-            file_type = 'ctdnc'
-        elif filename.endswith('nc_ctd.zip'):
-            file_type = 'ctdzipnc'
-        elif file_type == 'coriolis':
-            file_type = 'coriolis'
-        elif filename.endswith('.sd2'):
-            file_type = 'nodc_sd2'
+    file_type = guess_file_type(handle, file_type)
 
     if file_type.find('zip') > 0:
         datafile = model.datafile.DataFileCollection()
