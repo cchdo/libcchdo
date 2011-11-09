@@ -112,8 +112,8 @@ class ParameterGroup(Base):
     __tablename__ = 'parameter_groups'
 
     id = S.Column(S.Integer, autoincrement=True, primary_key=True, nullable=False)
-    group = S.Column(S.String)
-    parameters = S.Column(S.String)
+    group = S.Column(S.Unicode)
+    parameters = S.Column(S.Unicode)
 
     @property
     def ordered_parameters(self):
@@ -129,15 +129,15 @@ _sesh = connect.session(connect.cchdo())
 _query = _sesh.query(ParameterGroup)
 
 _primary = _query.filter(ParameterGroup.group == \
-                        'CCHDO Primary Parameters').first()
+                        u'CCHDO Primary Parameters').first()
 _parameters = _mysql_parameter_order_to_array(_primary.parameters)
 
 _secondary = _query.filter(ParameterGroup.group == \
-                           'CCHDO Secondary Parameters').first()
+                           u'CCHDO Secondary Parameters').first()
 _parameters += _mysql_parameter_order_to_array(_secondary.parameters)
 
 _tertiary = _query.filter(ParameterGroup.group == \
-                          'CCHDO Tertiary Parameters').first()
+                          u'CCHDO Tertiary Parameters').first()
 _parameters += _mysql_parameter_order_to_array(_tertiary.parameters)
 _sesh.close()
 

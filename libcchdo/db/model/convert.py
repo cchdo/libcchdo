@@ -7,7 +7,7 @@ from ...db.model import std
 
 
 def _get_parameter_alias(session, name):
-    return std.session().merge(std.ParameterAlias(name))
+    return session.merge(std.ParameterAlias(name))
 
 
 UNITS_MAP = {
@@ -56,7 +56,6 @@ def convert_unit(session, name, mnemonic):
          std.Unit.mnemonic == units_mnemonic).first()
     if not units:
         units = std.Unit(units_name, units_mnemonic)
-        session.add(units)
     return units
 
 
