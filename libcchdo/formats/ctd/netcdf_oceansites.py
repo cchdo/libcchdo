@@ -32,11 +32,11 @@ OCEANSITES_PREFIX = 'OS'
 
 TIMESERIES_INFO = {
     'BATS': {
-        'platform_code': 'BATS',
+        'platform_code': 'BATS-1',
         'institution': 'Bermuda Institute of Ocean Sciences',
         'institution_references': 'http://bats.bios.edu/',
-        'site_code': 'BIOS-BATS',
-        'array': 'BIOS-BATS',
+        'site_code': 'BATS',
+        'array': 'BERMUDA',
         'references': 'http://cchdo.ucsd.edu/search?query=group:BATS',
         'comment': ('BIOS-BATS CTD data from SIO, translated to '
                     'OceanSITES NetCDF by SIO'),
@@ -45,14 +45,13 @@ TIMESERIES_INFO = {
         'institution_references': 'http://bats.bios.edu/',
         'contact': 'rodney.johnson@bios.edu',
         'pi_name': 'Rodney Johnson',
-        'os_platform_code': 'BERMUDA',
         'data_codes': 'SOT',
     },
     'HOT': {
-        'platform_code': 'HOT',
+        'platform_code': 'ALOHA',
         'institution': ("University of Hawai'i School of Ocean and "
                         "Earth Science and Technology"),
-        'site_code': 'ALOHA',
+        'site_code': 'HOT',
         'array': 'HOT',
         'references': 'http://cchdo.ucsd.edu/search?query=group:HOT',
         'comment': ('HOT CTD data from SIO, translated to OceanSITES '
@@ -63,10 +62,12 @@ TIMESERIES_INFO = {
             'http://hahana.soest.hawaii.edu/hot/hot_jgofs.html',
         'contact': 'santiago@soest.hawaii.edu',
         'pi_name': 'Roger Lukas',
-        'os_platform_code': 'ALOHA',
         'data_codes': 'SOT',
     },
 }
+TIMESERIES_INFO['BATS_BATS-1'] = dict(TIMESERIES_INFO['BATS'])
+TIMESERIES_INFO['BATS_HYDROS'] = dict(TIMESERIES_INFO['BATS'])
+TIMESERIES_INFO['BATS_HYDROS']['platform_code'] = 'BHYDROS'
 
 
 # CTD variables
@@ -132,8 +133,17 @@ VARIABLES_TO_TRANSFER = (
     'contact pi_name').split()
 
 
-def pick_timeseries_or_timeseries_info(timeseries=None, timeseries_info=None):
+def pick_timeseries_or_timeseries_info(df, timeseries=None, timeseries_info=None):
     if timeseries is not None:
+        # BATS needs special name handling because there are two different
+        # stations, BATS and Hydrostation S
+        if timeseries == 'BATS':
+            try:
+                if df.globals['STNNBR'] == 'HYDROS':
+                    return TIMESERIES_INFO['BATS_HYDROS']
+                return TIMESERIES_INFO['BATS_BATS-1']
+            except KeyError:
+                pass
         return TIMESERIES_INFO[timeseries]
     else:
         return timeseries_info
@@ -141,7 +151,7 @@ def pick_timeseries_or_timeseries_info(timeseries=None, timeseries_info=None):
 
 def file_and_timeseries_info_to_id(file, timeseries_info, version='1.2'):
     assert version in OCEANSITES_VERSIONS
-    platform_code = timeseries_info.get('os_platform_code', 'UNKNOWN')
+    platform_code = timeseries_info.get('platform_code', 'UNKNOWN')
     # the default "identifier" part of the id
     identifier = '%s%s' % (file.globals['STNNBR'], file.globals['CASTNO'])
     if version == '1.2':
@@ -194,7 +204,7 @@ def write(self, handle, timeseries=None, timeseries_info={}, version='1.2'):
     nc_file = nc.Dataset(tmp.name, 'w', format='NETCDF3_CLASSIC')
     nc_file.data_type = 'OceanSITES time-series CTD data'
     nc_file.format_version = version
-    # TODO determine the correct platform code
+    # 2011-11-28 Jing Zhou says platform code may be left blank as NA myshen
     nc_file.wmo_platform_code = ''
     if version == '1.2':
         nc_file.platform_code = ''
@@ -217,8 +227,9 @@ def write(self, handle, timeseries=None, timeseries_info={}, version='1.2'):
     nc_file.geospatial_lat_max = str(self.globals['LATITUDE'])
     nc_file.geospatial_lon_min = str(self.globals['LONGITUDE'])
     nc_file.geospatial_lon_max = str(self.globals['LONGITUDE'])
-    nc_file.geospatial_vertical_min = int(self.globals['DEPTH'])
-    nc_file.geospatial_vertical_max = 0
+    nc_file.geospatial_vertical_min = 0
+    nc_file.geospatial_vertical_max = int(self.globals['DEPTH'])
+    nc_file.geospatial_vertical_positive = 'down'
     nc_file.author = 'Shen:Diggs (Scripps)'
     if version == '1.1':
         nc_file.data_assembly_center = 'SIO'
@@ -408,11 +419,11 @@ def write(self, handle, timeseries=None, timeseries_info={}, version='1.2'):
 
     # Write timeseries information, if given
     timeseries_info = pick_timeseries_or_timeseries_info(
-        timeseries, timeseries_info)
+        self, timeseries, timeseries_info)
     if timeseries_info:
         nc_file.title = ('%s CTD Timeseries '
                          'ExpoCode=%s Station=%s Cast=%s') % \
-            (timeseries_info['platform_code'], self.globals['EXPOCODE'],
+            (timeseries_info['site_code'], self.globals['EXPOCODE'],
              self.globals['STNNBR'], self.globals['CASTNO'])
 
         for var in VARIABLES_TO_TRANSFER:

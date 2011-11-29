@@ -18,7 +18,7 @@ def write(self, handle, timeseries=None, timeseries_info={},
         tempstream = StringIO.StringIO()
         nco.write(file, tempstream, timeseries, timeseries_info)
         timeseries_info = nco.pick_timeseries_or_timeseries_info(
-            timeseries, timeseries_info)
+            file, timeseries, timeseries_info)
         id = nco.file_and_timeseries_info_to_id(
             file, timeseries_info, version)
         info = zipfile.ZipInfo('%s.nc' % id)

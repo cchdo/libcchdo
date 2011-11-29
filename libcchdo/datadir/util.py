@@ -59,6 +59,19 @@ def is_data_dir(dir):
 allowable_oceans = ['arctic', 'atlantic', 'pacific', 'indian', 'southern']
 
 
+_blacklisted_dirnames = [
+    'WORK', 'work', 'TMP', 'tmp',
+    'original', 'ORIG', 'ORIGINAL',
+    'Queue',
+    '.svn',
+    'CTD', 'BOT',
+    'old', 'prnt_dir'
+]
+
+
+_blacklisted_dirname_regexps = ['temp', 'tmp', 'holder', 'removed', 'moved']
+
+
 def do_for_cruise_directories(operation):
   """Call operation for every cruise directory.
 
@@ -66,13 +79,6 @@ def do_for_cruise_directories(operation):
   operation(fullpath_to_dir, dirs, files) for each cruise directory.
   """
   cd_to_data_directory()
-  blacklisted_dirnames = ['WORK', 'work', 'TMP', 'tmp',
-                          'original', 'ORIG', 'ORIGINAL',
-                          'Queue',
-                          '.svn',
-                          'CTD', 'BOT',
-                          'old', 'prnt_dir']
-  blacklisted_dirname_regexps = ['temp', 'tmp', 'holder', 'removed', 'moved']
 
   # Traverse the data directory to find real data directories to operate on
   main_data_directories = ['co2clivar', 'onetime', 'repeat']
@@ -80,10 +86,10 @@ def do_for_cruise_directories(operation):
       for root, dirs, files in os.walk(dir, topdown=True):
           # Filter out unwanted directories if still traveling down tree
           for dir in dirs[:]:
-              if dir in blacklisted_dirnames:
+              if dir in _blacklisted_dirnames:
                   dirs.remove(dir)
               else:
-                  for black in blacklisted_dirname_regexps:
+                  for black in _blacklisted_dirname_regexps:
                       if re.search(black, dir, re.IGNORECASE):
                           dirs.remove(dir)
                           break

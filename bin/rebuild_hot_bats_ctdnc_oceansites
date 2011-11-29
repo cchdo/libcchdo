@@ -1,0 +1,115 @@
+#!python
+
+import logging
+import os
+import sys
+import filecmp
+import StringIO
+
+import libcchdo as L
+import libcchdo.fns as fns
+import libcchdo.model.datafile as datafile
+import libcchdo.formats.ctd.zip.netcdf_oceansites as ctdzipnc_os
+import libcchdo.datadir.util
+
+
+rebuild_roots = ['co2clivar/%s' % root for root in 
+    ['atlantic/bats/ars01/%s' % base for base in [
+        '33h420081015',
+        '33h420090506',
+        '33h420090514',
+        '33h420090609',
+    ]] + \
+    ['pacific/hot/prs2/%s' % base for base in [
+        'hot-062',
+        'hot-074',
+        'hot-075',
+    ]]
+]
+
+
+def rebuild_hot_bats_oceansites(root, dirs, files):
+    realedit = True
+
+    if root not in rebuild_roots:
+        return False
+
+    if not root.startswith('co2clivar/atlantic/bats') and \
+       not root.startswith('co2clivar/pacific/hot'):
+        return False
+
+    filename = None
+    for file in files:
+        if file.endswith('nc_ctd_oceansites.zip'):
+            filename = file
+            break
+
+    if not filename:
+        return
+
+    if filename.startswith('placeholder'):
+        if realedit:
+            os.unlink(os.path.join(root, filename))
+        else:
+            logging.info('would unlink %s', os.path.join(root, filename))
+
+    ctdzipexs = filter(lambda f: f.endswith('ct1.zip'), files)
+    if len(ctdzipexs) > 1:
+        paths = [os.path.join(root, name) for name in ctdzipexs]
+        mtimes = [os.lstat(path).st_mtime for path in paths]
+        if len(set(mtimes)) == 1:
+            if filecmp.cmp(*paths):
+                ctdzipex_path = paths[0]
+            else:
+                logging.debug('cant determine which ctdzipex to use')
+                return
+        else:
+            # Use most recently modified ctdzipex
+            ctdzipex_path = paths[mtimes.index(max(mtimes))]
+    elif len(ctdzipexs) < 1:
+        logging.warn('has no ctdzipexs')
+        return
+    else:
+        ctdzipex_path = os.path.join(root, ctdzipexs[0])
+
+    with open(ctdzipex_path) as file:
+        try:
+            dfc = fns.read_arbitrary(file, 'ctdzipex')
+        except Exception, e:
+            print >> sys.stderr, 'Failed to read ctdzipex format for %s' % root
+            print >> sys.stderr, e
+            return False
+
+    if 'bats' in root:
+        ts = 'BATS'
+    elif 'hot' in root:
+        ts = 'HOT'
+
+    buff = StringIO.StringIO()
+    #try:
+    ctdzipnc_os.write(dfc, buff, timeseries=ts)
+    #except Exception, e:
+    #    print >> sys.stderr, 'Failed to write oceansites format for %s' % root
+    #    print >> sys.stderr, e
+    #    del buff
+    #    return False
+    buff.flush()
+    buff.seek(0)
+
+    if realedit:
+        ctdzipnc_os_path = ctdzipex_path.replace('ct1.zip', '') + \
+                'nc_ctd_oceansites.zip.new'
+        with open(ctdzipnc_os_path, 'w') as f:
+            while True:
+                data = buff.read(2<<16)
+                if not data:
+                    break
+                f.write(data)
+    else:
+        print str(buff)
+
+    buff.close()
+
+
+if __name__ == '__main__':
+    L.datadir.util.do_for_cruise_directories(rebuild_hot_bats_oceansites)

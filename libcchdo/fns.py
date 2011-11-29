@@ -167,7 +167,11 @@ def strftime_iso(dtime):
 
 
 def _decimal(x):
-    return decimal.Decimal(str(x))
+    if type(x) is decimal.Decimal:
+        return x
+    if type(x) is not str:
+        x = str(x)
+    return decimal.Decimal(x)
 
 
 def equal_with_epsilon(a, b, epsilon=decimal.Decimal('1e-6')):

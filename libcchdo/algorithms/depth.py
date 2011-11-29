@@ -12,8 +12,8 @@ def _decimalify(l):
 
 def grav_ocean_surface_wrt_latitude(latitude):
     return Decimal('9.780318') * (Decimal(1) + \
-        Decimal('5.2788e-3') * fns.sin(latitude) ** Decimal(2) + \
-        Decimal('2.35e-5') * fns.sin(latitude) ** Decimal(4))
+        Decimal('5.2788e-3') * (fns.sin(latitude) ** Decimal(2)) + \
+        Decimal('2.35e-5') * (fns.sin(latitude) ** Decimal(4)))
 
 
 # Following two functions ports of
@@ -100,13 +100,14 @@ def secant_bulk_modulus(salinity, temperature, pressure):
         F = _decimalify(('54.6746', '-0.603459', '1.09987e-2', '-6.1670e-5'))
         G = _decimalify(('7.944e-2', '1.6483e-2', '-5.3009e-4'))
         return Kw + polyn(t, F) * salinity + \
-               polyn(t, G) * salinity ** (Decimal(3) / Decimal(2))
+               polyn(t, G) * Decimal(float(salinity) ** (3 / 2))
 
     H = _decimalify(('3.239908', '1.43713e-3', '1.16092e-4', '-5.77905e-7'))
     Aw = polyn(t, H)
     I = _decimalify(('2.2838e-3', '-1.0981e-5', '-1.6078e-6'))
     j0 = Decimal('1.91075e-4')
-    A = Aw + polyn(t, I) * salinity + j0 * salinity ** (Decimal(3) / Decimal(2))
+    A = Aw + polyn(t, I) * salinity + \
+        j0 * Decimal(float(salinity) ** (3 / 2))
 
     K = _decimalify(('8.50935e-5', '-6.12293e-6', '5.2787e-8'))
     Bw = polyn(t, K)
@@ -132,8 +133,8 @@ def density(salinity, temperature, pressure):
         d0 = Decimal('4.8314e-4')
 
         return pw + polyn(t, B) * salinity + \
-               polyn(t, C) * salinity ** (Decimal(3) / Decimal(2)) + \
-               d0 * salinity ** Decimal(2)
+               polyn(t, C) * Decimal(float(salinity) ** (3 / 2)) + \
+               d0 * (salinity ** Decimal(2))
 
     # Strange correction of one order of magnitude needed?
     pressure /= Decimal('10')
