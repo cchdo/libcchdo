@@ -9,11 +9,11 @@ class TestFormatsWoce(unittest.TestCase):
 
     def test_woce_lat_to_dec_lat(self):
         toks = ['12', '34.567', 'N']
-        self.assertAlmostEqual(Decimal('12.57611666667'),
-            fw.woce_lat_to_dec_lat(toks))
+        self.assertAlmostEqual(Decimal('12.576116'),
+            fw.woce_lat_to_dec_lat(toks), 5)
         toks = ['12', '34.567', 'S']
-        self.assertAlmostEqual(Decimal('-12.57611666667'),
-            fw.woce_lat_to_dec_lat(toks))
+        self.assertAlmostEqual(Decimal('-12.576116'),
+            fw.woce_lat_to_dec_lat(toks), 5)
   
     def test_woce_lng_to_dec_lng(self):
         toks = ['12', '34.567', 'E']

@@ -67,6 +67,8 @@ def read(self, handle):
                               "data line %d") % (len(columns), len(values),
                                                 len(self) + 1))
 
+        # TODO check if parameter exists but no flag & vice versa
+
         for column, raw in zip(columns, values):
             value = raw.strip()
             if fns.out_of_band(value):

@@ -209,10 +209,6 @@ def read_data(self, handle, parameters_line, units_line, asterisk_line):
     asterisks = fns.strip_all(
         struct.unpack(unpack_str, asterisk_line[:num_param_columns * 8]))
 
-    LOG.debug(parameters)
-    LOG.debug(units)
-    LOG.debug(asterisks)
-
     # Warn if the header lines break 8 character column rules
     _warn_broke_character_column_rule("Parameter", parameters)
     _warn_broke_character_column_rule("Unit", units)
@@ -238,8 +234,14 @@ def read_data(self, handle, parameters_line, units_line, asterisk_line):
         try:
             unpacked = struct.unpack(unpack_str, line)
         except struct.error, e:
-            LOG.warn(('Record does not have expected length.\nCheck spacing '
-                      'between columns and columns and quality flags'))
+            expected_len = struct.calcsize(unpack_str)
+            LOG.warn(
+                'Record %d has unexpected length %d (got %d). Check for extra '
+                'columns of space.' % (
+                    i, expected_len, len(line)))
+            if expected_len == len(line) - 1:
+                LOG.info('Format error is likely an extra column of space '
+                         'between data and flags.')
             raise e
 
         # QUALT1 takes precedence

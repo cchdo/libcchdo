@@ -68,13 +68,12 @@ INSTRUMENT NO. 0     SAMPLING RATE 42.00  HZ
         ctdwoce.read(self.file, self.bufr)
         self.bufr.close()
 
-    def test_read_write(self):
-        self.file = datafile.DataFile()
-        self.bufr = StringIO.StringIO(self.input)
-        ctdwoce.read(self.file, self.bufr)
-        self.bufr.close()
-        self.bufr = StringIO.StringIO()
-        ctdwoce.write(self.file, self.bufr)
-        self.assertEqual(self.expected_output, self.bufr.getvalue())
-        self.bufr.close()
-
+#    def test_read_write(self):
+#        self.file = datafile.DataFile()
+#        self.bufr = StringIO.StringIO(self.input)
+#        ctdwoce.read(self.file, self.bufr)
+#        self.bufr.close()
+#        self.bufr = StringIO.StringIO()
+#        ctdwoce.write(self.file, self.bufr)
+#        self.assertEqual(self.expected_output, self.bufr.getvalue())
+#        self.bufr.close()

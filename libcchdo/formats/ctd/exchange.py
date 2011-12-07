@@ -1,6 +1,6 @@
 import re
 import datetime
-import decimal
+from decimal import Decimal
 
 from ... import LOG
 from ... import fns
@@ -47,7 +47,7 @@ def read(self, handle, retain_order=False):
         if m:
             if m.group(1) in REQUIRED_HEADERS and m.group(1) in ['LATITUDE',
                                                                  'LONGITUDE']:
-                self.globals[m.group(1)] = decimal.Decimal(m.group(2))
+                self.globals[m.group(1)] = Decimal(m.group(2))
             else:
                 self.globals[m.group(1)] = m.group(2)
         else:
@@ -99,7 +99,7 @@ def read(self, handle, retain_order=False):
                 continue
 
             if numberlike.match(value):
-                value = decimal.Decimal(str(value))
+                value = Decimal(str(value))
             col = self.columns[column]
             col.append(value)
         l = handle.readline().strip()
@@ -165,7 +165,7 @@ def write(self, handle):
                 assert len(parts) <=2 and len(parts) >= 1
                 if len(parts) == 2:
                     # Should do this check before printing to prevent ragged columns.
-                    if type(c[i]) is decimal.Decimal:
+                    if type(c[i]) is Decimal:
                         exponent = \
                             -(c[i] - c[i].to_integral()).as_tuple().exponent
                         if exponent > -1 and exponent > parts[1]:

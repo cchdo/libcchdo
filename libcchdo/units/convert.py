@@ -2,7 +2,7 @@
 
 
 from __future__ import with_statement
-import decimal
+from decimal import localcontext, Decimal
 
 from .. import LOG
 from ..algorithms import volume
@@ -128,8 +128,8 @@ def ctdoxy_micromole_per_liter_to_micromole_per_kilogram(file, column):
     	precision = len(str(column[i].to_integral())) + \
     	    min(-sigtheta[i].as_tuple().exponent,
     	        -column[i].as_tuple().exponent)
-        with decimal.localcontext() as ctx:
-            factor = sigtheta[i].fma(decimal.Decimal('1.0e-3'), 1)
+        with localcontext() as ctx:
+            factor = sigtheta[i].fma(Decimal('1.0e-3'), 1)
             ctx.prec = precision
             column[i] /= factor
     return column

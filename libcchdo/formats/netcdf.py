@@ -2,7 +2,7 @@
 
 
 import datetime
-import decimal
+from decimal import Decimal
 
 try:
     from netCDF4 import Dataset
@@ -39,7 +39,7 @@ def _pad_station_cast(x):
     return simplest_str(x).rjust(5, '0')
 
 
-def get_filename(expocode, station, cast, extension='hyd'):
+def get_filename(expocode, station, cast, extension='hy1'):
     station = _pad_station_cast(station)
     cast = _pad_station_cast(cast)
     return '%s.%s' % ('_'.join((expocode, station, cast, extension)),
@@ -63,18 +63,18 @@ def minutes_since_epoch(dt, error=-9):
 def check_variable_ranges(nc_file):
     for name, variable in nc_file.variables.items():
         try:
-            min = decimal.Decimal(str(variable.data_min))
-            max = decimal.Decimal(str(variable.data_max))
+            min = Decimal(str(variable.data_min))
+            max = Decimal(str(variable.data_max))
         except AttributeError:
             try:
-                min = decimal.Decimal(str(variable.valid_min))
-                max = decimal.Decimal(str(variable.valid_max))
+                min = Decimal(str(variable.valid_min))
+                max = Decimal(str(variable.valid_max))
             except AttributeError:
                 continue
         for y in variable[:]:
             if fns.isnan(y):
                 continue
-            x = decimal.Decimal(str(y))
+            x = Decimal(str(y))
             if x < min:
                 LOG.warn('%s too small for %s range (%s, %s)' % \
                          (str(x), name, str(min), str(max)))

@@ -1,6 +1,7 @@
 import StringIO
 import zipfile
 
+from .... import LOG
 from ....model import datafile
 from .. import woce
 
@@ -12,7 +13,11 @@ def read(self, handle):
         if 'README' in file or 'DOC' in file: continue
         tempstream = StringIO.StringIO(zip.read(file))
         ctdfile = datafile.DataFile()
-        woce.read(ctdfile, tempstream)
+        try:
+            woce.read(ctdfile, tempstream)
+        except Exception, e:
+            LOG.info('Failed to read file %s in %s' % (file, handle))
+            raise e
         self.append(ctdfile)
         tempstream.close()
     zip.close()

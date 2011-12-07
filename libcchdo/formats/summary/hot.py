@@ -40,8 +40,10 @@ def read(self, handle):
           self.columns['_ABOVE_BOTTOM'].append(int(tokens[16]))
           self.columns['_MAX_PRESSURE'].append(int(tokens[17]))
           self.columns['_NUM_BOTTLES'].append(int(tokens[18]))
-          self.columns['_PARAMETERS'].append(tokens[19])
-          self.columns['_COMMENTS'].append(' '.join(tokens[20:]))
+          if len(tokens) > 19:
+              self.columns['_PARAMETERS'].append(tokens[19])
+          if len(tokens) > 20:
+              self.columns['_COMMENTS'].append(' '.join(tokens[20:]))
 
     self.check_and_replace_parameters()
 

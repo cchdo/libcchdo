@@ -170,7 +170,7 @@ http://www.nodc.noaa.gov/General/NODC-Archive/numcode.txt
 """
 
 
-import decimal
+from decimal import Decimal
 import datetime
 import collections
 
@@ -303,7 +303,7 @@ def read(self, handle):
                  raw_line['minutes_latitude_tenths'] / 600.0))
             latitude = latitude[:latitude.find('.') + \
                                  _MAX_GRATICULE_PRECISION + 1]
-            station['LATITUDE'] = decimal.Decimal(latitude)
+            station['LATITUDE'] = Decimal(latitude)
 
             if not raw_line['hemisphere_of_longitude'] in ('E', 'W'):
                 raise ValueError(
@@ -317,7 +317,7 @@ def read(self, handle):
                  raw_line['minutes_longitude_tenths'] / 600.0))
             longitude = longitude[:longitude.find('.') + \
                                    _MAX_GRATICULE_PRECISION + 1]
-            station['LONGITUDE'] = decimal.Decimal(longitude)
+            station['LONGITUDE'] = Decimal(longitude)
 
             hours = int(raw_line['station_time_gmt_hours_to_tenths'][:2])
             minutes = int(raw_line['station_time_gmt_hours_to_tenths'][2]) * 6
@@ -427,20 +427,20 @@ def read(self, handle):
             p = raw_line['temperature_precision']
             if p and p != 9:
                 x = raw_line['temperature'].strip()
-                sample['TEMPERATURE'] = decimal.Decimal(
+                sample['TEMPERATURE'] = Decimal(
                     '%s.%s' % (x[:-p], x[-p:])) 
                 sample['TEMPERATURE_QC'] = \
                     raw_line['temperature_quality_indicator']
             p = raw_line['salinity_precision']
             if p and p != 9:
                 x = raw_line['salinity'].strip()
-                sample['SALINITY'] = decimal.Decimal(
+                sample['SALINITY'] = Decimal(
                     '%s.%s' % (x[:-p], x[-p:]))
                 sample['SALINITY_QC'] = raw_line['salinity_quality_indicator']
             p = raw_line['oxygen_precision']
             if p and p != 9:
                 x = raw_line['oxygen'].strip()
-                sample['OXYGEN'] = decimal.Decimal(
+                sample['OXYGEN'] = Decimal(
                     '%s.%s' % (x[:-p], x[-p:]))
                 sample['OXYGEN_QC'] = raw_line['oxygen_quality_indicator']
             try:
@@ -453,24 +453,24 @@ def read(self, handle):
             p = raw_line['inorganic_phosphate_precision']
             if p and p != 9:
                 x = raw_line['inorganic_phosphate'].strip()
-                sample['PHSPHT'] = decimal.Decimal('%s.%s' % (x[:-p], x[-p:]))
+                sample['PHSPHT'] = Decimal('%s.%s' % (x[:-p], x[-p:]))
             p = raw_line['silicate_precision']
             if p and p != 9:
                 x = raw_line['silicate'].strip()
-                sample['SILCAT'] = decimal.Decimal('%s.%s' % (x[:-p], x[-p:]))
+                sample['SILCAT'] = Decimal('%s.%s' % (x[:-p], x[-p:]))
             p = raw_line['nitrite_precision']
             if p and p != 9:
                 x = raw_line['nitrite'].strip()
-                sample['NITRIT'] = decimal.Decimal('%s.%s' % (x[:-p], x[-p:]))
+                sample['NITRIT'] = Decimal('%s.%s' % (x[:-p], x[-p:]))
             p = raw_line['nitrate_precision']
             if p and p != 9:
                 x = raw_line['nitrate'].strip()
-                sample['NITRAT'] = decimal.Decimal('%s.%s' % (x[:-p], x[-p:]))
+                sample['NITRAT'] = Decimal('%s.%s' % (x[:-p], x[-p:]))
             # TODO which PH is this?
             p = raw_line['ph_precision']
             if p and p != 9:
                 x = raw_line['ph'].strip()
-                sample['PH'] = decimal.Decimal('%s.%s' % (x[:-p], x[-p:]))
+                sample['PH'] = Decimal('%s.%s' % (x[:-p], x[-p:]))
 
             if not current_station:
                 raise ValueError(("Malformed SD2 file: Data record found "

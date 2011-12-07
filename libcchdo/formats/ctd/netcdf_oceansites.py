@@ -4,182 +4,10 @@ import math
 import sys
 import tempfile
 
-from ... import LOG
-from ... import fns
+from ... import LOG, fns
 from ...algorithms import depth
 from .. import netcdf as nc
-
-
-# List of OceanSITES versions in increasing order
-OCEANSITES_VERSIONS = ('1.1', '1.2', )
-
-
-WOCE_to_OceanSITES_flag = {
-    1: 3, # Not calibrated -> Bad data that are potentially
-          #                   correctable (re-calibration)
-    2: 1, # Acceptable measurement -> Good data
-    3: 2, # Questionable measurement -> Probably good data
-    4: 4, # Bad measurement -> Bad data
-    5: 9, # Not reported -> Missing value
-    6: 8, # Interpolated over >2 dbar interval -> Interpolated value
-    7: 5, # Despiked -> Value changed
-    9: 9  # Not sampled -> Missing value
-}
-
-
-OCEANSITES_PREFIX = 'OS'
-
-
-TIMESERIES_INFO = {
-    'BATS': {
-        'platform_code': 'BATS-1',
-        'institution': 'Bermuda Institute of Ocean Sciences',
-        'institution_references': 'http://bats.bios.edu/',
-        'site_code': 'BATS',
-        'array': 'BERMUDA',
-        'references': 'http://cchdo.ucsd.edu/search?query=group:BATS',
-        'comment': ('BIOS-BATS CTD data from SIO, translated to '
-                    'OceanSITES NetCDF by SIO'),
-        'summary': 'BIOS-BATS CTD data Bermuda',
-        'area': 'Atlantic - Sargasso Sea',
-        'institution_references': 'http://bats.bios.edu/',
-        'contact': 'rodney.johnson@bios.edu',
-        'pi_name': 'Rodney Johnson',
-        'data_codes': 'SOT',
-    },
-    'HOT': {
-        'platform_code': 'ALOHA',
-        'institution': ("University of Hawai'i School of Ocean and "
-                        "Earth Science and Technology"),
-        'site_code': 'HOT',
-        'array': 'HOT',
-        'references': 'http://cchdo.ucsd.edu/search?query=group:HOT',
-        'comment': ('HOT CTD data from SIO, translated to OceanSITES '
-                    'NetCDF by SIO'),
-        'summary': "HOT CTD data Hawai'i",
-        'area': "Pacific - Hawai'i",
-        'institution_references': 
-            'http://hahana.soest.hawaii.edu/hot/hot_jgofs.html',
-        'contact': 'santiago@soest.hawaii.edu',
-        'pi_name': 'Roger Lukas',
-        'data_codes': 'SOT',
-    },
-}
-TIMESERIES_INFO['BATS_BATS-1'] = dict(TIMESERIES_INFO['BATS'])
-TIMESERIES_INFO['BATS_HYDROS'] = dict(TIMESERIES_INFO['BATS'])
-TIMESERIES_INFO['BATS_HYDROS']['platform_code'] = 'BHYDROS'
-
-
-# CTD variables
-param_to_oceansites = {
-    'ctd_pressure': 'PRES',
-    'ctd_temperature': 'TEMP',
-    'ctd_oxygen': 'DOXY',
-    'ctd_salinity': 'PSAL',
-    'pressure': 'PRES',
-    'temperature': 'TEMP',
-    'oxygen1': 'DOXY',
-    'salinity': 'PSAL',
-    'fluorescence': 'FLU2',
-}
-
-
-oceansites_variables = {
-    'TEMP': {'long': 'sea water temperature',
-             'std': 'sea_water_temperature',
-             'units': 'degree_Celsius'},
-    'DOXY': {'long': 'dissolved oxygen', 'std': 'dissolved_oxygen',
-             'units': 'micromole/kg'},
-    'PSAL': {'long': 'sea water salinity', 'std': 'sea_water_salinity',
-             'units': 'psu'},
-    # valid_min 0.0, valid_max 12000.0, QC_indicator =7,
-    # QC_procedure = 5, uncertainty 2.0
-    'PRES': {'long': 'sea water pressure', 'std': 'sea_water_pressure',
-             'units': 'decibars'},
-    # TODO find out what the units for Fluorescense should be.
-    # Not Real Fluoresence Units. Supposedly is unitless but you know how that
-    # story goes.
-    'FLU2': {'long': 'fluorescense', 'std': 'fluorescense',
-             'units': 'rfu'},
-}
-
-
-oceansites_uncertainty = {
-    'TEMP': 0.002,
-    'PSAL': 0.005,
-    'DOXY': float('inf'),
-    'PRES': float('inf'),
-    'FLU2': float('inf'),
-}
-
-
-FLAG_MEANINGS = ' '.join([
-    'no_qc_performed',
-    'good_data',
-    'probably_good_data',
-    'bad_data_that_are_potentially_correctable',
-    'bad_data',
-    'value_changed',
-    'not_used',
-    'nominal_value',
-    'interpolated_value',
-    'missing_value',
-])
-
-
-VARIABLES_TO_TRANSFER = (
-    'platform_code institution institution_references site_code '
-    'array references comment summary area institution_references '
-    'contact pi_name').split()
-
-
-def pick_timeseries_or_timeseries_info(df, timeseries=None, timeseries_info=None):
-    if timeseries is not None:
-        # BATS needs special name handling because there are two different
-        # stations, BATS and Hydrostation S
-        if timeseries == 'BATS':
-            try:
-                if df.globals['STNNBR'] == 'HYDROS':
-                    return TIMESERIES_INFO['BATS_HYDROS']
-                return TIMESERIES_INFO['BATS_BATS-1']
-            except KeyError:
-                pass
-        return TIMESERIES_INFO[timeseries]
-    else:
-        return timeseries_info
-
-
-def file_and_timeseries_info_to_id(file, timeseries_info, version='1.2'):
-    assert version in OCEANSITES_VERSIONS
-    platform_code = timeseries_info.get('platform_code', 'UNKNOWN')
-    # the default "identifier" part of the id
-    identifier = '%s%s' % (file.globals['STNNBR'], file.globals['CASTNO'])
-    if version == '1.2':
-        deployment_code = identifier
-        # Refer to nc_file.data_mode below
-        data_mode = 'D'
-        return '_'.join((OCEANSITES_PREFIX, platform_code, deployment_code, data_mode))
-    elif version == '1.1':
-        config_code = identifier
-        data_codes = timeseries_info.get('data_codes', 'D')
-        return '_'.join((OCEANSITES_PREFIX, platform_code, config_code, data_codes))
-
-
-def _WOCE_to_OceanSITES_flag(woce_flag):
-    try:
-        return WOCE_to_OceanSITES_flag[woce_flag]
-    except KeyError:
-        LOG.warn(('WOCE flag %d was given that does not have '
-                           'translation into OceanSITES.') % woce_flag)
-        return 6
-
-
-def _fallback_depth_unesco(lat, preses, var_depth):
-    LOG.info(('Falling back from depth integration to Unesco '
-              'method.'))
-    var_depth.comment = \
-        'Calculated using Unesco 1983 Saunders and Fofonoff method.'
-    return map(lambda pres: depth.depth_unesco(pres, lat), preses)
+from ..netcdf_oceansites import *
 
 
 #def read(self, handle): TODO
@@ -213,7 +41,8 @@ def write(self, handle, timeseries=None, timeseries_info={}, version='1.2'):
     nc_file.history = ''.join([isowocedate.isoformat(), "Z data collected\n",
                        datetime.datetime.utcnow().isoformat(),
                        "Z date file translated/written"])
-    nc_file.data_mode = 'D'
+    self.globals['OS_data_mode'] = 'D'
+    nc_file.data_mode = self.globals['OS_data_mode']
     nc_file.quality_control_indicator = '1'
     nc_file.quality_index = 'B'
     if version == '1.1':
@@ -385,7 +214,8 @@ def write(self, handle, timeseries=None, timeseries_info={}, version='1.2'):
                 flag.valid_max = 9
                 flag.flag_values = 0#, 1, 2, 3, 4, 5, 6, 7, 8, 9 TODO??
                 flag.flag_meanings = FLAG_MEANINGS
-                flag[:] = map(_WOCE_to_OceanSITES_flag, column.flags_woce)
+                flag[:] = [
+                    WOCE_to_OceanSITES_flag[f] for f in column.flags_woce]
         else:
             LOG.info(("Parameter '%s' is not mapped to an OceanSITES "
                       'variable. Skipping.') % name)
@@ -409,10 +239,10 @@ def write(self, handle, timeseries=None, timeseries_info={}, version='1.2'):
                 depth_series = depth.depth(
                     localgrav, self['CTDPRS'].values, density_series)
             except ValueError:
-                depth_series = _fallback_depth_unesco(
+                depth_series = fallback_depth_unesco(
                     self.globals['LATITUDE'], self['CTDPRS'].values, var_depth)
             except IndexError:
-                depth_series = _fallback_depth_unesco(
+                depth_series = fallback_depth_unesco(
                     self.globals['LATITUDE'], self['CTDPRS'].values, var_depth)
 
             var_depth[:] = depth_series
@@ -420,6 +250,7 @@ def write(self, handle, timeseries=None, timeseries_info={}, version='1.2'):
     # Write timeseries information, if given
     timeseries_info = pick_timeseries_or_timeseries_info(
         self, timeseries, timeseries_info)
+    self.globals['_timeseries_info'] = timeseries_info
     if timeseries_info:
         nc_file.title = ('%s CTD Timeseries '
                          'ExpoCode=%s Station=%s Cast=%s') % \
@@ -429,8 +260,9 @@ def write(self, handle, timeseries=None, timeseries_info={}, version='1.2'):
         for var in VARIABLES_TO_TRANSFER:
             nc_file.__setattr__(var, timeseries_info[var])
 
-        nc_file.id = file_and_timeseries_info_to_id(
-            self, timeseries_info, version)
+        self.globals['OS_id'] = file_and_timeseries_info_to_id(
+            self, timeseries_info, type='CTD', version=version)
+        nc_file.id = self.globals['OS_id']
 
     nc.check_variable_ranges(nc_file)
 

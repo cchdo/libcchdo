@@ -17,11 +17,7 @@ def write(self, handle, timeseries=None, timeseries_info={},
     for i, file in enumerate(self.files):
         tempstream = StringIO.StringIO()
         nco.write(file, tempstream, timeseries, timeseries_info)
-        timeseries_info = nco.pick_timeseries_or_timeseries_info(
-            file, timeseries, timeseries_info)
-        id = nco.file_and_timeseries_info_to_id(
-            file, timeseries_info, version)
-        info = zipfile.ZipInfo('%s.nc' % id)
+        info = zipfile.ZipInfo('%s.nc' % file.globals['OS_id'])
         dt = datetime.datetime.now()
         info.date_time = (dt.year, dt.month, dt.day,
                           dt.hour, dt.minute, dt.second)

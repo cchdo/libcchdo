@@ -1,7 +1,7 @@
 """Functions used globally."""
 
 
-import decimal
+from decimal import Decimal, getcontext
 import math
 import os.path
 
@@ -40,8 +40,8 @@ def set_list(L, i, value, fill=None):
         L[i] = value
 
 
-def strip_all(list):
-    return map(lambda x: x.strip(), list)
+def strip_all(l):
+    return [x.strip() for x in l]
 
 
 def guess_file_type(filename, file_type=None):
@@ -88,6 +88,9 @@ def read_arbitrary(handle, file_type=None):
 
     file_type = guess_file_type(handle.name, file_type)
 
+    if file_type is None:
+        raise ValueError('Unrecognized file type for %s' % handle.name)
+
     if file_type.find('zip') > 0:
         datafile = model.datafile.DataFileCollection()
     elif file_type.startswith('sum'):
@@ -132,7 +135,7 @@ def read_arbitrary(handle, file_type=None):
         import formats.nodc_sd2
         formats.nodc_sd2.read(datafile, handle)
     else:
-        raise ValueError('Unrecognized file type for %s' % filename)
+        raise ValueError('Unrecognized file type for %s' % handle.name)
 
     return datafile
 
@@ -166,21 +169,28 @@ def strftime_iso(dtime):
     return dtime.isoformat() + 'Z'
 
 
-def _decimal(x):
-    if type(x) is decimal.Decimal:
+def _decimal(x, *args):
+    if len(args) > 0:
+        x = [x] + list(args)
+    if type(x) is Decimal:
         return x
-    if type(x) is not str:
-        x = str(x)
-    return decimal.Decimal(x)
+    if isinstance(x, basestring):
+        return Decimal(x)
+    try:
+        return map(_decimal, x)
+    except TypeError:
+        if type(x) is not str:
+            x = str(x)
+        return Decimal(x)
 
 
-def equal_with_epsilon(a, b, epsilon=decimal.Decimal('1e-6')):
+def equal_with_epsilon(a, b, epsilon=Decimal('1e-6')):
     delta = abs(_decimal(a) - _decimal(b))
     return delta < _decimal(epsilon)
 
 
-def out_of_band(value, oob=decimal.Decimal(-999),
-                tolerance=decimal.Decimal('0.1')):
+def out_of_band(value, oob=Decimal(-999),
+                tolerance=Decimal('0.1')):
     try:
         number = _decimal(float(value))
     except ValueError:
@@ -245,10 +255,10 @@ class IncreasedPrecision:
         self._inc = inc
 
     def __enter__(self):
-        decimal.getcontext().prec += self._inc
+        getcontext().prec += self._inc
 
     def __exit__(self, exc_type, exc_value, traceback):
-        decimal.getcontext().prec -= self._inc
+        getcontext().prec -= self._inc
 
 
 def exp(x):

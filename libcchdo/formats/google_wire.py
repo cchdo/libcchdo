@@ -1,5 +1,5 @@
 import datetime
-import decimal
+from decimal import Decimal
 
 from .. import LOG
 from .. import fns
@@ -58,7 +58,7 @@ def _json(self, handle, column_headers, columns, global_values):
                 nums = (','.join(['%d'] * 5)) % \
                        (o.year, o.month, o.day, o.hour, o.minute)
                 return 'Date(%s)' % nums
-            if isinstance(o, decimal.Decimal):
+            if isinstance(o, Decimal):
                 return float(o)
             return json.JSONEncoder.default(self, o)
 
