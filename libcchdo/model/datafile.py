@@ -25,10 +25,6 @@ class Column(object):
         return self.values[index]
 
     def set(self, index, value, flag_woce=None, flag_igoss=None):
-        while index > len(self.values):
-            self.values.append(None)
-            self.flags_woce.append(None)
-            self.flags_igoss.append(None)
         fns.set_list(self.values, index, value)
         if flag_woce is not None:
             fns.set_list(self.flags_woce, index, flag_woce)

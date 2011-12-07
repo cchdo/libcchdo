@@ -12,6 +12,10 @@ from ..model import datafile
 # Where no data is known
 FILL_VALUE = -999.0
 
+
+NODATA_STR = '-9'
+
+
 COLUMN_WIDTH = 8
 SAFE_COLUMN_WIDTH = COLUMN_WIDTH - 1
 
@@ -189,8 +193,7 @@ def read_data(self, handle, parameters_line, units_line, asterisk_line):
 
     def unpack_parameters(parameters_line):
         parameters = fns.strip_all(
-                struct.unpack(unpack_str,
-                              parameters_line[:num_param_columns * 8]))
+            struct.unpack(unpack_str, parameters_line[:num_param_columns * 8]))
         return (parameters, _bad_column_alignment(parameters))
 
     parameters, start_bad = unpack_parameters(parameters_line)
@@ -229,8 +232,8 @@ def read_data(self, handle, parameters_line, units_line, asterisk_line):
     for i, line in enumerate(handle):
         line = _remove_char_columns(bad_cols, line.rstrip())[0]
         if not line:
-            raise ValueError(('Empty lines are not allowed in the data section '
-                              'of a WOCE file'))
+            raise ValueError('Empty lines are not allowed in the data section '
+                             'of a WOCE file')
         try:
             unpacked = struct.unpack(unpack_str, line)
         except struct.error, e:
@@ -250,10 +253,11 @@ def read_data(self, handle, parameters_line, units_line, asterisk_line):
         # Build up the columns for the line
         flag_i = 0
         for j, parameter in enumerate(parameters):
-            datum = Decimal(unpacked[j])
-            if datum == Decimal(-9):
+            val = unpacked[j].strip()
+            if val == NODATA_STR:
                 datum = None
-            woce_flag = None
+            else:
+                datum = Decimal(val)
 
             # Only assign flag if column is flagged.
             if "**" in asterisks[j].strip(): # XXX

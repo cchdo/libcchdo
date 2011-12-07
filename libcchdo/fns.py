@@ -25,6 +25,11 @@ def uniquify(seq):
     return [x for x in seq if x not in seen and not a(x)]
 
 
+def _ensure_list_len(L, i, fill=None):
+    for x in xrange(i - len(L) + 1):
+        L.append(fill)
+
+
 def set_list(L, i, value, fill=None):
     """ Set a cell in a list. If the list is not long enough, extend it first.
         Args:
@@ -33,11 +38,8 @@ def set_list(L, i, value, fill=None):
             value - the value to put at L[i]
             fill - the value to fill if the list is to be extended
     """
-    try:
-        L[i] = value
-    except IndexError:
-        L.extend([fill] * (i - len(L) + 1))
-        L[i] = value
+    _ensure_list_len(L, i, fill)
+    L[i] = value
 
 
 def strip_all(l):
