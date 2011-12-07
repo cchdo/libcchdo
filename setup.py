@@ -136,6 +136,26 @@ class PurgeCommand(CleanCommand):
         CleanCommand.run(self)
 
 
+class ProfileCommand(distutils.core.Command):
+    description = "Run profiler on a test script"
+    user_options = [('file=', 'f', 'A file to profile (required)'), ]
+
+    def initialize_options(self):
+        self.file = None
+
+    def finalize_options(self):
+        pass
+
+    def run(self):
+        if not self.file:
+            print >>sys.stderr, ('Please give a file to profile: '
+                                 'setup.py profile --file=path/to/file')
+            return 1
+
+        import cProfile
+        cProfile.run("import imp;imp.load_source('_', '%s')" % self.file)
+
+
 class REPLCommand(distutils.core.Command):
     description = "Launch a REPL with the library loaded"
     user_options = []
@@ -199,6 +219,7 @@ if __name__ == "__main__":
                   'coverage': CoverageCommand,
                   'clean': CleanCommand,
                   'purge': PurgeCommand,
+                  'profile': ProfileCommand,
                   'REPL': REPLCommand,
                  }
        )
