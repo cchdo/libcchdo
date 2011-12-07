@@ -2,9 +2,9 @@
 Install
 =======
 
-    # Not all dependencies are required! See below.
-    pip install --requirement=DEPENDENCIES.txt && \
-    python setup.py install
+# Not all dependencies are required! See below.
+pip install --requirement=DEPENDENCIES.txt && \
+python setup.py install
 
 Dependencies
 ============
