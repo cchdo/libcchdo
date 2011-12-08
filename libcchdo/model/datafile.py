@@ -35,9 +35,9 @@ class Column(object):
         self.values.append(value)
         i = len(self.values) - 1
         if flag_woce is not None:
-            self.flags_woce.insert(i, flag_woce)
+            fns.set_list(self.flags_woce, i, flag_woce)
         if flag_igoss is not None:
-            self.flags_igoss.insert(i, flag_igoss)
+            fns.set_list(self.flags_igoss, i, flag_igoss)
 
     def __getitem__(self, key):
         return self.get(key)

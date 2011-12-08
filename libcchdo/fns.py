@@ -224,7 +224,7 @@ def in_band_or_none(x, oob=None, tolerance=None):
 
 
 def identity_or_oob(x, oob=-999):
-    """Identity or OOB (XXX)
+    """ Good for filling in lists that have Nones with oob values.
        Args:
            x - anything
            oob - out-of-band value (default -999)

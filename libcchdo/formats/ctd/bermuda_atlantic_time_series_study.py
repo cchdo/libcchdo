@@ -1,4 +1,4 @@
-import datetime
+from datetime import datetime, timedelta
 
 from ... import LOG
 from .. import woce
@@ -35,6 +35,9 @@ def is_global(column):
 def _append_to_column(column, value):
     flag = 2
     if not column.parameter.is_in_range(value):
+        LOG.warn('%r is not in range %s (%r, %r)' % (
+                    value, column.parameter, column.parameter.bound_lower,
+                    column.parameter.bound_upper))
         flag = 9
         value = None
     column.append(value, flag)
@@ -59,13 +62,12 @@ def read(self, handle):
         year, frac_year = parts[1].split('.')
         year = int(year)
 
-        start = datetime.datetime(year, 1, 1)
+        start = datetime(year, 1, 1)
         seconds_in_year = Decimal(
-            str(_timedelta_to_seconds(
-                    datetime.datetime(year + 1, 1, 1) - start))) * \
+            str(_timedelta_to_seconds(datetime(year + 1, 1, 1) - start))) * \
             Decimal('0.' + frac_year)
-        dt = datetime.datetime(1970, 1, 1) + \
-            datetime.timedelta(
+        dt = datetime(1970, 1, 1) + \
+            timedelta(
                 seconds=float(int(start.strftime('%s')) + seconds_in_year))
 
         self['_DATETIME'].append(dt)

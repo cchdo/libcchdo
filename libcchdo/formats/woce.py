@@ -6,14 +6,11 @@ import struct
 from .. import LOG
 from .. import fns
 from ..model import datafile
-from ..fns import Decimal
+from ..fns import Decimal, in_band_or_none
 
 
 # Where no data is known
 FILL_VALUE = -999.0
-
-
-NODATA_STR = '-9'
 
 
 COLUMN_WIDTH = 8
@@ -253,11 +250,8 @@ def read_data(self, handle, parameters_line, units_line, asterisk_line):
         # Build up the columns for the line
         flag_i = 0
         for j, parameter in enumerate(parameters):
-            val = unpacked[j].strip()
-            if val == NODATA_STR:
-                datum = None
-            else:
-                datum = Decimal(val)
+            datum = unpacked[j].strip()
+            datum = in_band_or_none(datum, -9)
 
             # Only assign flag if column is flagged.
             if "**" in asterisks[j].strip(): # XXX

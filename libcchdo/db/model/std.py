@@ -1,15 +1,13 @@
 import sys
 import os.path
+from contextlib import contextmanager
 
 import sqlalchemy as S
 import sqlalchemy.orm
 import sqlalchemy.ext.declarative
 
-from ... import get_library_abspath
-from ... import LOG
-from ... import memoize
-from ... import post_import
-from ... import config
+from ... import LOG, memoize, get_library_abspath, post_import, config
+from ...fns import _decimal
 from ...db import connect
 
 
@@ -17,38 +15,31 @@ Base = S.ext.declarative.declarative_base()
 _metadata = Base.metadata
 
 
-def _populate_library_database_parameters():
+def _populate_library_database_parameters(std_session):
     LOG.info("Populating database with parameters.")
     from ...db.model import convert
 
-    std_session = session()
     std_session.add_all(convert.all_parameters(std_session))
     std_session.commit()
-    std_session.close()
 
 
-def _ensure_database_parameters_exist():
+def _ensure_database_parameters_exist(std_session):
     """Convert the legacy parameters into std parameters if there are no stored
        parameters.
     """
-    std_session = session()
-
     if not std_session.query(Parameter).count():
-        _populate_library_database_parameters()
-
-    std_session.close()
+        _populate_library_database_parameters(std_session)
 
 
 def _auto_generate_library_database_cache():
     LOG.info("Auto-generating the library's cache (%s)." % \
         config.get_option('db', 'cache'))
-    create_all()
     
-    std_session = session()
-    std_session.commit()
-    std_session.close()
-
-    _ensure_database_parameters_exist()
+    with guarded_session(autoflush=True) as std_session:
+        create_all()
+        std_session.commit()
+        _ensure_database_parameters_exist(std_session)
+        std_session.commit()
 
 
 def ensure_database_cache():
@@ -59,14 +50,26 @@ def ensure_database_cache():
     if not os.path.isfile(config.get_option('db', 'cache')):
         _auto_generate_library_database_cache()
     else:
-        _ensure_database_parameters_exist()
+        with guarded_session(autoflush=True) as std_session:
+            _ensure_database_parameters_exist(std_session)
+
+
+@contextmanager
+def guarded_session(*args, **kwargs):
+    try:
+        s = session(*args, **kwargs)
+        yield s
+    finally:
+        if s:
+            s.close()
 
 
 @memoize
-def session():
+def session(autoflush=False):
     session = connect.session(connect.cchdo_data())
     if not session:
         raise ValueError("Unable to connect to local cache database cchdo_data")
+    session.autoflush = autoflush
     return session
 
 
@@ -302,11 +305,12 @@ class Parameter(Base):
         return self.name == other.name
 
     def is_in_range(self, x):
+        x = _decimal(x)
         if self.bound_lower is not None:
-            if x < self.bound_lower:
+            if x < _decimal(self.bound_lower):
                 return False
         if self.bound_upper is not None:
-            if x > self.bound_upper:
+            if x > _decimal(self.bound_upper):
                 return False
         return True
 

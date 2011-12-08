@@ -74,3 +74,12 @@ class TestDataFile(unittest.TestCase):
         parameters = ['CTDOXY']
         units = ['UMOL/KG']
         self.file.create_columns(parameters, units)
+
+    def test_column_append(self):
+        self.assertEqual(self.c.values, [])
+        self.c.set(2, 'test')
+        self.assertEqual(self.c.values, [None, None, 'test'])
+        self.assertEqual(self.c.flags_woce, [])
+        self.c.append('test2', 'flag2')
+        self.assertEqual(self.c.values, [None, None, 'test', 'test2'])
+        self.assertEqual(self.c.flags_woce, [None, None, None, 'flag2'])

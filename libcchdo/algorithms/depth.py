@@ -1,5 +1,10 @@
-from .. import fns
+from .. import LOG, fns
 from libcchdo.fns import _decimal
+
+try:
+    from cdecimal import InvalidOperation
+except ImportError:
+    from decimal import InvalidOperation
 
 
 polyn = fns.polynomial
@@ -95,15 +100,22 @@ def secant_bulk_modulus(salinity, temperature, pressure):
         Kw = polyn(t, E)
         F = _decimal('54.6746', '-0.603459', '1.09987e-2', '-6.1670e-5')
         G = _decimal('7.944e-2', '1.6483e-2', '-5.3009e-4')
-        return Kw + polyn(t, F) * s + \
-               polyn(t, G) * (s ** 3).sqrt()
+        try:
+            return Kw + polyn(t, F) * s + \
+                   polyn(t, G) * (s ** 3).sqrt()
+        except InvalidOperation, e:
+            LOG.debug('Invalid operation probably caused by salinity = %r' % s)
+            raise e
 
     H = _decimal('3.239908', '1.43713e-3', '1.16092e-4', '-5.77905e-7')
     Aw = polyn(t, H)
     I = _decimal('2.2838e-3', '-1.0981e-5', '-1.6078e-6')
     j0 = _decimal('1.91075e-4')
-    A = Aw + polyn(t, I) * s + \
-        j0 * (s ** 3).sqrt()
+    try:
+        A = Aw + polyn(t, I) * s + j0 * (s ** 3).sqrt()
+    except InvalidOperation, e:
+        LOG.debug('Invalid operation probably caused by salinity = %r' % s)
+        raise e
 
     K = _decimal('8.50935e-5', '-6.12293e-6', '5.2787e-8')
     Bw = polyn(t, K)
@@ -135,9 +147,13 @@ def density(salinity, temperature, pressure):
         C = _decimal('-5.72466e-3', '1.0227e-4', '-1.6546e-6')
         d0 = _decimal('4.8314e-4')
 
-        return pure_water_d + polyn(t, B) * s + \
-               polyn(t, C) * (s ** 3).sqrt() + \
-               d0 * (s ** _decimal(2))
+        try:
+            return pure_water_d + polyn(t, B) * s + \
+                   polyn(t, C) * (s ** 3).sqrt() + \
+                   d0 * (s ** _decimal(2))
+        except InvalidOperation, e:
+            LOG.debug('Invalid operation probably caused by salinity = %r' % s)
+            raise e
 
     # Strange correction of one order of magnitude needed?
     # A correction is provided in
