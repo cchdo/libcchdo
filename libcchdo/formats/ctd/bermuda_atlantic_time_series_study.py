@@ -1,8 +1,8 @@
 import datetime
-from decimal import Decimal
 
 from ... import LOG
 from .. import woce
+from ...fns import Decimal
 
 
 def _timedelta_to_seconds(td):

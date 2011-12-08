@@ -1,6 +1,5 @@
-from decimal import Decimal
-
 from .. import fns
+from ..fns import Decimal
 
 
 def deg_min_to_decimal_deg(deg, min):

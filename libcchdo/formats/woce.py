@@ -1,12 +1,12 @@
 import datetime
 import re
 import struct
-from decimal import Decimal
 
 
 from .. import LOG
 from .. import fns
 from ..model import datafile
+from ..fns import Decimal
 
 
 # Where no data is known

@@ -2,7 +2,6 @@
 
 
 import datetime
-from decimal import Decimal
 
 try:
     from netCDF4 import Dataset
@@ -12,6 +11,7 @@ except ImportError, e:
 
 from .. import fns
 from .. import LOG
+from ..fns import Decimal
 
 
 QC_SUFFIX = '_QC'

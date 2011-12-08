@@ -1,8 +1,8 @@
 import unittest
-from decimal import Decimal
 import datetime
 
 from ..formats import woce as fw
+from ..fns import Decimal
 
 
 class TestFormatsWoce(unittest.TestCase):

@@ -1,11 +1,11 @@
 """Test cases for ..algorithms.depth """
 
 from unittest import TestCase
-from decimal import Decimal
 import datetime
 import sys
 
 from ..algorithms import depth
+from ..fns import Decimal
 
 class TestAlgorithmsDepth(TestCase):
 

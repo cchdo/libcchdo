@@ -4,3 +4,4 @@ MySQL-python
 numpy
 netCDF4
 coverage
+cdecimal

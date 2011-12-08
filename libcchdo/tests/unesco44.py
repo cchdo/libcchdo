@@ -1,7 +1,7 @@
 import unittest
-from decimal import Decimal
 
 from ..algorithms import depth as X
+from ..fns import Decimal
 
 
 class TestColumn(unittest.TestCase):

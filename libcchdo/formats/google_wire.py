@@ -1,8 +1,8 @@
 import datetime
-from decimal import Decimal
 
 from .. import LOG
 from .. import fns
+from ..fns import Decimal
 from ..model.datafile import DataFileCollection
 
 

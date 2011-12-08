@@ -170,9 +170,10 @@ http://www.nodc.noaa.gov/General/NODC-Archive/numcode.txt
 """
 
 
-from decimal import Decimal
 import datetime
 import collections
+
+from ..fns import Decimal
 
 
 _MAX_GRATICULE_PRECISION = 4

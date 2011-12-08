@@ -1,10 +1,10 @@
 import re
 import datetime
-from decimal import Decimal
 
 from ... import LOG
 from ... import fns
 from ... import config
+from ...fns import Decimal
 from .. import pre_write
 from .. import woce
 

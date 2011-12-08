@@ -1,7 +1,10 @@
 """Functions used globally."""
 
 
-from decimal import Decimal, getcontext
+try:
+    from cdecimal import Decimal, getcontext
+except ImportError:
+    from decimal import Decimal, getcontext
 import math
 import os.path
 

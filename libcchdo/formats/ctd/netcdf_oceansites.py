@@ -251,18 +251,22 @@ def write(self, handle, timeseries=None, timeseries_info={}, version='1.2'):
     timeseries_info = pick_timeseries_or_timeseries_info(
         self, timeseries, timeseries_info)
     self.globals['_timeseries_info'] = timeseries_info
+
+    site_code = 'UNKNOWN'
     if timeseries_info:
-        nc_file.title = ('%s CTD Timeseries '
-                         'ExpoCode=%s Station=%s Cast=%s') % \
-            (timeseries_info['site_code'], self.globals['EXPOCODE'],
-             self.globals['STNNBR'], self.globals['CASTNO'])
+        site_code = timeseries_info['site_code']
 
         for var in VARIABLES_TO_TRANSFER:
             nc_file.__setattr__(var, timeseries_info[var])
 
-        self.globals['OS_id'] = file_and_timeseries_info_to_id(
-            self, timeseries_info, type='CTD', version=version)
-        nc_file.id = self.globals['OS_id']
+    nc_file.title = ('%s CTD Timeseries '
+                     'ExpoCode=%s Station=%s Cast=%s') % \
+        (site_code, self.globals['EXPOCODE'],
+         self.globals['STNNBR'], self.globals['CASTNO'])
+
+    self.globals['OS_id'] = file_and_timeseries_info_to_id(
+        self, timeseries_info, type='CTD', version=version)
+    nc_file.id = self.globals['OS_id']
 
     nc.check_variable_ranges(nc_file)
 

@@ -2,9 +2,13 @@
 Install
 =======
 
-# Not all dependencies are required! See below.
-pip install --requirement=DEPENDENCIES.txt && \
-python setup.py install
+Two steps!
+
+1. pip install --requirement=DEPENDENCIES.txt
+
+    NOTE: Not all dependencies are required! See below.
+
+2. python setup.py install
 
 Dependencies
 ============
@@ -18,21 +22,24 @@ Dependency tree
 All nodes are python packages except those marked as libraries.
 
 * libcchdo
-  * SQLAlchemy
-    * MySQL-python (optional if you have downloaded a cached database)
+  - SQLAlchemy
+    + MySQL-python (optional if you have downloaded a cached database)
       * MySQL (library)
-  * netCDF4 (optional) for netCDF file manipulation
-    * numpy
-    * netCDF 4 (library)
+  - netCDF4 (optional) for netCDF file manipulation
+    + numpy
+    + netCDF 4 (library)
       * HDF5 (library, needed to write netCDF 4 files)
-  * coverage (optional) only needed for test coverage
+  - cdecimal (optional but highly recommended) provides a HUGE speed boost
+  - coverage (optional) only needed for test coverage
 
 External Libraries
 ------------------
 
+You need to install these yourself based on your operating system.
+
 * MySQL
 * netCDF4
-  * HDF5 - library needed by netCDF 4 to write files
+  - HDF5 - library needed by netCDF 4 to write files
 
 Python packages
 ---------------
@@ -51,6 +58,4 @@ Note about order
 ----------------
 
 Pip runs into problems installing numpy and netCDF4 in one go. You should
-first install numpy
-
-    pip install numpy
+install numpy first and then netCDF4.

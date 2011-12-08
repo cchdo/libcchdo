@@ -1,8 +1,7 @@
 import StringIO
-from decimal import Decimal
 import unittest
 
-from ..fns import equal_with_epsilon
+from ..fns import equal_with_epsilon, Decimal
 from ..model import datafile
 from ..formats.summary import woce as sumwoce
 from ..formats.summary import hot as sumhot

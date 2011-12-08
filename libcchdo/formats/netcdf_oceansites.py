@@ -186,7 +186,7 @@ def oceansites_id(platform_code, deployment_code, data_mode='D', partx='',
                                   deployment_code, data_mode, partx)))
 
 
-def file_and_timeseries_info_to_id(file, timeseries_info, type=None,
+def file_and_timeseries_info_to_id(file, timeseries_info=None, type=None,
                                    version='1.2'):
     """ Converts a read netcdf file and timeseries information into an
     OceanSITES id
@@ -198,7 +198,10 @@ def file_and_timeseries_info_to_id(file, timeseries_info, type=None,
             version - the version of OceanSITES manual to use
     """
     assert version in OCEANSITES_VERSIONS
-    platform_code = timeseries_info.get('platform_code', 'UNKNOWN')
+    if timeseries_info:
+        platform_code = timeseries_info.get('platform_code', 'UNKNOWN')
+    else:
+        platform_code = 'UNKNOWN'
     # the default "identifier" part of the id, ends up being deployment code for
     # 1.2 and config code for 1.1
     identifier = '%s%s-%s' % (file.globals['STNNBR'], file.globals['CASTNO'],
@@ -210,7 +213,10 @@ def file_and_timeseries_info_to_id(file, timeseries_info, type=None,
                              partx=type, version=version)
     elif version == '1.1':
         config_code = identifier
-        data_codes = timeseries_info.get('data_codes', data_mode)
+        if timeseries_info:
+            data_codes = timeseries_info.get('data_codes', data_mode)
+        else:
+            data_codes = ''
         return oceansites_id(platform_code, config_code, data_codes,
                              partx=type, version=version)
 
