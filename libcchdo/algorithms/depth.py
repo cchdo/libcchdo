@@ -91,10 +91,11 @@ def secant_bulk_modulus(salinity, temperature, pressure):
     Returns:
         The secant bulk modulus of sea water as a float.
     """
-    t = _decimal(temperature)
     s = _decimal(salinity)
+    t = _decimal(temperature)
+    p = _decimal(pressure)
 
-    if pressure == 0:
+    if p == 0:
         E = _decimal('19652.21', '148.4206', '-2.327105',
                      '1.360477e-2', '-5.155288e-5')
         Kw = polyn(t, E)
@@ -121,7 +122,7 @@ def secant_bulk_modulus(salinity, temperature, pressure):
     Bw = polyn(t, K)
     M = _decimal('-9.9348e-7', '2.0816e-8', '9.1697e-10')
     B = Bw + polyn(t, M) * s
-    return polyn(pressure, (secant_bulk_modulus(s, temperature, 0), A, B))
+    return polyn(p, (secant_bulk_modulus(s, temperature, 0), A, B))
 
 
 def density(salinity, temperature, pressure):
@@ -133,10 +134,11 @@ def density(salinity, temperature, pressure):
     if any(map(lambda x: x is None, (salinity, temperature, pressure))):
         return None
 
-    t = _decimal(temperature)
     s = _decimal(salinity)
+    t = _decimal(temperature)
+    p = _decimal(pressure)
 
-    if pressure == 0:
+    if p == 0:
         # UNESCO 44 page - 17 -
         A = _decimal('999.842594', '6.793952e-2', '-9.095290e-3',
                      '1.001685e-4', '-1.120083e-6', '6.536332e-9')
@@ -160,9 +162,9 @@ def density(salinity, temperature, pressure):
     # http://www.nioz.nl/public/fys/staff/hendrik_van_aken/dictaten/unesco44.pdf
     # page - 15 -
     # stating that it should be bars instead of decibars
-    pressure /= _decimal('10')
+    p /= _decimal('10')
     return density(s, t, 0) / \
-           (1 - (pressure / secant_bulk_modulus(s, t, pressure)))
+           (1 - (p / secant_bulk_modulus(s, t, p)))
 
 
 def depth_unesco(pres, lat):
