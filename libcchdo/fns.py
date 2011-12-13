@@ -80,7 +80,7 @@ def guess_file_type(filename, file_type=None):
     return None
 
 
-def read_arbitrary(handle, file_type=None):
+def read_arbitrary(handle, file_type=None, file_name=None):
     '''Takes any CCHDO recognized file and tries to open it.
        The recognition is done by file extension.
        Args:
@@ -91,7 +91,17 @@ def read_arbitrary(handle, file_type=None):
     '''
     import model.datafile
 
-    file_type = guess_file_type(handle.name, file_type)
+    if not file_name:
+        try:
+            file_name = handle.name
+        except AttributeError:
+            pass
+        try:
+            file_name = handle.filename
+        except AttributeError:
+            pass
+
+    file_type = guess_file_type(file_name, file_type)
 
     if file_type is None:
         raise ValueError('Unrecognized file type for %s' % handle.name)
