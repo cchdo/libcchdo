@@ -1,7 +1,6 @@
 import unittest
 
 from .. import get_library_abspath
-from .. import post_import
 from .. import memoize
 from .. import LOG
 
@@ -16,12 +15,6 @@ class TestInit(unittest.TestCase):
         self.assertTrue(isinstance(fib, memoize), 'memoize did not decorate the function')
         self.assertEqual(fib(2), 1)
         self.assertEqual(fib(2), 1)
-
-    def test_post_import(self):
-        def nothing(x):
-            pass
-
-        post_import(nothing)
 
     def test_get_library_abspath(self):
         import os

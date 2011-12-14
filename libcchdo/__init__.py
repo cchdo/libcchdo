@@ -54,44 +54,6 @@ class memoize(object):
             return value
 
 
-# XXX EVIL
-
-
-def _import_decorator(old_import, post_processor):
-    """
-       Args:
-         old_import - The import function to decorate, most likely
-                      ``__builtin__.__import__``.
-         post_processor - Function of the form
-                          `post_processor(module, __import__) -> module`.
-       Returns: A new import function, most likely to be assigned to
-                ``__builtin__.__import__``.
-    """
-    assert all([callable(fun) for fun in (old_import, post_processor)])
-
-    def new_import(*args, **kwargs):
-        module = old_import(*args, **kwargs)
-
-        __builtin__.__import__ = old_import
-        module = post_processor(module)
-        return module
-
-    return new_import
-
-
-def post_import(fn):
-    """Evil post-import hook for modules.
-       The import function is decorated and then undecorated after
-       post-processing. See _import_decorator for processor specification.
-    """
-    assert callable(fn)
-
-    __builtin__.__import__ = _import_decorator(__builtin__.__import__, fn)
-
-
-# XXX END EVIL
-
-
 @memoize
 def get_library_abspath():
     """Give the absolute path of the directory that is the root of the 

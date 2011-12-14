@@ -150,9 +150,9 @@ class Parameter(Base):
 
     id = S.Column(S.Integer, autoincrement=True, primary_key=True)
     name = S.Column('Parameter', S.String(255))
-    full_name = S.Column('FullName', S.String(255))
-    description = S.Column('Description', S.String(255))
-    units = S.Column('Units', S.String(255))
+    full_name = S.Column('FullName', S.Unicode)
+    description = S.Column('Description', S.Unicode)
+    units = S.Column('Units', S.Unicode)
     range = S.Column('Range', S.String(255))
     alias = S.Column('Alias', S.String(255))
     group = S.Column('Group', S.String(255))

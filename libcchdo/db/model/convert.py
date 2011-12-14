@@ -56,6 +56,7 @@ def convert_unit(session, name, mnemonic):
          std.Unit.mnemonic == units_mnemonic).first()
     if not units:
         units = std.Unit(units_name, units_mnemonic)
+    session.add(units)
     return units
 
 
@@ -64,8 +65,7 @@ def convert_parameter(session, legacy_param):
         return None
 
     parameter = std.Parameter(legacy_param.name)
-    parameter.full_name = \
-        unicode((legacy_param.full_name or '').strip(), errors='replace')
+    parameter.full_name = (legacy_param.full_name or u'').strip()
     try:
         parameter.format = '%' + legacy_param.ruby_precision.strip() if \
             legacy_param.ruby_precision else '%11s'
@@ -78,7 +78,7 @@ def convert_parameter(session, legacy_param):
     parameter.bound_upper = float(range[1]) if range[1] else None
 
     if legacy_param.units:
-        legacy_param.units = unicode(legacy_param.units, errors='replace')
+        legacy_param.units = legacy_param.units
         parameter.units = convert_unit(session, legacy_param.units,
                                        legacy_param.unit_mnemonic)
     else:
@@ -96,6 +96,7 @@ def convert_parameter(session, legacy_param):
     except AttributeError:
         parameter.display_order = sys.maxint
 
+    session.add(parameter)
     return parameter
 
 

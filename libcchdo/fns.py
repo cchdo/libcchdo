@@ -96,15 +96,11 @@ def read_arbitrary(handle, file_type=None, file_name=None):
             file_name = handle.name
         except AttributeError:
             pass
-        try:
-            file_name = handle.filename
-        except AttributeError:
-            pass
 
     file_type = guess_file_type(file_name, file_type)
 
     if file_type is None:
-        raise ValueError('Unrecognized file type for %s' % handle.name)
+        raise ValueError('Unrecognized file type for %s' % handle)
 
     if file_type.find('zip') > 0:
         datafile = model.datafile.DataFileCollection()

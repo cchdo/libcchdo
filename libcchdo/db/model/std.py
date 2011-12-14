@@ -6,13 +6,17 @@ import sqlalchemy as S
 import sqlalchemy.orm
 import sqlalchemy.ext.declarative
 
-from ... import LOG, memoize, get_library_abspath, post_import, config
+from ... import LOG, memoize, get_library_abspath, config, check_cache
 from ...fns import _decimal
 from ...db import connect
 
 
 Base = S.ext.declarative.declarative_base()
 _metadata = Base.metadata
+
+
+_cache_checked = False
+_cache_checking = False
 
 
 def _populate_library_database_parameters(std_session):
@@ -31,31 +35,13 @@ def _ensure_database_parameters_exist(std_session):
         _populate_library_database_parameters(std_session)
 
 
-def _auto_generate_library_database_cache():
-    LOG.info("Auto-generating the library's cache (%s)." % \
-        config.get_option('db', 'cache'))
-    
-    with guarded_session(autoflush=True) as std_session:
-        create_all()
-        std_session.commit()
-        _ensure_database_parameters_exist(std_session)
-        std_session.commit()
-
-
-def ensure_database_cache():
-    """Initialize the database cache if it is not present.
-       WARNING: Do not call this from ...db.model.std. There will be a
-       circular dependency as ...db.model.convert needs this module defined.
-    """
-    if not os.path.isfile(config.get_option('db', 'cache')):
-        _auto_generate_library_database_cache()
-    else:
-        with guarded_session(autoflush=True) as std_session:
-            _ensure_database_parameters_exist(std_session)
+def _create_all():
+    _metadata.create_all(connect.cchdo_data())
 
 
 @contextmanager
 def guarded_session(*args, **kwargs):
+    s = None
     try:
         s = session(*args, **kwargs)
         yield s
@@ -64,17 +50,44 @@ def guarded_session(*args, **kwargs):
             s.close()
 
 
+def _auto_generate_library_database_cache():
+    LOG.info("Auto-generating the library's cache (%s)." % \
+        config.get_option('db', 'cache'))
+    
+    with guarded_session(autoflush=True) as std_session:
+        _create_all()
+        std_session.commit()
+        _ensure_database_parameters_exist(std_session)
+        std_session.commit()
+
+
+def ensure_database_cache():
+    """Initialize the database cache if it is not present.
+       WARNING: Do not call this while importing ...db.model.std. There will be
+       a circular dependency as ...db.model.convert needs this module defined.
+    """
+    global _cache_checked, _cache_checking
+    if _cache_checked or _cache_checking:
+        return
+    _cache_checking = True
+    if not os.path.isfile(config.get_option('db', 'cache')):
+        _auto_generate_library_database_cache()
+    else:
+        with guarded_session(autoflush=True) as std_session:
+            _ensure_database_parameters_exist(std_session)
+    _cache_checking = False
+    _cache_checked = True
+
+
 @memoize
 def session(autoflush=False):
+    if check_cache:
+        ensure_database_cache()
     session = connect.session(connect.cchdo_data())
     if not session:
         raise ValueError("Unable to connect to local cache database cchdo_data")
     session.autoflush = autoflush
     return session
-
-
-def create_all():
-    _metadata.create_all(connect.cchdo_data())
 
 
 class Country(Base):
@@ -113,7 +126,7 @@ class Contact(Base):
     __tablename__ = 'contacts'
 
     id = S.Column(S.Integer, primary_key=True)
-    name = S.Column(S.String(255)) # TODO
+    name = S.Column(S.String(255))
     institution_id = S.Column(S.ForeignKey('institutions.id'))
 
     institution = S.orm.relation(Institution,
@@ -228,7 +241,7 @@ class Unit(Base):
     __tablename__ = 'units'
 
     id = S.Column(S.Integer, primary_key=True)
-    name = S.Column(S.String(255))
+    name = S.Column(S.Unicode)
     mnemonic = S.Column(S.String(8))
 
     def __init__(self, name, mnemonic=None):
@@ -236,8 +249,7 @@ class Unit(Base):
         self.mnemonic = mnemonic
 
     def __repr__(self):
-        return "<Unit('%s', '%s')>" % (self.name.encode('ascii', 'replace'),
-                                       self.mnemonic.encode('ascii', 'replace'))
+        return u"<Unit('%s', '%s')>" % (self.name, self.mnemonic)
 
     @classmethod
     def find_by_name(cls, name):
@@ -268,6 +280,7 @@ class Parameter(Base):
     name = S.Column(S.String(255))
     full_name = S.Column(S.String(255))
     name_netcdf = S.Column(S.String(255))
+    description = S.Column(S.String)
     format = S.Column(S.String(10))
     unit_id = S.Column(S.ForeignKey('units.id'))
     bound_lower = S.Column(S.Numeric)
@@ -509,13 +522,3 @@ def find_by_mnemonic(name):
         else:
         	parameter = None
     return parameter
-
-
-def _post_import(module):
-    from ... import check_cache
-    if check_cache:
-        ensure_database_cache()
-    return module
-
-
-post_import(_post_import)
