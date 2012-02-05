@@ -14,7 +14,6 @@ Base = S.ext.declarative.declarative_base()
 metadata = Base.metadata
 
 
-@memoize
 def session():
     return connect.session(connect.cchdo())
 

@@ -79,7 +79,6 @@ def ensure_database_cache():
     _cache_checked = True
 
 
-@memoize
 def session(autoflush=False):
     if check_cache:
         ensure_database_cache()
