@@ -27,7 +27,7 @@ All nodes are python packages except those marked as libraries.
       * MySQL (library)
   - netCDF4 (optional) for netCDF file manipulation
     + numpy
-    + netCDF 4 (library)
+    + netCDF >=3.0 (library)
       * HDF5 (library, needed to write netCDF 4 files)
   - cdecimal (optional but highly recommended) provides a HUGE speed boost
   - coverage (optional) only needed for test coverage
