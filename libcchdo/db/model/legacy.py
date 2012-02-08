@@ -471,10 +471,17 @@ class UnusedTrack(Base):
     Track = S.Column(S.String)
 
 
-def find_parameter(name):
-    sesh = session()
-    legacy_parameter = sesh.query(Parameter).filter(
-        Parameter.name == name).first()
+def find_parameter(name, session_=None):
+    if session_ is None:
+        localsession = session()
+    else:
+        localsession = session_
+    try:
+        legacy_parameter = localsession.query(Parameter).filter(
+            Parameter.name == name).first()
+    finally:
+        if session_ is None:
+            localsession.close()
 
     if not legacy_parameter:
         # Try aliases

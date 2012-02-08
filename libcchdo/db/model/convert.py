@@ -108,12 +108,16 @@ def _name_to_netcdf_name(n):
 
 
 def all_parameters(session):
-    legacy_parameters = [legacy.find_parameter(x[0]) for x in \
-                         legacy.session().query(
-                             legacy.Parameter.name).all()]
+    lsession = legacy.session()
+    try:
+        legacy_parameters = [
+            legacy.find_parameter(x[0], lsession) for x in lsession.query(
+                legacy.Parameter.name).all()]
+    finally:
+        lsession.close()
 
-    std_parameters = map(lambda x: convert_parameter(session, x),
-                         legacy_parameters)
+    std_parameters = map(
+        lambda x: convert_parameter(session, x), legacy_parameters)
     std_parameters = dict([(x.name, x) for x in std_parameters])
 
     # Additional modifications
