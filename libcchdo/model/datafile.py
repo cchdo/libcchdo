@@ -288,21 +288,24 @@ class DataFile(File):
         return copy
 
     def __str__(self):
-        s = u''
-        s += '%sGlobals: %s\n' % (COLORS['RED'], COLORS['CLEAR'])
-        for gv in self.globals.items():
-            s += '%s: %s\n' % gv
+        return unicode(self).encode('ascii', 'replace')
 
-        s += '%sData: %s\n' % (COLORS['RED'], COLORS['CLEAR'])
+    def __unicode__(self):
+        strs = []
+        strs.append(u'%sGlobals: %s\n' % (COLORS['RED'], COLORS['CLEAR']))
+        for gv in self.globals.items():
+            strs.append(u'%s: %s\n' % gv)
+
+        strs.append(u'%sData: %s\n' % (COLORS['RED'], COLORS['CLEAR']))
         for column in self.sorted_columns():
-            s += '%s\n' % column
+            strs.append(u'%s\n' % column)
             if column.is_flagged_woce():
-                s += '\t%s%s%s\n' % (COLORS['CYAN'], column.flags_woce,
-                                     COLORS['CLEAR'])
+                strs.append(u'\t%s%s%s\n' % (
+                    COLORS['CYAN'], column.flags_woce, COLORS['CLEAR']))
             if column.is_flagged_igoss():
-                s += '\t%s%s%s\n' % (COLORS['CYAN'], column.flags_igoss,
-                                     COLORS['CLEAR'])
-        return s.encode('ascii', 'replace')
+                strs.append(u'\t%s%s%s\n' % (
+                    COLORS['CYAN'], column.flags_igoss, COLORS['CLEAR']))
+        return u''.join(strs)
 
     def to_dict(self):
         d = {}

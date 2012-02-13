@@ -28,9 +28,11 @@ def read(self, handle, retain_order=False):
 
     # Read comments
     l = handle.readline()
+    headers = []
     while l and l.startswith('#'):
-        self.globals['header'] += l.strip() + '\n'
+        headers.append(l.decode('raw_unicode_escape'))
         l = handle.readline()
+    self.globals['header'] = u''.join(headers)
 
     # Read NUMBER_HEADERS
     num_headers = re.compile('NUMBER_HEADERS\s*=\s*(\d+)')

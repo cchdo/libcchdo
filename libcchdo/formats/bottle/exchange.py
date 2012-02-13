@@ -19,10 +19,13 @@ def read(self, handle):
                           "(e.g. BOTTLE,YYYYMMDDdivINSwho)"))
     # Read comments
     l = handle.readline()
-    self.globals['header'] = ''
+    headers = []
     while l and l.startswith('#'):
-        self.globals['header'] += l
+        # It's possible for files to come in with unicode.
+        headers.append(l.decode('raw_unicode_escape'))
         l = handle.readline()
+    self.globals['header'] = u''.join(headers)
+
     # Read columns and units
     columns = [x.strip() for x in l.strip().split(',')]
     units = [x.strip() for x in handle.readline().strip().split(',')]

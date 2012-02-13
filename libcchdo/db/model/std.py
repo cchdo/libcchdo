@@ -288,7 +288,7 @@ class Parameter(Base):
 
     units = S.orm.relation(Unit)
     aliases = S.orm.relation(
-        ParameterAlias, backref=S.orm.backref('parameter'))
+        ParameterAlias, backref=S.orm.backref('parameter'), lazy='immediate')
 
     def mnemonic_woce(self):
         return self.name.encode('ascii', 'replace')
