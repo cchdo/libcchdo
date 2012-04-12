@@ -37,7 +37,7 @@ def _save_config():
     if not os.path.isdir(os.path.dirname(config_path)):
         try:
             os.makedirs(os.path.dirname(config_path))
-        except error:
+        except os.error:
             LOG.error('Unable to write configuration file: %s' % config_path)
             return
 
