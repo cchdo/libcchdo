@@ -1,7 +1,4 @@
-sqlalchemy>=0.5.8
 geoalchemy
 MySQL-python
 numpy
 netCDF4
-coverage
-cdecimal

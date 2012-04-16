@@ -3,6 +3,7 @@
 .*.swo
 .*~
 *~
+*.egg-info
 *.pyc
 .coverage
 doc/coverage

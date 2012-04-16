@@ -30,7 +30,7 @@ import os
 import __builtin__
 
 
-__version__ = "0.6"
+__version__ = "0.7"
 
 
 # Database cache for parameters will be ensured

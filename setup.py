@@ -1,5 +1,6 @@
 from __future__ import with_statement
 import distutils.core
+import setuptools
 import unittest
 import glob
 import os

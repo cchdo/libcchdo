@@ -10,12 +10,17 @@ from . import LOG
 _CONFIG_DIR = '.%s' % __package__
 
 
-_CONFIG_FILE_NAME = '.%s.cfg' % __package__
+_CONFIG_FILE_NAME = '%s.cfg' % __package__
+
+
+_LEGACY_CONFIG_FILE_NAME = '.%s.cfg' % __package__
 
 
 _CONFIG_PATHS = [
     os.path.join(os.getcwd(), _CONFIG_DIR,  _CONFIG_FILE_NAME),
+    os.path.join(os.getcwd(), _CONFIG_DIR,  _LEGACY_CONFIG_FILE_NAME),
     os.path.expanduser(os.path.join('~', _CONFIG_DIR, _CONFIG_FILE_NAME)),
+    os.path.expanduser(os.path.join('~', _CONFIG_DIR, _LEGACY_CONFIG_FILE_NAME)),
 ]
 
 
@@ -23,7 +28,7 @@ _CONFIG = ConfigParser.SafeConfigParser()
 _CONFIG.read(_CONFIG_PATHS)
 
 
-def _get_config_path():
+def get_config_path():
     config_path = _CONFIG_PATHS[-1]
     for path in _CONFIG_PATHS:
         if os.path.exists(path):
@@ -32,7 +37,7 @@ def _get_config_path():
 
 
 def _save_config():
-    config_path = _get_config_path()
+    config_path = get_config_path()
 
     if not os.path.isdir(os.path.dirname(config_path)):
         try:
@@ -50,7 +55,7 @@ try:
 except ConfigParser.Error, e:
     if isinstance(e, ConfigParser.NoSectionError):
         _CONFIG.add_section('db')
-    dir = os.path.dirname(_get_config_path())
+    dir = os.path.dirname(get_config_path())
     _CONFIG.set('db', 'cache', os.path.join(dir, 'cchdo_data.db'))
     _save_config()
 
