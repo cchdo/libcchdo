@@ -25,15 +25,22 @@ _CONFIG_PATHS = [
 
 
 _CONFIG = ConfigParser.SafeConfigParser()
-_CONFIG.read(_CONFIG_PATHS)
+_parsed_files = _CONFIG.read(_CONFIG_PATHS)
 
 
 def get_config_path():
-    config_path = _CONFIG_PATHS[-1]
-    for path in _CONFIG_PATHS:
-        if os.path.exists(path):
-            config_path = path
-    return os.path.realpath(config_path)
+    if _parsed_files:
+        return _parsed_files[0]
+    else:
+        config_path = _CONFIG_PATHS[-1]
+        for path in _CONFIG_PATHS:
+            if os.path.exists(path):
+                config_path = path
+        return os.path.realpath(config_path)
+
+
+def get_config_dir():
+    return os.path.dirname(get_config_path())
 
 
 def _save_config():

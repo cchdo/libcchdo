@@ -28,6 +28,7 @@ import datetime
 import logging
 import os
 import __builtin__
+import functools
 
 
 __version__ = "0.7"
@@ -38,20 +39,37 @@ check_cache = True
 
 
 class memoize(object):
-    """Memoization decorator class"""
+    '''Decorator. Caches a function's return value each time it is called.
+    If called later with the same arguments, the cached value is returned 
+    (not reevaluated).
 
-    def __init__(self, callable):
-        self._cache = {}
-        self._callable = callable
+    Grabbed from http://wiki.python.org/moin/PythonDecoratorLibrary#Memoize 
+    2012-04-20
 
-    def __call__(self, *args, **kwargs):
-        cache = self._cache
-        key = kwargs and (args, hash(tuple(kwargs.items()))) or args
-        try:
-            return cache[key]
-        except KeyError:
-            value = cache[key] = self._callable(*args, **kwargs)
-            return value
+    '''
+    def __init__(self, func):
+       self.func = func
+       self.cache = {}
+
+    def __call__(self, *args):
+       try:
+          return self.cache[args]
+       except KeyError:
+          value = self.func(*args)
+          self.cache[args] = value
+          return value
+       except TypeError:
+          # uncachable -- for instance, passing a list as an argument.
+          # Better to not cache than to blow up entirely.
+          return self.func(*args)
+
+    def __repr__(self):
+       '''Return the function's docstring.'''
+       return self.func.__doc__
+
+    def __get__(self, obj, objtype):
+       '''Support instance methods.'''
+       return functools.partial(self.__call__, obj)
 
 
 @memoize
