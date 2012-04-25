@@ -111,6 +111,10 @@ class Column(object):
            given_units != expected_units:
             LOG.warn(("Mismatched units for '%s'. Found '%s' but "
                       "expected '%s'") % ((parameter.name,) + from_to))
+            # TODO IPTS-68 and ITS-90 need to be recognized and checked for as
+            # valid aliases for DEG C. However, DEG C is less descriptive than
+            # the given temperature specifications so retaining the original
+            # specifications may be a good thing.
             try:
                 unit_converter = file.unit_converters[from_to]
             except KeyError:
