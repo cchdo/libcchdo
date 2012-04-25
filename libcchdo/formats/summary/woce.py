@@ -6,6 +6,52 @@ from ... import config
 from .. import woce
 
 
+cast_type_codes = {
+    'BIO': 'Biological or biooptical cast',
+    'BUC': 'Surface bucket sample (not recommended)',
+    'BOT': 'Small volume bottle cast only. No CTD',
+    'CTD': 'CTD only, no water samples. Includes fast fish casts',
+    'DRF': 'Drifter deployment',
+    'FLT': 'Float deployment',
+    'LVS': 'Large volume samples',
+    'MOR': 'Mooring',
+    'ROS': 'Rosette water sampler plus CTD',
+    'XBT': 'Expendable bathythermograph',
+    'XCP': 'Expendable current profiler',
+    'XCT': 'Expendable CTD casts.',
+    'UNK': 'Unknown',
+    'USW': 'Surface soak or sample taken from uncontaminated sea water line',
+}
+
+
+time_event_codes = {
+    'AT': 'Time bottles were acoustically tripped on large volume cast',
+    'BE': ('Beginning of cast. BE, BO, and EN time, position, and depth '
+           'required for each BOT, CTD, LVS, and ROS cast'),
+    'BO': 'Bottom time for cast. Usually taken for station position',
+    'DE': 'Time mooring, float, drifter, XCP, XCTD, or XBT was deployed',
+    'EN': 'Time cast completed',
+    'MR': 'Time messenger was released on bottle or LVS cast',
+    'RE': 'Time mooring, drifter, float, or other device recovered',
+    'UN': 'Unknown',
+}
+
+
+navigation_system_codes = {
+    'CIK': 'GLONASS - Russian version of GPS',
+    'CN': 'Celestial navigation',
+    'DEC': 'Decca',
+    'DR': 'Dead reckoning (more accurate methods are preferred)',
+    'GPS': 'Global Positioning System',
+    'INS': 'Inertial navigation system',
+    'LOR': 'Loran',
+    'OM': 'Omega',
+    'RDR': 'Radar fix',
+    'TRS': 'Transit satellite system',
+    'UNK': 'Unknown',
+}
+
+
 def read(self, handle):
     '''How to read a Summary file for WOCE.'''
     header = True
