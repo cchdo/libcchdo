@@ -7,6 +7,7 @@ except ImportError:
     from decimal import Decimal, getcontext
 import math
 import os.path
+import sys
 
 from . import RADIUS_EARTH
 
@@ -49,6 +50,30 @@ def strip_all(l):
     return [x.strip() for x in l]
 
 
+class file_type_dict(dict):
+    def __getitem__(self, key):
+        module = 'libcchdo.formats.' + super(file_type_dict, self).__getitem__(key)
+        __import__(module)
+        return sys.modules[module]
+    
+
+all_formats = file_type_dict({
+    'sumhot': 'summary.hot',
+    'sumwoce': 'summary.woce',
+    'botwoce': 'bottle.woce',
+    'botex': 'bottle.exchange',
+    'botnc': 'bottle.netcdf',
+    'botzipnc': 'bottle.zip.netcdf',
+    'ctdex': 'ctd.exchange',
+    'ctdzipex': 'ctd.zip.exchange',
+    'ctdnc': 'ctd.netcdf',
+    'ctdzipnc': 'ctd.zip.netcdf',
+    'coriolis': 'coriolis',
+    'nodc_sd2': 'nodc_sd2',
+    'geosecs': 'geosecs',
+})
+
+
 def guess_file_type(filename, file_type=None):
     if file_type is not None:
         return file_type
@@ -56,27 +81,29 @@ def guess_file_type(filename, file_type=None):
     if filename.endswith('.hot.su.txt'):
         return 'sumhot'
     if filename.endswith('su.txt'):
-      return 'sumwoce'
+        return 'sumwoce'
     if filename.endswith('hy.txt'):
-      return 'botwoce'
+        return 'botwoce'
     if filename.endswith('hy1.csv'):
-      return 'botex'
+        return 'botex'
     if filename.endswith('hy1.nc'):
-      return 'botnc'
+        return 'botnc'
     if filename.endswith('nc_hyd.zip'):
-      return 'botzipnc'
+        return 'botzipnc'
     if filename.endswith('ct1.csv'):
-      return 'ctdex'
+        return 'ctdex'
     if filename.endswith('ct1.zip'):
-      return 'ctdzipex'
+        return 'ctdzipex'
     if filename.endswith('ctd.nc'):
-      return 'ctdnc'
+        return 'ctdnc'
     if filename.endswith('nc_ctd.zip'):
-      return 'ctdzipnc'
+        return 'ctdzipnc'
     if file_type == 'coriolis':
-      return 'coriolis'
+        return 'coriolis'
     if filename.endswith('.sd2'):
         return 'nodc_sd2'
+    if filename.endswith('.shore'):
+        return 'geosecs'
     return None
 
 
@@ -108,44 +135,13 @@ def read_arbitrary(handle, file_type=None, file_name=None):
         datafile = model.datafile.SummaryFile()
     else:
         datafile = model.datafile.DataFile()
+    
+    if file_type == 'sd2':
+        file_type = 'nodc_sd2'
 
-    if file_type == 'sumhot':
-        import formats.summary.hot
-        formats.summary.hot.read(datafile, handle)
-    elif file_type == 'sumwoce':
-        import formats.summary.woce
-        formats.summary.woce.read(datafile, handle)
-    elif file_type == 'botwoce':
-        import formats.bottle.woce
-        formats.bottle.woce.read(datafile, handle)
-    elif file_type == 'botex':
-        import formats.bottle.exchange
-        formats.bottle.exchange.read(datafile, handle)
-    elif file_type == 'botnc':
-        import formats.bottle.netcdf
-        formats.bottle.netcdf.read(datafile, handle)
-    elif file_type == 'botzipnc':
-        import formats.bottle.zip.netcdf
-        formats.bottle.zip.netcdf.read(datafile, handle)
-    elif file_type == 'ctdex':
-        import formats.ctd.exchange
-        formats.ctd.exchange.read(datafile, handle)
-    elif file_type == 'ctdzipex':
-        import formats.ctd.zip.exchange
-        formats.ctd.zip.exchange.read(datafile, handle)
-    elif file_type == 'ctdnc':
-        import formats.ctd.netcdf
-        formats.ctd.netcdf.read(datafile, handle)
-    elif file_type == 'ctdzipnc':
-        import formats.ctd.zip.netcdf
-        formats.ctd.zip.netcdf.read(datafile, handle)
-    elif file_type == 'coriolis':
-        import formats.coriolis
-        formats.coriolis.read(datafile, handle)
-    elif file_type == 'nodc_sd2' or file_type == 'sd2':
-        import formats.nodc_sd2
-        formats.nodc_sd2.read(datafile, handle)
-    else:
+    try:
+        all_formats[file_type].read(datafile, handle)
+    except (KeyError, ImportError):
         raise ValueError('Unrecognized file type for %s' % handle.name)
 
     return datafile

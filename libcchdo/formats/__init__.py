@@ -5,8 +5,8 @@ Reading/Writing
 
 Formats are allowed to specify two operations::
 
-* read(DataFile_or_Collection, file_handle)
-* write(DataFile_or_Collection, file_handle)
+* read(DataFile_or_Collection, file_object)
+* write(DataFile_or_Collection, file_object)
 
 Formats are *not* required to specify both reading and writing.
 
