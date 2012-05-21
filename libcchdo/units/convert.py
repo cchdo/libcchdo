@@ -138,3 +138,23 @@ def ctdoxy_micromole_per_liter_to_micromole_per_kilogram(file, column):
     return column
 
 
+def cc_per_kilogram_e_neg_5_to_nanomole_per_kilogram(file, column):
+    """ Convert CC/KG * 10 ** -5 to NMOL/KG
+
+        For Helium and Neon,
+
+        CC/KG * 10 ** -5 / 2.2415 = NMOL/KG
+
+        Bill Jenkins (WHOI) 2006-05-03
+        Bill Jenkins (WHOI) 2012-05-15
+
+    """
+    constant = _decimal('2.2415')
+    for i, value in enumerate(column):
+        if value:
+            precision = \
+                len(str(value.to_integral())) - value.as_tuple()[2]
+            with localcontext() as ctx:
+                ctx.prec = precision
+                column[i] = value / constant
+    return column
