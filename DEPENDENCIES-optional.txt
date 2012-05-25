@@ -6,3 +6,4 @@ coverage
 scipy
 matplotlib
 basemap
+pandas
