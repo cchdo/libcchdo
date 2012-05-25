@@ -1,0 +1,132 @@
+#!/usr/bin/env python
+import sys
+import re
+from pandas import *
+import libcchdo as L
+import libcchdo.model.datafile as DF
+import libcchdo.formats.bottle.exchange as botex
+
+def count_headers(file_handle):
+    p = re.compile('^\#')
+    h = re.compile('^BOTTLE')
+    header_cnt = 0
+    header = ""
+    stamp = file_handle.readline()
+    if not h.match(stamp):
+        raise Exception
+    line = file_handle.readline()
+    while line:
+        if p.match(line):
+            header_cnt += 1
+            header += line
+        else:
+            break
+        line = file_handle.readline()
+    units_line = file_handle.readline().rstrip()
+    units = units_line.split(',')
+    file_handle.seek(0,0)
+    return header_cnt, header, units, stamp
+
+def check_last_line(file_handle):
+    h = re.compile('^END')
+    lines =file_handle.readlines()
+    file_handle.seek(0,0)
+    if h.match(lines[-1]):
+        return True 
+    else:
+        return False
+
+class Merger(object):
+    def __init__(self, file1, file2):
+        self.datafile1 = file1
+        self.datafile2 = file2
+        self.header_cnt1, self.header1, self.units1, self.stamp1 = count_headers(self.datafile1)
+        self.header_cnt2, self.header2, self.units2, self.stamp2 = count_headers(self.datafile2)
+        skipped_lines1 = [self.header_cnt1 + 1]
+        skipped_lines2 = [self.header_cnt2 + 1]
+
+        if check_last_line(self.datafile1):
+            self.dataframe1 = read_csv(self.datafile1, header=(self.header_cnt1 ), skiprows=skipped_lines1, skip_footer=1)
+            self.dataframe2 = read_csv(self.datafile2, header=(self.header_cnt2 ), skiprows=skipped_lines2, skip_footer=1)
+        else:
+            self.dataframe1 = read_csv(self.datafile1, header=(self.header_cnt1 ), skiprows=skipped_lines1)
+            self.dataframe2 = read_csv(self.datafile2, header=(self.header_cnt2 ), skiprows=skipped_lines2)
+
+
+    def merge_cols(self):
+        return self.dataframe2.columns - ["Fake", "STNNBR", "CASTNO", "BTLNBR", "BTLNBR_FLAG_W", "DATE", "DEPTH", "EXPOCODE", "CTDPRS", "CTDTMP", "SECT_ID", "LATITUDE", "LONGITUDE", "CTDSAL", "CTDSAL_FLAG_W", "SAMPNO", "TIME"]
+
+    def different_cols(self):
+        different_cols = []
+        df1_grouped = self.dataframe1.groupby(['STNNBR', 'CASTNO', 'SAMPNO'],axis=0);
+        df2_grouped = self.dataframe2.groupby(['STNNBR', 'CASTNO', 'SAMPNO'],axis=0);
+        cols1, rows1 = self.dataframe1.shape 
+        cols2, rows2 = self.dataframe2.shape 
+
+        for key, group in df2_grouped:
+            if key in df1_grouped.groups.keys():
+                row1 = df1_grouped.groups[key]
+                row2 = df2_grouped.groups[key]
+                for col in self.dataframe2:
+                    x = self.dataframe1[col]
+                    y = self.dataframe2[col]
+                    if x[row1[0]] != y[row2[0]]:
+                        if col not in different_cols:
+                            different_cols.append(col)
+                        self.dataframe1[col][row1[0]] = self.dataframe2[col][row2[0]]
+        return different_cols
+        
+    def mergeit(self,columns_to_merge):
+        df1_grouped = self.dataframe1.groupby(['STNNBR', 'CASTNO', 'SAMPNO'],axis=0);
+        df2_grouped = self.dataframe2.groupby(['STNNBR', 'CASTNO', 'SAMPNO'],axis=0);
+        cols1, rows1 = self.dataframe1.shape 
+        cols2, rows2 = self.dataframe2.shape 
+
+        for key, group in df2_grouped:
+            if key in df1_grouped.groups.keys():
+                row1 = df1_grouped.groups[key]
+                row2 = df2_grouped.groups[key]
+                for col in columns_to_merge:#self.dataframe2:
+                    x = self.dataframe1[col]
+                    y = self.dataframe2[col]
+                    if x[row1[0]] != y[row2[0]]:
+                        self.dataframe1[col][row1[0]] = self.dataframe2[col][row2[0]]
+        return self.dataframe1
+
+def convert_to_datafile(self, header, dataframe, units, stamp):
+    self.globals['header'] = header
+    self.globals['stamp'] = stamp.rstrip()
+    columns = dataframe.columns
+    self.create_columns(columns, units)
+    for param in columns:
+        if re.match(".*FLAG", param):
+            continue
+        self[param].values = dataframe[param]
+        if (param + "_FLAG_W") in columns:
+            self[param].flags_woce = dataframe[param + "_FLAG_W"]
+
+    self.check_and_replace_parameters()
+    L.formats.woce.fuse_datetime(self)
+    return self
+
+
+if __name__ == '__main__':
+    if len(sys.argv) >= 3:
+        file1 = sys.argv[1]
+        file2 = sys.argv[2]
+        f1_handle = open(file1)
+        f2_handle = open(file2)
+        m = Merger(f1_handle, f2_handle)
+        if len(sys.argv) == 3:
+            different_columns = m.different_cols()
+            print "The following parameters in {0} are different".format(file2)
+            for col in different_columns:
+                print col
+        if len(sys.argv) > 3:
+            columns_to_merge = []
+            for index in range(3,len(sys.argv)):
+                columns_to_merge.append(sys.argv[index])
+            df = DF.DataFile()
+            result = m.mergeit(columns_to_merge)
+            new_data_file = convert_to_datafile(df,m.header1, result, m.units1, m.stamp1)
+            botex.write(df, sys.stdout)
