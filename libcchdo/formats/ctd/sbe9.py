@@ -5,7 +5,7 @@ from ... import LOG
 from ... import fns
 from ...fns import ddm_to_dd, Decimal
 
-def read(self, handle):
+def read(self, handle, remove_calcualte=True):
     """How to read an SBE 9 ASCII CTD File"""
 
     l = handle.readline()
@@ -129,6 +129,6 @@ def read(self, handle):
             col = self.columns[column]
             col.append(value, flag_woce=2)
         l = handle.readline()
-
-    for param in calculated:
-        del self.columns[param]
+    if remove_calculated: #TODO make this better
+        for param in calculated:
+            del self.columns[param]
