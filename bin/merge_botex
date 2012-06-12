@@ -9,7 +9,7 @@ import libcchdo.formats.bottle.exchange as botex
 def count_headers(file_handle):
     p = re.compile('^\#')
     h = re.compile('^BOTTLE')
-    header_cnt = 0
+    header_cnt = 1 
     header = ""
     stamp = file_handle.readline()
     if not h.match(stamp):
@@ -44,7 +44,6 @@ class Merger(object):
         self.header_cnt2, self.header2, self.units2, self.stamp2 = count_headers(self.datafile2)
         skipped_lines1 = [self.header_cnt1 + 1]
         skipped_lines2 = [self.header_cnt2 + 1]
-
         if check_last_line(self.datafile1):
             self.dataframe1 = read_csv(self.datafile1, header=(self.header_cnt1 ), skiprows=skipped_lines1, skip_footer=1)
             self.dataframe2 = read_csv(self.datafile2, header=(self.header_cnt2 ), skiprows=skipped_lines2, skip_footer=1)
@@ -68,12 +67,15 @@ class Merger(object):
                 row1 = df1_grouped.groups[key]
                 row2 = df2_grouped.groups[key]
                 for col in self.dataframe2:
-                    x = self.dataframe1[col]
-                    y = self.dataframe2[col]
-                    if x[row1[0]] != y[row2[0]]:
-                        if col not in different_cols:
-                            different_cols.append(col)
-                        self.dataframe1[col][row1[0]] = self.dataframe2[col][row2[0]]
+                    if col in self.dataframe1.columns:
+                        x = self.dataframe1[col]
+                        y = self.dataframe2[col]
+                        if x[row1[0]] != y[row2[0]]:
+                            if col not in different_cols:
+                                different_cols.append(col)
+                            self.dataframe1[col][row1[0]] = self.dataframe2[col][row2[0]]
+                    elif col not in different_cols:
+                        different_cols.append(col)
         return different_cols
         
     def mergeit(self,columns_to_merge):
@@ -87,10 +89,21 @@ class Merger(object):
                 row1 = df1_grouped.groups[key]
                 row2 = df2_grouped.groups[key]
                 for col in columns_to_merge:#self.dataframe2:
-                    x = self.dataframe1[col]
-                    y = self.dataframe2[col]
-                    if x[row1[0]] != y[row2[0]]:
-                        self.dataframe1[col][row1[0]] = self.dataframe2[col][row2[0]]
+                    if col in self.dataframe1.columns:
+                        x = self.dataframe1[col]
+                        y = self.dataframe2[col]
+                        if x[row1[0]] != y[row2[0]]:
+                            self.dataframe1[col][row1[0]] = self.dataframe2[col][row2[0]]
+
+        for col in columns_to_merge:
+            if col not in self.dataframe1.columns:
+                temp_frame = self.dataframe2
+                for col_check in self.dataframe2.columns:
+                    if col_check not in ['STNNBR', 'CASTNO', 'SAMPNO', col]:
+                        del temp_frame[col_check]
+                self.dataframe1 = merge(self.dataframe1, temp_frame ,how='outer', on=['STNNBR','CASTNO','SAMPNO'])
+                self.dataframe1 = self.dataframe1.fillna(-999.00)
+       
         return self.dataframe1
 
 def convert_to_datafile(self, header, dataframe, units, stamp):
