@@ -215,7 +215,7 @@ if __name__ == "__main__":
             '.formats.common', '.formats.summary',
             '.model', '.model.convert', '.region',
             '.units', )],
-        scripts=glob.glob('bin/*'),
+        scripts=glob.glob('libcchdo/scripts/*'),
         cmdclass={'test': TestCommand,
                   'coverage': CoverageCommand,
                   'clean': CleanCommand,
