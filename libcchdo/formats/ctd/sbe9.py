@@ -143,6 +143,9 @@ def read(self, handle, keep_unknown=True):
 
         l = handle.readline()
 
+    self.globals['DEPTH'] = ''
+    self.globals['SECT_ID'] = ''
+
     if len(temps) > 1:
         LOG.warn("%i Temperatures found, using first", len(temps))
     if len(salts) > 1:
