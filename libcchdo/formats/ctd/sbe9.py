@@ -5,7 +5,7 @@ from ... import LOG
 from ... import fns
 from ...fns import ddm_to_dd, Decimal
 
-def read(self, handle, remove_calcualte=True):
+def read(self, handle, keep_unknown=True):
     """How to read an SBE 9 ASCII CTD File"""
 
     l = handle.readline()
@@ -14,95 +14,140 @@ def read(self, handle, remove_calcualte=True):
                            '\'* Sea-Bird SBE 9 Data File:\'\n'
                            'Instead got: %s') % l)
 
-    headers = []
     parameter_map = {'prDM':'CTDPRS',
-                     'depSM':'_depSM', # This is not bottom depth
-                     't090C':'CTDTMP',
-                     't190C':'_CTDTMP2',
-                     'c0mS':'_c0mS',
-                     'c1mS':'_c1mS',
-                     'altM':'_altM',
-                     'latitude':'LATITUDE',
-                     'longitude':'LONGITUDE',
-                     'timeS':'_timeS',
-                     'timeY':'_DATETIME', # need to convert and split
-                     'flECO-AFL':'_flECO-AFL',
-                     'par':'_par',
+                     'tn90C':'CTDTMP',
                      'sbeox0ML/L':'CTDOXY', # convert to umol/kg
                      'xmiss':'XMISS',
-                     'altM':'_altM',
-                     'sigma':'_sigma',
-                     'potemp090C':'_potemp090C',
-                     'potemp190C':'_potemp190C',
-                     'sal00':'CTDSAL',
-                     'sal11':'_CTDSAL2',
-                     'svCM':'_svCM',
-                     'flag':'_flag',
+                     'salnn':'CTDSAL',
                      }
+
     units_map = {'db':'DBAR',
                  'PSU':'PSS-78',
                  'ITS-90':'ITS-90',
-                 'salt water':'meters',
-                 'sigma':'kg/m3',
-                 'Chen-Millero':'m/s',
+                 'ITS-68':'ITS-68',
                  }
-    calculated=['_depSM',
-                '_c0mS',
-                '_c1mS',
-                '_altM',
-                '_sigma',
-                '_potemp090C',
-                '_potemp190C',
-                '_svCM',
-                ]
 
+    # infos that will be tracked
+    headers = []
     columns = []
     units = []
+    index = [] # the column position of the things we are keeping
+    salts = [] # for storing multiple salts
+    temps = [] # for the multiple temps
+    num_cols = 0 # to verify that each record has the expected number of params
+    bad_flag = None
+
+    # regex for various things
+    re_units = re.compile('(?<=\[).*(?=\])')
+    re_salts = re.compile('sal\d\d')
+    re_temp = re.compile('t\d90C')
+
     while l and not l.startswith('*END*'):
         # This is what needs to happen here
         # 1) all the headers need to be saved up to the *END* tag
         # 2) all the things that start with # name (some number) need to be
         # extracted for information as this is where the column order is
-        # 3) the default will be to take the first instance of the duplicated
-        # measurements such as temperature and salinity. Letting the user chose
-        # can be a later addition, perhaps only care if the difference between
-        # the channels is to large
-        headers.append(l.decode('raw_unicode_escape'))
-        if '# name' in l:
-            s = l.split('=')
-            i = [int(d) for d in s[0].split() if d.isdigit()]
-            for key in parameter_map.iterkeys():
-                if key in l:
-                    columns.append(parameter_map[key])
-            try:
-                re_units = re.compile('(?<=\[).*(?=\])')
-                m = re_units.search(l)
-                unit = m.group(0)
-            except (IndexError, AttributeError):
-                unit = ""
-            
-            for key in units_map.iterkeys():
-                if key in unit:
-                    unit = units_map[key]
-            units.append(unit)
+        # 3) Calculated parameters like sigma and potential temperature should
+        # be discarded. Maybe have an option to keep(?)
 
+        headers.append(l.decode('raw_unicode_escape'))
+
+        if l.startswith('** CAST'):
+            self.globals['CASTNO'] = l.split(':')[1].strip()
+            LOG.info("CASTNO: " + self.globals['CASTNO'])
+            l = handle.readline()
+            continue
+
+        if l.startswith('** STATION'):
+            self.globals['STNNBR'] = l.split(':')[1].strip()
+            LOG.info('STNNBR: ' + self.globals['STNNBR'])
+            l = handle.readline()
+            continue
+
+        if l.startswith('** CRUISE'):
+            self.globals['EXPOCODE'] = l.split(':')[1].strip()
+            LOG.info('EXPOCODE: ' + self.globals['EXPOCODE'])
+            l = handle.readline()
+            continue
+            
         if 'NMEA' in l:
            s = l.split('=')
            if 'Latitude' in s[0]:
                lat = s[1].split()
                lat = fns.ddm_to_dd(lat)
                self.globals['LATITUDE'] = lat
+               l = handle.readline()
+               continue
+
            elif 'Longitude' in s[0]:
                lon = s[1].split()
                lon = fns.ddm_to_dd(lon)
                self.globals['LONGITUDE'] = lon
-           elif 'Time' in s[0]:
+               l = handle.readline()
+               continue
+           
+           elif 'UTC' in s[0]:
                dt = datetime.datetime.strptime(s[1].strip(), '%b %d %Y %H:%M:%S')
                self.globals['DATE'] = dt.strftime('%Y%m%d')
                self.globals['TIME'] = dt.strftime('%H%M')
+               l = handle.readline()
+               continue
+
+        if '# bad_flag' in l:
+            s = l.split('=')
+            bad_flag = s[1].strip()
+            LOG.info('BAD_FLAG: ' + bad_flag)
+            l = handle.readline()
+            continue
+
+
+        if '# name' in l:
+            s = l.split('=')
+            i = [int(d) for d in s[0].split() if d.isdigit()]
+            num_cols += 1
+
+            for key in parameter_map.iterkeys():
+                if key == 'tn90C':
+                    m = re_temp.search(l)
+                    if m is not None:
+                        temps.append(m.group(0))
+                        if len(temps) == 1:
+                            index.append(i)
+                            columns.append("CTDTMP")
+                            units.append("ITS-90")
+
+                if key == 'salnn':
+                    m = re_salts.search(l)
+                    if m is not None:
+                        salts.append(m.group(0))
+                        if len(salts) == 1:
+                            index.append(i)
+                            columns.append("CTDSAL")
+                            units.append("PSS-78")
+
+                if key in l:
+                    columns.append(parameter_map[key])
+                    index.append(i)
+                    
+                    try:
+                        m = re_units.search(l)
+                        unit = m.group(0)
+                    except (IndexError, AttributeError):
+                        unit = ""
+            
+                    for key in units_map.iterkeys():
+                        if key in unit:
+                            unit = units_map[key]
+                    units.append(unit)
+
 
         l = handle.readline()
 
+    if len(temps) > 1:
+        LOG.warn("%i Temperatures found, using first", len(temps))
+    if len(salts) > 1:
+        LOG.warn("%i Salinities found, using first", len(salts))
+    
     # Check columns and units to match length
     if len(columns) is not len(units):
         raise ValueError(("Expected as many columns as units in file. "
@@ -110,8 +155,6 @@ def read(self, handle, remove_calcualte=True):
                          (len(columns), len(units)))
 
     self.create_columns(columns, units, None)
-    LOG.info(columns)
-    LOG.info(units)
     
     l = handle.readline()
     while l:
@@ -119,16 +162,21 @@ def read(self, handle, remove_calcualte=True):
             break
         values = l.split()
 
-        if len(columns) is not len(values):
+        if num_cols is not len(values):
             raise ValueError(
                 ("Expected as many columns as values in file (%s). Found %d "
                  "columns and %d values at data line %d") % \
                  (handle.name, len(columns), len(values), len(self) + 1))
 
-        for column, value in zip(columns, values):
+        keep = []
+        for i in index:
+            keep.append(values[i[0]])
+
+        for column, value in zip(columns, keep):
             col = self.columns[column]
-            col.append(value, flag_woce=2)
+            flag = 2
+            if value == bad_flag:
+                value = None
+                flag = 9
+            col.append(value, flag_woce=flag)
         l = handle.readline()
-    if remove_calculated: #TODO make this better
-        for param in calculated:
-            del self.columns[param]
