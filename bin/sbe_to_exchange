@@ -1,0 +1,81 @@
+#!python
+
+import sys
+import argparse
+import os
+import os.path
+import StringIO
+
+import libcchdo.model.datafile as DF
+import libcchdo.formats.ctd.exchange as ex
+import libcchdo.formats.ctd.sbe9 as sb
+import libcchdo.formats.ctd.zip.exchange as zipex
+
+from libcchdo import LOG
+
+working_dir = os.getcwd()
+
+
+argparse = argparse.ArgumentParser(
+        description='This will convert raw ascii seabird ctd files to either a '
+        'flat exchange file or an exchange ctd zip. The channel specifiers use '
+        'an index number rather than a name because of the posibility for '
+        'channels to have identical names. All calculated parameters and non '
+        'CCHDO recognized parameters (e.g. PAR) are ignored.')
+argparse.add_argument('files', nargs='+', help='File or list '
+        'of files that will be converted to exchange format, if a single file is '
+        'given, a flat exchange file will be output, if more than one is given, '
+        'a ctd zip will be output', type=file)
+argparse.add_argument('-s', '--salt', help='in the case of multiple salinity '
+        'channels, the channel may be chosen by index')
+argparse.add_argument('-t', '--temp', help='In the case of multiple '
+        'temperature channels, the channel may be chosen by index')
+argparse.add_argument('-o', '--output', help='name of output '
+        'file, _ct1.[csv, zip] will be added automatically, if not speified '
+        'will default to standard out.')
+
+
+        
+def multi_file(files, salt, temp, output):
+    dfc = DF.DataFileCollection()
+    for f in files:
+        d = DF.DataFile()
+        sb.read(d, f, salt, temp)
+        dfc.files.append(d)
+    if output is not sys.stdout:
+        output = open(output, 'w')
+    zipex.write(dfc, output)
+
+def single_file(files, salt, temp, output):
+    d = DF.DataFile()
+    sb.read(d, files[0], salt, temp)
+    if output is not sys.stdout:
+        output = open(output, 'w')
+    ex.write(d, output)
+
+def main():
+    args = argparse.parse_args()
+    salt, temp, output = ('first', 'first', sys.stdout)
+    if args.salt:
+        salt = int(args.salt)
+    if args.temp:
+        temp = int(args.temp)
+    if args.output:
+        output = args.output
+
+    
+    if len(args.files) > 1:
+        if output is not sys.stdout:
+            output = output + '_ct1.zip'
+
+        multi_file(args.files, salt, temp, output)
+
+    if len(args.files) == 1:
+        if output is not sys.stdout:
+            output = output +  '_ct1.csv'
+
+        single_file(args.files, salt, temp, output)
+
+
+if __name__ == '__main__':
+    argparse.exit(main())

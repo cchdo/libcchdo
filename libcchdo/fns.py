@@ -1,4 +1,6 @@
-"""Functions used globally."""
+"""Functions used globally.
+
+"""
 
 
 try:
@@ -71,6 +73,7 @@ all_formats = file_type_dict({
     'coriolis': 'coriolis',
     'nodc_sd2': 'nodc_sd2',
     'geosecs': 'geosecs',
+    'sbe9': 'ctd.sbe9',
 })
 
 
@@ -336,3 +339,39 @@ def sin(x):
             sign *= -1
             s += num / fact * sign
     return +s
+
+def ddm_to_dd(ctoks, precision=None):
+    """Converts a coordinate in DDD MM.mmm format to signed DDD.DDDDD
+    
+    Origionally adapted from the woce formats woce_lng_to_dec_lng. It has been
+    generalized.
+
+    Arguments:
+    ctoks -- tokenized parts of the origional coordinate. Expected to be in the
+             format of [ddd, mm.mmm, h] where h specifies the hemisphere (E, N,
+             W, or S)
+    precision -- integer to specify precision, if none, will guess based on the
+                 value of h in the ctoks
+
+    Returns a Decimal corrdinate
+    """
+    if precision:
+        precision = precision + len(ctoks)
+    else: # guess based on h
+        if 'E' in ctoks[2] or 'W' in ctoks[2]:
+            precision = 4 + len(ctoks)
+        elif 'N' in ctoks[2] or 'S' in ctoks[2]:
+            precision = 3 + len(ctoks)
+        else:
+            raise ValueError(('Expect E, W, N, or S in ctoks[2]'
+                             'instead got:%s'), ctoks[2])
+    with IncreasedPrecision(precision):
+        cord = int(ctoks[0]) + Decimal(ctoks[1]) / Decimal('60.0')
+        if ctoks[2] == 'W' or ctoks[2] == 'S':
+            cord *= -1
+        elif ctoks[2] == 'E' or ctoks[2] == 'N':
+            pass
+        else:
+            raise ValueError(('Expect E, W, N, or S in ctoks[2]'
+                             'instead got:%s'), ctoks[2])
+        return cord.quantize(Decimal(10) ** -precision)
