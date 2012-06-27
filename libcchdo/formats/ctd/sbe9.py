@@ -5,7 +5,7 @@ from ... import LOG
 from ... import fns
 from ...fns import ddm_to_dd, Decimal
 
-def read(self, handle, keep_unknown=True):
+def read(self, handle, salt='first', temp='first'):
     """How to read an SBE 9 ASCII CTD File"""
 
     l = handle.readline()
@@ -110,20 +110,12 @@ def read(self, handle, keep_unknown=True):
                 if key == 'tn90C':
                     m = re_temp.search(l)
                     if m is not None:
-                        temps.append(m.group(0))
-                        if len(temps) == 1:
-                            index.append(i)
-                            columns.append("CTDTMP")
-                            units.append("ITS-90")
+                        temps.append((i, m.group(0)))
 
                 if key == 'salnn':
                     m = re_salts.search(l)
                     if m is not None:
-                        salts.append(m.group(0))
-                        if len(salts) == 1:
-                            index.append(i)
-                            columns.append("CTDSAL")
-                            units.append("PSS-78")
+                        salts.append((i, m.group(0)))
 
                 if key in l:
                     columns.append(parameter_map[key])
@@ -146,10 +138,51 @@ def read(self, handle, keep_unknown=True):
     self.globals['DEPTH'] = ''
     self.globals['SECT_ID'] = ''
 
+    if len(temps) == 1:
+        index.append(temps[0][0])
+        columns.append("CTDTMP")
+        units.append("ITS-90")
+
     if len(temps) > 1:
-        LOG.warn("%i Temperatures found, using first", len(temps))
+        if temp == 'first':
+            index.append(temps[0][0])
+            columns.append("CTDTMP")
+            units.append("ITS-90")
+            LOG.warn("%i Temperatures found, using first", len(temps))
+            s = ''
+            for i, temp in enumerate(temps):
+                s += str(i) + ':' + temp[1] + ' '
+            LOG.info('The temp may be chosen by specifying the index, %s', s)
+        else:
+            index.append(temps[temp][0])
+            columns.append("CTDTMP")
+            units.append("ITS-90")
+            LOG.info('User specified temperature, channel: %d, name: %s',
+                    temps[temp][0][0], temps[temp][1])
+            
+    if len(salts) == 1:
+        index.append(salts[0][0])
+        columns.append("CTDSAL")
+        units.append("PSS-78")
+
     if len(salts) > 1:
-        LOG.warn("%i Salinities found, using first", len(salts))
+        if salt == 'first':
+            index.append(salts[0][0])
+            columns.append("CTDSAL")
+            units.append("PSS-78")
+            LOG.warn("%i Salinites found, using first", len(salts))
+            s = ''
+            for i, salt in enumerate(salts):
+                s += str(i) + ':' + salt[1] + ' '
+            LOG.info('The salinity may be chosen by specifying the index, %s', s)
+        else:
+            #assuming the salinity index is given... will blow up if not
+            index.append(salts[salt][0])
+            columns.append("CTDSAL")
+            units.append("PSS-78")
+            LOG.info('User specified salinity, channel: %d, name: %s',
+                    salts[salt][0][0], salts[salt][1])
+
     
     # Check columns and units to match length
     if len(columns) is not len(units):

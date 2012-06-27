@@ -73,6 +73,7 @@ all_formats = file_type_dict({
     'coriolis': 'coriolis',
     'nodc_sd2': 'nodc_sd2',
     'geosecs': 'geosecs',
+    'sbe9': 'ctd.sbe9',
 })
 
 
