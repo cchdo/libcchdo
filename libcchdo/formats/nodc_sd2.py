@@ -173,7 +173,7 @@ http://www.nodc.noaa.gov/General/NODC-Archive/numcode.txt
 import datetime
 import collections
 
-from ..fns import Decimal
+from ..fns import Decimal, int_or_none
 
 
 _MAX_GRATICULE_PRECISION = 4
@@ -204,13 +204,6 @@ def read(self, handle):
     self.create_columns(
         ('BOTTOM', 'DEPTH', 'CTDTMP', 'SALNTY', 'OXYGEN', 'PHSPHT', 'SILCAT', 'NITRIT', 'NITRAT', 'PH'),
         ('METERS', 'METERS', 'DEG C', 'PSU', 'ML/L', 'UMOL/L', 'UMOL/L', 'UMOL/L', 'UMOL/L', '', ))
-
-
-    def int_or_none(i):
-        try:
-            return int(i)
-        except ValueError:
-            return None
 
     current_station = None
     current_cast = 1

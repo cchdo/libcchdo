@@ -235,7 +235,7 @@ class SummaryFile(File):
                 continue
             if cast_equal(self['CASTNO'][i], cast):
                 return i
-        raise ValueError('%s, %s is not in file' % (station, cast))
+        raise ValueError('%s, %s is not in summary file' % (station, cast))
 
     def __str__(self):
         s = u''
@@ -324,6 +324,12 @@ class DataFile(File):
         return d
 
     # Refactored common code
+
+    def ensure_column(self, mnemonic):
+        try:
+            self[mnemonic]
+        except KeyError:
+            self[mnemonic] = Column(mnemonic)
 
     def create_columns(self, parameters, units=None, ordered=False):
         '''Create columns given parameters and their units.

@@ -52,6 +52,10 @@ navigation_system_codes = {
 }
 
 
+def identity_or_none(x):
+    return x if x else None
+
+
 def read(self, handle):
     '''How to read a Summary file for WOCE.'''
     header = True
@@ -78,31 +82,27 @@ def read(self, handle):
             tokens = []
             for s, w in zip(column_starts, column_widths):
                 tokens.append(line[:-1][s:s+w].strip())
-            def identity_or_none(x):
-                return x if x else None
-            def int_or_none(x):
-                return int(x) if x and x.isdigit() else None
             if len(tokens) is 0:
                 continue
             self['EXPOCODE'].append(tokens[0].replace('/', '_'))
             self['SECT_ID'].append(tokens[1])
-            self['STNNBR'].append(int_or_none(tokens[2]))
-            self['CASTNO'].append(int_or_none(tokens[3]))
+            self['STNNBR'].append(tokens[2])
+            self['CASTNO'].append(fns.int_or_none(tokens[3]))
             self['_CAST_TYPE'].append(tokens[4])
             date = datetime.datetime.strptime(tokens[5], '%m%d%y')
             self['DATE'].append(date.strftime('%Y%m%d'))
-            self['TIME'].append(int_or_none(tokens[6]))
+            self['TIME'].append(fns.int_or_none(tokens[6]))
             self['_CODE'].append(tokens[7])
             lat = woce.woce_lat_to_dec_lat(tokens[8].split())
             self['LATITUDE'].append(lat)
             lng = woce.woce_lng_to_dec_lng(tokens[9].split())
             self['LONGITUDE'].append(lng)
             self['_NAV'].append(tokens[10])
-            self['DEPTH'].append(int_or_none(tokens[11]))
-            self['_ABOVE_BOTTOM'].append(int_or_none(tokens[12]))
-            self['_WIRE_OUT'].append(int_or_none(tokens[13]))
-            self['_MAX_PRESSURE'].append(int_or_none(tokens[14]))
-            self['_NUM_BOTTLES'].append(int_or_none(tokens[15]))
+            self['DEPTH'].append(fns.int_or_none(tokens[11]))
+            self['_ABOVE_BOTTOM'].append(fns.int_or_none(tokens[12]))
+            self['_WIRE_OUT'].append(fns.int_or_none(tokens[13]))
+            self['_MAX_PRESSURE'].append(fns.int_or_none(tokens[14]))
+            self['_NUM_BOTTLES'].append(fns.int_or_none(tokens[15]))
             self['_PARAMETERS'].append(identity_or_none(tokens[16]))
             self['_COMMENTS'].append(identity_or_none(tokens[17]))
 

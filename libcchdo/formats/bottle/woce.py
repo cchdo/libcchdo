@@ -31,13 +31,13 @@ def read(self, handle):
         else:
             self.globals['stamp'] = None
     else:
-        raise ValueError(("Expected ExpoCode, SectIDs, dates, and a stamp. "
-                          "Invalid WOCE record 1."))
+        raise ValueError(
+            u'Expected ExpoCode, WHP-ID, CRUISE DATES, and possibly a stamp. '
+            'Invalid WOCE record 1.')
     # Validate the parameter line
     if 'STNNBR' not in parameters_line or 'CASTNO' not in parameters_line:
         raise ValueError('Expected STNNBR and CASTNO in parameters record')
-    woce.read_data(self, handle, parameters_line,
-                                    units_line, asterisk_line)
+    woce.read_data(self, handle, parameters_line, units_line, asterisk_line)
     try:
         self.columns['DATE']
     except KeyError:

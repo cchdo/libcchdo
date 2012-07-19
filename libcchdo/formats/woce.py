@@ -254,8 +254,15 @@ def read_data(self, handle, parameters_line, units_line, asterisk_line):
             datum = in_band_or_none(datum, -9)
 
             # Only assign flag if column is flagged.
-            if "**" in asterisks[j].strip(): # XXX
-                woce_flag = int(quality_flags[0][flag_i])
+            if "**" in asterisks[j].strip():
+                # TODO should use better detection for asterisks
+                try:
+                    woce_flag = int(quality_flags[0][flag_i])
+                except ValueError, e:
+                    LOG.error(
+                        u'Received bad flag "{}" for {} on record {}'.format(
+                        quality_flags[0][flag_i], parameter, i))
+                    raise e
                 flag_i += 1
                 self.columns[parameter].set(i, datum, woce_flag)
             else:
@@ -372,10 +379,20 @@ def split_datetime(file):
     	del file['TIME']
 
 
+_MSG_NO_STN_CAST_PAIR = (u'The station cast pair ({}, {}) was not found in '
+                         'the summary file.')
+
+
 def combine(woce_file, sum_file):
-    """Combines the given WOCE file with the Summary WOCE file so that the 
-       DataFile contains most of the information from both.
+    """Combines the given WOCE file with the Summary WOCE file.
+
+    This entails merging the datetime, location, and depth data based on station
+    and cast.
+
+    The resulting DataFile contains most of the information from both files.
+
     """
+    headers = sum_file.get_property_for_columns(lambda c: c.parameter.name)
 
     if woce_file.globals.get('STNNBR', None) is not None:
         # This is probably a CTD file.
@@ -384,11 +401,8 @@ def combine(woce_file, sum_file):
         try:
             sum_file_index = sum_file.index(station, cast)
         except ValueError, e:
-            LOG.error(('The station cast pair (%s, %s) was not found in '
-                       'the summary file.') % (station, cast))
+            LOG.error(_MSG_NO_STN_CAST_PAIR.format(station, cast))
             raise e
-
-        headers = sum_file.get_property_for_columns(lambda c: c.parameter.name)
         values = sum_file.get_property_for_columns(lambda c: c[sum_file_index])
 
         info = dict(zip(headers, values))
@@ -400,22 +414,17 @@ def combine(woce_file, sum_file):
         woce_file.globals['LONGITUDE'] = info['LONGITUDE']
         woce_file.globals['DEPTH'] = info['DEPTH']
     else:
-        # TODO this works differently for bottle files
+        # This is probably a Bottle file.
         station_col = woce_file['STNNBR']
         cast_col = woce_file['CASTNO']
 
-        def ensure_column(c):
-            try:
-                woce_file[c]
-            except KeyError:
-                woce_file[c] = datafile.Column(c)
-        ensure_column('EXPOCODE')
-        ensure_column('SECT_ID')
-        ensure_column('DATE')
-        ensure_column('TIME')
-        ensure_column('LATITUDE')
-        ensure_column('LONGITUDE')
-        ensure_column('DEPTH')
+        woce_file.ensure_column('EXPOCODE')
+        woce_file.ensure_column('SECT_ID')
+        woce_file.ensure_column('DATE')
+        woce_file.ensure_column('TIME')
+        woce_file.ensure_column('LATITUDE')
+        woce_file.ensure_column('LONGITUDE')
+        woce_file.ensure_column('DEPTH')
 
         for i in range(len(woce_file)):
             station = station_col[i]
@@ -423,12 +432,8 @@ def combine(woce_file, sum_file):
             try:
                 sum_file_index = sum_file.index(station, cast)
             except ValueError, e:
-                LOG.error(('The station cast pair (%s, %s) was not found in '
-                           'the summary file.') % (station, cast))
+                LOG.error(_MSG_NO_STN_CAST_PAIR.format(station, cast))
                 raise e
-
-            headers = sum_file.get_property_for_columns(
-                lambda c: c.parameter.name)
             values = sum_file.get_property_for_columns(
                 lambda c: c[sum_file_index])
 

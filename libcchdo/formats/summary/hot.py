@@ -1,6 +1,7 @@
 import re
 import datetime
 
+from ...fns import int_or_none
 from .. import woce
 
 
@@ -23,23 +24,23 @@ def read(self, handle):
               continue
           self.columns['EXPOCODE'].append(tokens[0].replace('/', '_'))
           self.columns['SECT_ID'].append(tokens[1])
-          self.columns['STNNBR'].append(int(tokens[2]))
-          self.columns['CASTNO'].append(int(tokens[3]))
+          self.columns['STNNBR'].append(tokens[2])
+          self.columns['CASTNO'].append(int_or_none(tokens[3]))
           self.columns['_CAST_TYPE'].append(tokens[4])
           date = datetime.datetime.strptime(tokens[5], '%m%d%y')
           self.columns['DATE'].append(
               "%4d%02d%02d" % (date.year, date.month, date.day))
-          self.columns['TIME'].append(int(tokens[6]))
+          self.columns['TIME'].append(int_or_none(tokens[6]))
           self.columns['_CODE'].append(tokens[7])
           lat = woce.woce_lat_to_dec_lat(tokens[8:11])
           self.columns['LATITUDE'].append(lat)
           lng = woce.woce_lng_to_dec_lng(tokens[11:14])
           self.columns['LONGITUDE'].append(lng)
           self.columns['_NAV'].append(tokens[14])
-          self.columns['DEPTH'].append(int(tokens[15]))
-          self.columns['_ABOVE_BOTTOM'].append(int(tokens[16]))
-          self.columns['_MAX_PRESSURE'].append(int(tokens[17]))
-          self.columns['_NUM_BOTTLES'].append(int(tokens[18]))
+          self.columns['DEPTH'].append(int_or_none(tokens[15]))
+          self.columns['_ABOVE_BOTTOM'].append(int_or_none(tokens[16]))
+          self.columns['_MAX_PRESSURE'].append(int_or_none(tokens[17]))
+          self.columns['_NUM_BOTTLES'].append(int_or_none(tokens[18]))
           if len(tokens) > 19:
               self.columns['_PARAMETERS'].append(tokens[19])
           if len(tokens) > 20:

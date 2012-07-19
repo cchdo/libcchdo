@@ -7,8 +7,8 @@ import libcchdo as L
 import libcchdo.model.datafile
 import libcchdo.formats.woce as woce
 import libcchdo.formats.summary.woce as sumwoce
-import libcchdo.formats.bottle.woce as bottlewoce
-import libcchdo.formats.bottle.exchange as bottleex
+import libcchdo.formats.bottle.woce as botwoce
+import libcchdo.formats.bottle.exchange as botex
 
 
 def main(argv):
@@ -20,14 +20,14 @@ def main(argv):
     sumfile = L.model.datafile.SummaryFile()
 
     with open(argv[1], 'r') as in_file:
-        bottlewoce.read(bottlefile, in_file)
+        botwoce.read(bottlefile, in_file)
 
     with open(argv[2], 'r') as in_file:
         sumwoce.read(sumfile, in_file)
 
     woce.combine(bottlefile, sumfile)
 
-    bottleex.write(bottlefile, sys.stdout)
+    botex.write(bottlefile, sys.stdout)
 
 
 if __name__ == '__main__':

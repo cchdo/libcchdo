@@ -5,13 +5,14 @@ import os
 
 from ..model import datafile
 from ..formats.bottle import netcdf as botnc
+from libcchdo.tests import sample_file
 
 
 class TestBottleNetCDF(unittest.TestCase):
 
     def setUp(self):
-        self.infile = open(os.path.join(os.path.dirname(__file__),
-            'samples/nc_hyd/i08s_33RR20070204_00001_00001_hy1.nc'), 'r')
+        self.infile = open(
+            sample_file('nc_hyd', 'i08s_33RR20070204_00001_00001_hy1.nc'), 'r')
   
     def tearDown(self):
         self.infile.close()
@@ -67,9 +68,8 @@ class TestBottleNetCDF(unittest.TestCase):
         self.assertEqual(expocodes, self.file.columns['EXPOCODE'].values)
   
         # Read second file
-        infile2 = open(os.path.join(os.path.dirname(__file__),
-                                    'samples/nc_hyd/p03a_00199_00001_hy1.nc'),
-                       'r')
+        infile2 = open(
+            sample_file('nc_hyd', 'p03a_00199_00001_hy1.nc'), 'r')
         botnc.read(self.file, infile2)
   
         # Make sure all columns have the same length

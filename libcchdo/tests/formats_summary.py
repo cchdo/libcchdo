@@ -40,7 +40,7 @@ EXPOCODE     SECT   STNNBR CASTNO TYPE DATE   TIME  CODE LATITUDE   LONGITUDE   
     cs = self.file.columns
     self.assertEqual(['33RR20070204'] * 3, cs['EXPOCODE'].values)
     self.assertEqual(['I8S'] * 3, cs['SECT_ID'].values)
-    self.assertEqual([1, 1, 2], cs['STNNBR'].values)
+    self.assertEqual(['1', '1', '2'], cs['STNNBR'].values)
     self.assertEqual([1, 1, 1], cs['CASTNO'].values)
     self.assertEqual(['ROS'] * 3, cs['_CAST_TYPE'].values)
     self.assertEqual(['20070215', '20070215', '20070215'], cs['DATE'].values)
@@ -70,7 +70,7 @@ EXPOCODE     SECT   STNNBR CASTNO TYPE DATE   TIME  CODE LATITUDE   LONGITUDE   
     cs = self.file.columns
     self.assertEqual(['33KI134_1'] * 3, cs['EXPOCODE'].values)
     self.assertEqual(['PRS2'] * 3, cs['SECT_ID'].values)
-    self.assertEqual([1, 2, 2], cs['STNNBR'].values)
+    self.assertEqual(['1', '2', '2'], cs['STNNBR'].values)
     self.assertEqual([1, 1, 15], cs['CASTNO'].values)
     self.assertEqual(['ROS'] * 3, cs['_CAST_TYPE'].values)
     self.assertEqual(['20020114', '20020115', '20020117'], cs['DATE'].values)

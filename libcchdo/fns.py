@@ -194,6 +194,13 @@ def _decimal(x, *args):
         return Decimal(x)
 
 
+def int_or_none(x):
+    try:
+        return int(x)
+    except ValueError:
+        return None
+
+
 def equal_with_epsilon(a, b, epsilon=Decimal('1e-6')):
     delta = abs(_decimal(a) - _decimal(b))
     return delta < _decimal(epsilon)
