@@ -6,11 +6,14 @@ import struct
 from .. import LOG
 from .. import fns
 from ..model import datafile
-from ..fns import Decimal, in_band_or_none
+from ..fns import Decimal, _decimal, in_band_or_none
 
 
 # Where no data is known
 FILL_VALUE = -999.0
+
+
+CHARACTER_PARAMETERS = ['STNNBR', 'SAMPNO', 'BTLNBR']
 
 
 COLUMN_WIDTH = 8
@@ -252,6 +255,15 @@ def read_data(self, handle, parameters_line, units_line, asterisk_line):
         for j, parameter in enumerate(parameters):
             datum = unpacked[j].strip()
             datum = in_band_or_none(datum, -9)
+
+            if parameter not in CHARACTER_PARAMETERS:
+                try:
+                    datum = _decimal(datum)
+                except Exception, e:
+                    LOG.warning(
+                        u'Expected numeric data for parameter %r, got %r' % (
+                        parameter, datum))
+                    raise e
 
             # Only assign flag if column is flagged.
             if "**" in asterisks[j].strip():

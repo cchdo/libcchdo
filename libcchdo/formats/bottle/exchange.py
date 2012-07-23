@@ -146,48 +146,45 @@ def write(self, handle):
     columns = self.sorted_columns()
     flagged_parameter_names = []
     flagged_units = []
-    flagged_formats = []
-    flagged_columns = []
+    flagged_format_parameter_values = []
 
     for c in columns:
         param = c.parameter
         flagged_parameter_names.append(param.mnemonic_woce())
         flagged_units.append(param.units.mnemonic if param.units and \
             param.units.mnemonic else '')
-        flagged_formats.append(param.format)
-        flagged_columns.append(c.values)
+        flagged_format_parameter_values.append(
+            [param.format, param, c.values])
         if c.is_flagged_woce():
             flagged_parameter_names.append(param.mnemonic_woce() + '_FLAG_W')
             flagged_units.append('')
-            flagged_formats.append('%1d')
-            flagged_columns.append(c.flags_woce)
+            flagged_format_parameter_values.append(
+                ['%1d', param, c.flags_woce])
         if c.is_flagged_igoss():
             flagged_parameter_names.append(param.mnemonic_woce() + '_FLAG_I')
             flagged_units.append('')
-            flagged_formats.append('%1d')
-            flagged_columns.append(c.flags_igoss)
+            flagged_format_parameter_values.append(
+                ['%1d', param, c.flags_igoss])
 
     handle.write(','.join(flagged_parameter_names))
     handle.write('\n')
     handle.write(','.join(flagged_units))
     handle.write('\n')
 
-    flagged_formats_columns = zip(flagged_formats, flagged_columns)
-
     for i in range(len(self)):
         values = []
-
-        for f, c in flagged_formats_columns:
+        for format_str, param, col in flagged_format_parameter_values:
+            value = col[i]
             try:
-                if c[i] is not None:
-                    values.append(f % c[i])
+                if value is not None:
+                    values.append(format_str % value)
                 else:
-                    values.append(f % woce.FILL_VALUE)
+                    values.append(format_str % woce.FILL_VALUE)
             except Exception, e:
-                LOG.warn('Arguments at %d:' % i)
-                LOG.warn('\t%s and %s' % (f, c[i]))
-                raise 
-
+                LOG.warn(
+                    u'Could not format %r (column %r row %d) with %r' % (
+                    value, param, i, format_str))
+                values.append(value)
         handle.write(','.join(values))
         handle.write('\n')
 

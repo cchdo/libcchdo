@@ -101,7 +101,7 @@ class Country(Base):
             self.name = name
 
     def __repr__(self):
-        return "<Country('%s', '%s')>" % (self.iso3166, self.name)
+        return "<Country(%r, %r)>" % (self.iso3166, self.name)
 
 
 class Institution(Base):
@@ -118,7 +118,7 @@ class Institution(Base):
         self.name = name
 
     def __repr__(self):
-        return "<Institution('%s')>" % self.name
+        return "<Institution(%r)>" % self.name
 
 
 class Contact(Base):
@@ -136,7 +136,7 @@ class Contact(Base):
         self.name = name
 
     def __repr__(self):
-        return "<Contact('%s')>" % self.name
+        return "<Contact(%r)>" % self.name
 
 
 class Ship(Base):
@@ -156,7 +156,7 @@ class Ship(Base):
             self.code_NODC = ncode_NODC
 
     def __repr__(self):
-        return "<Ship('%s', '%s')>" % (self.name, self.code_NODC)
+        return "<Ship(%r, %r)>" % (self.name, self.code_NODC)
 
 
 cruises_pis = S.Table('cruises_pis', _metadata,
@@ -175,7 +175,7 @@ class CruiseAlias(Base):
         self.name = name
 
     def __repr__(self):
-        return "<CruiseAlias('%s')>" % self.name
+        return "<CruiseAlias(%r)>" % self.name
 
 
 class Project(Base):
@@ -188,7 +188,7 @@ class Project(Base):
         self.name = name
 
     def __repr__(self):
-        return "<Project('%s')>" % self.name
+        return "<Project(%r)>" % self.name
 
 
 cruises_projects = S.Table('cruises_projects', _metadata,
@@ -207,7 +207,7 @@ class Port(Base):
         pass
 
     def __repr__(self):
-        return "<Port('%s')>" % self.name
+        return "<Port(%r)>" % self.name
 
 
 class Cruise(Base):
@@ -233,7 +233,7 @@ class Cruise(Base):
         self.expocode = expocode
 
     def __repr__(self):
-        return "<Cruise('%s', '%s')>" % (self.expocode, self.casts)
+        return "<Cruise(%r, %r)>" % (self.expocode, self.casts)
 
 
 class Unit(Base):
@@ -248,7 +248,7 @@ class Unit(Base):
         self.mnemonic = mnemonic
 
     def __repr__(self):
-        return u"<Unit('%s', '%s')>" % (self.name, self.mnemonic)
+        return u"<Unit(%r, %r)>" % (self.name, self.mnemonic)
 
     @classmethod
     def find_by_name(cls, name):
@@ -269,7 +269,7 @@ class ParameterAlias(Base):
         self.name = name
 
     def __repr__(self):
-        return "<ParameterAlias('%s')>" % self.name
+        return "<ParameterAlias(%r)>" % self.name
 
 
 class Parameter(Base):
@@ -327,7 +327,8 @@ class Parameter(Base):
         return True
 
     def __repr__(self):
-        return "<Parameter('%s', '%s', '%s', '%s')>" % (self.name, self.format, self.units, self.aliases)
+        return u"<Parameter(%r, %r, %r, %r)>" % (
+            self.name, self.format, self.units, self.aliases)
 
 
 S.Index('parameters_name_netcdf', Parameter.name_netcdf, unique=True)
@@ -350,7 +351,7 @@ class Cast(Base):
         self.station = station
 
     def __repr__(self):
-        return "<Cast('%s', '%s')>" % (self.name, self.station)
+        return "<Cast(%r, %r)>" % (self.name, self.station)
 
 
 class Location(Base):
@@ -369,7 +370,7 @@ class Location(Base):
         self.bottom_depth = bottom_depth
 
     def __repr__(self):
-        return "<Location('%s', '%s', '%s', '%s')>" % \
+        return "<Location(%r, %r, %r, %r)>" % \
             (self.datetime, self.latitude, self.longitude, self.bottom_depth)
 
 
@@ -396,7 +397,7 @@ class CTD(Base):
         self.instrument_id = instrument_id
 
     def __repr__(self):
-        return "<CTD('%s', '%s', '%s')>" % (self.cast, self.location,
+        return "<CTD(%r, %r, %r)>" % (self.cast, self.location,
                                             self.instrument_id)
 
 
@@ -426,7 +427,7 @@ class DataCTD(Base):
             self.flag_igoss = flag_igoss
 
     def __repr__(self):
-        return "<DataCTD('%s', '%s', '%s', '%s', '%s')>" % \
+        return "<DataCTD(%r, %r, %r, %r, %r)>" % \
             (self.ctd, self.parameter, self.value, self.flag_woce, self.flag_igoss)
 
 
@@ -461,7 +462,7 @@ class Bottle(Base):
             self.flag_igoss = flag_igoss
 
     def __repr__(self):
-        return "<Bottle('%s', '%s', '%s', '%s', '%s', '%s')>" % \
+        return "<Bottle(%r, %r, %r, %r, %r, %r)>" % \
             (self.cast, self.location, self.name, self.sample, self.flag_woce,
              self.flag_igoss)
 
@@ -492,7 +493,7 @@ class DataBottle(Base):
             self.flag_igoss = flag_igoss
 
     def __repr__(self):
-        return "<DataBottle('%s', '%s', '%s', '%s', '%s')>" % \
+        return "<DataBottle(%r, %r, %r, %r, %r)>" % \
             (self.bottle, self.parameter, self.value,
              self.flag_woce, self.flag_igoss)
 
