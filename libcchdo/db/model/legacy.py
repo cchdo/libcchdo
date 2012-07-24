@@ -144,14 +144,23 @@ _sesh.close()
 MYSQL_PARAMETER_DISPLAY_ORDERS = dict(map(lambda x: x[::-1], enumerate(_parameters)))
 
 
+def _to_unicode(x):
+    if x is None:
+        return None
+    try:
+        return unicode(x, 'raw_unicode_escape')
+    except TypeError:
+        return x
+
+
 class Parameter(Base):
     __tablename__ = 'parameter_descriptions'
 
     id = S.Column(S.Integer, autoincrement=True, primary_key=True)
     name = S.Column('Parameter', S.Unicode)
-    full_name = S.Column('FullName', S.Unicode)
-    description = S.Column('Description', S.Unicode)
-    units = S.Column('Units', S.Unicode)
+    full_name_ = S.Column('FullName', S.String(255))
+    description_ = S.Column('Description', S.String(255))
+    units_ = S.Column('Units', S.String(255))
     range = S.Column('Range', S.Unicode)
     alias = S.Column('Alias', S.Unicode)
     group = S.Column('Group', S.Unicode)
@@ -165,6 +174,45 @@ class Parameter(Base):
 
     def __init__(self, name):
         self.name = name
+
+    @property
+    def full_name(self):
+        return _to_unicode(self.full_name_)
+
+    @full_name.setter
+    def full_name(self, x):
+        self.full_name_ = x
+    
+    @full_name.deleter
+    def full_name(self):
+        del self.full_name_
+
+    @property
+    def description(self):
+        return _to_unicode(self.description_)
+
+    @description.setter
+    def description(self, x):
+        self.description_ = x
+
+    @description.deleter
+    def description(self):
+        del self.description_
+
+    @property
+    def units(self):
+        try:
+            return _to_unicode(self.units_)
+        except TypeError:
+            return self.units_
+
+    @units.setter
+    def units(self, x):
+        self.units_ = x
+
+    @units.deleter
+    def units(self):
+        del self.units_
 
     @classmethod
     def find_known(cls, parameter_name):
