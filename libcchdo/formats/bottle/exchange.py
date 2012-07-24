@@ -3,6 +3,7 @@ import datetime
 
 from ... import fns
 from ... import LOG
+from ... import config
 from ...model import datafile
 from .. import woce
 
@@ -125,9 +126,15 @@ def read(self, handle):
 
 def write(self, handle):
     """ How to write a Bottle Exchange file. """
-    handle.write('BOTTLE,%s\n' % self.globals['stamp'])
-    handle.write('# Original header:\n')
-    handle.write(self.globals['header'])
+    if self.globals['stamp']:
+        handle.write('BOTTLE,%s\n' % self.globals['stamp'])
+    else:
+        LOG.warning("No stamp given. Using current user's stamp.")
+        stamp = config.stamp()
+        handle.write('BOTTLE,%s\n' % stamp)
+    if self.globals['header']:
+        handle.write('# Original header:\n')
+        handle.write(self.globals['header'])
 
     woce.split_datetime(self)
 

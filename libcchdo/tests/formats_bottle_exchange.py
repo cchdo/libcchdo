@@ -1,6 +1,7 @@
 import unittest
 import StringIO
 
+from .. import config
 from ..model import datafile
 from ..formats.bottle import exchange as botex
 
@@ -57,7 +58,24 @@ END_DATA
 
         self.buff = StringIO.StringIO()
         botex.write(self.file, self.buff)
-        print self.buff.getvalue()
         # TODO
+        #print self.buff.getvalue()
         #self.assertEqual(self.buff.getvalue(), self.output)
+        self.buff.close()
+
+    def test_no_stamp_uses_users(self):
+        """If the writer is not given a stamp, it will use the config stamp."""
+        self.buff = StringIO.StringIO(TestBottleExchange.sample)
+        botex.read(self.file, self.buff)
+        self.buff.close()
+
+        self.file.globals['stamp'] = ''
+
+        self.buff = StringIO.StringIO()
+        botex.write(self.file, self.buff)
+
+        expected_stamp = config.stamp()
+
+        first_line = self.buff.getvalue().split('\n')[0]
+        self.assertEqual(expected_stamp, first_line.split(',')[1])
         self.buff.close()
