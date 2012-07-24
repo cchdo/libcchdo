@@ -24,6 +24,9 @@ _CONFIG_PATHS = [
 ]
 
 
+_DEFAULT_CONFIG_PATH_INDEX = -2
+
+
 _CONFIG = ConfigParser.SafeConfigParser()
 _parsed_files = _CONFIG.read(_CONFIG_PATHS)
 
@@ -32,7 +35,7 @@ def get_config_path():
     if _parsed_files:
         return _parsed_files[0]
     else:
-        config_path = _CONFIG_PATHS[-1]
+        config_path = _CONFIG_PATHS[_DEFAULT_CONFIG_PATH_INDEX]
         for path in _CONFIG_PATHS:
             if os.path.exists(path):
                 config_path = path
@@ -94,19 +97,22 @@ _STORAGE_NOTICE = \
 
 
 def get_db_credentials_cchdo():
+    database_uri = 'cchdo.ucsd.edu/cchdo'
     def input_cchdo_username():
-        return raw_input(('What is your username for the database '
-                          'cchdo.ucsd.edu/cchdo? %s ') % _STORAGE_NOTICE)
+        return raw_input(
+            u'What is your username for the database {}? {} '.format(
+                _STORAGE_NOTICE, database_uri))
 
     username = get_option('db_cred', 'cchdo/cchdo_user', input_cchdo_username)
     # Passwords will not be saved.
     try:
         password = get_option('db_cred', 'cchdo/cchdo_pass')
     except ConfigParser.Error:
+        LOG.info(
+            u'To avoid this question, put your password in plain text as '
+            'cchdo/cchdo_pass under [db_cred] in {}'.format(_CONFIG_PATHS[-1]))
         password = getpass.getpass(
-            ('Password for database %s@cchdo.ucsd.edu/cchdo (to avoid this '
-             'question, put your password in plain text as cchdo/cchdo_pass '
-             'under [db_cred] in %s):') % (username, _CONFIG_PATHS[-1]))
+            u'Password for {}@{}:'.format(username, database_uri))
     return (username, password)
     
 

@@ -61,6 +61,7 @@ class TestDataFile(unittest.TestCase):
     def test_formats(self):
         self.file.columns['CTDOXY'] = datafile.Column('CTDOXY')
         self.file.check_and_replace_parameters()
+        # Order of columns may be wrong
         self.assertEqual(['%11s', '%9.4f'], self.file.formats())
   
     def test_to_dict(self):

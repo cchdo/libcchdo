@@ -148,16 +148,16 @@ class Parameter(Base):
     __tablename__ = 'parameter_descriptions'
 
     id = S.Column(S.Integer, autoincrement=True, primary_key=True)
-    name = S.Column('Parameter', S.String(255))
+    name = S.Column('Parameter', S.Unicode)
     full_name = S.Column('FullName', S.Unicode)
     description = S.Column('Description', S.Unicode)
     units = S.Column('Units', S.Unicode)
-    range = S.Column('Range', S.String(255))
-    alias = S.Column('Alias', S.String(255))
-    group = S.Column('Group', S.String(255))
-    unit_mnemonic = S.Column('Unit_Mnemonic', S.String(255))
-    precision = S.Column('Precision', S.String(255), default='')
-    ruby_precision = S.Column('RubyPrecision', S.String(255), default=None)
+    range = S.Column('Range', S.Unicode)
+    alias = S.Column('Alias', S.Unicode)
+    group = S.Column('Group', S.Unicode)
+    unit_mnemonic = S.Column('Unit_Mnemonic', S.Unicode)
+    precision = S.Column('Precision', S.Unicode, default=u'')
+    ruby_precision = S.Column('RubyPrecision', S.Unicode, default=None)
     private = S.Column('Private', S.Integer(11), default=0)
     unit_mnemonic_woce = S.Column('WoceUnitMnemonic', S.String, nullable=False)
     added_by = S.Column('AddedBy', S.String)
@@ -471,24 +471,15 @@ class UnusedTrack(Base):
     Track = S.Column(S.String)
 
 
-def find_parameter(name, session_=None):
-    if session_ is None:
-        localsession = session()
-    else:
-        localsession = session_
-    try:
-        legacy_parameter = localsession.query(Parameter).filter(
-            Parameter.name == name).first()
-    finally:
-        if session_ is None:
-            localsession.close()
-
+def find_parameter(session, name):
+    legacy_parameter = session.query(Parameter).filter(
+        Parameter.name == name).first()
     if not legacy_parameter:
         # Try aliases
         LOG.warn(
             "No legacy parameter found for '%s'. Falling back to aliases." % \
             name)
-        legacy_parameter = sesh.query(Parameter).filter(
+        legacy_parameter = session.query(Parameter).filter(
             Parameter.alias.like('%%%s%%' % name)).first()
         
         if not legacy_parameter:

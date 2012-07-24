@@ -7,6 +7,11 @@ from ..db.model import std
 
 class TestDbModelStd(unittest.TestCase):
 
+    def test_populate_library_database_parameters(self):
+        with std.guarded_session() as sesh:
+            std._populate_library_database_parameters(sesh)
+            sesh.rollback()
+
     def test_find_by_mnemonic(self):
         def okay(x):
             if x:

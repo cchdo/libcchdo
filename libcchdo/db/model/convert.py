@@ -56,15 +56,27 @@ def convert_unit(session, name, mnemonic):
          std.Unit.mnemonic == units_mnemonic).first()
     if not units:
         units = std.Unit(units_name, units_mnemonic)
-    session.add(units)
+        session.add(units)
+        session.flush()
     return units
+
+
+def _find_or_create_parameter(session, name):
+    parameter = session.query(std.Parameter).filter(
+        std.Parameter.name == name).first()
+    if not parameter:
+        parameter = std.Parameter(name)
+        session.add(parameter)
+        session.flush()
+    return parameter
 
 
 def convert_parameter(session, legacy_param):
     if not legacy_param:
         return None
 
-    parameter = std.Parameter(legacy_param.name)
+    parameter = _find_or_create_parameter(session, legacy_param.name)
+
     parameter.full_name = (legacy_param.full_name or u'').strip()
     try:
         parameter.format = '%' + legacy_param.ruby_precision.strip() if \
@@ -96,7 +108,6 @@ def convert_parameter(session, legacy_param):
     except AttributeError:
         parameter.display_order = sys.maxint
 
-    session.add(parameter)
     return parameter
 
 
@@ -107,34 +118,41 @@ def _name_to_netcdf_name(n):
     return _non_word.sub('_', n)
 
 
-def all_parameters(session):
-    lsession = legacy.session()
-    try:
-        legacy_parameters = [
-            legacy.find_parameter(x[0], lsession) for x in lsession.query(
-                legacy.Parameter.name).all()]
-    finally:
-        lsession.close()
+def all_parameters(lsession, session):
+    """Convert all parameters from legacy to std"""
+    legacy_parameter_names = [
+        x[0] for x in lsession.query(legacy.Parameter.name).all()]
+    legacy_parameters = [
+        legacy.find_parameter(lsession, x) for x in legacy_parameter_names]
 
-    std_parameters = map(
-        lambda x: convert_parameter(session, x), legacy_parameters)
+    std_parameters = [convert_parameter(session, x) for x in legacy_parameters]
     std_parameters = dict([(x.name, x) for x in std_parameters])
 
     # Additional modifications
     # Add EXPOCODE and SECT_ID to known parameters
     display_order = 1
-    std_parameters['EXPOCODE'] = std.Parameter(
-        'EXPOCODE', 'ExpoCode', '%11s', display_order=display_order)
+    expocode = std_parameters['EXPOCODE'] = _find_or_create_parameter(
+        session, 'EXPOCODE')
+    expocode.full_name = 'ExpoCode'
+    expocode.format = '%11s'
+    expocode.display_order = display_order
+    session.add(expocode)
+    session.flush()
     display_order += 1
-    std_parameters['SECT_ID'] = std.Parameter(
-        'SECT_ID', 'Section ID', '%11s', display_order=display_order)
+
+    sectid = std_parameters['SECT_ID'] = _find_or_create_parameter(
+        session, 'SECT_ID')
+    sectid.full_name = 'Section ID'
+    sectid.format = '%11s'
+    sectid.display_order = display_order
+    session.add(sectid)
+    session.flush()
     display_order += 1
 
     # Change CTDOXY's precision to 9.4f
     std_parameters['CTDOXY'].format = '%9.4f'
 
     used_netcdf_names = set()
-
     for p in std_parameters.values():
         if p.name in KNOWN_NETCDF_VARIABLE_NAMES:
             netcdf_name = KNOWN_NETCDF_VARIABLE_NAMES[p.name]

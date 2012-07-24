@@ -5,10 +5,12 @@ from contextlib import contextmanager
 import sqlalchemy as S
 import sqlalchemy.orm
 import sqlalchemy.ext.declarative
+from sqlalchemy.sql.expression import exists
 
 from ... import LOG, memoize, get_library_abspath, config, check_cache
 from ...fns import _decimal
 from ...db import connect
+from legacy import session as LegacySession
 
 
 Base = S.ext.declarative.declarative_base()
@@ -23,8 +25,11 @@ def _populate_library_database_parameters(std_session):
     LOG.info("Populating database with parameters.")
     from ...db.model import convert
 
-    std_session.add_all(convert.all_parameters(std_session))
-    std_session.commit()
+    legacy_session = LegacySession()
+    parameters = convert.all_parameters(legacy_session, std_session)
+    legacy_session.close()
+
+    std_session.flush()
 
 
 def _ensure_database_parameters_exist(std_session):
@@ -50,15 +55,13 @@ def guarded_session(*args, **kwargs):
             s.close()
 
 
-def _auto_generate_library_database_cache():
+def _auto_generate_library_database_cache(std_session):
     LOG.info("Auto-generating the library's cache (%s)." % \
         config.get_option('db', 'cache'))
-    
-    with guarded_session(autoflush=True) as std_session:
-        _create_all()
-        std_session.commit()
-        _ensure_database_parameters_exist(std_session)
-        std_session.commit()
+    _create_all()
+    std_session.flush()
+    _ensure_database_parameters_exist(std_session)
+    std_session.flush()
 
 
 def ensure_database_cache():
@@ -70,11 +73,12 @@ def ensure_database_cache():
     if _cache_checked or _cache_checking:
         return
     _cache_checking = True
-    if not os.path.isfile(config.get_option('db', 'cache')):
-        _auto_generate_library_database_cache()
-    else:
-        with guarded_session(autoflush=True) as std_session:
+    with guarded_session(autoflush=True) as std_session:
+        if not os.path.isfile(config.get_option('db', 'cache')):
+            _auto_generate_library_database_cache(std_session)
+        else:
             _ensure_database_parameters_exist(std_session)
+        std_session.commit()
     _cache_checking = False
     _cache_checked = True
 
@@ -276,10 +280,10 @@ class Parameter(Base):
     __tablename__ = 'parameters'
 
     id = S.Column(S.Integer, primary_key=True)
-    name = S.Column(S.String(255))
-    full_name = S.Column(S.String(255))
-    name_netcdf = S.Column(S.String(255))
-    description = S.Column(S.String)
+    name = S.Column(S.Unicode)
+    full_name = S.Column(S.Unicode)
+    name_netcdf = S.Column(S.Unicode)
+    description = S.Column(S.Unicode)
     format = S.Column(S.String(10))
     unit_id = S.Column(S.ForeignKey('units.id'))
     bound_lower = S.Column(S.Numeric)

@@ -9,16 +9,16 @@ import sys
 
 import libcchdo as L
 import libcchdo.model.datafile
-import libcchdo.db.model.legacy
+from libcchdo.db.model import legacy
 import libcchdo.formats.bottle.exchange as exbot
 
 
-def get_legacy_parameter(parameter):
+def get_legacy_parameter(session, parameter):
     if not parameter:
         return None
     name = parameter.name
     if name != '_DATETIME':
-        return L.db.model.legacy.find_parameter(name)
+        return legacy.find_parameter(session, name)
     return None
 
 
@@ -37,7 +37,11 @@ def main(argv):
         print 'Parameters for the data set are: ', parameters
         print 'Getting legacy parameters'
     
-        legacy_parameters = filter(None, map(get_legacy_parameter, parameters))
+        legacy_session = legacy.session()
+        legacy_parameters = filter(
+            None,
+            [get_legacy_parameter(legacy_session, x) for x in parameters])
+        legacy_session.close()
     
         print map(lambda x: int(x.id) if x.id else None, legacy_parameters)
         print map(lambda x: x.name, legacy_parameters)
