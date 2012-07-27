@@ -84,20 +84,10 @@ class Merger(object):
         cols1, rows1 = self.dataframe1.shape 
         cols2, rows2 = self.dataframe2.shape 
 
-        for key, group in df2_grouped:
-            if key in df1_grouped.groups.keys():
-                row1 = df1_grouped.groups[key]
-                row2 = df2_grouped.groups[key]
-                for col in columns_to_merge:#self.dataframe2:
-                    if col in self.dataframe1.columns:
-                        x = self.dataframe1[col]
-                        y = self.dataframe2[col]
-                        if x[row1[0]] != y[row2[0]]:
-                            self.dataframe1[col][row1[0]] = self.dataframe2[col][row2[0]]
-
         for col in columns_to_merge:
             if col not in self.dataframe1.columns:
-                temp_frame = self.dataframe2
+                temp_frame = []
+                temp_frame = self.dataframe2.copy(deep=True)
                 for col_check in self.dataframe2.columns:
                     if col_check not in ['STNNBR', 'CASTNO', 'SAMPNO', col]:
                         del temp_frame[col_check]
@@ -137,9 +127,13 @@ if __name__ == '__main__':
                 print col
         if len(sys.argv) > 3:
             columns_to_merge = []
+            units_to_merge = []
             for index in range(3,len(sys.argv)):
                 columns_to_merge.append(sys.argv[index])
+                unit_index = m.dataframe2.columns.values.tolist().index(sys.argv[index])
+                units_to_merge.append(m.units2[unit_index])
             df = DF.DataFile()
+            result_units = m.units1 + (units_to_merge)
             result = m.mergeit(columns_to_merge)
-            new_data_file = convert_to_datafile(df,m.header1, result, m.units1, m.stamp1)
+            new_data_file = convert_to_datafile(df,m.header1, result, result_units, m.stamp1)
             botex.write(df, sys.stdout)
