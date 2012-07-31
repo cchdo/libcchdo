@@ -29,6 +29,7 @@ def _connect(url):
            url - an sqlalchemy.engine.url.URL
        Returns:
            an engine
+
     """
     return S.create_engine(url)
 
@@ -48,8 +49,8 @@ def cchdo_data():
 def cchdo():
     """Connect to CCHDO's database"""
     cred = config.get_db_credentials_cchdo()
-    url = S.engine.url.URL(_DRIVER['MYSQL'], cred[0], cred[1], 'cchdo.ucsd.edu',
-                           database='cchdo')
+    url = S.engine.url.URL(_DRIVER['MYSQL'], cred[0], cred[1], cred[2],
+                           database=cred[3])
     return _connect(url)
 
 

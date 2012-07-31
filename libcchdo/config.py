@@ -97,11 +97,12 @@ _STORAGE_NOTICE = \
 
 
 def get_db_credentials_cchdo():
-    database_uri = 'cchdo.ucsd.edu/cchdo'
+    db_host = 'h2o.ucsd.edu'
+    db_name = 'cchdo'
     def input_cchdo_username():
         return raw_input(
-            u'What is your username for the database {}? {} '.format(
-                _STORAGE_NOTICE, database_uri))
+            u'What is your username for the database {}? {}/{}'.format(
+                _STORAGE_NOTICE, db_host, db_name ))
 
     username = get_option('db_cred', 'cchdo/cchdo_user', input_cchdo_username)
     # Passwords will not be saved.
@@ -112,8 +113,8 @@ def get_db_credentials_cchdo():
             u'To avoid this question, put your password in plain text as '
             'cchdo/cchdo_pass under [db_cred] in {}'.format(_CONFIG_PATHS[-1]))
         password = getpass.getpass(
-            u'Password for {}@{}:'.format(username, database_uri))
-    return (username, password)
+            u'Password for {}@{}/{}:'.format(username, db_host, db_name))
+    return (username, password, db_host, db_name)
     
 
 def get_merger_division():
