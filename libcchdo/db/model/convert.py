@@ -14,46 +14,48 @@ UNITS_MAP = {
     (u'nmol/liter', u'NMOL/L'): (u'nmol/l', u'NMOL/L'),
     (u'umol/kg', u'UMOL/KG'): (u'\u03BCmol/kg', u'UMOL/KG'),
     (u'pmol/liter', u'PMOL/L'): (u'pmol/l', u'PMOL/L'),
+    (u'\xc2\xb0C(ITS90)', u'ITS-90'): (u'\xc2\xb0C (ITS-90)', u'ITS-90'),
+    (u'\xc2\xb0C', u'ITS-90'): (u'\xc2\xb0C (ITS-90)', u'ITS-90'),
 }
 
 
 KNOWN_NETCDF_VARIABLE_NAMES = {
-    'OXYGENL': 'oxygenl',
-    'OXYGEN': 'bottle_oxygen',
-    'CTDOXY': 'oxygen',
-    'NITRATL': 'nitratel',
-    'NITRAT': 'nitrate',
-    'NITRITL': 'nitritel',
-    'NITRIT': 'nitrite',
-    'CFC-11L': 'freon_11l',
-    'CFC-11': 'freon_11',
-    'CFC-11L': 'freon_11l',
-    'CFC-11': 'freon_11',
-    'ALKALI': 'alkalinity',
-    'CFC113': 'freon_113',
-    'TCARBN': 'total_carbon',
-    'CFC-12': 'freon_12',
-    'CFC-12L': 'freon_12l',
-    'THETA': 'theta',
-    'DELHE3': 'delta_helium_3',
-    'CTDRAW': 'ctd_raw',
-    'PCO2': 'partial_pressure_of_co2',
-    'PCO2TMP': 'partial_co2_temperature',
+    'OXYGENL': u'oxygenl',
+    'OXYGEN':  u'bottle_oxygen',
+    'CTDOXY':  u'oxygen',
+    'NITRATL': u'nitratel',
+    'NITRAT':  u'nitrate',
+    'NITRITL': u'nitritel',
+    'NITRIT':  u'nitrite',
+    'CFC-11L': u'freon_11l',
+    'CFC-11':  u'freon_11',
+    'CFC-11L': u'freon_11l',
+    'CFC-11':  u'freon_11',
+    'ALKALI':  u'alkalinity',
+    'CFC113':  u'freon_113',
+    'TCARBN':  u'total_carbon',
+    'CFC-12':  u'freon_12',
+    'CFC-12L': u'freon_12l',
+    'THETA':   u'theta',
+    'DELHE3':  u'delta_helium_3',
+    'CTDRAW':  u'ctd_raw',
+    'PCO2':    u'partial_pressure_of_co2',
+    'PCO2TMP': u'partial_co2_temperature',
 }
 
 
 def convert_unit(session, name, mnemonic):
-    units_name = name.strip()
-    units_mnemonic = mnemonic.strip()
+    units_name = unicode(name.strip())
+    units_mnemonic = unicode(mnemonic.strip())
 
     try:
         units_name, units_mnemonic = UNITS_MAP[(units_name, units_mnemonic)]
     except KeyError:
         pass
 
-    units = session.query(std.Unit).filter(
-         std.Unit.name == units_name and \
-         std.Unit.mnemonic == units_mnemonic).first()
+    units = session.query(std.Unit).\
+        filter(std.Unit.name == units_name).\
+        filter(std.Unit.mnemonic == units_mnemonic).first()
     if not units:
         units = std.Unit(units_name, units_mnemonic)
         session.add(units)
@@ -77,13 +79,13 @@ def convert_parameter(session, legacy_param):
 
     parameter = _find_or_create_parameter(session, legacy_param.name)
 
-    parameter.full_name = (legacy_param.full_name or u'').strip()
+    parameter.full_name = (unicode(legacy_param.full_name) or u'').strip()
     try:
         parameter.format = '%' + legacy_param.ruby_precision.strip() if \
             legacy_param.ruby_precision else '%11s'
     except AttributeError:
         parameter.format = '%11s'
-    parameter.description = legacy_param.description or ''
+    parameter.description = unicode(legacy_param.description or u'')
 
     range = legacy_param.range.split(',') if legacy_param.range else [None, None]
     parameter.bound_lower = float(range[0]) if range[0] else None
@@ -91,8 +93,8 @@ def convert_parameter(session, legacy_param):
 
     if legacy_param.units:
         legacy_param.units = legacy_param.units
-        parameter.units = convert_unit(session, legacy_param.units,
-                                       legacy_param.unit_mnemonic)
+        parameter.units = convert_unit(
+            session, legacy_param.units, legacy_param.unit_mnemonic)
     else:
         parameter.units = None
 
@@ -128,12 +130,14 @@ def all_parameters(lsession, session):
     std_parameters = [convert_parameter(session, x) for x in legacy_parameters]
     std_parameters = dict([(x.name, x) for x in std_parameters])
 
+    session.flush()
+
     # Additional modifications
     # Add EXPOCODE and SECT_ID to known parameters
     display_order = 1
     expocode = std_parameters['EXPOCODE'] = _find_or_create_parameter(
-        session, 'EXPOCODE')
-    expocode.full_name = 'ExpoCode'
+        session, u'EXPOCODE')
+    expocode.full_name = u'ExpoCode'
     expocode.format = '%11s'
     expocode.display_order = display_order
     session.add(expocode)
@@ -141,8 +145,8 @@ def all_parameters(lsession, session):
     display_order += 1
 
     sectid = std_parameters['SECT_ID'] = _find_or_create_parameter(
-        session, 'SECT_ID')
-    sectid.full_name = 'Section ID'
+        session, u'SECT_ID')
+    sectid.full_name = u'Section ID'
     sectid.format = '%11s'
     sectid.display_order = display_order
     session.add(sectid)

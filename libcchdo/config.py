@@ -122,7 +122,7 @@ def get_db_credentials_cchdo():
             '[{0}] {1} in {2}'.format(cfg_db, cfg_password, _CONFIG_PATHS[-1]))
         try:
             password = getpass.getpass(
-                u'Password for {}@{}/{}:'.format(username, db_host, db_name))
+                u'Password for {}@{}/{}: '.format(username, db_host, db_name))
         except EOFError:
             password = None
     return (username, password, db_host, db_name)

@@ -147,9 +147,9 @@ class _LibLogFormatter(logging.Formatter):
 _LIBLOG_HANDLER = logging.StreamHandler()
 _LIBLOG_HANDLER.setFormatter(_LibLogFormatter(
     ''.join((
-        '%(asctime)s %(color_path)s%(name)s%(pathname)s:%(lineno)d '
-        '%(color_level)s%(levelname)s', COLORS['CLEAR'],
-        ': %(message)s')), "%Y-%j %H%M:%S"))
+        '%(asctime)-21s %(color_level)s%(levelname)s', COLORS['CLEAR'],
+        ': %(message)s %(color_path)s%(name)s%(pathname)s:%(lineno)d',
+        COLORS['CLEAR'])), "%Y-%j %H:%M:%S"))
 
 LOG = logging.getLogger(__name__)
 LOG.setLevel(logging.DEBUG)

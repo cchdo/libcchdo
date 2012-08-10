@@ -1,0 +1,26 @@
+#!python
+import logging
+import argparse
+
+from libcchdo import LOG
+from libcchdo.db.model.std import (
+    session,
+    _populate_library_database_parameters,
+    )
+
+
+argparser = argparse.ArgumentParser()
+
+
+def main():
+    LOG.setLevel(logging.DEBUG)
+    std_session = session()
+    try:
+        _populate_library_database_parameters(std_session)
+    finally:
+        std_session.close()
+    return 0
+
+
+if __name__ == '__main__':
+    argparser.exit(main())
