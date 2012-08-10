@@ -1,96 +1,83 @@
 import sys
 import os.path
-from contextlib import contextmanager
+from contextlib import contextmanager, closing
+from threading import Lock
 
 import sqlalchemy as S
 import sqlalchemy.orm
 import sqlalchemy.ext.declarative
+from sqlalchemy.exc import OperationalError
 from sqlalchemy.sql.expression import exists
 
-from ... import LOG, memoize, get_library_abspath, config, check_cache
+from ... import LOG, memoize, config, check_cache
 from ...fns import _decimal
 from ...db import connect
 from legacy import session as LegacySession
 
 
 Base = S.ext.declarative.declarative_base()
-_metadata = Base.metadata
 
 
 _cache_checked = False
-_cache_checking = False
+_cache_checking = Lock()
+
+
+def session():
+    if check_cache:
+        _ensure_database_cache()
+    session = connect.session(connect.cchdo_data())
+    if not session:
+        raise ValueError("Unable to connect to local cache db cchdo_data")
+    return session
 
 
 def _populate_library_database_parameters(std_session):
     LOG.info("Populating database with parameters.")
-    from ...db.model import convert
 
-    legacy_session = LegacySession()
-    parameters = convert.all_parameters(legacy_session, std_session)
-    legacy_session.close()
+    # TODO have multiple strategies to download parameter information
+    # a JSON API will be provided by pycchdo so use that when it becomes
+    # available
 
-    std_session.flush()
+    with closing(LegacySession()) as legacy_session:
+        from ...db.model import convert
+        return convert.all_parameters(legacy_session, std_session)
+            
 
-
-def _ensure_database_parameters_exist(std_session):
-    """Convert the legacy parameters into std parameters if there are no stored
-       parameters.
-    """
-    if not std_session.query(Parameter).count():
-        _populate_library_database_parameters(std_session)
-
-
-def _create_all():
-    _metadata.create_all(connect.cchdo_data())
-
-
-@contextmanager
-def guarded_session(*args, **kwargs):
-    s = None
-    try:
-        s = session(*args, **kwargs)
-        yield s
-    finally:
-        if s:
-            s.close()
-
-
-def _auto_generate_library_database_cache(std_session):
-    LOG.info("Auto-generating the library's cache (%s)." % \
-        config.get_option('db', 'cache'))
-    _create_all()
-    std_session.flush()
-    _ensure_database_parameters_exist(std_session)
-    std_session.flush()
-
-
-def ensure_database_cache():
+def _ensure_database_cache():
     """Initialize the database cache if it is not present.
-       WARNING: Do not call this while importing ...db.model.std. There will be
-       a circular dependency as ...db.model.convert needs this module defined.
+
+    WARNING: Do not call this while importing ...db.model.std. There will be
+    a circular dependency as ...db.model.convert needs this module defined.
+
     """
     global _cache_checked, _cache_checking
-    if _cache_checked or _cache_checking:
+    if not _cache_checking.acquire(False):
         return
-    _cache_checking = True
-    with guarded_session(autoflush=True) as std_session:
-        if not os.path.isfile(config.get_option('db', 'cache')):
-            _auto_generate_library_database_cache(std_session)
-        else:
-            _ensure_database_parameters_exist(std_session)
+    if _cache_checked:
+        _cache_checking.release()
+        return
+
+    with closing(session()) as std_session:
+        db_cache_path = config.get_option('db', 'cache')
+        if not os.path.isfile(db_cache_path):
+            LOG.info(u"Generating cache (%s)." % db_cache_path)
+            Base.metadata.create_all(std_session.get_bind())
+
+        try:
+            if not std_session.query(Parameter).count():
+                _populate_library_database_parameters(std_session)
+        except OperationalError, e:
+            LOG.info(
+                u'Database operational error possibly due to schema change.'
+                'Regenerating cache. Original error: %s' % e)
+            Base.metadata.drop_all(std_session.get_bind())
+            Base.metadata.create_all(std_session.get_bind())
+            _populate_library_database_parameters(std_session)
         std_session.commit()
-    _cache_checking = False
+
+
     _cache_checked = True
-
-
-def session(autoflush=False):
-    if check_cache:
-        ensure_database_cache()
-    session = connect.session(connect.cchdo_data())
-    if not session:
-        raise ValueError("Unable to connect to local cache database cchdo_data")
-    session.autoflush = autoflush
-    return session
+    _cache_checking.release()
 
 
 class Country(Base):
@@ -163,7 +150,7 @@ class Ship(Base):
         return "<Ship(%r, %r)>" % (self.name, self.code_NODC)
 
 
-cruises_pis = S.Table('cruises_pis', _metadata,
+cruises_pis = S.Table('cruises_pis', Base.metadata,
     S.Column('pi_id', S.ForeignKey('contacts.id', ondelete='CASCADE')),
     S.Column('cruise_id', S.ForeignKey('cruises.id', ondelete='CASCADE')),
 )
@@ -195,7 +182,7 @@ class Project(Base):
         return "<Project(%r)>" % self.name
 
 
-cruises_projects = S.Table('cruises_projects', _metadata,
+cruises_projects = S.Table('cruises_projects', Base.metadata,
      S.Column('cruise_id', S.ForeignKey('cruises.id', ondelete='CASCADE')),
      S.Column('project_id', S.ForeignKey('projects.id', ondelete='CASCADE')),
 )
@@ -256,8 +243,7 @@ class Unit(Base):
 
     @classmethod
     def find_by_name(cls, name):
-        return session().query(Unit).autoflush(False).filter(
-            Unit.name == name).first()
+        return session().query(Unit).filter(Unit.name == name).first()
 
 
 S.Index('units_name', Unit.name, unique=True)
@@ -515,14 +501,15 @@ def make_contrived_parameter(name, format=None, units=None, bound_lower=None,
 
 
 def find_by_mnemonic(name):
-    parameter = session().query(Parameter).autoflush(False).filter(
-        Parameter.name == name).first()
+    parameter = session().query(Parameter).\
+        filter(Parameter.name == name).first()
     if not parameter:
-        LOG.debug("Looking through aliases for %s" % name)
-        alias = session().query(ParameterAlias).autoflush(False).filter(
+        alias = session().query(ParameterAlias).filter(
             ParameterAlias.name == name).first()
         if alias:
             parameter = alias.parameter
+            LOG.info("%s is an alias for %s" % (name, parameter))
         else:
-        	parameter = None
+            parameter = None
+            LOG.warn("%s is not a recognized parameter" % name)
     return parameter

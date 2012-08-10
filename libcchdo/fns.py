@@ -144,7 +144,7 @@ def read_arbitrary(handle, file_type=None, file_name=None):
 
     try:
         all_formats[file_type].read(datafile, handle)
-    except (KeyError, ImportError):
+    except KeyError:
         raise ValueError('Unrecognized file type for %s' % handle.name)
 
     return datafile

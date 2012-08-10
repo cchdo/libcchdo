@@ -1,11 +1,12 @@
-"""
-Abstractions for SQLAlchemy connections
+"""Abstractions for SQLAlchemy connections.
+
 """
 
 import os
 
 import sqlalchemy as S
-import sqlalchemy.orm
+from sqlalchemy.orm import sessionmaker
+from sqlalchemy.engine.url import URL
 
 
 from .. import config
@@ -25,10 +26,11 @@ _DRIVER = {
 @memoize
 def _connect(url):
     """Create an engine for the given sqlalchemy url with default settings.
-       Args:
-           url - an sqlalchemy.engine.url.URL
-       Returns:
-           an engine
+
+    Args:
+        url - an sqlalchemy.engine.url.URL
+    Returns:
+        an engine
 
     """
     return S.create_engine(url)
@@ -37,27 +39,30 @@ def _connect(url):
 # Public interface connections
 
 
+@memoize
 def cchdo_data():
-    """Connect to cchdo_data"""
-    url = S.engine.url.URL(
-        _DRIVER['SQLITE'], None, None, None,
-        database=config.get_option('db', 'cache'))
+    """Connect to cchdo_data.
+
+    This is the sqlite database cache of parameters.
+
+    """
+    db_url = config.get_option('db', 'cache')
+    url = URL(_DRIVER['SQLITE'], None, None, None, database=db_url)
     return _connect(url)
 
 
 @memoize
 def cchdo():
-    """Connect to CCHDO's database"""
+    """Connect to CCHDO's MySQL database."""
     cred = config.get_db_credentials_cchdo()
-    url = S.engine.url.URL(_DRIVER['MYSQL'], cred[0], cred[1], cred[2],
-                           database=cred[3])
+    url = URL(_DRIVER['MYSQL'], cred[0], cred[1], cred[2], database=cred[3])
     return _connect(url)
 
 
 @memoize
-def sessionmaker(engine):
-    return S.orm.sessionmaker(bind=engine)
+def Sessionmaker(engine):
+    return sessionmaker(bind=engine)
 
 
 def session(engine):
-    return sessionmaker(engine)()
+    return Sessionmaker(engine)()

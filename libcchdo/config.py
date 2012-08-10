@@ -97,8 +97,6 @@ _STORAGE_NOTICE = \
 
 
 def get_db_credentials_cchdo():
-    LOG.info('Requiring CCHDO database credentials.')
-
     db_host = 'h2o.ucsd.edu'
     db_name = 'cchdo'
 

@@ -11,11 +11,11 @@ def _get_parameter_alias(session, name):
 
 
 UNITS_MAP = {
-    (u'nmol/liter', u'NMOL/L'): (u'nmol/l', u'NMOL/L'),
-    (u'umol/kg', u'UMOL/KG'): (u'\u03BCmol/kg', u'UMOL/KG'),
-    (u'pmol/liter', u'PMOL/L'): (u'pmol/l', u'PMOL/L'),
-    (u'\xc2\xb0C(ITS90)', u'ITS-90'): (u'\xc2\xb0C (ITS-90)', u'ITS-90'),
-    (u'\xc2\xb0C', u'ITS-90'): (u'\xc2\xb0C (ITS-90)', u'ITS-90'),
+    (u'nmol/liter', u'NMOL/L'): (u'nmol/l', 'NMOL/L'),
+    (u'umol/kg', u'UMOL/KG'): (u'\u03BCmol/kg', 'UMOL/KG'),
+    (u'pmol/liter', u'PMOL/L'): (u'pmol/l', 'PMOL/L'),
+    (u'\xc2\xb0C(ITS90)', u'ITS-90'): (u'\xc2\xb0C (ITS-90)', 'ITS-90'),
+    (u'\xc2\xb0C', u'ITS-90'): (u'\xc2\xb0C (ITS-90)', 'ITS-90'),
 }
 
 
@@ -46,7 +46,7 @@ KNOWN_NETCDF_VARIABLE_NAMES = {
 
 def convert_unit(session, name, mnemonic):
     units_name = unicode(name.strip())
-    units_mnemonic = unicode(mnemonic.strip())
+    units_mnemonic = str(mnemonic.strip())
 
     try:
         units_name, units_mnemonic = UNITS_MAP[(units_name, units_mnemonic)]
@@ -59,7 +59,6 @@ def convert_unit(session, name, mnemonic):
     if not units:
         units = std.Unit(units_name, units_mnemonic)
         session.add(units)
-        session.flush()
     return units
 
 
@@ -69,7 +68,6 @@ def _find_or_create_parameter(session, name):
     if not parameter:
         parameter = std.Parameter(name)
         session.add(parameter)
-        session.flush()
     return parameter
 
 
@@ -81,8 +79,11 @@ def convert_parameter(session, legacy_param):
 
     parameter.full_name = (unicode(legacy_param.full_name) or u'').strip()
     try:
-        parameter.format = '%' + legacy_param.ruby_precision.strip() if \
-            legacy_param.ruby_precision else '%11s'
+        precision = legacy_param.ruby_precision
+        if precision:
+            parameter.format = '%' + str(precision.strip())
+        else:
+            parameter.format = '%11s'
     except AttributeError:
         parameter.format = '%11s'
     parameter.description = unicode(legacy_param.description or u'')
@@ -98,12 +99,10 @@ def convert_parameter(session, legacy_param):
     else:
         parameter.units = None
 
-    parameter.mnemonic = legacy_param.name
-
-    aliases = map(lambda x: x.strip(), legacy_param.alias.split(',')) if \
-        legacy_param.alias else []
-    parameter.aliases = map(lambda x: _get_parameter_alias(session, x),
-                            aliases)
+    aliases = []
+    if legacy_param.alias:
+        aliases = [x.strip() for x in legacy_param.alias.split(',')]
+    parameter.aliases = [_get_parameter_alias(session, x) for x in aliases]
 
     try:
         parameter.display_order = legacy_param.display_order
@@ -130,8 +129,6 @@ def all_parameters(lsession, session):
     std_parameters = [convert_parameter(session, x) for x in legacy_parameters]
     std_parameters = dict([(x.name, x) for x in std_parameters])
 
-    session.flush()
-
     # Additional modifications
     # Add EXPOCODE and SECT_ID to known parameters
     display_order = 1
@@ -141,7 +138,6 @@ def all_parameters(lsession, session):
     expocode.format = '%11s'
     expocode.display_order = display_order
     session.add(expocode)
-    session.flush()
     display_order += 1
 
     sectid = std_parameters['SECT_ID'] = _find_or_create_parameter(
@@ -150,7 +146,6 @@ def all_parameters(lsession, session):
     sectid.format = '%11s'
     sectid.display_order = display_order
     session.add(sectid)
-    session.flush()
     display_order += 1
 
     # Change CTDOXY's precision to 9.4f

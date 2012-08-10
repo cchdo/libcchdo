@@ -8,8 +8,9 @@ from ..db.model import std
 class TestDbModelStd(unittest.TestCase):
 
     def test_populate_library_database_parameters(self):
-        with std.guarded_session() as sesh:
+        with std.closing(std.session()) as sesh:
             std._populate_library_database_parameters(sesh)
+            sesh.flush()
             sesh.rollback()
 
     def test_find_by_mnemonic(self):
@@ -18,10 +19,10 @@ class TestDbModelStd(unittest.TestCase):
                 self.assertTrue(type(x) is std.Parameter)
 
         # Test something that should come up easily
-        okay(std.find_by_mnemonic('CTDOXY'))
+        okay(std.find_by_mnemonic(u'CTDOXY'))
 
         # Test something that needs an alias lookup
-        okay(std.find_by_mnemonic('TALK'))
+        okay(std.find_by_mnemonic(u'TALK'))
 
     def test_parameter_is_in_range(self):
         p = std.Parameter('_test')
