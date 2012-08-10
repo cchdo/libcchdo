@@ -23,7 +23,24 @@ if __name__ == "__main__":
     except IOError:
         pass
 
-    #distutils.core.setup(
+    extras_require = {
+        'db': ['MySQL-python', ],
+        'speed': ['cdecimal', ],
+        'coverage': ['coverage', ],
+        'plot': ['matplotlib', 'basemap', ],
+        'netcdf': ['numpy', 'netCDF4', ],
+        'merge': ['pandas', ],
+    }
+
+    install_requires = [
+        'geoalchemy',
+    ]
+
+    # Add all the extras as requirements. Pip and setup.py develop don't support
+    # extras_require.
+    install_requires = reduce(
+        lambda l, m: l + m, extras_require.values(), install_requires)
+
     setuptools.setup(
         name=PACKAGE_NAME,
         version=libcchdo.__version__,
@@ -39,6 +56,8 @@ if __name__ == "__main__":
             '.model', '.model.convert', '.region',
             '.units', )],
         test_suite='libcchdo.tests',
+        install_requires=install_requires,
+        extras_require=extras_require,
         scripts=glob.glob('libcchdo/scripts/*'),
         cmdclass={
             'coverage': CoverageCommand,

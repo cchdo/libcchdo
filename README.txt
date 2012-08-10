@@ -8,7 +8,6 @@ Package Structure
 =================
 
 * libcchdo
-  * bin - Utility scripts
   * libcchdo - library source files
   * scripts - a collection of scripts (yes I'm a pack-rat)
 

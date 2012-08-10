@@ -93,27 +93,38 @@ def get_option(section, option, default_function=None):
 
 
 _STORAGE_NOTICE = \
-    "(Your answer will be saved in %s for future use)" % _CONFIG_PATHS[-1]
+    "Your answer will be saved in %s." % _CONFIG_PATHS[-1]
 
 
 def get_db_credentials_cchdo():
+    LOG.info('Requiring CCHDO database credentials.')
+
     db_host = 'h2o.ucsd.edu'
     db_name = 'cchdo'
-    def input_cchdo_username():
-        return raw_input(
-            u'What is your username for the database {}? {}/{}'.format(
-                _STORAGE_NOTICE, db_host, db_name ))
 
-    username = get_option('db_cred', 'cchdo/cchdo_user', input_cchdo_username)
+    def input_cchdo_username():
+        LOG.info(_STORAGE_NOTICE)
+        return raw_input(
+            u'What is your username for the database {}/{}? '.format(
+                db_host, db_name))
+
+    cfg_db = 'db_cred'
+    cfg_username = 'cchdo/username'
+    username = get_option(cfg_db, cfg_username, input_cchdo_username)
+
     # Passwords will not be saved.
+    cfg_password = 'cchdo/password'
     try:
-        password = get_option('db_cred', 'cchdo/cchdo_pass')
+        password = get_option(cfg_db, cfg_password)
     except ConfigParser.Error:
         LOG.info(
             u'To avoid this question, put your password in plain text as '
-            'cchdo/cchdo_pass under [db_cred] in {}'.format(_CONFIG_PATHS[-1]))
-        password = getpass.getpass(
-            u'Password for {}@{}/{}:'.format(username, db_host, db_name))
+            '[{0}] {1} in {2}'.format(cfg_db, cfg_password, _CONFIG_PATHS[-1]))
+        try:
+            password = getpass.getpass(
+                u'Password for {}@{}/{}:'.format(username, db_host, db_name))
+        except EOFError:
+            password = None
     return (username, password, db_host, db_name)
     
 

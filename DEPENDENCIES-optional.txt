@@ -1,9 +1,0 @@
-# Huge speed boosts
-cdecimal
-# Required for test coverage
-coverage
-# Required for plotting
-scipy
-matplotlib
-basemap
-pandas

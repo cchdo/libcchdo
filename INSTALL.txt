@@ -2,21 +2,13 @@
 Install
 =======
 
-Two steps!
-
-1. pip install --requirement=DEPENDENCIES.txt && \
-   pip install --requirement=DEPENDENCIES-optional.txt
-
-    NOTE: Not all dependencies are required! See below.
-
-2. python setup.py install
+    python setup.py install
 
 Dependencies
 ============
 
-Dependencies are listed in DEPENDENCIES.txt and DEPENDENCIES-optional.txt but
-don't worry about them. Read this first to find out whether you need all of
-them.
+Dependencies are listed in setup.py. Don't worry about them. Read this first to
+find out whether you need all of them.
 
 Dependency tree
 ---------------
@@ -37,6 +29,7 @@ All nodes are python packages except those marked as libraries.
   - scipy (optional) needed for interpolation and scientific math
   - matplotlib (optional) needed for plotting
   - basemap (optional) needed for plotting maps
+  - pandas (optional) needed for merging
 
 External Libraries
 ------------------
@@ -55,11 +48,6 @@ You'll want to install pip (a package manager for Python).
 If you do not want any optional packages you can simply install geoalchemy::
 
     pip install geoalchemy
-
-If you want everything::
-
-    pip install --requirement=DEPENDENCIES.txt
-    pip install --requirement=DEPENDENCIES-optional.txt
 
 Note about order
 ----------------

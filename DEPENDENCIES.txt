@@ -1,4 +1,0 @@
-geoalchemy
-MySQL-python
-numpy
-netCDF4
