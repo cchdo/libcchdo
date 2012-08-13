@@ -137,6 +137,21 @@ def read(self, handle, salt='first', temp='first'):
 
     self.globals['DEPTH'] = ''
     self.globals['SECT_ID'] = ''
+    if 'STNNBR' not in self.globals:
+        # not sure if critical is approprate here, but this causes a ton of
+        # problems for the exchange writer, and ODV
+        LOG.critical('Station number not found, this is bad')
+        LOG.warn('Station Number will be determined from file name, this may '
+                'not work')
+        self.globals['STNNBR'] = ''.join(re.findall("\d+", handle.name))
+
+    if 'CASTNO' not in self.globals:
+        self.globals['CASTNO'] = ''
+        LOG.warn('Cast Number not found, this can cause problems')
+
+    if 'EXPOCODE' not in self.globals:
+        self.globals['EXPOCODE'] = ''
+        LOG.warn('ExpoCode not found, this can cause problems')
 
     if len(temps) == 1:
         index.append(temps[0][0])
