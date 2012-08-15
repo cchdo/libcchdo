@@ -7,8 +7,7 @@ class TestDataFile(unittest.TestCase):
 
     def setUp(self):
         self.file = datafile.DataFile()
-        self.file.columns['EXPOCODE'] = datafile.Column('EXPOCODE')
-        self.c = self.file.columns['EXPOCODE']
+        self.c = self.file.columns['EXPOCODE'] = datafile.Column('EXPOCODE')
   
     def tearDown(self):
         self.file = None
@@ -84,3 +83,8 @@ class TestDataFile(unittest.TestCase):
         self.c.append('test2', 'flag2')
         self.assertEqual(self.c.values, [None, None, 'test', 'test2'])
         self.assertEqual(self.c.flags_woce, [None, None, None, 'flag2'])
+
+    def test_check_and_replace_parameter_contrived(self):
+        """Contrived parameters are not checked."""
+        col = datafile.Column('_DATETIME')
+        col.check_and_replace_parameter(self.file, convert=False)

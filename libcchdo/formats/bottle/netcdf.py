@@ -49,18 +49,18 @@ def read(self, handle):
     	calculated_time = calculated_time.date()
     if dtime != calculated_time:
         LOG.warn(('Datetime declarations in Bottle NetCDF file '
-                           'do not match (%s, %s)') % (dtime, calculated_time))
+                  'do not match (%s, %s)') % (dtime, calculated_time))
 
     varstation = ''.join(filter(None, vars['station'][:].tolist())).strip()
     varcast = ''.join(filter(None, vars['cast'][:].tolist())).strip()
 
     if varstation != station:
         LOG.warn(('Station declarations in Bottle NetCDF file '
-                           'do not match (%s, %s)') % (station, varstation))
+                  'do not match (%s, %s)') % (station, varstation))
 
     if varcast != cast:
         LOG.warn(('Cast declarations in Bottle NetCDF file '
-                           'do not match (%s, %s)') % (cast, varcast))
+                  'do not match (%s, %s)') % (cast, varcast))
 
     # Create global columns if they do not exist
     globals_to_vars = {
@@ -133,9 +133,19 @@ STATIC_PARAMETERS_PER_CAST = ('EXPOCODE', 'SECT_ID', 'STNNBR', 'CASTNO',
     '_DATETIME', 'LATITUDE', 'LONGITUDE', 'DEPTH', )
 
 
+UNKNOWN = 'UNKNOWN'
+
+
+def _lambda_or_unknown(fn, unknown=UNKNOWN):
+    """Attempt to return the result of fn; on error return unknown."""
+    try:
+        return fn()
+    except (KeyError, IndexError):
+        return unknown
+
+
 def write(self, handle):
     """How to write a Bottle NetCDF file."""
-    UNKNOWN = 'UNKNOWN'
     UNSPECIFIED_UNITS = 'unspecified'
     STRLEN = 40
 
@@ -151,15 +161,17 @@ def write(self, handle):
     makeDim('string_dimension', STRLEN)
 
     # Define dataset attributes
-    nc_file.EXPOCODE = self['EXPOCODE'][0] or UNKNOWN
+    nc_file.EXPOCODE = _lambda_or_unknown(lambda: self['EXPOCODE'][0])
     nc_file.Conventions = 'COARDS/WOCE'
     nc_file.WOCE_VERSION = '3.0'
-    nc_file.WOCE_ID = self['SECT_ID'][0] or UNKNOWN
+    nc_file.WOCE_ID = _lambda_or_unknown(lambda: self['SECT_ID'][0])
     nc_file.DATA_TYPE = 'WOCE Bottle'
-    nc_file.STATION_NUMBER = nc.simplest_str(self['STNNBR'][0]) or UNKNOWN
-    nc_file.CAST_NUMBER = nc.simplest_str(self['CASTNO'][0]) or UNKNOWN
-    nc_file.BOTTOM_DEPTH_METERS = int(max(self['DEPTH'].values) or
-                                      woce.FILL_VALUE)
+    nc_file.STATION_NUMBER = _lambda_or_unknown(
+        lambda: nc.simplest_str(self['STNNBR'][0]))
+
+    nc_file.CAST_NUMBER = _lambda_or_unknown(lambda: nc.simplest_str(self['CASTNO'][0]))
+    nc_file.BOTTOM_DEPTH_METERS = int(
+        max(self['DEPTH'].values) or woce.FILL_VALUE)
     nc_file.BOTTLE_NUMBERS = ' '.join(map(nc.simplest_str, self['BTLNBR'].values))
     if self['BTLNBR'].is_flagged_woce():
         nc_file.BOTTLE_QUALITY_CODES = ' '.join(map(str, self['BTLNBR'].flags_woce))
@@ -253,11 +265,17 @@ def write(self, handle):
         else:
             var.data_min = float('-inf')
             var.data_max = float('inf')
-        var.C_format = parameter.format.encode('ascii', 'replace')
+        if parameter.format:
+            var.C_format = parameter.format.encode('ascii', 'replace')
+        else:
+            # TODO TEST
+            LOG.warn(u'Parameter {0} has no format'.format(parameter.name))
+            var.C_format = '%s'
         var[:] = column.values
 
         if column.is_flagged_woce():
-            vfw = nc_file.createVariable(parameter_name + nc.QC_SUFFIX, 'i2', ('pressure',))
+            vfw = nc_file.createVariable(
+                parameter_name + nc.QC_SUFFIX, 'i2', ('pressure',))
             vfw.long_name = parameter_name + nc.QC_SUFFIX
             vfw[:] = column.flags_woce
 

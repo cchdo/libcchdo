@@ -75,17 +75,18 @@ class Column(object):
 
     def check_and_replace_parameter(self, file, convert=True):
         parameter = self.parameter
-        std_parameter = std.find_by_mnemonic(parameter.name)
 
+        # A leading _ indicates a contrived parameter. Skip it.
+        if parameter.name.startswith('_'):
+            return
+
+        std_parameter = std.find_by_mnemonic(parameter.name)
         if not std_parameter:
             return
 
         if std_parameter.name != parameter.name:
             file[std_parameter.name] = file[parameter.name]
             del file[parameter.name]
-
-        if parameter.name.startswith('_'):
-            return
 
         if not std_parameter:
             LOG.warn("Unknown parameter '%s'" % parameter.name)
