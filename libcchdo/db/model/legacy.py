@@ -83,6 +83,10 @@ OVERRIDE_PARAMETERS = {
 }
 
 
+# This will get filled in the first time it is used
+MYSQL_PARAMETER_DISPLAY_ORDERS = None
+
+
 class BottleDB(Base):
     __tablename__ = 'bottle_dbs'
 
@@ -124,24 +128,31 @@ def _mysql_parameter_order_to_array(order):
                                map(lambda x: x.strip(), order.split(','))))
 
 
-_sesh = connect.session(connect.cchdo())
-_query = _sesh.query(ParameterGroup)
+def mysql_parameter_display_orders(session):
+    global MYSQL_PARAMETER_DISPLAY_ORDERS
 
-_primary = _query.filter(ParameterGroup.group == \
-                        u'CCHDO Primary Parameters').first()
-_parameters = _mysql_parameter_order_to_array(_primary.parameters)
+    if MYSQL_PARAMETER_DISPLAY_ORDERS is not None:
+        return MYSQL_PARAMETER_DISPLAY_ORDERS
 
-_secondary = _query.filter(ParameterGroup.group == \
-                           u'CCHDO Secondary Parameters').first()
-_parameters += _mysql_parameter_order_to_array(_secondary.parameters)
+    query = session.query(ParameterGroup)
 
-_tertiary = _query.filter(ParameterGroup.group == \
-                          u'CCHDO Tertiary Parameters').first()
-_parameters += _mysql_parameter_order_to_array(_tertiary.parameters)
-_sesh.close()
+    groups = [
+        u'CCHDO Primary Parameters',
+        u'CCHDO Secondary Parameters',
+        u'CCHDO Tertiary Parameters',
+        ]
 
+    parameters = []
+    for group in groups:
+        pgroup = query.filter(ParameterGroup.group == group).first()
+        parameters += _mysql_parameter_order_to_array(pgroup.parameters)
 
-MYSQL_PARAMETER_DISPLAY_ORDERS = dict(map(lambda x: x[::-1], enumerate(_parameters)))
+    parameter_display_orders = dict(
+        map(lambda x: x[::-1], enumerate(parameters)))
+
+    MYSQL_PARAMETER_DISPLAY_ORDERS = parameter_display_orders
+
+    return parameter_display_orders
 
 
 def _to_unicode(x):
@@ -542,7 +553,7 @@ def find_parameter(session, name):
     else:
         try:
             legacy_parameter.display_order = \
-                MYSQL_PARAMETER_DISPLAY_ORDERS[legacy_parameter.name]
+                mysql_parameter_display_orders(session)[legacy_parameter.name]
         except:
             legacy_parameter.display_order = sys.maxint
 
