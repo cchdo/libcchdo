@@ -126,22 +126,29 @@ def strptime_woce_date_time(woce_date, woce_time):
             3. DATE does not exist but TIME does
                 None
     """
+    if woce_date is None:
+        return None
+
     if '-' in str(woce_date):
         woce_date = str(woce_date).translate(None, '-')
     try:
         i_woce_date = int(woce_date)
         d = datetime.datetime.strptime('%08d' % i_woce_date, '%Y%m%d').date()
     except (TypeError, ValueError):
+        LOG.warn(u"Malformed date {0!r}. Omitting.".format(woce_date))
         return None
     
     try:
         i_woce_time = int(woce_time)
         if i_woce_time >= 2400:
-            LOG.warn("Illegal time > 2400. Setting to 0.")
+            LOG.warn(
+                u"Illegal time {0:04d} > 2400. Setting to 0.".format(
+                    i_woce_time))
             i_woce_time = 0
         t = datetime.datetime.strptime('%04d' % i_woce_time, '%H%M').time()
     except (TypeError, ValueError):
-        return d
+        LOG.warn(u"Illegal time {0}. Setting to 0.".format(woce_time))
+        t = datetime.datetime.strptime('0000', '%H%M').time()
 
     return datetime.datetime.combine(d, t)
 

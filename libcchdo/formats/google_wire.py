@@ -58,6 +58,12 @@ def _json(self, handle, column_headers, columns, global_values):
                 nums = (','.join(['%d'] * 5)) % \
                        (o.year, o.month, o.day, o.hour, o.minute)
                 return 'Date(%s)' % nums
+            if isinstance(o, datetime.date):
+                LOG.error(
+                    u"Date was provided when datetime expected. Please report "
+                    "this issue.")
+                nums = (','.join(['%d'] * 3)) % (o.year, o.month, o.day)
+                return 'Date(%s)' % nums
             if isinstance(o, Decimal):
                 return float(o)
             return json.JSONEncoder.default(self, o)

@@ -43,13 +43,24 @@ class TestFormatsWoce(unittest.TestCase):
         self.assertEqual(None, woce.strptime_woce_date_time(None, None))
         self.assertEqual(None, woce.strptime_woce_date_time(None, 5432))
 
-        today = datetime.date.today()
+        today = datetime.datetime.combine(
+            datetime.date.today(), datetime.time(0, 0))
         self.assertEqual(
             today,
             woce.strptime_woce_date_time(today.strftime('%Y%m%d'), None))
 
         self.assertTrue(woce.strptime_woce_date_time('a', 12345) is None)
         self.assertTrue(woce.strptime_woce_date_time(12345, 'a') is None)
+
+        # Bad time gives back the date as a datetime with time set to 0000
+        self.assertEqual(
+            datetime.datetime(2010, 03, 31, 0, 0),
+            woce.strptime_woce_date_time(20100331, 81))
+
+        # Bad time above 2400 returns a datetime with time as 0000
+        self.assertEqual(
+            datetime.datetime(2010, 03, 31, 0, 0),
+            woce.strptime_woce_date_time(20100331, 2513))
 
         self.assertEqual(
             datetime.datetime(2010, 03, 31, 16, 59),
