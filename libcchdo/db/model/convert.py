@@ -14,8 +14,11 @@ UNITS_MAP = {
     (u'nmol/liter', u'NMOL/L'): (u'nmol/l', 'NMOL/L'),
     (u'umol/kg', u'UMOL/KG'): (u'\u03BCmol/kg', 'UMOL/KG'),
     (u'pmol/liter', u'PMOL/L'): (u'pmol/l', 'PMOL/L'),
+    (u'DBAR', u'DBAR'): (u'decibar', 'DBAR'),
+    (u'\xc2\xb0C', u'DEG C'): (u'\xc2\xb0C (DEG C)', 'DEG C'),
     (u'\xc2\xb0C(ITS90)', u'ITS-90'): (u'\xc2\xb0C (ITS-90)', 'ITS-90'),
     (u'\xc2\xb0C', u'ITS-90'): (u'\xc2\xb0C (ITS-90)', 'ITS-90'),
+    (u'ITS-90', u'ITS-90'): (u'\xc2\xb0C (ITS-90)', 'ITS-90'),
 }
 
 
@@ -53,12 +56,17 @@ def convert_unit(session, name, mnemonic):
     except KeyError:
         pass
 
-    units = session.query(std.Unit).\
-        filter(std.Unit.name == units_name).\
-        filter(std.Unit.mnemonic == units_mnemonic).first()
+    units = session.query(std.Unit).filter(std.Unit.name == units_name).first()
     if not units:
         units = std.Unit(units_name, units_mnemonic)
         session.add(units)
+    else:
+        if units.mnemonic != units_mnemonic:
+            LOG.warn(u'Mismatched mnemonic for unit {0}.'.format(units_name))
+            if not units.mnemonic:
+                units.mnemonic = units_mnemonic
+                LOG.info(u'Setting mnemonic for unit {0} to {1}'.format(
+                    units_name, units_mnemonic))
     return units
 
 
