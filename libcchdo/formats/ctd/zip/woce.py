@@ -1,5 +1,9 @@
-import StringIO
 import zipfile
+from StringIO import StringIO as pyStringIO
+try:
+    from cStringIO import StringIO
+except ImportError:
+    StringIO = pyStringIO
 
 from .... import LOG
 from ....model import datafile
@@ -11,7 +15,7 @@ def read(self, handle):
     zip = zipfile.ZipFile(handle, 'r')
     for file in zip.namelist():
         if 'README' in file or 'DOC' in file: continue
-        tempstream = StringIO.StringIO(zip.read(file))
+        tempstream = StringIO(zip.read(file))
         ctdfile = datafile.DataFile()
         try:
             woce.read(ctdfile, tempstream)

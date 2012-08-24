@@ -29,7 +29,7 @@ if __name__ == "__main__":
         'coverage': ['coverage', ],
         'plot': ['matplotlib', 'basemap', ],
         'netcdf': ['numpy', 'netCDF4', ],
-        'merge': ['pandas', ],
+        'merge': ['pandas', 'numpy>=1.6'],
     }
 
     install_requires = [

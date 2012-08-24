@@ -160,7 +160,7 @@ def get_merger_initials():
 
 
 def stamp():
-    return '%(date)8s%(division)3s%(institution)3s%(initials)3s' % \
+    return '%(date)8s%(institution)3s%(division)3s%(initials)3s' % \
         {'date': datetime.date.today().strftime('%Y%m%d'),
          'institution': get_merger_institution(),
          'division': get_merger_division(),

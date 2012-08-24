@@ -182,28 +182,33 @@ def _warn_broke_character_column_rule(headername, headers):
                      (headername, header, SAFE_COLUMN_WIDTH))
 
 
+def _unpack_parameters(unpack_str, parameters_line, num_param_columns):
+    parameters = fns.strip_all(
+        struct.unpack(unpack_str, parameters_line[:num_param_columns * 8]))
+    return (parameters, _bad_column_alignment(parameters))
+
+
 def read_data(self, handle, parameters_line, units_line, asterisk_line):
     # num_quality_flags = the number of asterisk-marked columns
     num_quality_flags = len(re.findall('\*{7,8}', asterisk_line))
     num_quality_words = len(parameters_line.split('QUALT'))-1
 
+    LOG.debug(u'{0} quality flags, {1} quality words'.format(
+        num_quality_flags, num_quality_words))
+
     # The extra 1 in quality_length is for spacing between the columns
     quality_length = num_quality_words * (max(len('QUALT#'),
                                               num_quality_flags) + 1)
-    num_param_columns = int((len(parameters_line) - quality_length) / \
-                             COLUMN_WIDTH)
+    num_param_columns = int(
+        (len(parameters_line) - quality_length) / COLUMN_WIDTH)
 
     # Unpack the column headers
     unpack_str = '8s' * num_param_columns
 
     bad_cols = []
 
-    def unpack_parameters(parameters_line):
-        parameters = fns.strip_all(
-            struct.unpack(unpack_str, parameters_line[:num_param_columns * 8]))
-        return (parameters, _bad_column_alignment(parameters))
-
-    parameters, start_bad = unpack_parameters(parameters_line)
+    parameters, start_bad = _unpack_parameters(
+        unpack_str, parameters_line, num_param_columns)
     while start_bad[0] > -1:
         bad_cols.append(start_bad[1])
         LOG.error('Bad column alignment starting at character %d' % \
@@ -212,7 +217,8 @@ def read_data(self, handle, parameters_line, units_line, asterisk_line):
         parameters_line, units_line, asterisk_line = \
             _remove_char_column(start_bad[1], parameters_line,
                                 units_line, asterisk_line)
-        parameters, start_bad = unpack_parameters(parameters_line)
+        parameters, start_bad = _unpack_parameters(
+            unpack_str, parameters_line, num_param_columns)
 
     units = fns.strip_all(
         struct.unpack(unpack_str, units_line[:num_param_columns * 8]))
@@ -232,10 +238,45 @@ def read_data(self, handle, parameters_line, units_line, asterisk_line):
     self.create_columns(parameters, units)
 
     # Get each data line
+    unpack_data_str = unpack_str
+
     # Add on quality to unpack string
-    unpack_str += ('%sx%ss' % (quality_length / num_quality_words - \
-                              num_quality_flags, num_quality_flags)) * \
+    quality_word_spacing = \
+        quality_length / num_quality_words - num_quality_flags
+    unpack_str += ('%sx%ss' % (quality_word_spacing, num_quality_flags)) * \
                   num_quality_words
+
+    # Let's be nice and try to handle the case where there's a little extra
+    # space before the quality flags but everything else is fairly well-formed.
+    # It is possible for there to be lots of space between flags and data, so
+    # try a few times.
+    original_unpack_str = unpack_str
+    savepoint = handle.tell()
+    line = handle.readline().rstrip()
+    determined_num_columns = False
+    tries = 0
+    while tries < 5:
+        try:
+            unpacked = struct.unpack(unpack_str, line)
+            determined_num_columns = True
+            break
+        except struct.error, e:
+            expected_len = struct.calcsize(unpack_str)
+            LOG.warn(
+                'Data record 0 has length %d (expected %d).' % (
+                    len(line), expected_len))
+            LOG.info('There is likely extra columns of space between data '
+                     'and flags. Detecting whether this is the case.')
+            quality_word_spacing += 1
+            tries += 1
+            unpack_str = unpack_data_str + \
+                ('%sx%ss' % (quality_word_spacing, num_quality_flags)
+                ) * num_quality_words
+    if not determined_num_columns:
+        unpack_str = original_unpack_str
+    handle.seek(savepoint)
+    LOG.debug(u'Settled on unpack format: {0!r}'.format(unpack_str))
+
     for i, line in enumerate(handle):
         line = _remove_char_columns(bad_cols, line.rstrip())[0]
         if not line:
@@ -245,13 +286,8 @@ def read_data(self, handle, parameters_line, units_line, asterisk_line):
             unpacked = struct.unpack(unpack_str, line)
         except struct.error, e:
             expected_len = struct.calcsize(unpack_str)
-            LOG.warn(
-                'Record %d has unexpected length %d (got %d). Check for extra '
-                'columns of space.' % (
-                    i, expected_len, len(line)))
-            if expected_len == len(line) - 1:
-                LOG.info('Format error is likely an extra column of space '
-                         'between data and flags.')
+            LOG.warn('Data record %d has length %d (expected %d).' % (
+                i, len(line), expected_len))
             raise e
 
         # QUALT1 takes precedence
@@ -270,7 +306,6 @@ def read_data(self, handle, parameters_line, units_line, asterisk_line):
                     LOG.warning(
                         u'Expected numeric data for parameter %r, got %r' % (
                         parameter, datum))
-                    raise e
 
             # Only assign flag if column is flagged.
             if "**" in asterisks[j].strip():

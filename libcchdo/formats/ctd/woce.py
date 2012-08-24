@@ -8,12 +8,16 @@ from .. import woce
 def read(self, handle):
     """How to read a CTD WOCE file."""
     # TODO Out of band values should be converted to None
-    # Get the stamp
-    stamp = re.compile(
-        ('EXPOCODE\s*([\w/]+)\s*WHP.?IDS?\s*([\w/]+(,[\w/]+)?)\s*'
-         'DATE\s*(\d{6})(?:\s*1)?'),
+
+    # Get record 1
+    re_frag_expocode = 'EXPOCODE\s*([\w/]+)\s*'
+    re_frag_whpid = 'WHP.?IDS?\s*([\w/]+(,[\w/]+)?)\s*'
+    re_frag_date = 'DATE\s*(\d{6})(?:\s*1)?'
+    re_record1 = re.compile(
+        ''.join([re_frag_expocode, re_frag_whpid, re_frag_date]),
         re.IGNORECASE)
-    m = stamp.match(handle.readline())
+    line = handle.readline()
+    m = re_record1.match(line)
     if m:
         self.globals['EXPOCODE'] = m.group(1)
         self.globals['SECT_ID'] = m.group(2)
@@ -22,7 +26,19 @@ def read(self, handle):
         self.globals['DATE'], self.globals['TIME'] = \
             woce.strftime_woce_date_time(self.globals['_DATETIME'])
     else:
-        raise ValueError("Expected stamp. Invalid record 1 in WOCE CTD file.")
+        # Try record 1 again without WHP-ID
+        re_record1 = re.compile(
+            ''.join([re_frag_expocode, re_frag_date]), re.IGNORECASE)
+        m = re_record1.match(line)
+        if m:
+            self.globals['EXPOCODE'] = m.group(1)
+            self.globals['_DATETIME'] = datetime.datetime.strptime(
+                m.group(len(m.groups())), '%m%d%y')
+            self.globals['DATE'], self.globals['TIME'] = \
+                woce.strftime_woce_date_time(self.globals['_DATETIME'])
+        else:
+            raise ValueError("Invalid record 1 in WOCE CTD file.")
+
     # Get identifier line
     identifier = re.compile(
         'STNNBR\s*(\d+)\s*CASTNO\s*(\d+)\s*NO\. Records=\s*(\d+)',

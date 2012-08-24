@@ -121,15 +121,20 @@ def write(self, handle):
     del self.globals['stamp']
     del self.globals['header']
 
+    try:
+        del self.globals['_DATETIME']
+    except KeyError:
+        pass
+
     handle.write('NUMBER_HEADERS = '+str(len(self.globals.keys())+1)+"\n")
     for header in REQUIRED_HEADERS:
         try:
             handle.write(header+' = '+str(self.globals[header])+"\n")
         except KeyError:
             LOG.warn('Missing required header %s' % header)
+
     for key in set(self.globals.keys()) - set(REQUIRED_HEADERS):
         handle.write(key+' = '+str(self.globals[key])+"\n")
-
 
     self.globals['stamp'] = stamp
     self.globals['header'] = header
@@ -169,7 +174,7 @@ def write(self, handle):
                     # Should do this check before printing to prevent ragged columns.
                     if type(c[i]) is Decimal:
                         exponent = \
-                            -(c[i] - c[i].to_integral()).as_tuple().exponent
+                            -(c[i] - c[i].to_integral()).as_tuple()[-1]
                         if exponent > -1 and exponent > parts[1]:
                             fmt = '%%%d.%df' % (parts[0], exponent)
             try:
