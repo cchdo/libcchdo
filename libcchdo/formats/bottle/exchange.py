@@ -2,6 +2,7 @@ import re
 import datetime
 
 from ... import fns
+from ...fns import _decimal
 from ... import LOG
 from ... import config
 from ...model import datafile
@@ -78,7 +79,7 @@ def read(self, handle):
             if fns.out_of_band(value):
                 value = None
             try:
-                value = float(value)
+                value = _decimal(value)
             except:
                 pass
             if column.endswith('_FLAG_W'):
@@ -161,17 +162,18 @@ def write(self, handle):
         flagged_units.append(param.units.mnemonic if param.units and \
             param.units.mnemonic else '')
         flagged_format_parameter_values.append(
-            [param.format, param, c.values])
+            [param.format, len(param.format % woce.FILL_VALUE), param,
+             c.values])
         if c.is_flagged_woce():
             flagged_parameter_names.append(param.mnemonic_woce() + '_FLAG_W')
             flagged_units.append('')
             flagged_format_parameter_values.append(
-                ['%1d', param, c.flags_woce])
+                ['%1d', 1, param, c.flags_woce])
         if c.is_flagged_igoss():
             flagged_parameter_names.append(param.mnemonic_woce() + '_FLAG_I')
             flagged_units.append('')
             flagged_format_parameter_values.append(
-                ['%1d', param, c.flags_igoss])
+                ['%1d', 1, param, c.flags_igoss])
 
     handle.write(','.join(flagged_parameter_names))
     handle.write('\n')
@@ -180,11 +182,11 @@ def write(self, handle):
 
     for i in range(len(self)):
         values = []
-        for format_str, param, col in flagged_format_parameter_values:
+        for format_str, limit, param, col in flagged_format_parameter_values:
             value = col[i]
             try:
                 if value is not None:
-                    values.append(format_str % value)
+                    values.append((format_str % value).rjust(limit))
                 else:
                     values.append(format_str % woce.FILL_VALUE)
             except Exception, e:
@@ -195,4 +197,4 @@ def write(self, handle):
         handle.write(','.join(values))
         handle.write('\n')
 
-    handle.write('END_DATA\n')
+    handle.write(woce.END_DATA)

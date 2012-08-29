@@ -20,6 +20,9 @@ COLUMN_WIDTH = 8
 SAFE_COLUMN_WIDTH = COLUMN_WIDTH - 1
 
 
+END_DATA = 'END_DATA'
+
+
 BOTTLE_FLAGS = {
     1: 'Bottle information unavailable.',
     2: 'No problems noted.',

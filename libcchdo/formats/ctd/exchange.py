@@ -189,4 +189,4 @@ def write(self, handle):
             if c.is_flagged_igoss():
                 data.append(c.flags_igoss[i])
         handle.write(','.join(map(str, data))+"\n")
-    handle.write("END_DATA\n")
+    handle.write(woce.END_DATA)

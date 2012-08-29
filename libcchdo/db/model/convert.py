@@ -139,7 +139,7 @@ def all_parameters(lsession, session):
 
     # Additional modifications
     # Add EXPOCODE and SECT_ID to known parameters
-    display_order = 1
+    display_order = 0
     expocode = std_parameters['EXPOCODE'] = _find_or_create_parameter(
         session, u'EXPOCODE')
     expocode.full_name = u'ExpoCode'
