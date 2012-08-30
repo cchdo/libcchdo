@@ -34,6 +34,7 @@ if __name__ == "__main__":
 
     install_requires = [
         'geoalchemy',
+        'argparse',
     ]
 
     # Add all the extras as requirements. Pip and setup.py develop don't support
@@ -58,7 +59,13 @@ if __name__ == "__main__":
         test_suite='libcchdo.tests',
         install_requires=install_requires,
         extras_require=extras_require,
-        scripts=glob.glob('libcchdo/scripts/*'),
+        entry_points={
+            'console_scripts': [
+                'hydro = libcchdo.scripts:main',
+                'reorder_surface_to_bottom = libcchdo.scripts:'
+                    'deprecated_reorder_surface_to_bottom',
+            ],
+        },
         cmdclass={
             'coverage': CoverageCommand,
             'clean': CleanCommand,

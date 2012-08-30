@@ -1,59 +1,55 @@
-#!/usr/bin/env python
-import sys
-import re
 from pandas import *
-import libcchdo as L
-import libcchdo.model.datafile as DF
-import libcchdo.formats.bottle.exchange as botex
 
-def count_headers(file_handle):
-    p = re.compile('^\#')
-    h = re.compile('^BOTTLE')
-    header_cnt = 1 
-    header = ""
-    stamp = file_handle.readline()
-    if not h.match(stamp):
-        raise Exception
-    line = file_handle.readline()
-    while line:
-        if p.match(line):
-            header_cnt += 1
-            header += line
-        else:
-            break
-        line = file_handle.readline()
-    units_line = file_handle.readline().rstrip()
-    units = units_line.split(',')
-    file_handle.seek(0,0)
-    return header_cnt, header, units, stamp
-
-def check_last_line(file_handle):
-    h = re.compile('^END')
-    lines =file_handle.readlines()
-    file_handle.seek(0,0)
-    if h.match(lines[-1]):
-        return True 
-    else:
-        return False
 
 class Merger(object):
+    DONT_MERGE = [
+        "Fake", "STNNBR", "CASTNO", "BTLNBR", "BTLNBR_FLAG_W", "DATE", "DEPTH",
+        "EXPOCODE", "CTDPRS", "CTDTMP", "SECT_ID", "LATITUDE", "LONGITUDE",
+        "CTDSAL", "CTDSAL_FLAG_W", "SAMPNO", "TIME"]
+
     def __init__(self, file1, file2):
         self.datafile1 = file1
         self.datafile2 = file2
-        self.header_cnt1, self.header1, self.units1, self.stamp1 = count_headers(self.datafile1)
-        self.header_cnt2, self.header2, self.units2, self.stamp2 = count_headers(self.datafile2)
+        self.header_cnt1, self.header1, self.units1, self.stamp1 = self.count_headers(self.datafile1)
+        self.header_cnt2, self.header2, self.units2, self.stamp2 = self.count_headers(self.datafile2)
         skipped_lines1 = [self.header_cnt1 + 1]
         skipped_lines2 = [self.header_cnt2 + 1]
-        if check_last_line(self.datafile1):
+        if self.check_last_line(self.datafile1):
             self.dataframe1 = read_csv(self.datafile1, header=(self.header_cnt1 ), skiprows=skipped_lines1, skip_footer=1)
             self.dataframe2 = read_csv(self.datafile2, header=(self.header_cnt2 ), skiprows=skipped_lines2, skip_footer=1)
         else:
             self.dataframe1 = read_csv(self.datafile1, header=(self.header_cnt1 ), skiprows=skipped_lines1)
             self.dataframe2 = read_csv(self.datafile2, header=(self.header_cnt2 ), skiprows=skipped_lines2)
 
+    def count_headers(self, file_handle):
+        header_cnt = 1 
+        header = ""
+        stamp = file_handle.readline()
+        if not stamp.startswith('BOTTLE'):
+            raise Exception
+        line = file_handle.readline()
+        while line:
+            if line.startswith('#'):
+                header_cnt += 1
+                header += line
+            else:
+                break
+            line = file_handle.readline()
+        units_line = file_handle.readline().rstrip()
+        units = units_line.split(',')
+        file_handle.seek(0,0)
+        return header_cnt, header, units, stamp
+
+    def check_last_line(self, file_handle):
+        lines = file_handle.readlines()
+        file_handle.seek(0,0)
+        if lines[-1].startswith(woce.END_DATA):
+            return True 
+        else:
+            return False
 
     def merge_cols(self):
-        return self.dataframe2.columns - ["Fake", "STNNBR", "CASTNO", "BTLNBR", "BTLNBR_FLAG_W", "DATE", "DEPTH", "EXPOCODE", "CTDPRS", "CTDTMP", "SECT_ID", "LATITUDE", "LONGITUDE", "CTDSAL", "CTDSAL_FLAG_W", "SAMPNO", "TIME"]
+        return self.dataframe2.columns - DONT_MERGE
 
     def different_cols(self):
         different_cols = []
@@ -96,44 +92,22 @@ class Merger(object):
        
         return self.dataframe1
 
+
 def convert_to_datafile(self, header, dataframe, units, stamp):
     self.globals['header'] = header
     self.globals['stamp'] = stamp.rstrip()
     columns = dataframe.columns
     self.create_columns(columns, units)
     for param in columns:
-        if re.match(".*FLAG", param):
+        try:
+            param.index('FLAG')
             continue
+        except ValueError:
+            pass
         self[param].values = dataframe[param]
         if (param + "_FLAG_W") in columns:
             self[param].flags_woce = dataframe[param + "_FLAG_W"]
 
     self.check_and_replace_parameters()
-    L.formats.woce.fuse_datetime(self)
+    woce.fuse_datetime(self)
     return self
-
-
-if __name__ == '__main__':
-    if len(sys.argv) >= 3:
-        file1 = sys.argv[1]
-        file2 = sys.argv[2]
-        f1_handle = open(file1)
-        f2_handle = open(file2)
-        m = Merger(f1_handle, f2_handle)
-        if len(sys.argv) == 3:
-            different_columns = m.different_cols()
-            print "The following parameters in {0} are different".format(file2)
-            for col in different_columns:
-                print col
-        if len(sys.argv) > 3:
-            columns_to_merge = []
-            units_to_merge = []
-            for index in range(3,len(sys.argv)):
-                columns_to_merge.append(sys.argv[index])
-                unit_index = m.dataframe2.columns.values.tolist().index(sys.argv[index])
-                units_to_merge.append(m.units2[unit_index])
-            df = DF.DataFile()
-            result_units = m.units1 + (units_to_merge)
-            result = m.mergeit(columns_to_merge)
-            new_data_file = convert_to_datafile(df,m.header1, result, result_units, m.stamp1)
-            botex.write(df, sys.stdout)

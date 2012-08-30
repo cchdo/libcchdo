@@ -8,7 +8,7 @@ Package Structure
 =================
 
 * libcchdo
-  * libcchdo - library source files
+  * libcchdo - library source files (see docstrings for more information)
   * scripts - a collection of scripts (yes I'm a pack-rat)
 
 Testing
@@ -16,8 +16,7 @@ Testing
 
 Every file under tests/ will be run as a python test battery::
 
-        python setup.py test
-
+    $ python setup.py test
 
 Quick start
 ===========
@@ -59,7 +58,8 @@ Now to write the masked file back out
 
 Using some binaries
 
-    $ path/to/installation/any_to_type --help
-    $ path/to/installation/any_to_type --type nav test_hy1.csv
+    $ path/to/installation/hydro --help
+    $ path/to/installation/hydro convet --help
+    $ path/to/installation/hydro convert any_to_type --type nav test_hy1.csv
 
 

@@ -31,7 +31,7 @@ import __builtin__
 import functools
 
 
-__version__ = "0.7"
+__version__ = "0.7.1"
 
 
 # Database cache for parameters will be ensured

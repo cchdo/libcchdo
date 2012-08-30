@@ -1,3 +1,5 @@
+import operator
+
 from .. import LOG
 from .. import COLORS
 from .. import memoize
@@ -257,6 +259,7 @@ class SummaryFile(File):
 
 
 class DataFile(File):
+    PRESSURE_PARAMETERS = ('CTDPRS', 'CTDRAW', )
 
     def __init__(self, allow_contrived=False):
         super(DataFile, self).__init__()
@@ -361,6 +364,83 @@ class DataFile(File):
                     LOG.warn(("Mismatched units for %s. Expected '%s' and "
                               "received '%s'") % (parameter, expected_units,
                                                   given_unit))
+
+    def swap_rows(self, a, b):
+        """Swaps two rows in the file."""
+        for c in self.columns.values():
+            c.values[a], c.values[b] = c.values[b], c.values[a]
+            if c.is_flagged_woce():
+                c.flags_woce[a], c.flags_woce[b] = \
+                    c.flags_woce[b], c.flags_woce[a]
+            if c.is_flagged_igoss():
+                c.flags_igoss[a], c.flags_igoss[b] = \
+                    c.flags_igoss[b], c.flags_igoss[a]
+
+    def sort_file_range(self, start, end, pres_ascending=True,
+                        bot_ascending=False):
+        """Sort the rows from indexes start to end by pressure and bottle."""
+        pressure_col = None
+        for p in self.PRESSURE_PARAMETERS:
+            try:
+                pressure_col = self.columns[p]
+            except KeyError:
+                pass
+        if pressure_col is None:
+            return
+
+        bottle_col = None
+        try:
+            bottle_col = self['BTLNBR'].values
+        except KeyError:
+            bottle_col = [None] * len(pressure_col)
+
+        pb_orders = zip(
+            pressure_col.values[start:end], bottle_col[start:end],
+            range(start, end))
+        order = [i for p, b, i in pb_orders]
+        # Sort first by bottle order
+        reversed_pb_orders = sorted(
+            pb_orders, key=operator.itemgetter(1), reverse=(not bot_ascending))
+        # Sort second by pressure
+        sorted_pb_orders = sorted(
+            reversed_pb_orders, key=operator.itemgetter(0),
+            reverse=(not pres_ascending))
+        sorted_order = [i for p, b, i in sorted_pb_orders]
+
+        # Don't keep swapping after just past the halfway point or things will
+        # become out of order.
+        for i in range(len(sorted_order) / 2 + 1):
+            s = sorted_order[i]
+            o = order[i]
+            if s != o:
+                k = order.index(s)
+                self.swap_rows(s, o)
+                order[i], order[k] = order[k], order[i]
+
+    def reorder_file_pressure(self, pres_ascending=True, bot_ascending=False):
+        """Reorders a file's rows by pressure then bottle number.
+
+        This defaults to non-decreasing pressure and non-ascending bottle
+        number order.
+
+        """
+        if len(self) > 0:
+            stations = self['STNNBR'].values
+            casts = self['CASTNO'].values
+            station = stations[0]
+            cast = casts[0]
+            last_i = 0
+            for i in range(1, len(self)):
+                station_i = stations[i]
+                cast_i = casts[i]
+                if station_i != station or cast_i != cast:
+                    station = station_i
+                    cast = cast_i
+                    self.sort_file_range(
+                        last_i, i, pres_ascending, bot_ascending)
+                    last_i = i
+            self.sort_file_range(
+                last_i, len(self), pres_ascending, bot_ascending)
 
 
 class DataFileCollection(object):
