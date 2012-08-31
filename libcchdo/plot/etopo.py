@@ -10,6 +10,12 @@ from tempfile import SpooledTemporaryFile
 import numpy as np
 from numpy import ma, arange
 
+# Set Image so that PIL doesn't freak out when it tries to import itself twice.
+#http://jaredforsyth.com/blog/2010/apr/28/accessinit-hash-collision-3-both-1-
+#    and-1/#comment-51077924
+import PIL.Image
+sys.modules['Image'] = PIL.Image
+
 from scipy.ndimage.interpolation import map_coordinates
 
 from netCDF4 import Dataset
@@ -17,6 +23,7 @@ from netCDF4 import Dataset
 import matplotlib
 matplotlib.use('Agg')
 from matplotlib.colors import LinearSegmentedColormap
+
 import matplotlib.pyplot as plt
 
 from mpl_toolkits.basemap import Basemap, shiftgrid, _pseudocyl, _cylproj
@@ -303,13 +310,18 @@ def etopo(arcmins=1, version='ice', force_resample=False, cache_allowed=True):
     """
     etopo_path = os.path.join(etopo_dir, etopo_filename(arcmins, version))
 
+    LOG.debug('reading {0}'.format(etopo_path))
+    LOG.debug('{0}'.format(os.path.isfile(etopo_path)))
     if force_resample or not os.path.isfile(etopo_path):
         if arcmins is 1:
             download_etopo1(etopo_path, version)
             data = read_etopo(etopo_path)
         else:
-            data = read_etopo(
-                os.path.join(etopo_dir, etopo_filename(version=version)))
+            etopo_path = os.path.join(
+                etopo_dir, etopo_filename(version=version))
+            if not os.path.isfile(etopo_path):
+                download_etopo1(etopo_path, version)
+            data = read_etopo(etopo_path)
             data = downsample(1. / arcmins, *data)
             if cache_allowed:
                 write_etopo_cache(arcmins, version, *data)
