@@ -45,6 +45,12 @@ converter_parsers = converter_parser.add_subparsers(
     title='format converters')
 
 
+any_converter_parser = converter_parsers.add_parser(
+    'any', help='any format converters')
+any_converter_parsers = any_converter_parser.add_subparsers(
+    title='any format converters')
+
+
 def any_to_type(args):
     """Convert any recognized CCHDO file to any valid output type."""
     from libcchdo.fns import read_arbitrary, all_formats
@@ -74,8 +80,8 @@ def any_to_type(args):
             format.write(file, out_file)
 
 
-any_to_type_parser = converter_parsers.add_parser(
-    'any_to_type',
+any_to_type_parser = any_converter_parsers.add_parser(
+    'type',
     help=any_to_type.__doc__)
 any_to_type_parser.set_defaults(
     main=any_to_type)
@@ -106,11 +112,11 @@ def any_to_db_track_lines(args):
         track_lines.write(data, out_file)
 
 
-any_to_db_track_lines_parser = converter_parsers.add_parser(
-    'any_to_db_track_lines',
+any_to_db_track_lines_parser = any_converter_parsers.add_parser(
+    'db_track_lines',
     help=any_to_db_track_lines.__doc__)
 any_to_db_track_lines_parser.set_defaults(
-    main=any_to_db_track_lines_parser)
+    main=any_to_db_track_lines)
 any_to_db_track_lines_parser.add_argument('-i', '--input-type',
     choices=known_formats,
     help='force the input file to be read as the specified type')
@@ -121,6 +127,12 @@ any_to_db_track_lines_parser.add_argument(
     'output_track_lines', type=argparse.FileType('w'), nargs='?',
     default=sys.stdout,
     help='output track lines file (default: stdout)')
+
+
+bot_converter_parser = converter_parsers.add_parser(
+    'bottle', help='Bottle format converters')
+bot_converter_parsers = bot_converter_parser.add_subparsers(
+    title='bottle format converters')
 
 
 def bottle_exchange_to_db(args):
@@ -136,11 +148,11 @@ def bottle_exchange_to_db(args):
     botdb.write(df)
 
 
-bottle_exchange_to_db_parser = converter_parsers.add_parser(
-    'bottle_exchange_to_db',
+bottle_exchange_to_db_parser = bot_converter_parsers.add_parser(
+    'exchange_to_db',
     help=bottle_exchange_to_db.__doc__)
 bottle_exchange_to_db_parser.set_defaults(
-    main=bottle_exchange_to_db_parser)
+    main=bottle_exchange_to_db)
 bottle_exchange_to_db_parser.add_argument(
     'input_botex', type=argparse.FileType('r'),
     help='input Bottle Exchange file')
@@ -160,11 +172,11 @@ def bottle_exchange_to_kml(args):
         bottle_exchange_to_kml(df, out_file)
 
 
-bottle_exchange_to_kml_parser = converter_parsers.add_parser(
-    'bottle_exchange_to_kml',
+bottle_exchange_to_kml_parser = bot_converter_parsers.add_parser(
+    'exchange_to_kml',
     help=bottle_exchange_to_kml.__doc__)
 bottle_exchange_to_kml_parser.set_defaults(
-    main=bottle_exchange_to_kml_parser)
+    main=bottle_exchange_to_kml)
 bottle_exchange_to_kml_parser.add_argument(
     'input_botex', type=argparse.FileType('r'),
     help='input Bottle Exchange file')
@@ -187,11 +199,11 @@ def bottle_exchange_to_parameter_kml(args):
         bottle_exchange_to_parameter_kml(df, out_file)
 
 
-bottle_exchange_to_parameter_kml_parser = converter_parsers.add_parser(
-    'bottle_exchange_to_parameter_kml',
+bottle_exchange_to_parameter_kml_parser = bot_converter_parsers.add_parser(
+    'exchange_to_parameter_kml',
     help=bottle_exchange_to_parameter_kml.__doc__)
 bottle_exchange_to_parameter_kml_parser.set_defaults(
-    main=bottle_exchange_to_parameter_kml_parser)
+    main=bottle_exchange_to_parameter_kml)
 bottle_exchange_to_parameter_kml_parser.add_argument(
     'input_botex', type=argparse.FileType('r'),
     help='input Bottle Exchange file')
@@ -214,11 +226,11 @@ def bottle_exchange_to_bottlezip_netcdf(args):
         botzipnc.write(df2dfc.split_bottle(df), out_file)
 
 
-bottle_exchange_to_bottlezip_netcdf_parser = converter_parsers.add_parser(
-    'bottle_exchange_to_bottlezip_netcdf',
+bottle_exchange_to_bottlezip_netcdf_parser = bot_converter_parsers.add_parser(
+    'exchange_to_zip_netcdf',
     help=bottle_exchange_to_bottlezip_netcdf.__doc__)
 bottle_exchange_to_bottlezip_netcdf_parser.set_defaults(
-    main=bottle_exchange_to_bottlezip_netcdf_parser)
+    main=bottle_exchange_to_bottlezip_netcdf)
 bottle_exchange_to_bottlezip_netcdf_parser.add_argument(
     'input_botex', type=argparse.FileType('r'),
     help='input Bottle Exchange file')
@@ -251,11 +263,11 @@ def bottle_woce_and_summary_woce_to_bottle_exchange(args):
 
 
 bottle_woce_and_summary_woce_to_bottle_exchange_parser = \
-    converter_parsers.add_parser(
-        'bottle_woce_and_summary_woce_to_bottle_exchange',
+    bot_converter_parsers.add_parser(
+        'woce_and_summary_woce_to_exchange',
         help=bottle_woce_and_summary_woce_to_bottle_exchange.__doc__)
 bottle_woce_and_summary_woce_to_bottle_exchange_parser.set_defaults(
-    main=bottle_woce_and_summary_woce_to_bottle_exchange_parser)
+    main=bottle_woce_and_summary_woce_to_bottle_exchange)
 bottle_woce_and_summary_woce_to_bottle_exchange_parser.add_argument(
     'botwoce', type=argparse.FileType('r'),
     help='input Bottle WOCE file')
@@ -268,32 +280,10 @@ bottle_woce_and_summary_woce_to_bottle_exchange_parser.add_argument(
     help='output Bottle Exchange file')
 
 
-def convert_per_litre_to_per_kg_exchange(args):
-    from libcchdo.tools import convert_per_litre_to_per_kg_exchange
-
-    df = DataFile()
-
-    with closing(args.input_botex) as in_file:
-        botex.read(df, in_file)
-
-    convert_per_litre_to_per_kg_exchange(df)
-
-    with closing(args.output_botex) as out_file:
-        botex.write(file, f)
-
-
-convert_per_litre_to_per_kg_exchange_parser = converter_parsers.add_parser(
-    'convert_per_litre_to_per_kg_exchange',
-    help=convert_per_litre_to_per_kg_exchange.__doc__)
-convert_per_litre_to_per_kg_exchange_parser.set_defaults(
-    main=convert_per_litre_to_per_kg_exchange_parser)
-convert_per_litre_to_per_kg_exchange_parser.add_argument(
-    'input_botex', type=argparse.FileType('r'),
-    help='input Bottle Exchange file')
-convert_per_litre_to_per_kg_exchange_parser.add_argument(
-    'output_botex', type=argparse.FileType('w'), nargs='?',
-    default=sys.stdout,
-    help='output Bottle Exchange file')
+ctd_converter_parser = converter_parsers.add_parser(
+    'ctd', help='CTD format converters')
+ctd_converter_parsers = ctd_converter_parser.add_subparsers(
+    title='CTD format converters')
 
 
 def ctd_bats_to_ctd_exchange(args):
@@ -310,11 +300,11 @@ def ctd_bats_to_ctd_exchange(args):
         ctdex.write(df, out_file)
 
 
-ctd_bats_to_ctd_exchange_parser = converter_parsers.add_parser(
-    'ctd_bats_to_ctd_exchange',
+ctd_bats_to_ctd_exchange_parser = ctd_converter_parsers.add_parser(
+    'bats_to_exchange',
     help=ctd_bats_to_ctd_exchange.__doc__)
 ctd_bats_to_ctd_exchange_parser.set_defaults(
-    main=ctd_bats_to_ctd_exchange_parser)
+    main=ctd_bats_to_ctd_exchange)
 ctd_bats_to_ctd_exchange_parser.add_argument(
     'ctdbats', type=argparse.FileType('r'),
     help='input CTD BATS file')
@@ -337,11 +327,11 @@ def ctd_exchange_to_ctd_netcdf(args):
         ctdnc.write(df, out_file)
 
 
-ctd_exchange_to_ctd_netcdf_parser = converter_parsers.add_parser(
-    'ctd_exchange_to_ctd_netcdf',
+ctd_exchange_to_ctd_netcdf_parser = ctd_converter_parsers.add_parser(
+    'exchange_to_netcdf',
     help=ctd_exchange_to_ctd_netcdf.__doc__)
 ctd_exchange_to_ctd_netcdf_parser.set_defaults(
-    main=ctd_exchange_to_ctd_netcdf_parser)
+    main=ctd_exchange_to_ctd_netcdf)
 ctd_exchange_to_ctd_netcdf_parser.add_argument(
     'ctdex', type=argparse.FileType('r'),
     help='input CTD Exchange file')
@@ -365,11 +355,11 @@ def ctd_polarstern_to_ctd_exchange(args):
         ctd_polarstern_to_ctd_exchange(args, db)
 
 
-ctd_polarstern_to_ctd_exchange_parser = converter_parsers.add_parser(
-    'ctd_polarstern_to_ctd_exchange',
+ctd_polarstern_to_ctd_exchange_parser = ctd_converter_parsers.add_parser(
+    'polarstern_to_exchange',
     help=ctd_polarstern_to_ctd_exchange.__doc__)
 ctd_polarstern_to_ctd_exchange_parser.set_defaults(
-    main=ctd_polarstern_to_ctd_exchange_parser)
+    main=ctd_polarstern_to_ctd_exchange)
 ctd_polarstern_to_ctd_exchange_parser.add_argument(
     '--commit-to-file', type=bool, default=False,
     help='Write to a file')
@@ -384,6 +374,43 @@ ctd_polarstern_to_ctd_exchange_parser.add_argument(
     'ctdex', type=argparse.FileType('wb'), nargs='?',
     default=sys.stdout,
     help='output CTD Exchange file')
+
+
+def ctd_sbe_to_ctd_exchange(args):
+    """Convert raw ascii seabird ctd files to ctd exchange or ctd zip exchange.
+
+    The channel specifiers use an index number rather than a name because of the
+    posibility for channels to have identical names. All calculated parameters
+    and non CCHDO recognized parameters (e.g. PAR) are ignored.
+
+    """
+    from libcchdo.tools import sbe_to_ctd_exchange
+
+    sbe_to_ctd_exchange(args)
+
+
+ctd_sbe_to_ctd_exchange_parser = ctd_converter_parsers.add_parser(
+    'sbe_to_exchange',
+    help=ctd_sbe_to_ctd_exchange.__doc__)
+ctd_sbe_to_ctd_exchange_parser.set_defaults(
+    main=ctd_sbe_to_ctd_exchange)
+ctd_sbe_to_ctd_exchange_parser.add_argument(
+    'files', type=file, nargs='+',
+    help='File or list of files that will be converted to exchange format, if '
+        'a single file is given, a flat exchange file will be output, if more '
+        'than one is given, a ctd zip will be output')
+ctd_sbe_to_ctd_exchange_parser.add_argument(
+    '-s', '--salt',
+    help='in the case of multiple salinity channels, the channel may be '
+        'chosen by index')
+ctd_sbe_to_ctd_exchange_parser.add_argument(
+    '-t', '--temp',
+    help='In the case of multiple temperature channels, the channel may be '
+        'chosen by index')
+ctd_sbe_to_ctd_exchange_parser.add_argument(
+    '-o', '--output',
+    help='name of output file, _ct1.[csv, zip] will be added automatically, '
+        'if not speified will default to standard out.')
 
 
 def ctd_netcdf_to_ctd_netcdf_oceansites(args):
@@ -403,11 +430,11 @@ def ctd_netcdf_to_ctd_netcdf_oceansites(args):
             df, out_file, timeseries=args.timeseries, version=args.os_version)
 
 
-ctd_netcdf_to_ctd_netcdf_oceansites_parser = converter_parsers.add_parser(
-    'ctd_netcdf_to_ctd_netcdf_oceansites',
+ctd_netcdf_to_ctd_netcdf_oceansites_parser = ctd_converter_parsers.add_parser(
+    'netcdf_to_netcdf_oceansites',
     help=ctd_netcdf_to_ctd_netcdf_oceansites.__doc__)
 ctd_netcdf_to_ctd_netcdf_oceansites_parser.set_defaults(
-    main=ctd_netcdf_to_ctd_netcdf_oceansites_parser)
+    main=ctd_netcdf_to_ctd_netcdf_oceansites)
 ctd_netcdf_to_ctd_netcdf_oceansites_parser.add_argument(
     '--os-version', choices=OCEANSITES_VERSIONS,
     default=OCEANSITES_VERSIONS[-1],
@@ -439,11 +466,11 @@ def ctdzip_andrex_to_ctdzip_exchange(args):
         ctdzipex.write(dfc, out_file)
 
 
-ctdzip_andrex_to_ctdzip_exchange_parser = converter_parsers.add_parser(
-    'ctdzip_andrex_to_ctdzip_exchange',
+ctdzip_andrex_to_ctdzip_exchange_parser = ctd_converter_parsers.add_parser(
+    'zip_andrex_to_zip_exchange',
     help=ctdzip_andrex_to_ctdzip_exchange.__doc__)
 ctdzip_andrex_to_ctdzip_exchange_parser.set_defaults(
-    main=ctdzip_andrex_to_ctdzip_exchange_parser)
+    main=ctdzip_andrex_to_ctdzip_exchange)
 ctdzip_andrex_to_ctdzip_exchange_parser.add_argument(
     'ctdzip_andrex', type=argparse.FileType('r'),
     help='ANDREX NetCDF tar.gz')
@@ -467,11 +494,11 @@ def ctdzip_exchange_to_ctdzip_netcdf(args):
         ctdzipnc.write(dfc, out_file)
 
 
-ctdzip_exchange_to_ctdzip_netcdf_parser = converter_parsers.add_parser(
-    'ctdzip_exchange_to_ctdzip_netcdf',
+ctdzip_exchange_to_ctdzip_netcdf_parser = ctd_converter_parsers.add_parser(
+    'zip_exchange_to_zip_netcdf',
     help=ctdzip_exchange_to_ctdzip_netcdf.__doc__)
 ctdzip_exchange_to_ctdzip_netcdf_parser.set_defaults(
-    main=ctdzip_exchange_to_ctdzip_netcdf_parser)
+    main=ctdzip_exchange_to_ctdzip_netcdf)
 ctdzip_exchange_to_ctdzip_netcdf_parser.add_argument(
     'ctdzipex', type=argparse.FileType('r'),
     help='input CTD ZIP Exchange file')
@@ -498,11 +525,11 @@ def ctdzip_exchange_to_ctdzip_netcdf_oceansites(args):
 
 
 ctdzip_exchange_to_ctdzip_netcdf_oceansites_parser = \
-    converter_parsers.add_parser(
-        'ctdzip_exchange_to_ctdzip_netcdf_oceansites',
+    ctd_converter_parsers.add_parser(
+        'zip_exchange_to_zip_netcdf_oceansites',
         help=ctdzip_exchange_to_ctdzip_netcdf_oceansites.__doc__)
 ctdzip_exchange_to_ctdzip_netcdf_oceansites_parser.set_defaults(
-    main=ctdzip_exchange_to_ctdzip_netcdf_oceansites_parser)
+    main=ctdzip_exchange_to_ctdzip_netcdf_oceansites)
 ctdzip_exchange_to_ctdzip_netcdf_oceansites_parser.add_argument(
     '--os-version', choices=OCEANSITES_VERSIONS,
     default=OCEANSITES_VERSIONS[-1],
@@ -536,11 +563,11 @@ def ctdzip_netcdf_to_ctdzip_netcdf_oceansites(args):
 
 
 ctdzip_netcdf_to_ctdzip_netcdf_oceansites_parser = \
-    converter_parsers.add_parser(
-        'ctdzip_netcdf_to_ctdzip_netcdf_oceansites',
+    ctd_converter_parsers.add_parser(
+        'zip_netcdf_to_zip_netcdf_oceansites',
         help=ctdzip_netcdf_to_ctdzip_netcdf_oceansites.__doc__)
 ctdzip_netcdf_to_ctdzip_netcdf_oceansites_parser.set_defaults(
-    main=ctdzip_netcdf_to_ctdzip_netcdf_oceansites_parser)
+    main=ctdzip_netcdf_to_ctdzip_netcdf_oceansites)
 ctdzip_netcdf_to_ctdzip_netcdf_oceansites_parser.add_argument(
     '--os-version', choices=OCEANSITES_VERSIONS,
     default=OCEANSITES_VERSIONS[-1],
@@ -581,11 +608,11 @@ def ctdzip_woce_and_summary_woce_to_ctdzip_exchange(args):
 
 
 ctdzip_woce_and_summary_woce_to_ctdzip_exchange_parser = \
-    converter_parsers.add_parser(
-        'ctdzip_woce_and_summary_woce_to_ctdzip_netcdf',
+    ctd_converter_parsers.add_parser(
+        'zip_woce_and_summary_woce_to_zip_netcdf',
         help=ctdzip_woce_and_summary_woce_to_ctdzip_exchange.__doc__)
 ctdzip_woce_and_summary_woce_to_ctdzip_exchange_parser.set_defaults(
-    main=ctdzip_woce_and_summary_woce_to_ctdzip_exchange_parser)
+    main=ctdzip_woce_and_summary_woce_to_ctdzip_exchange)
 ctdzip_woce_and_summary_woce_to_ctdzip_exchange_parser.add_argument(
     'ctdzipwoce', type=argparse.FileType('r'),
     help='input CTD ZIP WOCE file')
@@ -595,6 +622,49 @@ ctdzip_woce_and_summary_woce_to_ctdzip_exchange_parser.add_argument(
 ctdzip_exchange_to_ctdzip_netcdf_parser.add_argument(
     'ctdzipex', type=argparse.FileType('w'), nargs='?', default=sys.stdout,
     help='output CTD ZIP Exchange file')
+
+
+sum_converter_parser = converter_parsers.add_parser(
+    'summary',
+    help='Summary file converters')
+sum_converter_parsers = sum_converter_parser.add_subparsers(
+    title='Summary file converters')
+
+
+def summary_hot_to_summary_woce(args):
+    """Convert HOT program summary file to WOCE format summary file."""
+    from libcchdo.model.datafile import SummaryFile
+    import libcchdo.formats.summary.hot as sumhot
+    import libcchdo.formats.summary.woce as sumwoce
+
+    sf = SummaryFile()
+
+    with closing(args.input_sumhot) as in_file:
+        sumhot.read(sf, in_file)
+
+    with closing(args.output_sumwoce) as out_file:
+        sumwoce.write(sf, out_file)
+
+
+summary_hot_to_summary_woce_parser = sum_converter_parsers.add_parser(
+    'hot_to_woce',
+    help=summary_hot_to_summary_woce.__doc__)
+summary_hot_to_summary_woce_parser.set_defaults(
+    main=summary_hot_to_summary_woce)
+summary_hot_to_summary_woce_parser.add_argument(
+    'input_sumhot', type=argparse.FileType('r'),
+    help='input Summary HOT file')
+summary_hot_to_summary_woce_parser.add_argument(
+    'output_sumwoce', type=argparse.FileType('w'), nargs='?',
+    default=sys.stdout,
+    help='output Summary WOCE file (default: stdout)')
+
+
+to_kml_converter_parser = converter_parsers.add_parser(
+    'to_kml',
+    help='Convert to KML')
+to_kml_converter_parsers = to_kml_converter_parser.add_subparsers(
+    title='Convert to KML')
 
 
 def db_to_kml(args):
@@ -614,11 +684,11 @@ def db_to_kml(args):
             db_to_kml(df, out_file)
 
 
-db_to_kml_parser = converter_parsers.add_parser(
-    'db_to_kml',
+db_to_kml_parser = to_kml_converter_parsers.add_parser(
+    'db',
     help=db_to_kml.__doc__)
 db_to_kml_parser.set_defaults(
-    main=db_to_kml_parser)
+    main=db_to_kml)
 db_to_kml_parser.add_argument(
     'input_botex', type=argparse.FileType('r'),
     help='input Bottle Exchange file')
@@ -636,14 +706,51 @@ def db_track_lines_to_kml(args):
     db_track_lines_to_kml_parser()
 
 
-db_track_lines_to_kml_parser = converter_parsers.add_parser(
-    'db_track_lines_to_kml',
+db_track_lines_to_kml_parser = to_kml_converter_parsers.add_parser(
+    'db_track_lines',
     help=db_track_lines_to_kml.__doc__)
 db_track_lines_to_kml_parser.set_defaults(
-    main=db_track_lines_to_kml_parser)
+    main=db_track_lines_to_kml)
 
 
-def hly0301_convert(args):
+misc_converter_parser = converter_parsers.add_parser(
+    'misc',
+    help='Miscellaneous converters')
+misc_converter_parsers = misc_converter_parser.add_subparsers(
+    title='Miscellaneous converters')
+
+
+def convert_per_litre_to_per_kg_botex(args):
+    from libcchdo.tools import convert_per_litre_to_per_kg
+
+    df = DataFile()
+
+    with closing(args.input_botex) as in_file:
+        botex.read(df, in_file)
+
+    convert_per_litre_to_per_kg(df)
+
+    with closing(args.output_botex) as out_file:
+        botex.write(file, f)
+
+
+convert_per_litre_to_per_kg_botex_parser = \
+    misc_converter_parsers.add_parser(
+    'per_litre_to_per_kg_botex',
+    help=convert_per_litre_to_per_kg_botex.__doc__)
+convert_per_litre_to_per_kg_botex_parser.set_defaults(
+    main=convert_per_litre_to_per_kg_botex)
+convert_per_litre_to_per_kg_botex_parser.add_argument(
+    'input_botex', type=argparse.FileType('r'),
+    help='input Bottle Exchange file')
+convert_per_litre_to_per_kg_botex_parser.add_argument(
+    'output_botex', type=argparse.FileType('w'), nargs='?',
+    default=sys.stdout,
+    help='output Bottle Exchange file')
+
+
+def convert_hly0301(args):
+    """Make changes specific to HLY0301 by request from D. Muus."""
     from libcchdo.model.datafile import DataFileCollection
     from libcchdo.formats.ctd.zip import exchange as ctdzipex
     from libcchdo.tools import operate_healy_file
@@ -660,76 +767,11 @@ def hly0301_convert(args):
         ctdzipex.write(dfc, out_file)
 
 
-hly0301_convert_parser = converter_parsers.add_parser(
-    'hly0301_convert',
-    help=hly0301_convert.__doc__)
-hly0301_convert_parser.set_defaults(
-    main=hly0301_convert_parser)
-
-
-def sbe_to_ctd_exchange(args):
-    """Convert raw ascii seabird ctd files to ctd exchange or ctd zip exchange.
-
-    The channel specifiers use an index number rather than a name because of the
-    posibility for channels to have identical names. All calculated parameters
-    and non CCHDO recognized parameters (e.g. PAR) are ignored.
-
-    """
-    from libcchdo.tools import sbe_to_ctd_exchange
-
-    sbe_to_ctd_exchange(args)
-
-
-sbe_to_ctd_exchange_parser = converter_parsers.add_parser(
-    'sbe_to_ctd_exchange',
-    help=sbe_to_ctd_exchange.__doc__)
-sbe_to_ctd_exchange_parser.set_defaults(
-    main=sbe_to_ctd_exchange)
-sbe_to_ctd_exchange_parser.add_argument(
-    'files', type=file, nargs='+',
-    help='File or list of files that will be converted to exchange format, if '
-        'a single file is given, a flat exchange file will be output, if more '
-        'than one is given, a ctd zip will be output')
-sbe_to_ctd_exchange_parser.add_argument(
-    '-s', '--salt',
-    help='in the case of multiple salinity channels, the channel may be '
-        'chosen by index')
-sbe_to_ctd_exchange_parser.add_argument(
-    '-t', '--temp',
-    help='In the case of multiple temperature channels, the channel may be '
-        'chosen by index')
-sbe_to_ctd_exchange_parser.add_argument(
-    '-o', '--output',
-    help='name of output file, _ct1.[csv, zip] will be added automatically, '
-        'if not speified will default to standard out.')
-
-
-def summary_hot_to_summary_woce(args):
-    from libcchdo.model.datafile import SummaryFile
-    import libcchdo.formats.summary.hot as sumhot
-    import libcchdo.formats.summary.woce as sumwoce
-
-    sf = SummaryFile()
-
-    with closing(args.input_sumhot) as in_file:
-        sumhot.read(sf, in_file)
-
-    with closing(args.output_sumwoce) as out_file:
-        sumwoce.write(sf, out_file)
-
-
-summary_hot_to_summary_woce_parser = converter_parsers.add_parser(
-    'summary_hot_to_summary_woce',
-    help=summary_hot_to_summary_woce.__doc__)
-summary_hot_to_summary_woce_parser.set_defaults(
-    main=summary_hot_to_summary_woce_parser)
-summary_hot_to_summary_woce_parser.add_argument(
-    'input_sumhot', type=argparse.FileType('r'),
-    help='input Summary HOT file')
-summary_hot_to_summary_woce_parser.add_argument(
-    'output_sumwoce', type=argparse.FileType('w'), nargs='?',
-    default=sys.stdout,
-    help='output Summary WOCE file (default: stdout)')
+convert_hly0301_parser = misc_converter_parsers.add_parser(
+    'hly0301',
+    help=convert_hly0301.__doc__)
+convert_hly0301_parser.set_defaults(
+    main=convert_hly0301)
 
 
 merge_parser = hydro_subparsers.add_parser(
@@ -760,7 +802,7 @@ merge_ctd_bacp_xmiss_and_ctd_exchange_parser = merge_parsers.add_parser(
     'ctd_bacp_xmiss_and_ctd_exchange',
     help=merge_ctd_bacp_xmiss_and_ctd_exchange.__doc__)
 merge_ctd_bacp_xmiss_and_ctd_exchange_parser.set_defaults(
-    main=merge_ctd_bacp_xmiss_and_ctd_exchange_parser)
+    main=merge_ctd_bacp_xmiss_and_ctd_exchange)
 merge_ctd_bacp_xmiss_and_ctd_exchange_parser.add_argument(
     'ctd_bacp', type=argparse.FileType('r'),
     help='input CTD BACP file')
@@ -923,7 +965,7 @@ any_to_legacy_parameter_statuses_parser = misc_parsers.add_parser(
     'any_to_legacy_parameter_statuses',
     help=any_to_legacy_parameter_statuses.__doc__)
 any_to_legacy_parameter_statuses_parser.set_defaults(
-    main=any_to_legacy_parameter_statuses_parser)
+    main=any_to_legacy_parameter_statuses)
 any_to_legacy_parameter_statuses_parser.add_argument('-i', '--input-type',
     choices=known_formats,
     help='force the input file to be read as the specified type')
@@ -956,7 +998,7 @@ bottle_exchange_canon_parser = misc_parsers.add_parser(
     'bottle_exchange_canon',
     help=bottle_exchange_canon.__doc__)
 bottle_exchange_canon_parser.set_defaults(
-    main=bottle_exchange_canon_parser)
+    main=bottle_exchange_canon)
 bottle_exchange_canon_parser.add_argument(
     'input_botex', type=argparse.FileType('r'),
     help='input Bottle Exchange file')
@@ -975,7 +1017,7 @@ collect_into_archive_parser = misc_parsers.add_parser(
     'collect_into_archive',
     help=collect_into_archive.__doc__)
 collect_into_archive_parser.set_defaults(
-    main=collect_into_archive_parser)
+    main=collect_into_archive)
 
 
 def rebuild_hot_bats_oceansites(args):

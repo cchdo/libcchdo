@@ -159,7 +159,7 @@ def _check_and_replace_parameters_convert(self):
         column.parameter = std_parameter
 
 
-def convert_per_litre_to_per_kg_exchange(file):
+def convert_per_litre_to_per_kg(file):
     """Convert WOCE format /L units to /KG.
 
     A small percentage of WOCE format hydro data is submitted with oxygens
