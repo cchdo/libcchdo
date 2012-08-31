@@ -134,8 +134,9 @@ def read(self, handle, salt='first', temp='first'):
 
 
         l = handle.readline()
-
-    self.globals['DEPTH'] = ''
+    # Have yet to encounter a SBE file with bottom depth in it, JOA will crash
+    # if the DEPTH is blank
+    self.globals['DEPTH'] = '-999'
     self.globals['SECT_ID'] = ''
     if 'STNNBR' not in self.globals:
         # not sure if critical is approprate here, but this causes a ton of
