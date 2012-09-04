@@ -145,7 +145,7 @@ def strptime_woce_date_time(woce_date, woce_time):
         i_woce_time = int(woce_time)
         if i_woce_time >= 2400:
             LOG.warn(
-                u"Illegal time {0:04d} > 2400. Setting to 0.".format(
+                u"Illegal time {0:04d} >= 2400. Setting to 0.".format(
                     i_woce_time))
             i_woce_time = 0
         t = datetime.datetime.strptime('%04d' % i_woce_time, '%H%M').time()

@@ -30,6 +30,12 @@ import os
 import __builtin__
 import functools
 
+from StringIO import StringIO as pyStringIO
+try:
+    from cStringIO import StringIO
+except ImportError:
+    StringIO = pyStringIO
+
 
 __version__ = "0.7.1"
 

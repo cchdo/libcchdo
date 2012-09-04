@@ -3,7 +3,8 @@ import tempfile
 import StringIO
 import zipfile
 
-from ....model import datafile
+from .... import StringIO
+from ....model.datafile import DataFile
 from ... import netcdf as nc
 from ... import zip as Zip
 from .. import netcdf as botnc
@@ -15,8 +16,8 @@ def read(self, handle):
     for file in zip.namelist():
         if '.csv' not in file:
             continue
-        tempstream = StringIO.StringIO(zip.read(file))
-        file = datafile.DataFile()
+        tempstream = StringIO(zip.read(file))
+        file = DataFile()
         botnc.read(file, tempstream)
         self.files.append(file)
         tempstream.close()
@@ -33,7 +34,7 @@ def write(self, handle):
 
     zip = Zip.create(handle)
     for file in self:
-        temp = StringIO.StringIO()
+        temp = StringIO()
         botnc.write(file, temp)
 
         # Create a name for the file

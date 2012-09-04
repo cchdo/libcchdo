@@ -213,11 +213,12 @@ bottle_exchange_to_parameter_kml_parser.add_argument(
 
 
 def bottle_exchange_to_bottlezip_netcdf(args):
+    from libcchdo.model.datafile import DataFile
     import libcchdo.model.convert.datafile_to_datafilecollection as df2dfc
     import libcchdo.formats.bottle.exchange as botex
     import libcchdo.formats.bottle.zip.netcdf as botzipnc
 
-    df = L.model.datafile.DataFile()
+    df = DataFile()
 
     with closing(args.input_botex) as in_file:
         botex.read(df, in_file)
@@ -486,6 +487,7 @@ def ctdzip_exchange_to_ctdzip_netcdf(args):
     import libcchdo.formats.ctd.zip.netcdf as ctdzipnc
 
     dfc = DataFileCollection()
+    LOG.debug(repr(args))
 
     with closing(args.ctdzipex) as in_file:
         ctdzipex.read(dfc, in_file)
@@ -619,7 +621,7 @@ ctdzip_woce_and_summary_woce_to_ctdzip_exchange_parser.add_argument(
 ctdzip_woce_and_summary_woce_to_ctdzip_exchange_parser.add_argument(
     'sumwoce', type=argparse.FileType('r'),
     help='input Summary WOCE file')
-ctdzip_exchange_to_ctdzip_netcdf_parser.add_argument(
+ctdzip_woce_and_summary_woce_to_ctdzip_exchange_parser.add_argument(
     'ctdzipex', type=argparse.FileType('w'), nargs='?', default=sys.stdout,
     help='output CTD ZIP Exchange file')
 
