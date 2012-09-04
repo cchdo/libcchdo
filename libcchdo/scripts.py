@@ -1075,6 +1075,32 @@ reorder_surface_to_bottom_parser.add_argument(
     help='Order by non-descending bottle number (default: False)')
 
 
+report_parser = hydro_subparsers.add_parser(
+    'report', help='Reports')
+report_parsers = report_parser.add_subparsers(title='Reports')
+
+
+def report_data_types_changed(args):
+    """Generate report of number of data formats change in a time range.
+
+    Defaults to the past fiscal year.
+
+    """
+    from libcchdo.reports import report_data_types_changed
+
+    report_data_types_changed(args)
+
+
+report_data_types_changed_parser = report_parsers.add_parser(
+    'data_types_changed',
+    help=report_data_types_changed.__doc__)
+report_data_types_changed_parser.set_defaults(
+    main=report_data_types_changed)
+report_data_types_changed_parser.add_argument(
+    'output', type=argparse.FileType('w'), nargs='?', default=sys.stdout,
+    help='output file')
+
+
 def deprecated_reorder_surface_to_bottom():
     call_deprecated('misc', 'reorder_surface_to_bottom')
 
