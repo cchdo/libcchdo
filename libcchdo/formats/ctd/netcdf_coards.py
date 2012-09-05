@@ -34,10 +34,6 @@ GLOBALS_TO_RENAME_AS = {
 }
 
 
-STATIC_PARAMETERS_PER_CAST = ('EXPOCODE', 'SECT_ID', 'STNNBR', 'CASTNO',
-    '_DATETIME', 'LATITUDE', 'LONGITUDE', 'DEPTH', )
-
-
 def read(self, handle):
     '''How to read a CTD NetCDF file.'''
     pass # FIXME
@@ -104,18 +100,6 @@ def read(self, handle):
 #   self.check_and_replace_parameters()
 
 
-WOCE_CTD_FLAG_DESCRIPTION = '::%s::' % ':'.join((
-    '1=Not calibrated',
-    '2=Acceptable measurement',
-    '3=Questionable measurement',
-    '4=Bad measurement',
-    '5=Not reported',
-    '6=Interpolated over >2 dbar interval',
-    '7=Despiked',
-    '8=Not assigned for CTD data',
-    '9=Not sampled',))
-
-
 def netcdf_variable_name_from_column(column):
     if not column.parameter.description:
         libccho.LOG.warn('Bad parameter description %s' % column.parameter)
@@ -158,7 +142,7 @@ def write(self, handle):
     nc_file.BOTTOM_DEPTH_METERS = nc.simplest_str(float(self.globals['DEPTH']))
     nc_file.Creation_Time = fns.strftime_iso(datetime.datetime.utcnow())
     nc_file.ORIGINAL_HEADER = self.globals['header']
-    nc_file.WOCE_CTD_FLAG_DESCRIPTION = WOCE_CTD_FLAG_DESCRIPTION
+    nc_file.WOCE_CTD_FLAG_DESCRIPTION = woce.CTD_FLAG_DESCRIPTION
 
     def MISSING_COORD_VAR (param):
         return ("expected global coordinate variable %s "
@@ -231,7 +215,7 @@ def write(self, handle):
     for param, column in self.columns.iteritems():
         parameter = column.parameter
         parameter_name = parameter.mnemonic_woce()
-        if parameter_name in STATIC_PARAMETERS_PER_CAST:
+        if parameter_name in nc.STATIC_PARAMETERS_PER_CAST:
             continue
         var = nc_file.createVariable(
                   parameter.full_name.encode('ascii', 'replace'), 'f8',

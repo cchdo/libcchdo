@@ -1,6 +1,5 @@
 import os
 import tempfile
-import StringIO
 import zipfile
 
 from .... import StringIO

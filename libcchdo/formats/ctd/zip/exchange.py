@@ -1,12 +1,11 @@
-import StringIO
 import zipfile
 import datetime
 import re
 
-from .... import LOG
-from ....model import datafile
-from ... import zip as Zip
-from ...ctd import exchange as ctdex
+from libcchdo import LOG, pyStringIO
+from libcchdo.model.datafile import DataFile
+from libcchdo.formats import zip as Zip
+from libcchdo.formats.ctd import exchange as ctdex
 
 
 def read(self, handle, retain_order=False):
@@ -20,9 +19,9 @@ def read(self, handle, retain_order=False):
             raise ValueError('CTD Exchange Zip files should not contain '
                              'directories. Please ensure you gave a CTD '
                              'Exchange Zip file to be read.')
-        tempstream = StringIO.StringIO(zip.read(filename))
+        tempstream = pyStringIO(zip.read(filename))
         tempstream.name = filename
-        ctdfile = datafile.DataFile()
+        ctdfile = DataFile()
         ctdex.read(ctdfile, tempstream, retain_order)
         self.files.append(ctdfile)
         tempstream.close()
@@ -33,7 +32,7 @@ def write(self, handle):
     """How to write CTD Exchange files to a Zip."""
     zip = Zip.create(handle)
     for file in self:
-        tempstream = StringIO.StringIO()
+        tempstream = StringIO()
         ctdex.write(file, tempstream)
 
         station = file.globals['STNNBR'].strip()

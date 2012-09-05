@@ -2,12 +2,12 @@ from __future__ import with_statement
 import datetime
 import tempfile
 import zipfile
-import StringIO
 
-from ....model import datafile
-from ...ctd import netcdf
-from ... import netcdf as nc
-from ... import zip as Zip
+from libcchdo import StringIO
+from libcchdo.model.datafile import DataFile
+from libcchdo.formats.ctd import netcdf
+from libcchdo.formats import netcdf as nc
+from libcchdo.formats import zip as Zip
 
 
 def read(self, handle):
@@ -18,7 +18,7 @@ def read(self, handle):
         tmpfile = tempfile.NamedTemporaryFile()
         tmpfile.write(zip.read(file))
         tmpfile.flush()
-        ctdfile = datafile.DataFile()
+        ctdfile = DataFile()
         with open(tmpfile.name, 'r') as f:
             netcdf.read(ctdfile, f)
         self.files.append(ctdfile)
@@ -33,7 +33,7 @@ def write(self, handle):
 
     zip = Zip.create(handle)
     for file in self:
-        temp = StringIO.StringIO()
+        temp = StringIO()
         netcdf.write(file, temp)
 
         # Create a name for the file

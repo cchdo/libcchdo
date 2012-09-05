@@ -38,6 +38,19 @@ BOTTLE_FLAGS = {
 }
 
 
+CTD_FLAGS = {
+    1: 'Not calibrated',
+    2: 'Acceptable measurement',
+    3: 'Questionable measurement',
+    4: 'Bad measurement',
+    5: 'Not reported',
+    6: 'Interpolated over >2 dbar interval',
+    7: 'Despiked',
+    8: 'Not assigned for CTD data',
+    9: 'Not sampled',
+}
+
+
 WATER_SAMPLE_FLAGS = {
     1: ('Sample for this measurement was drawn from water bottle but analysis '
         'not received.'),
@@ -52,10 +65,16 @@ WATER_SAMPLE_FLAGS = {
 }
 
 
-BOTTLE_FLAG_DESCRIPTION = ':'.join([':'] + \
-    ['%d = %s' % (i + 1, BOTTLE_FLAGS[i + 1]) for i in \
-        range(len(BOTTLE_FLAGS))] + \
-    ["\n"])
+def flag_description(flag_map):
+    return ':'.join([':'] + ['%d = %s' % (i + 1, flag_map[i + 1]) for i in \
+        range(len(flag_map))] + ["\n"])
+
+
+
+BOTTLE_FLAG_DESCRIPTION = flag_description(BOTTLE_FLAGS)
+
+
+CTD_FLAG_DESCRIPTION = flag_description(CTD_FLAGS)
 
 
 WATER_SAMPLE_FLAG_DESCRIPTION = ':'.join([':'] + \
