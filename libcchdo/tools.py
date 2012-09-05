@@ -28,6 +28,7 @@ import libcchdo.formats.ctd.exchange as ctdex
 import libcchdo.formats.ctd.sbe9 as sbe
 import libcchdo.formats.ctd.zip.netcdf_oceansites as ctdzipnc_os
 import libcchdo.formats.ctd.zip.exchange as ctdzipex
+import libcchdo.formats.ctd.asc as asc
 
 
 def _get_legacy_parameter(session, parameter):
@@ -605,3 +606,9 @@ def plot_etopo(args):
     if not args.no_etopo:
         bm.draw_gmt_fancy_border(label_font_size)
     return bm
+
+def sbe_asc_to_ctd_exchange(args):
+    d = DataFile()
+    f = args.files
+    asc.read(d, f)
+    ctdex.write(d, sys.stdout)
