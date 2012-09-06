@@ -542,20 +542,20 @@ def ctd_polarstern_to_ctd_exchange(args, db):
             print "%sOutput to %s (not written):%s" % ("", output_filename, "")
 
 
-def _multi_file(files, salt, temp, output):
+def _multi_file(reader, files, output, **kwargs):
     dfc = DataFileCollection()
     for f in files:
         d = DataFile()
-        sbe.read(d, f, salt, temp)
+        reader.read(d, f, **kwargs)
         dfc.files.append(d)
     if output is not sys.stdout:
         output = open(output, 'w')
     ctdzipex.write(dfc, output)
 
 
-def _single_file(files, salt, temp, output):
+def _single_file(reader, files, output, **kwargs):
     d = DataFile()
-    sbe.read(d, files[0], salt, temp)
+    reader.read(d, files[0], **kwargs)
     if output is not sys.stdout:
         output = open(output, 'w')
     ctdex.write(d, output)
@@ -575,13 +575,13 @@ def sbe_to_ctd_exchange(args):
         if output is not sys.stdout:
             output = output + '_ct1.zip'
 
-        _multi_file(args.files, salt, temp, output)
+        _multi_file(sbe, args.files, output, salt=salt, temp=temp)
 
     if len(args.files) == 1:
         if output is not sys.stdout:
             output = output +  '_ct1.csv'
 
-        _single_file(args.files, salt, temp, output)
+        _single_file(sbe, args.files, output, salt=salt, temp=temp)
 
 
 def plot_etopo(args):
@@ -608,7 +608,21 @@ def plot_etopo(args):
     return bm
 
 def sbe_asc_to_ctd_exchange(args):
+    output, expo = (sys.stdout, '')
+    if (args.expo):
+        expo = args.expo
+    if (args.output):
+        output = args.output
     d = DataFile()
     f = args.files
-    asc.read(d, f)
-    ctdex.write(d, sys.stdout)
+    if len(args.files) == 1:
+        if output is not sys.stdout:
+            output = output + "_ct1.csv"
+
+        _single_file(asc, args.files, output, expo=expo)
+
+    if len(args.files) > 1:
+        if output is not sys.stdout:
+            output = output + '_ct1.zip'
+
+        _multi_file(asc, args.files, output, expo=expo)

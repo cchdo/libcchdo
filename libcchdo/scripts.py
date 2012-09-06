@@ -516,6 +516,9 @@ sbe_asc_to_ctd_exchange_parser.add_argument(
     '-o', '--output',
     help='name of output file, _ct1.[csv, zip] will be added automatically, '
         'if not speified will default to standard out.')
+sbe_asc_to_ctd_exchange_parser.add_argument(
+        '-e', '--expo',
+        help="Manually enter an expocode if the files do not contain one")
 
 def ctd_netcdf_to_ctd_netcdf_oceansites(args):
     from libcchdo.model.datafile import DataFile
