@@ -4,13 +4,26 @@ from ...model import datafile
 
 #def read(self, handle):
 
+
+def _dt_to_str(dt):
+    """Return the string representation of a datetime.
+
+    If no datetime is given, return an empty string.
+
+    """
+    try:
+        return dt.strftime('%Y-%m-%d')
+    except AttributeError:
+        return ''
+    
+
 def write(self, handle):
     """ How to write a CCHDO nav file.
     There are two possibilities for self: it can either be a DataFile or
     DataFileCollection.
     """
     if isinstance(self, datafile.DataFile):
-        dates = map(lambda d: d.strftime('%Y-%m-%d'), self['_DATETIME'].values)
+        dates = [_dt_to_str(dt) for dt in self['_DATETIME'].values]
         try:
             codes = self['_CODE']
         except KeyError, e:
