@@ -9,6 +9,7 @@ $ hydro --help
 
 
 import argparse
+from datetime import datetime
 from contextlib import closing
 import sys
 import os.path
@@ -1091,11 +1092,22 @@ def report_data_updates(args):
     report_data_updates(args)
 
 
+today = datetime.utcnow()
+
 report_data_updates_parser = report_parsers.add_parser(
     'data_updates',
     help=report_data_updates.__doc__)
 report_data_updates_parser.set_defaults(
     main=report_data_updates)
+report_data_updates_parser.add_argument(
+    '--year', nargs='?', default=today.year,
+    help='Year to end')
+report_data_updates_parser.add_argument(
+    '--month', nargs='?', default=today.month,
+    help='Month to end')
+report_data_updates_parser.add_argument(
+    '--day', nargs='?', default=today.day,
+    help='Day to end')
 report_data_updates_parser.add_argument(
     'output', type=argparse.FileType('w'), nargs='?', default=sys.stdout,
     help='output file')

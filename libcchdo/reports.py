@@ -3,6 +3,7 @@ from contextlib import closing
 
 from sqlalchemy.sql import not_, between
 
+from libcchdo import LOG
 from libcchdo.db.model import legacy
 from libcchdo.db.model.legacy import Document
 
@@ -22,8 +23,7 @@ def report_data_updates(args):
 
     """
     with closing(legacy.session()) as session:
-        today = datetime.utcnow()
-        date_end = datetime(today.year, 7, 1)
+        date_end = datetime(args.year, args.month, args.day)
         date_start = date_end - timedelta(366)
         args.output.write('/'.join(map(str, [date_start, date_end])) + '\n')
 
@@ -41,18 +41,19 @@ def report_data_updates(args):
             if 'original' in doc.FileName or 'Queue' in doc.FileName:
                 continue
             details = [doc.LastModified, doc.ExpoCode, doc.FileName]
-            args.output.write(' '.join(map(str, details)) + '\n')
+            LOG.info(' '.join(map(str, details)))
             for mtime in doc.Modified.split(','):
                 mtime = datetime.strptime(mtime, '%Y-%m-%d %H:%M:%S')
                 if date_start < mtime and mtime < date_end:
-                    args.output.write('\t{0}\n'.format(mtime))
+                    LOG.info('\t{0}\n'.format(mtime))
                     cruises.add(doc.ExpoCode)
                     try:
                         counts[doc.FileType] += 1
                     except KeyError:
                         counts[doc.FileType] = 1
                 else:
-                    args.output.write('\t{0} out of range\n'.format(mtime))
+                    pass
+                    LOG.info('\t{0} out of range\n'.format(mtime))
         args.output.write(repr(counts) + '\n')
         args.output.write(repr(sorted(list(cruises))) + '\n')
         args.output.write(str(len(cruises)) + '\n')
