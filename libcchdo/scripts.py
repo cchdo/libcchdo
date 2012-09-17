@@ -9,6 +9,7 @@ $ hydro --help
 
 
 import argparse
+from datetime import datetime
 from contextlib import closing
 import sys
 import os.path
@@ -1082,23 +1083,34 @@ report_parser = hydro_subparsers.add_parser(
 report_parsers = report_parser.add_subparsers(title='Reports')
 
 
-def report_data_types_changed(args):
+def report_data_updates(args):
     """Generate report of number of data formats change in a time range.
 
     Defaults to the past fiscal year.
 
     """
-    from libcchdo.reports import report_data_types_changed
+    from libcchdo.reports import report_data_updates
 
-    report_data_types_changed(args)
+    report_data_updates(args)
 
 
-report_data_types_changed_parser = report_parsers.add_parser(
-    'data_types_changed',
-    help=report_data_types_changed.__doc__)
-report_data_types_changed_parser.set_defaults(
-    main=report_data_types_changed)
-report_data_types_changed_parser.add_argument(
+today = datetime.utcnow()
+
+report_data_updates_parser = report_parsers.add_parser(
+    'data_updates',
+    help=report_data_updates.__doc__)
+report_data_updates_parser.set_defaults(
+    main=report_data_updates)
+report_data_updates_parser.add_argument(
+    '--year', nargs='?', default=today.year,
+    help='Year to end')
+report_data_updates_parser.add_argument(
+    '--month', nargs='?', default=today.month,
+    help='Month to end')
+report_data_updates_parser.add_argument(
+    '--day', nargs='?', default=today.day,
+    help='Day to end')
+report_data_updates_parser.add_argument(
     'output', type=argparse.FileType('w'), nargs='?', default=sys.stdout,
     help='output file')
 
