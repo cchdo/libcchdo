@@ -484,8 +484,7 @@ def combine(woce_file, sum_file):
         info = dict(zip(headers, values))
         woce_file.globals['EXPOCODE'] = info['EXPOCODE']
         woce_file.globals['SECT_ID'] = info['SECT_ID']
-        woce_file.globals['DATE'] = info['DATE']
-        woce_file.globals['TIME'] = info['TIME']
+        woce_file.globals['_DATETIME'] = info['_DATETIME']
         woce_file.globals['LATITUDE'] = info['LATITUDE']
         woce_file.globals['LONGITUDE'] = info['LONGITUDE']
         woce_file.globals['DEPTH'] = info['DEPTH']
@@ -496,8 +495,7 @@ def combine(woce_file, sum_file):
 
         woce_file.ensure_column('EXPOCODE')
         woce_file.ensure_column('SECT_ID')
-        woce_file.ensure_column('DATE')
-        woce_file.ensure_column('TIME')
+        woce_file.ensure_column('_DATETIME')
         woce_file.ensure_column('LATITUDE')
         woce_file.ensure_column('LONGITUDE')
         woce_file.ensure_column('DEPTH')
@@ -516,10 +514,8 @@ def combine(woce_file, sum_file):
             info = dict(zip(headers, values))
             woce_file['EXPOCODE'][i] = info['EXPOCODE']
             woce_file['SECT_ID'][i] = info['SECT_ID']
-            woce_file['DATE'][i] = info['DATE']
-            woce_file['TIME'][i] = info['TIME']
+            woce_file['_DATETIME'][i] = info['_DATETIME']
             woce_file['LATITUDE'][i] = info['LATITUDE']
             woce_file['LONGITUDE'][i] = info['LONGITUDE']
             woce_file['DEPTH'][i] = info['DEPTH']
         woce_file.globals['header'] = ''
-        fuse_datetime(woce_file)

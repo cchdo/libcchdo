@@ -106,11 +106,13 @@ def read(self, handle):
             self['_PARAMETERS'].append(identity_or_none(tokens[16]))
             self['_COMMENTS'].append(identity_or_none(tokens[17]))
 
+    woce.fuse_datetime(self)
     self.check_and_replace_parameters()
 
 
 def write(self, handle):
     '''How to write a Summary file for WOCE.'''
+    woce.split_datetime(self)
     ship = self.globals.get('_SHIP', None) or '__SHIP__'
     leg = self.globals.get('_LEG', None) or '__LEG__'
     uniq_sects = fns.uniquify(self['SECT_ID'].values)

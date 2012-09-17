@@ -19,10 +19,14 @@ def _dt_to_str(dt):
 
 def write(self, handle):
     """ How to write a CCHDO nav file.
-    There are two possibilities for self: it can either be a DataFile or
-    DataFileCollection.
+    There are three possibilities for self:
+        1. DataFile
+        2. SummaryFile
+        3. DataFileCollection
+
     """
-    if isinstance(self, datafile.DataFile):
+    if (    isinstance(self, datafile.DataFile) or
+            isinstance(self, datafile.SummaryFile)):
         dates = [_dt_to_str(dt) for dt in self['_DATETIME'].values]
         try:
             codes = self['_CODE']
