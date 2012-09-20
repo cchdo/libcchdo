@@ -6,15 +6,10 @@ import shutil
 from tarfile import TarFile
 
 import filecmp
-from StringIO import StringIO as pyStringIO
-try:
-    from cStringIO import StringIO
-except ImportError:
-    StringIO = pyStringIO
 
 from tempfile import mkdtemp
 
-from libcchdo import LOG, config
+from libcchdo import LOG, config, StringIO
 from libcchdo.db import connect
 from libcchdo.db.model import legacy
 from libcchdo.db.model import std
