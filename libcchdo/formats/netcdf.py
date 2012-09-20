@@ -23,6 +23,9 @@ STATIC_PARAMETERS_PER_CAST = ('EXPOCODE', 'SECT_ID', 'STNNBR', 'CASTNO',
     '_DATETIME', 'LATITUDE', 'LONGITUDE', 'DEPTH', 'BTLNBR', 'SAMPNO', )
 
 
+NON_FLOAT_PARAMETERS = ('NUMBER', )
+
+
 UNKNOWN = 'UNKNOWN'
 
 
@@ -198,9 +201,14 @@ def create_and_fill_data_variables(df, nc_file):
         if parameter_name in STATIC_PARAMETERS_PER_CAST:
             continue
 
+        if parameter_name in NON_FLOAT_PARAMETERS:
+            continue
+
         pname = parameter.name_netcdf
         if not pname:
-            LOG.warn('No netcdf name for {0}'.format(parameter))
+            LOG.warn(
+                u'No netcdf name for {0}. Using mnemonic {1}.'.format(
+                    parameter, parameter.name))
             pname = parameter.name
         if not pname:
             raise AttributeError('No name found for {0}'.format(parameter))
@@ -236,6 +244,11 @@ def create_and_fill_data_variables(df, nc_file):
             # TODO TEST
             LOG.warn(u'Parameter {0} has no format'.format(parameter.name))
             var.C_format = '%s'
+        if var.C_format.endswith('s'):
+            LOG.error(
+                'Parameter does not have format that is for data. Setting '
+                'format to double to prevent segfault in nc readers.')
+            var.C_format = '%f'
         var.WHPO_Variable_Name = parameter_name
         var[:] = column.values
 

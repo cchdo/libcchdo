@@ -157,6 +157,16 @@ def write(self, handle):
     nc_file.WOCE_CTD_FLAG_DESCRIPTION = woce.CTD_FLAG_DESCRIPTION
 
     nc.create_and_fill_data_variables(self, nc_file)
+
+    var_number = nc_file.createVariable(
+        'number_observations', 'i4', ('pressure',))
+    var_number.long_name = 'number_observations'
+    var_number.units = 'integer'
+    var_number.data_min = float(min(self['NUMBER']))
+    var_number.data_max = float(max(self['NUMBER']))
+    var_number.C_format = '%1d'
+    var_number[:] = self['NUMBER']
+
     _create_common_variables(self, nc_file, woce_datetime)
 
     nc_file.close()

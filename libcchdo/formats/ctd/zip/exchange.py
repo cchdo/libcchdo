@@ -32,7 +32,7 @@ def write(self, handle):
     """How to write CTD Exchange files to a Zip."""
     zip = Zip.create(handle)
     for file in self:
-        tempstream = StringIO()
+        tempstream = pyStringIO()
         ctdex.write(file, tempstream)
 
         station = file.globals['STNNBR'].strip()

@@ -612,7 +612,7 @@ def ctdzip_woce_and_summary_woce_to_ctdzip_exchange(args):
 
 ctdzip_woce_and_summary_woce_to_ctdzip_exchange_parser = \
     ctd_converter_parsers.add_parser(
-        'zip_woce_and_summary_woce_to_zip_netcdf',
+        'zip_woce_and_summary_woce_to_zip_exchange',
         help=ctdzip_woce_and_summary_woce_to_ctdzip_exchange.__doc__)
 ctdzip_woce_and_summary_woce_to_ctdzip_exchange_parser.set_defaults(
     main=ctdzip_woce_and_summary_woce_to_ctdzip_exchange)
