@@ -10,9 +10,10 @@ from tempfile import SpooledTemporaryFile
 import numpy as np
 from numpy import ma, arange
 
-# Set Image so that PIL doesn't freak out when it tries to import itself twice.
-#http://jaredforsyth.com/blog/2010/apr/28/accessinit-hash-collision-3-both-1-
-#    and-1/#comment-51077924
+# XXX HACK
+# scipy and matplotlib both import PIL causing it to collide
+# http://jaredforsyth.com/blog/2010/apr/28/
+#     accessinit-hash-collision-3-both-1-and-1/
 import PIL.Image
 sys.modules['Image'] = PIL.Image
 
@@ -22,11 +23,14 @@ from netCDF4 import Dataset
 
 import matplotlib
 matplotlib.use('Agg')
+import matplotlib.pyplot as plt
 from matplotlib.colors import LinearSegmentedColormap
 
-import matplotlib.pyplot as plt
+from scipy.ndimage.interpolation import map_coordinates
 
-from mpl_toolkits.basemap import Basemap, shiftgrid, _pseudocyl, _cylproj
+from mpl_toolkits.basemap import (
+    Basemap, shiftgrid, _pseudocyl, _cylproj, 
+    )
 
 from libcchdo import config, LOG
 from libcchdo.plot.interpolation import BicubicConvolution
@@ -39,6 +43,22 @@ etopo1_root = etopo_root + '/relief/ETOPO1/data'
 
 
 etopo_dir = os.path.join(config.get_config_dir(), 'etopos')
+
+
+def is_proj_cylindrical(proj):
+    return proj in _cylproj
+
+
+def is_proj_pseudocylindrical(proj):
+    return proj in _pseudocyl
+
+
+projections_polar = [
+    'spstere', 'npstere', 'splaea', 'nplaea', 'spaeqd', 'npaeqd']
+
+
+def is_proj_polar(proj):
+    return proj in projections_polar
 
 
 def get_nx_ny(basemap, lons, cut_ratio=1):
@@ -93,7 +113,7 @@ def mask_proj_bounds(self, img, lons, lats, nx, ny, tx, ty):
        (self.projection == 'aeqd' and self._fulldisk):
         mask[:,:,0] = np.logical_or(lonsr > 1.e20, latsr > 1.e30)
     # treat pseudo-cyl projections such as mollweide, robinson and sinusoidal.
-    elif self.projection in _pseudocyl:
+    elif is_proj_pseudocylindrical(self.projection):
         lon_0 = self.projparams['lon_0']
         lonright = lon_0 + 180.
         lonleft = lon_0 - 180.
@@ -311,7 +331,7 @@ def etopo(arcmins=1, version='ice', force_resample=False, cache_allowed=True):
     etopo_path = os.path.join(etopo_dir, etopo_filename(arcmins, version))
 
     LOG.debug('reading {0}'.format(etopo_path))
-    LOG.debug('{0}'.format(os.path.isfile(etopo_path)))
+    LOG.debug('exists? {0}'.format(os.path.isfile(etopo_path)))
     if force_resample or not os.path.isfile(etopo_path):
         if arcmins is 1:
             download_etopo1(etopo_path, version)
@@ -407,7 +427,7 @@ def create_map(etopo_scale, cut, cmtopo=colormap_cberys, version='ice',
     nx, ny = get_nx_ny(m, lons, cut_ratio=cut)
     LOG.debug('nx: %d, ny: %d' % (nx, ny))
 
-    if lons.min() < m.llcrnrlon and m.projection in _cylproj:
+    if lons.min() < m.llcrnrlon and is_proj_cylindrical(m.projection):
         LOG.info('Shifting grid')
         topo, lons = shiftgrid(m.llcrnrlon, topo, lons)
 
@@ -421,6 +441,33 @@ def create_map(etopo_scale, cut, cmtopo=colormap_cberys, version='ice',
     m.imshow(topo, cmap=cmtopo(topo, etopo_offset))
     return m
 
+
+def gmt_label_fmt(lon):
+    """Format latlons with negative and no positive.
+
+    E.g.
+    -10deg -5deg 0deg 5deg 10deg
+
+    """
+    while lon > 180:
+        lon -= 360
+    while lon < -180:
+        lon += 360
+
+    from matplotlib import rcParams, rc
+    lonlabstr = ''
+    if lon > 180:
+        if rcParams['text.usetex']:
+            lonlabstr = r'${\/-%g\/^{\circ}}$'
+        else:
+            lonlabstr = u'-%g\N{DEGREE SIGN}'
+    else:
+        if rcParams['text.usetex']:
+            lonlabstr = r'${\/%g\/^{\circ}}$'
+        else:
+            lonlabstr = u'%g\N{DEGREE SIGN}'
+    return lonlabstr % lon
+    
 
 def preset_dpi(level='240'):
     """ Gives a dpi estimate for matplotlib.pyplot.saveimg given some height
