@@ -3,16 +3,18 @@
 import os
 import sys
 from gzip import GzipFile
-from math import floor, fsum
+from math import floor, fsum, atan2, sin, cos
 from urllib2 import urlopen, URLError
 from tempfile import SpooledTemporaryFile
+from copy import copy
 
 import numpy as np
 from numpy import ma, arange
 
-# Set Image so that PIL doesn't freak out when it tries to import itself twice.
-#http://jaredforsyth.com/blog/2010/apr/28/accessinit-hash-collision-3-both-1-
-#    and-1/#comment-51077924
+# XXX HACK
+# scipy and matplotlib both import PIL causing it to collide
+# http://jaredforsyth.com/blog/2010/apr/28/
+#     accessinit-hash-collision-3-both-1-and-1/
 import PIL.Image
 sys.modules['Image'] = PIL.Image
 
@@ -21,12 +23,15 @@ from scipy.ndimage.interpolation import map_coordinates
 from netCDF4 import Dataset
 
 import matplotlib
+from matplotlib import rcParams, rc
 matplotlib.use('Agg')
-from matplotlib.colors import LinearSegmentedColormap
-
 import matplotlib.pyplot as plt
+from matplotlib.colors import LinearSegmentedColormap
+from matplotlib.patches import Rectangle, Circle, Arc, Polygon
 
-from mpl_toolkits.basemap import Basemap, shiftgrid, _pseudocyl, _cylproj
+from mpl_toolkits.basemap import (
+    Basemap, shiftgrid, _pseudocyl, _cylproj, 
+    )
 
 from libcchdo import config, LOG
 from libcchdo.plot.interpolation import BicubicConvolution
@@ -39,6 +44,22 @@ etopo1_root = etopo_root + '/relief/ETOPO1/data'
 
 
 etopo_dir = os.path.join(config.get_config_dir(), 'etopos')
+
+
+def is_proj_cylindrical(proj):
+    return proj in _cylproj
+
+
+def is_proj_pseudocylindrical(proj):
+    return proj in _pseudocyl
+
+
+projections_polar = [
+    'spstere', 'npstere', 'splaea', 'nplaea', 'spaeqd', 'npaeqd']
+
+
+def is_proj_polar(proj):
+    return proj in projections_polar
 
 
 def get_nx_ny(basemap, lons, cut_ratio=1):
@@ -93,7 +114,7 @@ def mask_proj_bounds(self, img, lons, lats, nx, ny, tx, ty):
        (self.projection == 'aeqd' and self._fulldisk):
         mask[:,:,0] = np.logical_or(lonsr > 1.e20, latsr > 1.e30)
     # treat pseudo-cyl projections such as mollweide, robinson and sinusoidal.
-    elif self.projection in _pseudocyl:
+    elif is_proj_pseudocylindrical(self.projection):
         lon_0 = self.projparams['lon_0']
         lonright = lon_0 + 180.
         lonleft = lon_0 - 180.
@@ -106,6 +127,20 @@ def mask_proj_bounds(self, img, lons, lats, nx, ny, tx, ty):
             xmax, ymax = self(lonright, lat)
             xmin, ymin = self(lonleft, lat)
             mask[j,:] = np.logical_or(tx[j,:] > xmax, tx[j,:] < xmin)
+    elif is_proj_polar(self.projection):
+        # Mask the data so only a circle remains
+        cx = nx / 2
+        cy = ny / 2
+
+        # Add a little extra so low-res data doesn't get choppy at edges
+        r = cx ** 2 * 1.03
+        def in_circle(x, y):
+            return ((x - cx) ** 2 + (y - cy) ** 2) < r
+            
+        for i in range(nx):
+            for j in range(ny):
+                if not in_circle(i, j):
+                    mask[i, j] = 1
 
     newimg = ma.masked_array(img, mask=mask)
     return newimg
@@ -311,7 +346,7 @@ def etopo(arcmins=1, version='ice', force_resample=False, cache_allowed=True):
     etopo_path = os.path.join(etopo_dir, etopo_filename(arcmins, version))
 
     LOG.debug('reading {0}'.format(etopo_path))
-    LOG.debug('{0}'.format(os.path.isfile(etopo_path)))
+    LOG.debug('exists? {0}'.format(os.path.isfile(etopo_path)))
     if force_resample or not os.path.isfile(etopo_path):
         if arcmins is 1:
             download_etopo1(etopo_path, version)
@@ -338,11 +373,7 @@ def etopo(arcmins=1, version='ice', force_resample=False, cache_allowed=True):
     return (topo, lons, lats, offset)
 
 
-def colormap_cberys(topo, etopo_offset=0):
-    """ Gives a colormap based on the topo range and offset that is based off
-        an original color scheme created by Carolina Berys.
-
-    """
+def etopo_ground_point(topo, etopo_offset=0):
     mint = float(np.min(topo))
     maxt = float(np.max(topo))
 
@@ -357,13 +388,49 @@ def colormap_cberys(topo, etopo_offset=0):
     LOG.debug('topo range [%d, %d]' % (mint, maxt))
     LOG.debug(
         'offset: %f = shift: %f = ground: %f' % (etopo_offset, shift, groundpt))
+    return groundpt
 
+
+def colormap_grayscale(topo, etopo_offset=0):
+    """Return a colormap based on the topo range and offset that grayscale.
+
+    """
+    LOG.info(u'Generating grayscale colormap for ETOPO')
+    locolor = (0.3, 0.3, 0.3)
+    hicolor = (1, 1, 1)
+    ground_color = (0, 0, 0)
+    mount_color = (0.1, 0.1, 0.1)
+
+    groundpt = etopo_ground_point(topo, etopo_offset=0)
+
+    colormap = LinearSegmentedColormap.from_list(
+        'cchdo_grayscale',
+        ((0, locolor),
+         (groundpt, hicolor),
+         (groundpt, ground_color),
+         (1, mount_color)
+        )
+    )
+    colormap.set_bad(color='k', alpha=0.0)
+    colormap.set_over(color='y')
+    colormap.set_under(color='c')
+    return colormap
+
+
+def colormap_cberys(topo, etopo_offset=0):
+    """ Gives a colormap based on the topo range and offset that is based off
+        an original color scheme created by Carolina Berys.
+
+    """
+    LOG.info(u'Generating cberys colormap for ETOPO')
     locolor = (0.173, 0.263, 0.898)
     locolor = (0.130, 0.220, 0.855)
     hicolor = (0.549019607843137, 0.627450980392157, 1)
     hicolor = (0.509019607843137, 0.587450980392157, 1)
     ground_color = (0, 0, 0)
     mount_color = (0.1, 0.1, 0.1)
+
+    groundpt = etopo_ground_point(topo, etopo_offset=0)
 
     colormap = LinearSegmentedColormap.from_list(
         'cchdo_cberys',
@@ -379,48 +446,31 @@ def colormap_cberys(topo, etopo_offset=0):
     return colormap
 
 
-def create_map(etopo_scale, cut, cmtopo=colormap_cberys, version='ice',
-               force_resample=False, *args, **kwargs):
-    """ Create a basemap with an etopo bathymetry overlay
+def gmt_label_fmt(lon):
+    """Format latlons with negative and no positive.
 
-        Arguments:
-            etopo_scale - the scale of the etopo data
-            cut - the ratio of points to cut out. The higher this is the more
-                averaging of the etopo will occur. Values over 10 will generally
-                result in a poor map and values under 3 will result in a very
-                long transform time.
+    E.g.
+    -10deg -5deg 0deg 5deg 10deg
 
     """
-    topo, lons, lats, etopo_offset = etopo(etopo_scale, version, force_resample)
+    while lon > 180:
+        lon -= 360
+    while lon < -180:
+        lon += 360
 
-    LOG.info('Creating basemap')
-    m = Basemap(*args, **kwargs)
-    plt.axis('off')
-
-    if cut is None:
-        if etopo_scale == 1:
-            cut = 6
+    lonlabstr = ''
+    if lon > 180:
+        if rcParams['text.usetex']:
+            lonlabstr = r'${\/-%g\/^{\circ}}$'
         else:
-            cut = 4
-
-    LOG.debug('Cut ratio %d' % cut)
-    nx, ny = get_nx_ny(m, lons, cut_ratio=cut)
-    LOG.debug('nx: %d, ny: %d' % (nx, ny))
-
-    if lons.min() < m.llcrnrlon and m.projection in _cylproj:
-        LOG.info('Shifting grid')
-        topo, lons = shiftgrid(m.llcrnrlon, topo, lons)
-
-    LOG.info('Transforming grid')
-    #LOG.debug('lons: %s lats: %s nx: %d ny: %d' % (lons, lats, nx, ny))
-    topo, tx, ty = m.transform_scalar(topo, lons, lats, nx, ny, returnxy=True)
-
-    LOG.info('Masking projection bounds')
-    topo = mask_proj_bounds(m, topo, lons, lats, nx, ny, tx, ty)
-
-    m.imshow(topo, cmap=cmtopo(topo, etopo_offset))
-    return m
-
+            lonlabstr = u'-%g\N{DEGREE SIGN}'
+    else:
+        if rcParams['text.usetex']:
+            lonlabstr = r'${\/%g\/^{\circ}}$'
+        else:
+            lonlabstr = u'%g\N{DEGREE SIGN}'
+    return lonlabstr % lon
+    
 
 def preset_dpi(level='240'):
     """ Gives a dpi estimate for matplotlib.pyplot.saveimg given some height
@@ -440,20 +490,510 @@ def preset_dpi(level='240'):
     return int(level)
 
 
+class ETOPOBasemap(Basemap):
+    @classmethod
+    def new_from_argparser(cls, args):
+        """Creates a map using the arguments from an ArgumentParser."""
+        boundinglat = None
+        if is_proj_cylindrical(args.projection):
+            newcls = cls(
+                projection=args.projection,
+                llcrnrlat=args.bounds_cylindrical[1],
+                llcrnrlon=args.bounds_cylindrical[0],
+                urcrnrlat=args.bounds_cylindrical[3],
+                urcrnrlon=args.bounds_cylindrical[2])
+        elif is_proj_pseudocylindrical(args.projection):
+            newcls = cls(
+                projection=args.projection,
+                lon_0=args.bounds_elliptical)
+        elif is_proj_polar(args.projection):
+            boundinglat = 60
+            lon_0 = (args.bounds_elliptical + 180) % 360
+            if args.projection[0] == 's':
+                boundinglat = -30
+                lon_0 = args.bounds_elliptical
+            newcls = cls(
+                projection=args.projection,
+                boundinglat=boundinglat,
+                lon_0=lon_0)
+        else:
+            LOG.error(u'Unhandled projection {0}'.format(args.projection))
+            newcls = None
+
+        if newcls:
+            newcls.boundinglat = boundinglat
+        return newcls
+
+    @property
+    def axes(self):
+        """Return the Basemap's matplotlib.axes.Axes."""
+        return self._check_ax()
+
+    def add_title(self, text):
+        """Add a title."""
+        # TODO get the title to be bold. fontweight doesn't work...
+        self.axes.set_title(text, size=18, position=(0.5, 1), fontweight='bold')
+
+    def hide_axes_borders(self):
+        # This call should cover projections that have rectangular borders
+        self.axes.set_axis_off()
+
+        # Pseudo-cylindrical borders are polygons
+        if self.is_proj_pseudocylindrical:
+            children = filter(
+                lambda c: c.__class__ == Polygon, self.axes.get_children())
+            for child in children:
+                child.set_linewidth(0)
+        # TODO There are elliptical borders as well
+
+    @property
+    def is_proj_cylindrical(self):
+        return is_proj_cylindrical(self.projection)
+
+    @property
+    def is_proj_pseudocylindrical(self):
+        return is_proj_pseudocylindrical(self.projection)
+
+    @property
+    def is_proj_polar(self):
+        return is_proj_polar(self.projection)
+
+    @property
+    def is_proj_southern(self):
+        return self.is_proj_polar and self.projection[0] == 's'
+
+    @property
+    def gmt_label_offsets(self):
+        """Gives offsets to space fancy border labels away from the border."""
+        if self.is_proj_cylindrical:
+            yoffset = (self.urcrnry - self.llcrnry) / 100. * 2.5 * self.aspect
+            xoffset = (self.urcrnrx - self.llcrnrx) / 100. * 2
+        elif self.is_proj_pseudocylindrical:
+            yoffset = (self.urcrnry - self.llcrnry) / 100. * 2.5 * self.aspect
+            xoffset = (self.urcrnrx - self.llcrnrx) / 100. * 1
+        elif self.is_proj_polar:
+            yoffset = (self.urcrnry - self.llcrnry) / 100. * 2.5 * self.aspect
+            xoffset = (self.urcrnrx - self.llcrnrx) / 100. * 2
+        else:
+            yoffset = 0
+            xoffset = 0
+        return (xoffset, yoffset)
+
+    def draw_etopo(self, etopo_scale, cut, cmtopo=colormap_cberys,
+                   version='ice', force_resample=False):
+        """Draw an etopo bathymetry overlay on the Basemap.
+
+        Arguments:
+            etopo_scale - the scale of the etopo data
+            cut - the ratio of points to cut out. The higher this is the more
+                averaging of the etopo will occur. Values over 10 will generally
+                result in a poor map and values under 3 will result in a very
+                long transform time.
+
+        """
+        topo, lons, lats, etopo_offset = etopo(
+            etopo_scale, version, force_resample)
+
+        if cut is None:
+            if etopo_scale == 1:
+                cut = 6
+            else:
+                cut = 4
+
+        LOG.debug('Cut ratio %d' % cut)
+        nx, ny = get_nx_ny(self, lons, cut_ratio=cut)
+        LOG.debug('nx: %d, ny: %d' % (nx, ny))
+
+        if lons.min() < self.llcrnrlon and self.is_proj_cylindrical:
+            LOG.info('Shifting grid')
+            topo, lons = shiftgrid(self.llcrnrlon, topo, lons)
+
+        LOG.info('Transforming grid')
+        #LOG.debug('lons: %s lats: %s nx: %d ny: %d' % (lons, lats, nx, ny))
+        topo, tx, ty = self.transform_scalar(
+            topo, lons, lats, nx, ny, returnxy=True)
+
+        LOG.info('Masking projection bounds')
+        topo = mask_proj_bounds(self, topo, lons, lats, nx, ny, tx, ty)
+
+        self.imshow(topo, cmap=cmtopo(topo, etopo_offset))
+
+    def draw_graticules(self, args):
+        """Draw graticules on a Basemap according to an ArgumentParser.
+
+        The label settings are set up so that gmt_graticules can do its job with
+        less editing.
+
+        """
+        # specific settings to match GMT. Doesn't exactly apply to polar
+        # projections b/c the parallels don't get labelled.
+        # TODO allow customization
+        label_parallels = [1, 1, 0, 0]
+        label_meridians = [0, 0, 1, 1]
+        label_font_size = 8
+        label_font_color = 'k'
+        label_ny = 5
+        label_nx = 6
+        lines_solid = False
+        line_width = 0.1
+
+        if self.is_proj_cylindrical:
+            nparallels = np.linspace(self.urcrnrlat, self.llcrnrlat, label_ny)
+            nmeridians = np.linspace(self.urcrnrlon, self.llcrnrlon, label_nx)
+        elif self.is_proj_pseudocylindrical:
+            nparallels = range(-90, 90, 20)
+            nmeridians = range(
+                self.urcrnrlon / 2, self.urcrnrlon / 2 + 360, 20)
+        else:
+            parallel_spacing = 10
+            if self.is_proj_southern:
+                nparallels = range(self.boundinglat, -80, -parallel_spacing)
+            else:
+                nparallels = range(self.boundinglat, 90, parallel_spacing)
+            nmeridians = range(0, 360, 20)
+
+        # Move the maximum drawn latitude in. This is the effective inner-most
+        # ring for north pole projections and matches GMT's setting.
+        latmax = 85
+
+        line_dashes = [1, 1]
+        if lines_solid:
+            line_dashes = []
+        xoffset, yoffset = self.gmt_label_offsets
+        parallels = self.drawparallels(
+            nparallels, label_font_color, line_width, line_dashes, 
+            latmax=latmax,
+            fmt=gmt_label_fmt, xoffset=xoffset, yoffset=yoffset,
+            labels=label_parallels, fontsize=label_font_size)
+        meridians = self.drawmeridians(
+            nmeridians, label_font_color, line_width, line_dashes,
+            latmax=latmax,
+            fmt=gmt_label_fmt, xoffset=xoffset, yoffset=yoffset,
+            labels=label_meridians, fontsize=label_font_size)
+
+        # If the graticules are labelled, the axis margins need to be shifted so
+        # they show up.
+        margins = None
+        if self.is_proj_cylindrical:
+            margins = (0.06, 0.03)
+        elif self.is_proj_pseudocylindrical:
+            margins = (0.05, 0.06)
+        elif self.is_proj_polar:
+            margins = (0.03, 0.03)
+        else:
+            LOG.warn(
+                u'Cannot set margins for unhandled projection {0}'.format(
+                    self.projection))
+        if margins:
+            LOG.debug('Setting axis margins for projection {0} to {1}'.format(
+                self.projection, margins))
+            # Let the plot axes settle around the plot first before adding
+            # margins
+            self.axes.autoscale()
+            self.axes.margins(*margins)
+        return {'parallels': parallels, 'meridians': meridians}
+
+    def gmt_graticules(self, graticules, draw_fancy_borders=True):
+        """Edit the graticules of the basemap to act like GMT graticules.
+
+        Also handles drawing GMT fancy borders.
+
+        """
+        parallels = graticules['parallels']
+        meridians = graticules['meridians']
+
+        fancy_linewidth=1
+        fancyborder = {
+            'meridians': [],
+            'parallels': [],
+        }
+
+        ax = self.axes
+
+        if self.is_proj_cylindrical:
+            xoffset, yoffset = self.gmt_label_offsets
+
+            xticks = []
+            ylims = []
+            for m in sorted(meridians.keys()):
+                lines, labels = meridians[m]
+                for line in lines:
+                    # Need to shorten the meridian lines a bit
+                    ydata = line.get_ydata()
+                    xdata = line.get_xdata()
+                    start = ydata[0] + yoffset
+                    end = ydata[-1] - yoffset
+
+                    istart = 0
+                    iend = len(ydata) - 1
+                    it = np.nditer(ydata, flags=['f_index'])
+                    while not it.finished:
+                        if it[0] >= start:
+                            istart = it.index
+                            break
+                        it.iternext()
+
+                    it = np.nditer(ydata[::-1], flags=['f_index'])
+                    while not it.finished:
+                        if it[0] <= end:
+                            iend = it.index
+                            break
+                        it.iternext()
+                    ydata = ydata[istart:iend - istart]
+                    xdata = xdata[istart:iend - istart]
+                    line.set_ydata(ydata)
+                    line.set_xdata(xdata)
+
+                    xticks.append([xdata[0], xdata[-1]])
+                    ylims.append([start, end])
+
+            # Make the offsets square
+            yoffset /= 1.5
+            xoffset = yoffset
+
+            if draw_fancy_borders:
+                # Tack on extra boxes for the meridian pass (the four corners)
+                xticks = [[xticks[0][0] - xoffset, xticks[0][1] - xoffset]] + \
+                    xticks + [[xticks[-1][0] + xoffset, xticks[-1][1] + xoffset]]
+                ylims = [copy(ylims[0])] + ylims + [copy(ylims[-1])]
+                for ylim in ylims:
+                    # shift bottom row down (rects are defined by lower-left corner)
+                    ylim[0] -= 0.5 * yoffset
+                    # shift top row up
+                    ylim[1] -= 0.45 * yoffset
+
+                lastxs = None
+                lastys = None
+                for i, (xs, ys) in enumerate(zip(xticks, ylims)):
+                    if not (lastxs is None and lastys is None):
+                        rects = zip(zip(lastxs, lastys), zip(xs, ys))
+                        color = 'w'
+                        if i % 2 == 0:
+                            color = 'k'
+                        for rect in rects:
+                            w = rect[1][0] - rect[0][0]
+                            r = Rectangle(rect[0], w, yoffset,
+                                alpha=1, antialiased=False,
+                                linewidth=fancy_linewidth, facecolor=color)
+                            ax.add_patch(r)
+                            fancyborder['meridians'].append(r)
+                    lastxs = xs
+                    lastys = ys
+
+            xlims = []
+            yticks = []
+            for i, p in enumerate(sorted(parallels.keys())):
+                lines, labels = parallels[p]
+                border = False
+                if i == 0 or i == len(parallels.keys()) - 1:
+                    border = True
+                for line in lines:
+                    xdata = line.get_xdata()
+                    ydata = line.get_ydata()
+
+                    if draw_fancy_borders and border:
+                        line.remove()
+
+                    xlims.append([xdata[0], xdata[-1]])
+                    # Shift slightly up to get things to line up
+                    yticks.append([
+                        ydata[0] + yoffset * 0.05,
+                        ydata[-1] + yoffset * 0.05])
+            for xlim in xlims:
+                xlim[0] -= xoffset
+
+            if draw_fancy_borders:
+                lastxs = None
+                lastys = None
+                for i, (xs, ys) in enumerate(zip(xlims, yticks)):
+                    if not (lastxs is None and lastys is None):
+                        rects = zip(zip(lastxs, lastys), zip(xs, ys))
+                        color = 'w'
+                        if i % 2 == 0:
+                            color = 'k'
+                        for rect in rects:
+                            h = rect[1][1] - rect[0][1]
+                            r = Rectangle(
+                                rect[0], xoffset, h, alpha=1, antialiased=False,
+                                linewidth=fancy_linewidth, facecolor=color)
+                            ax.add_patch(r)
+                            fancyborder['parallels'].append(r)
+                    lastxs = xs
+                    lastys = ys
+        elif self.is_proj_pseudocylindrical:
+            # Remove every other meridian label so it isn't so cramped
+            # Alternate top and bottom so every meridian is still labeled
+            for i, m in enumerate(sorted(meridians)):
+                lines, labels = meridians[m]
+
+                if labels:
+                    label = labels[(i % 2)]
+                    labels.remove(label)
+                    label.remove()
+        elif self.is_proj_polar:
+            # TODO polar doesn't look that great w/o fancy borders. maybe
+            # there's a way to mask out imshow without harming the data?
+            minx, maxx = None, None
+            miny, maxy = None, None
+            labeled = None
+            for p in sorted(parallels):
+                lines, labels = parallels[p]
+                if labels:
+                    labeled = (lines, labels)
+                for line in lines:
+                    xs = line.get_xdata()
+                    ys = line.get_ydata()
+                    if minx is None:
+                        minx = xs.min()
+                        maxx = xs.max()
+                        miny = ys.min()
+                        maxy = ys.max()
+                        continue
+                    minx = min(xs.min(), minx)
+                    maxx = max(xs.max(), maxx)
+                    miny = min(ys.min(), miny)
+                    maxy = max(ys.max(), maxy)
+
+            # Remove the outer parallel label
+            if labeled:
+                lines, labels = labeled
+                for label in labels:
+                    label.remove()
+
+                # The fancy border replaces the outer line
+                if draw_fancy_borders:
+                    for line in lines:
+                        line.remove()
+
+            w = maxx - minx
+            h = maxy - miny
+
+            cx = minx + w / 2.
+            cy = miny + h / 2.
+            ri = w / 2
+            ro = ri + w * 0.015
+            ra = (ro - ri) / 2
+            rmid = ri + ra
+            rlabel = ro + 3 * ra
+
+            if draw_fancy_borders:
+                fancyborder['circles'] = []
+
+                border_linewidth = 5
+                border_color = 'k'
+
+                inner = Circle((cx, cy), ri,
+                    facecolor='none', linewidth=1, edgecolor=border_color,
+                    zorder=110)
+                ax.add_patch(inner)
+                outer = Circle((cx, cy), ro,
+                    facecolor='none', linewidth=1, edgecolor=border_color,
+                    zorder=110)
+                ax.add_patch(outer)
+                blank = Circle((cx, cy), rmid,
+                    facecolor='none', linewidth=border_linewidth, edgecolor='w',
+                    zorder=100)
+                ax.add_patch(blank)
+
+                if self.is_proj_southern:
+                    theta1 = -29.2
+                    theta2 = -10.8
+                else:
+                    theta1 = -9.1
+                    theta2 = 9.1
+
+                arcs = []
+                for i in range(0, 360, 40):
+                    arc = Arc((cx, cy), rmid * 2, rmid * 2, i, theta1, theta2,
+                        edgecolor=border_color, linewidth=border_linewidth,
+                        zorder=105)
+                    arcs.append(arc)
+                    ax.add_patch(arc)
+
+                fancyborder['circles'].append(inner)
+                fancyborder['circles'].append(outer)
+                fancyborder['circles'].append(blank)
+                fancyborder['circles'].append(arcs)
+
+            label_font_size = None
+            for m in sorted(meridians):
+                lines, labels = meridians[m]
+
+                # Also get the label font size
+                for label in labels:
+                    if label_font_size is None:
+                        label_font_size = label.get_fontsize()
+                    label.remove()
+
+                label_text = gmt_label_fmt(m)
+
+                # Flip the bottom-half of the labels to face out for legibility
+                if self.is_proj_southern:
+                    rotation = -m
+                    if 90 < m and m < 270:
+                        rotation = 180 - m
+                else:
+                    rotation = 180 + m
+                    if (-90 < m and m < 90) or (270 < m and m < 360):
+                        rotation = m
+
+                for line in lines:
+                    coords = line.get_xydata()
+
+                    # Trim the meridian lines
+                    # Meridian lines are drawn from the north pole out. This
+                    # means the direction of the lines is flipped for the north
+                    # and south poles.
+                    r2 = ri ** 2
+                    if self.is_proj_southern:
+                        for i, (x, y) in enumerate(coords):
+                            if (x - cx) ** 2 + (y - cy) ** 2 >= r2:
+                                break
+                        line.set_xdata(coords[:i, 0])
+                        line.set_ydata(coords[:i, 1])
+                    else:
+                        for i, (x, y) in enumerate(coords):
+                            if (x - cx) ** 2 + (y - cy) ** 2 < r2:
+                                break
+                        line.set_xdata(coords[i:, 0])
+                        line.set_ydata(coords[i:, 1])
+
+                    # We know the line given coords[0] and coords[i]. We want to
+                    # extend to the distance rlabel
+                    pa = [cx, cy]
+                    pb = coords[i]
+                    theta = atan2(pb[1] - pa[1], pb[0] - pa[0])
+                    tx = pa[0] + rlabel * cos(theta)
+                    ty = pa[1] + rlabel * sin(theta)
+
+                    ax.text(tx, ty, label_text,
+                        horizontalalignment='center',
+                        verticalalignment='center', rotation=rotation,
+                        fontsize=label_font_size, zorder=200)
+        else:
+            LOG.error(u'Fancy borders and graticule editing is not yet '
+                'implemented for the {0} projection.'.format(self.projection))
+        return fancyborder
+
+
 def main(argv):
+    LOG.info('Creating basemap')
+
     proj = 'robin'
     if proj == 'mercator':
         lon0 = 25
-        m = create_map(1, None, projection='merc',
-                       llcrnrlat=-80, llcrnrlon=lon0,
-                       urcrnrlat=89, urcrnrlon=lon0 + 360)
+        bm = ETOPOBasemap(projection='merc',
+                   llcrnrlat=-80, llcrnrlon=lon0,
+                   urcrnrlat=89, urcrnrlon=lon0 + 360)
+        bm.draw_etopo(1, None)
     elif proj == 'robin':
-        m = create_map(1, None, projection='robin', lon_0=180)
+        bm = ETOPOBasemap(projection='robin', lon_0=180)
+        bm.draw_etopo(1, None)
 
     plt.savefig(
         'etopo.png',
         dpi=preset_dpi('480'), format='png',
-        transparent=True, bbox_inches='tight', pad_inches=0)
+        transparent=True, bbox_inches='tight', pad_inches=0.1)
 
     return 0
 

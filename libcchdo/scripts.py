@@ -906,23 +906,8 @@ plot_parsers = plot_parser.add_subparsers(title='plotters')
 
 def plot_etopo(args):
     """Plot the world with ETOPO bathymetry."""
-    from libcchdo.plot import etopo
-
-    lon0 = -90
-    m = etopo.create_map(
-        args.minutes, 3, 
-        projection=args.projection,
-        llcrnrlat=-89, llcrnrlon=lon0,
-        urcrnrlat=89, urcrnrlon=lon0 + 360)
-    m.drawparallels(range(-90, 90, 10), 'k', linewidth=0.1)
-    m.drawmeridians(range(lon0, lon0 + 360, 20), 'k', linewidth=0.1)
-    if args.fill_continents:
-        m.fillcontinents(color='k')
-
-    etopo.plt.savefig(args.output_filename, 
-        dpi=etopo.preset_dpi(str(args.width)),
-        format='png', transparent=True, bbox_inches='tight', pad_inches=0)
-    return 0
+    from libcchdo.tools import plot_etopo
+    plot_etopo(args)
 
 
 plot_etopo_parser = plot_parsers.add_parser(
@@ -931,21 +916,42 @@ plot_etopo_parser = plot_parsers.add_parser(
 plot_etopo_parser.set_defaults(
     main=plot_etopo)
 plot_etopo_parser.add_argument(
-    'minutes', type=int, nargs='?', default=1, choices=[1, 2, 5, 30, 60], 
-    help='The desired resolution of the ETOPO grid data in minutes')
+    'minutes', type=int, nargs='?', default=5, choices=[1, 2, 5, 30, 60], 
+    help='The desired resolution of the ETOPO grid data in minutes '
+         '(default: 5)')
 plot_etopo_parser.add_argument(
     '--width', type=int, default=720, choices=[240, 320, 480, 720, 1024],
-    help='The desired width in pixels of the resulting plot image')
+    help='The desired width in pixels of the resulting plot image '
+         '(default: 720)')
 plot_etopo_parser.add_argument(
     '--fill_continents', type=bool, default=False,
-    help='Whether to fill the continent interiors with solid black')
+    help='Whether to fill the continent interiors with solid black '
+         '(default: False)')
 plot_etopo_parser.add_argument(
-    '--projection', default='merc', choices=['merc', 'robin'],
-    help='The projection of map to use')
+    '--projection', default='merc',
+    choices=['merc', 'robin', 'npstere', 'spstere', ],
+    help='The projection of map to use (default: merc)')
 plot_etopo_parser.add_argument(
-    '--output_filename', default='etopo.png',
-    help='Name of the output file')
-
+    '--cmap', default='cberys',
+    choices=['cberys', 'gray'],
+    help='The colormap to use for the ETOPO data (default: cberys)')
+plot_etopo_parser.add_argument(
+    '--output-filename', default='etopo.png',
+    help='Name of the output file (default: etopo.png)')
+_llcrnrlat = -89
+# Chosen so that the date line will be centered
+_llcrnrlon = 25
+plot_etopo_parser.add_argument(
+    '--bounds-cylindrical', type=float, nargs=4,
+    default=[_llcrnrlon, _llcrnrlat, 360 + _llcrnrlon, -_llcrnrlat],
+    help='The boundaries of the map as '
+         '[llcrnrlon, llcrnrlat, urcrnrlon, urcrnrlat]')
+# TODO these options need to be matched with the projection
+plot_etopo_parser.add_argument(
+    '--bounds-elliptical', type=float, nargs=1,
+    default=180,
+    help='The center meridian of the map lon_0 (default: 180 centers the '
+        'Pacific Ocean)')
 
 misc_parser = hydro_subparsers.add_parser(
     'misc', help='Miscellaneous')

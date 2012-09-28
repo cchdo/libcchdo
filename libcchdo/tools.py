@@ -9,6 +9,10 @@ import filecmp
 
 from tempfile import mkdtemp
 
+import numpy as np
+
+from sqlalchemy.sql import or_, distinct
+
 from libcchdo import LOG, config, StringIO
 from libcchdo.db import connect
 from libcchdo.db.model import legacy
@@ -24,8 +28,6 @@ import libcchdo.formats.ctd.exchange as ctdex
 import libcchdo.formats.ctd.sbe9 as sbe
 import libcchdo.formats.ctd.zip.netcdf_oceansites as ctdzipnc_os
 import libcchdo.formats.ctd.zip.exchange as ctdzipex
-
-from sqlalchemy.sql import or_, distinct
 
 
 def _get_legacy_parameter(session, parameter):
@@ -579,3 +581,53 @@ def sbe_to_ctd_exchange(args):
             output = output +  '_ct1.csv'
 
         _single_file(args.files, salt, temp, output)
+
+
+def plot_etopo(args):
+    from libcchdo.plot import etopo
+    from matplotlib import cm
+
+    etopo.rc('font',
+        **{
+            'family': 'sans-serif',
+            'sans-serif': ['Helvetica'],
+        })
+
+    bm = etopo.ETOPOBasemap.new_from_argparser(args)
+    if args.cmap == 'gray':
+        cmtopofn = etopo.colormap_grayscale
+    elif args.cmap == 'cberys':
+        cmtopofn = etopo.colormap_cberys
+    else:
+        cmtopofn = etopo.colormap_cberys
+    bm.draw_etopo(args.minutes, 3, cmtopo=cmtopofn)
+    if args.fill_continents:
+        bm.fillcontinents(color='k')
+
+    graticules = bm.draw_graticules(args)
+    fancy_border = bm.gmt_graticules(graticules)
+    bm.hide_axes_borders()
+
+    # Set a nice title
+    if bm.is_proj_cylindrical:
+        title_text = 'from {} to {}'.format(
+            args.bounds_cylindrical[0:2], args.bounds_cylindrical[2:4])
+    elif bm.is_proj_pseudocylindrical:
+        title_text = 'centered on {}'.format(args.bounds_elliptical)
+    else:
+        title_text = None
+    title_text = ' '.join(filter(None, [bm.projection, title_text]))
+    bm.add_title(title_text)
+
+    LOG.info('Rasterizing')
+
+    try:
+        padding = 0.1
+        etopo.plt.savefig(args.output_filename,
+            dpi=etopo.preset_dpi(str(args.width)),
+            transparent=True,
+            format='png', bbox_inches='tight', pad_inches=padding)
+    except AssertionError:
+        LOG.info(
+            u'Matplotlib has a problem with plotting Basemaps that have '
+            'nothing on them.')
