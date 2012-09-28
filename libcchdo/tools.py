@@ -585,6 +585,7 @@ def sbe_to_ctd_exchange(args):
 
 def plot_etopo(args):
     from libcchdo.plot import etopo
+    from matplotlib import cm
 
     etopo.rc('font',
         **{
@@ -593,7 +594,13 @@ def plot_etopo(args):
         })
 
     bm = etopo.ETOPOBasemap.new_from_argparser(args)
-    bm.draw_etopo(args.minutes, 3)
+    if args.cmap == 'gray':
+        cmtopofn = etopo.colormap_grayscale
+    elif args.cmap == 'cberys':
+        cmtopofn = etopo.colormap_cberys
+    else:
+        cmtopofn = etopo.colormap_cberys
+    bm.draw_etopo(args.minutes, 3, cmtopo=cmtopofn)
     if args.fill_continents:
         bm.fillcontinents(color='k')
 

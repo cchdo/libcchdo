@@ -373,11 +373,7 @@ def etopo(arcmins=1, version='ice', force_resample=False, cache_allowed=True):
     return (topo, lons, lats, offset)
 
 
-def colormap_cberys(topo, etopo_offset=0):
-    """ Gives a colormap based on the topo range and offset that is based off
-        an original color scheme created by Carolina Berys.
-
-    """
+def etopo_ground_point(topo, etopo_offset=0):
     mint = float(np.min(topo))
     maxt = float(np.max(topo))
 
@@ -392,13 +388,49 @@ def colormap_cberys(topo, etopo_offset=0):
     LOG.debug('topo range [%d, %d]' % (mint, maxt))
     LOG.debug(
         'offset: %f = shift: %f = ground: %f' % (etopo_offset, shift, groundpt))
+    return groundpt
 
+
+def colormap_grayscale(topo, etopo_offset=0):
+    """Return a colormap based on the topo range and offset that grayscale.
+
+    """
+    LOG.info(u'Generating grayscale colormap for ETOPO')
+    locolor = (0.3, 0.3, 0.3)
+    hicolor = (1, 1, 1)
+    ground_color = (0, 0, 0)
+    mount_color = (0.1, 0.1, 0.1)
+
+    groundpt = etopo_ground_point(topo, etopo_offset=0)
+
+    colormap = LinearSegmentedColormap.from_list(
+        'cchdo_grayscale',
+        ((0, locolor),
+         (groundpt, hicolor),
+         (groundpt, ground_color),
+         (1, mount_color)
+        )
+    )
+    colormap.set_bad(color='k', alpha=0.0)
+    colormap.set_over(color='y')
+    colormap.set_under(color='c')
+    return colormap
+
+
+def colormap_cberys(topo, etopo_offset=0):
+    """ Gives a colormap based on the topo range and offset that is based off
+        an original color scheme created by Carolina Berys.
+
+    """
+    LOG.info(u'Generating cberys colormap for ETOPO')
     locolor = (0.173, 0.263, 0.898)
     locolor = (0.130, 0.220, 0.855)
     hicolor = (0.549019607843137, 0.627450980392157, 1)
     hicolor = (0.509019607843137, 0.587450980392157, 1)
     ground_color = (0, 0, 0)
     mount_color = (0.1, 0.1, 0.1)
+
+    groundpt = etopo_ground_point(topo, etopo_offset=0)
 
     colormap = LinearSegmentedColormap.from_list(
         'cchdo_cberys',

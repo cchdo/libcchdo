@@ -932,6 +932,10 @@ plot_etopo_parser.add_argument(
     choices=['merc', 'robin', 'npstere', 'spstere', ],
     help='The projection of map to use (default: merc)')
 plot_etopo_parser.add_argument(
+    '--cmap', default='cberys',
+    choices=['cberys', 'gray'],
+    help='The colormap to use for the ETOPO data (default: cberys)')
+plot_etopo_parser.add_argument(
     '--output-filename', default='etopo.png',
     help='Name of the output file (default: etopo.png)')
 _llcrnrlat = -89
