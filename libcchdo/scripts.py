@@ -932,7 +932,7 @@ plot_etopo_parser.add_argument(
     choices=['merc', 'robin', 'npstere', 'spstere', ],
     help='The projection of map to use (default: merc)')
 plot_etopo_parser.add_argument(
-    '--output_filename', default='etopo.png',
+    '--output-filename', default='etopo.png',
     help='Name of the output file (default: etopo.png)')
 _llcrnrlat = -89
 # Chosen so that the date line will be centered

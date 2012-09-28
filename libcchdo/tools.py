@@ -4,13 +4,10 @@ import os
 import os.path
 import shutil
 from tarfile import TarFile
-from copy import copy
 
 import filecmp
 
 from tempfile import mkdtemp
-
-from matplotlib.patches import Rectangle
 
 import numpy as np
 
@@ -586,254 +583,44 @@ def sbe_to_ctd_exchange(args):
         _single_file(args.files, salt, temp, output)
 
 
-def _gmt_label_offsets(basemap):
-    yoffset = (basemap.urcrnry - basemap.llcrnry) / 100. * 2.5 * basemap.aspect
-    xoffset = (basemap.urcrnrx - basemap.llcrnrx) / 100. * 2
-    return (xoffset, yoffset)
-
-
-def create_map_from_argument_parser(args):
-    """Creates a map using the arguments from an ArgumentParser."""
-    from libcchdo.plot import etopo
-
-    if etopo.is_proj_cylindrical(args.projection):
-        m = etopo.create_map(
-            args.minutes, 3, 
-            projection=args.projection,
-            llcrnrlat=args.bounds_cylindrical[1],
-            llcrnrlon=args.bounds_cylindrical[0],
-            urcrnrlat=args.bounds_cylindrical[3],
-            urcrnrlon=args.bounds_cylindrical[2])
-    elif etopo.is_proj_pseudocylindrical(args.projection):
-        m = etopo.create_map(
-            args.minutes, 3, 
-            projection=args.projection,
-            lon_0=args.bounds_elliptical)
-    elif etopo.is_proj_polar(args.projection):
-        m = etopo.create_map(
-            args.minutes, 3, 
-            projection=args.projection,
-            boundinglat=60,
-            lon_0=(args.bounds_elliptical + 180) % 360)
-    else:
-        LOG.error(u'Unhandled projection {0}'.format(args.projection))
-        return (None, None, None)
-
-    label_parallels = [1, 1, 0, 0]
-    label_meridians = [0, 0, 1, 1]
-    label_font_size = 9
-    label_font_color = 'k'
-    label_ny = 5
-    label_nx = 6
-
-    xoffset, yoffset = _gmt_label_offsets(m)
-
-    if etopo.is_proj_cylindrical(args.projection):
-        parallels = np.linspace(
-            args.bounds_cylindrical[3], args.bounds_cylindrical[1], label_ny)
-        meridians = np.linspace(
-            args.bounds_cylindrical[2], args.bounds_cylindrical[0], label_nx)
-    elif etopo.is_proj_pseudocylindrical(args.projection):
-        parallels = range(-90, 90, 20)
-        meridians = range(
-            args.bounds_elliptical, args.bounds_elliptical + 360, 20)
-    else:
-        parallels = [60, 70, 80, ]
-        meridians = range(0, 360, 20)
-
-    parallels = m.drawparallels(parallels, label_font_color, 0.1,
-        fmt=etopo.gmt_label_fmt, xoffset=xoffset, yoffset=yoffset,
-        labels=label_parallels, fontsize=label_font_size)
-    meridians = m.drawmeridians(meridians, label_font_color, 0.1,
-        fmt=etopo.gmt_label_fmt, xoffset=xoffset, yoffset=yoffset,
-        labels=label_meridians, fontsize=label_font_size)
-
-    if args.fill_continents:
-        m.fillcontinents(color='k')
-
-    return (m, parallels, meridians)
-
-
-def _edit_graticules(m, parallels, meridians,
-                     solid_graticules=False, draw_fancy_borders=True):
-    """Edit the graticules of the basemap."""
-    from libcchdo.plot import etopo
-    fancy_linewidth=1
-    fancyborder = {
-        'meridians': [],
-        'parallels': [],
-    }
-
-    if not etopo.is_proj_cylindrical(m.projection):
-        LOG.error(u'Fancy borders and editing is not yet implemented for '
-            'non-cylindrical projections.')
-        return fancyborder
-
-    ax = m._check_ax()
-    xoffset, yoffset = _gmt_label_offsets(m)
-
-    xticks = []
-    ylims = []
-    for m in sorted(meridians.keys()):
-        lines, labels = meridians[m]
-        for line in lines:
-            if solid_graticules:
-                line.set_dashes((None, None))
-
-            # Need to shorten the meridian lines a bit
-            ydata = line.get_ydata()
-            xdata = line.get_xdata()
-            start = ydata[0] + yoffset
-            end = ydata[-1] - yoffset
-
-            istart = 0
-            iend = len(ydata) - 1
-            it = np.nditer(ydata, flags=['f_index'])
-            while not it.finished:
-                if it[0] >= start:
-                    istart = it.index
-                    break
-                it.iternext()
-
-            it = np.nditer(ydata[::-1], flags=['f_index'])
-            while not it.finished:
-                if it[0] <= end:
-                    iend = it.index
-                    break
-                it.iternext()
-            ydata = ydata[istart:iend - istart]
-            xdata = xdata[istart:iend - istart]
-            line.set_ydata(ydata)
-            line.set_xdata(xdata)
-
-            xticks.append([xdata[0], xdata[-1]])
-            ylims.append([start, end])
-
-    # Make the offsets square
-    yoffset /= 1.5
-    xoffset = yoffset
-
-    if draw_fancy_borders:
-        # Tack on extra boxes for the meridian pass (the four corners)
-        xticks = [[xticks[0][0] - xoffset, xticks[0][1] - xoffset]] + \
-            xticks + [[xticks[-1][0] + xoffset, xticks[-1][1] + xoffset]]
-        ylims = [copy(ylims[0])] + ylims + [copy(ylims[-1])]
-        for ylim in ylims:
-            # shift bottom row down (rects are defined by lower-left corner)
-            ylim[0] -= 0.5 * yoffset
-            # shift top row up
-            ylim[1] -= 0.45 * yoffset
-
-        lastxs = None
-        lastys = None
-        for i, (xs, ys) in enumerate(zip(xticks, ylims)):
-            if not (lastxs is None and lastys is None):
-                rects = zip(zip(lastxs, lastys), zip(xs, ys))
-                color = 'w'
-                if i % 2 == 0:
-                    color = 'k'
-                for rect in rects:
-                    w = rect[1][0] - rect[0][0]
-                    r = Rectangle(rect[0], w, yoffset,
-                        alpha=1, antialiased=False, linewidth=fancy_linewidth,
-                        facecolor=color)
-                    ax.add_patch(r)
-                    fancyborder['meridians'].append(r)
-            lastxs = xs
-            lastys = ys
-
-    xlims = []
-    yticks = []
-    for i, p in enumerate(sorted(parallels.keys())):
-        lines, labels = parallels[p]
-        border = False
-        if i == 0 or i == len(parallels.keys()) - 1:
-            border = True
-        for line in lines:
-            if solid_graticules:
-                line.set_dashes((None, None))
-
-            xdata = line.get_xdata()
-            ydata = line.get_ydata()
-
-            if draw_fancy_borders and border:
-                line.remove()
-
-            xlims.append([xdata[0], xdata[-1]])
-            # Shift slightly up to get things to line up
-            yticks.append([
-                ydata[0] + yoffset * 0.05,
-                ydata[-1] + yoffset * 0.05])
-    for xlim in xlims:
-        xlim[0] -= xoffset
-
-    if draw_fancy_borders:
-        lastxs = None
-        lastys = None
-        for i, (xs, ys) in enumerate(zip(xlims, yticks)):
-            if not (lastxs is None and lastys is None):
-                rects = zip(zip(lastxs, lastys), zip(xs, ys))
-                color = 'w'
-                if i % 2 == 0:
-                    color = 'k'
-                for rect in rects:
-                    h = rect[1][1] - rect[0][1]
-                    r = Rectangle(rect[0], xoffset, h,
-                        alpha=1, antialiased=False, linewidth=fancy_linewidth,
-                        facecolor=color)
-                    ax.add_patch(r)
-                    fancyborder['parallels'].append(r)
-            lastxs = xs
-            lastys = ys
-    return fancyborder
-
-
 def plot_etopo(args):
     from libcchdo.plot import etopo
-    plt = etopo.plt
 
-    from matplotlib import rc
-    rc('font',
+    etopo.rc('font',
         **{
             'family': 'sans-serif',
             'sans-serif': ['Helvetica'],
         })
-    
-    if etopo.is_proj_cylindrical(args.projection):
-        title_text = '{}; {}'.format(
+
+    bm = etopo.ETOPOBasemap.new_from_argparser(args)
+    bm.draw_etopo(args.minutes, 3)
+    if args.fill_continents:
+        bm.fillcontinents(color='k')
+
+    graticules = bm.draw_graticules(args)
+    fancy_border = bm.gmt_graticules(graticules)
+    bm.hide_axes_borders()
+
+    # Set a nice title
+    if bm.is_proj_cylindrical:
+        title_text = 'from {} to {}'.format(
             args.bounds_cylindrical[0:2], args.bounds_cylindrical[2:4])
-    elif etopo.is_proj_pseudocylindrical(args.projection):
-        title_text = 'center {}'.format(args.bounds_elliptical)
+    elif bm.is_proj_pseudocylindrical:
+        title_text = 'centered on {}'.format(args.bounds_elliptical)
     else:
-        title_text = args.projection
-    title_text = 'This is a plot of the world ' + title_text
+        title_text = None
+    title_text = ' '.join(filter(None, [bm.projection, title_text]))
+    bm.add_title(title_text)
 
-    m, parallels, meridians = create_map_from_argument_parser(args)
+    LOG.info('Rasterizing')
 
-    ax = m._check_ax()
-    ax.set_autoscale_on(True)
-    if etopo.is_proj_cylindrical(args.projection):
-        ax.margins(0.06, 0.03)
-    elif etopo.is_proj_pseudocylindrical(args.projection):
-        ax.margins(0.05, 0.06)
-    elif etopo.is_proj_polar(args.projection):
-        ax.margins(0.03, 0.03)
-    else:
-        LOG.warn(
-            u'Cannot set margins for unhandled projection {0}'.format(
-                args.projection))
-
-    ax.set_title(title_text, size=18, position=(0.5, 1), fontweight='bold')
-
-    fancyborder = _edit_graticules(m, parallels, meridians)
-
-    LOG.info('rasterizing')
-
-    plt.savefig(args.output_filename,
-        dpi=etopo.preset_dpi(str(args.width)),
-        # XXX
-        #transparent=True,
-        format='png', bbox_inches='tight', pad_inches=0.1)
-
-    # XXX
-    #import pdb; pdb.set_trace()
+    try:
+        padding = 0.1
+        etopo.plt.savefig(args.output_filename,
+            dpi=etopo.preset_dpi(str(args.width)),
+            transparent=True,
+            format='png', bbox_inches='tight', pad_inches=padding)
+    except AssertionError:
+        LOG.info(
+            u'Matplotlib has a problem with plotting Basemaps that have '
+            'nothing on them.')
