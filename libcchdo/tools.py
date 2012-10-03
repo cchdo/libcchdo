@@ -584,50 +584,23 @@ def sbe_to_ctd_exchange(args):
 
 
 def plot_etopo(args):
-    from libcchdo.plot import etopo
-    from matplotlib import cm
+    from libcchdo.plot.etopo import ETOPOBasemap
 
-    etopo.rc('font',
-        **{
-            'family': 'sans-serif',
-            'sans-serif': ['Helvetica'],
-        })
+    bm = ETOPOBasemap.new_from_argparser(args)
 
-    bm = etopo.ETOPOBasemap.new_from_argparser(args)
-    if args.cmap == 'gray':
-        cmtopofn = etopo.colormap_grayscale
-    elif args.cmap == 'cberys':
-        cmtopofn = etopo.colormap_cberys
+    label_font_size = 15
+    title_font_size = 28
+    if args.title:
+        axheight = 0.945
     else:
-        cmtopofn = etopo.colormap_cberys
-    bm.draw_etopo(args.minutes, 3, cmtopo=cmtopofn)
-    if args.fill_continents:
-        bm.fillcontinents(color='k')
+        axheight = 1.0
 
-    graticules = bm.draw_graticules(args)
-    fancy_border = bm.gmt_graticules(graticules)
-    bm.hide_axes_borders()
+    ratio = bm.resize_figure_to_pixel_width(args.width, axheight)
+    if ratio < 1:
+        label_font_size *= ratio
+        title_font_size *= ratio
 
-    # Set a nice title
-    if bm.is_proj_cylindrical:
-        title_text = 'from {} to {}'.format(
-            args.bounds_cylindrical[0:2], args.bounds_cylindrical[2:4])
-    elif bm.is_proj_pseudocylindrical:
-        title_text = 'centered on {}'.format(args.bounds_elliptical)
-    else:
-        title_text = None
-    title_text = ' '.join(filter(None, [bm.projection, title_text]))
-    bm.add_title(title_text)
-
-    LOG.info('Rasterizing')
-
-    try:
-        padding = 0.1
-        etopo.plt.savefig(args.output_filename,
-            dpi=etopo.preset_dpi(str(args.width)),
-            transparent=True,
-            format='png', bbox_inches='tight', pad_inches=padding)
-    except AssertionError:
-        LOG.info(
-            u'Matplotlib has a problem with plotting Basemaps that have '
-            'nothing on them.')
+    if args.title:
+        bm.add_title(args.title, title_font_size)
+    bm.draw_gmt_fancy_border(label_font_size)
+    return bm

@@ -906,8 +906,24 @@ plot_parsers = plot_parser.add_subparsers(title='plotters')
 
 def plot_etopo(args):
     """Plot the world with ETOPO bathymetry."""
+    from libcchdo.fns import read_arbitrary
     from libcchdo.tools import plot_etopo
-    plot_etopo(args)
+
+    bm = plot_etopo(args)
+    if args.any_file:
+        df = read_arbitrary(args.any_file)
+
+        lats = df['LATITUDE']
+        lons = df['LONGITUDE']
+        if not (lats and lons):
+            LOG.error(u'Cannot plot file without LATITUDE and LONGITUDE data')
+            return
+        xs, ys = bm(lons.values, lats.values)
+
+        dots = bm.scatter(xs, ys, **bm.GMT_STYLE_DOTS)
+        line = bm.plot(xs, ys, **bm.GMT_STYLE_LINE)
+
+    bm.savefig(args.output_filename)
 
 
 plot_etopo_parser = plot_parsers.add_parser(
@@ -935,6 +951,12 @@ plot_etopo_parser.add_argument(
     '--cmap', default='cberys',
     choices=['cberys', 'gray'],
     help='The colormap to use for the ETOPO data (default: cberys)')
+plot_etopo_parser.add_argument(
+    '--title', type=str, 
+    help='A title for the plot')
+plot_etopo_parser.add_argument(
+    '--any-file', type=argparse.FileType('r'), nargs='?',
+    help='Name of an input file to plot points for')
 plot_etopo_parser.add_argument(
     '--output-filename', default='etopo.png',
     help='Name of the output file (default: etopo.png)')
