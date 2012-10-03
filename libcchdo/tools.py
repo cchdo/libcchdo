@@ -584,65 +584,23 @@ def sbe_to_ctd_exchange(args):
 
 
 def plot_etopo(args):
-    from libcchdo.plot import etopo
-    from matplotlib import cm
+    from libcchdo.plot.etopo import ETOPOBasemap
 
-    etopo.rc('font',
-        **{
-            'family': 'sans-serif',
-            'sans-serif': ['Helvetica'],
-        })
+    bm = ETOPOBasemap.new_from_argparser(args)
+
     label_font_size = 15
     title_font_size = 28
-
-    bm = etopo.ETOPOBasemap.new_from_argparser(args)
-    if args.cmap == 'gray':
-        cmtopofn = etopo.colormap_grayscale
-    elif args.cmap == 'cberys':
-        cmtopofn = etopo.colormap_cberys
+    if args.title:
+        axheight = 0.945
     else:
-        cmtopofn = etopo.colormap_cberys
-    bm.draw_etopo(args.minutes, 3, cmtopo=cmtopofn)
-    if args.fill_continents:
-        bm.fillcontinents(color='k')
-    graticule_ticks = bm.get_graticule_ticks()
-    graticules = bm.draw_graticules(
-        graticule_ticks[0], graticule_ticks[1],
-        label_font_size=label_font_size)
-    fancy_border = bm.gmt_graticules(graticules)
+        axheight = 1.0
 
-    # Resize the figure to approximate dpi
-    fig = etopo.plt.gcf()
-    figsize = fig.get_size_inches()
-    ratio = (args.width / fig.dpi) / figsize[0]
-    figsize = [ratio * x for x in figsize]
-    figsize[1] = figsize[0]
-    fig.set_size_inches(*figsize)
-
+    ratio = bm.resize_figure_to_pixel_width(args.width, axheight)
     if ratio < 1:
         label_font_size *= ratio
         title_font_size *= ratio
 
-    # change axes position so it approximately fits the entire figure
-    axheight = 1.0
     if args.title:
         bm.add_title(args.title, title_font_size)
-        axheight = 0.945
-
-    xoff = 0.00
-    yoff = 0.01
-    bm.axes.set_position([xoff, yoff, 1.0 - xoff * 2, axheight - yoff * 2])
-
-    LOG.info('Rasterizing...')
-    try:
-        extent = 'tight'
-        etopo.plt.savefig(
-            args.output_filename,
-            dpi=fig.dpi,
-            transparent=True,
-            format='png',
-            bbox_inches=extent)
-    except AssertionError:
-        LOG.info(
-            u'Matplotlib has a problem with plotting Basemaps that have '
-            'nothing on them.')
+    bm.draw_gmt_fancy_border(label_font_size)
+    return bm

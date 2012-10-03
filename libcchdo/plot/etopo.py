@@ -491,9 +491,15 @@ def preset_dpi(level='240'):
 
 
 class ETOPOBasemap(Basemap):
+    GMT_STYLE_DOTS = dict(
+        s=18, c='r', antialiased=True, linewidth=0.4, zorder=400)
+
+    GMT_STYLE_LINE = dict(c='k', linewidth=1, antialiased=True, zorder=300)
+
     def __init__(self, **kwargs):
         super(ETOPOBasemap, self).__init__(**kwargs)
         self.hide_axes_borders()
+        self._graticules_labeled = False
 
     @classmethod
     def new_from_argparser(cls, args, **kwargs):
@@ -523,7 +529,13 @@ class ETOPOBasemap(Basemap):
         else:
             LOG.error(u'Unhandled projection {0}'.format(args.projection))
             newcls = None
+
+        newcls.draw_from_argparser(args)
         return newcls
+
+    @property
+    def fig(self):
+        return plt.gcf()
 
     @property
     def axes(self):
@@ -531,12 +543,13 @@ class ETOPOBasemap(Basemap):
         return self._check_ax()
 
     def add_title(self, text, size=28):
-        """Add a title."""
+        """Add a title to the plot."""
         # TODO get the title to be bold. fontweight doesn't work...
         self.axes.set_title(
             text, size=size, position=(0.5, 1), fontweight='bold')
 
     def hide_axes_borders(self):
+        """Hide and remove borders that have been added to the plot."""
         # This call should cover projections that have rectangular borders
         self.axes.set_axis_off()
 
@@ -620,7 +633,52 @@ class ETOPOBasemap(Basemap):
 
         self.imshow(topo, cmap=cmtopo(topo, etopo_offset))
 
+    def draw_from_argparser(self, args):
+        """Draw based on argparser arguments."""
+        if args.cmap == 'gray':
+            cmtopofn = colormap_grayscale
+        elif args.cmap == 'cberys':
+            cmtopofn = colormap_cberys
+        else:
+            cmtopofn = colormap_cberys
+        self.draw_etopo(args.minutes, 3, cmtopo=cmtopofn)
+
+        if args.fill_continents:
+            self.fillcontinents(color='k')
+
+    def set_axes_limits(self, ax=None):
+        """Extend Basemap set axes limits to account for graticule labels.
+
+        Expand the margin if the graticules are labeled.
+
+        """
+        super(ETOPOBasemap, self).set_axes_limits(ax)
+        if not self._graticules_labeled:
+            return
+
+        # the axis margins need to be shifted so they show up.
+        if self.is_proj_cylindrical:
+            margins = (0.07, 0.02)
+        elif self.is_proj_pseudocylindrical:
+            margins = (0.05, 0.06)
+        elif self.is_proj_polar:
+            margins = (0.03, 0.03)
+        else:
+            LOG.warn(
+                u'Cannot set margins for unhandled projection {0}'.format(
+                    self.projection))
+            return 
+
+        LOG.debug(
+            u'Set axis margins for projection {0} to {1}'.format(
+                self.projection, margins))
+        # Let the plot axes settle around the plot first before adding
+        # margins
+        self.axes.autoscale()
+        self.axes.margins(*margins)
+        
     def get_graticule_ticks(self, label_nx=6, label_ny=5):
+        """Return tick marks for graticules within the current bounds."""
         if self.is_proj_cylindrical:
             parallels = np.linspace(self.urcrnrlat, self.llcrnrlat, label_ny)
             meridians = np.linspace(self.urcrnrlon, self.llcrnrlon, label_nx)
@@ -676,27 +734,9 @@ class ETOPOBasemap(Basemap):
             fmt=gmt_label_fmt, xoffset=xoffset, yoffset=yoffset,
             labels=label_meridians, fontsize=label_font_size)
 
-        # If the graticules are labelled, the axis margins need to be shifted so
-        # they show up.
-        margins = None
-        if self.is_proj_cylindrical:
-            margins = (0.07, 0.02)
-        elif self.is_proj_pseudocylindrical:
-            margins = (0.05, 0.06)
-        elif self.is_proj_polar:
-            margins = (0.03, 0.03)
-        else:
-            LOG.warn(
-                u'Cannot set margins for unhandled projection {0}'.format(
-                    self.projection))
-        if margins:
-            LOG.debug('Setting axis margins for projection {0} to {1}'.format(
-                self.projection, margins))
-            # Let the plot axes settle around the plot first before adding
-            # margins
-            self.axes.autoscale()
-            self.axes.margins(*margins)
-        self.hide_axes_borders()
+        self._graticules_labeled = any(label_parallels + label_meridians)
+
+        self.set_axes_limits()
         return artists
 
     def gmt_graticules(self, graticules, draw_fancy_borders=True):
@@ -834,6 +874,8 @@ class ETOPOBasemap(Basemap):
         elif self.is_proj_polar:
             # TODO polar doesn't look that great w/o fancy borders. maybe
             # there's a way to mask out imshow without harming the data?
+            # perhaps
+            # self.round and self._clipcircle(ax, objs)
             minx, maxx = None, None
             miny, maxy = None, None
             labeled = None
@@ -977,6 +1019,56 @@ class ETOPOBasemap(Basemap):
             LOG.error(u'Fancy borders and graticule editing is not yet '
                 'implemented for the {0} projection.'.format(self.projection))
         return fancyborder
+
+    def set_gmt_font(self):
+        rc('font',
+            **{
+                'family': 'sans-serif',
+                'sans-serif': ['Helvetica'],
+            })
+
+    def draw_gmt_fancy_border(self, label_font_size=15):
+        """Draw a GMT fancy border around the map plot if able."""
+        self.set_gmt_font()
+        graticule_ticks = self.get_graticule_ticks()
+        graticules = self.draw_graticules(
+            graticule_ticks[0], graticule_ticks[1],
+            label_font_size=label_font_size)
+        fancy_border = self.gmt_graticules(graticules)
+        return graticule_ticks, graticules, fancy_border
+
+    def resize_figure_to_pixel_width(self, width, ax_height=1.0, ax_xoff=0.0,
+                                     ax_yoff=0.01):
+        """Resize the current figure to approximate the desired pixel width.
+
+        Also set axes to approximately fill the entire figure.
+
+        """
+        figsize = self.fig.get_size_inches()
+        ratio = (width / self.fig.dpi) / figsize[0]
+        figsize = [ratio * x for x in figsize]
+        figsize[1] = figsize[0]
+        self.fig.set_size_inches(*figsize)
+
+        self.axes.set_position(
+            [ax_xoff, ax_yoff, 1.0 - ax_xoff * 2, ax_height - ax_yoff * 2])
+        return ratio
+
+    def savefig(self, filename):
+        """Save the figure to a file."""
+        LOG.info('Rasterizing...')
+        try:
+            extent = 'tight'
+            plt.savefig(
+                filename,
+                dpi=self.fig.dpi,
+                transparent=True,
+                format='png',
+                bbox_inches=extent)
+        except AssertionError:
+            LOG.info(
+                u'Matplotlib has a problem with plotting Basemaps that have '
+                'nothing on them.')
 
 
 def main(argv):
