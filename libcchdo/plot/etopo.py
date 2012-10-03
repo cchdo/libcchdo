@@ -396,8 +396,8 @@ def colormap_grayscale(topo, etopo_offset=0):
 
     """
     LOG.info(u'Generating grayscale colormap for ETOPO')
-    locolor = (0.3, 0.3, 0.3)
-    hicolor = (1, 1, 1)
+    locolor = (0.55, 0.55, 0.55)
+    hicolor = (0.945, 0.945, 0.945)
     ground_color = (0, 0, 0)
     mount_color = (0.1, 0.1, 0.1)
 
@@ -491,21 +491,24 @@ def preset_dpi(level='240'):
 
 
 class ETOPOBasemap(Basemap):
+    def __init__(self, **kwargs):
+        super(ETOPOBasemap, self).__init__(**kwargs)
+        self.hide_axes_borders()
+
     @classmethod
-    def new_from_argparser(cls, args):
+    def new_from_argparser(cls, args, **kwargs):
         """Creates a map using the arguments from an ArgumentParser."""
-        boundinglat = None
         if is_proj_cylindrical(args.projection):
             newcls = cls(
                 projection=args.projection,
                 llcrnrlat=args.bounds_cylindrical[1],
                 llcrnrlon=args.bounds_cylindrical[0],
                 urcrnrlat=args.bounds_cylindrical[3],
-                urcrnrlon=args.bounds_cylindrical[2])
+                urcrnrlon=args.bounds_cylindrical[2], **kwargs)
         elif is_proj_pseudocylindrical(args.projection):
             newcls = cls(
                 projection=args.projection,
-                lon_0=args.bounds_elliptical)
+                lon_0=args.bounds_elliptical, **kwargs)
         elif is_proj_polar(args.projection):
             boundinglat = 60
             lon_0 = (args.bounds_elliptical + 180) % 360
@@ -515,13 +518,11 @@ class ETOPOBasemap(Basemap):
             newcls = cls(
                 projection=args.projection,
                 boundinglat=boundinglat,
-                lon_0=lon_0)
+                lon_0=lon_0, **kwargs)
+            newcls.boundinglat = boundinglat
         else:
             LOG.error(u'Unhandled projection {0}'.format(args.projection))
             newcls = None
-
-        if newcls:
-            newcls.boundinglat = boundinglat
         return newcls
 
     @property
@@ -529,10 +530,11 @@ class ETOPOBasemap(Basemap):
         """Return the Basemap's matplotlib.axes.Axes."""
         return self._check_ax()
 
-    def add_title(self, text):
+    def add_title(self, text, size=28):
         """Add a title."""
         # TODO get the title to be bold. fontweight doesn't work...
-        self.axes.set_title(text, size=18, position=(0.5, 1), fontweight='bold')
+        self.axes.set_title(
+            text, size=size, position=(0.5, 1), fontweight='bold')
 
     def hide_axes_borders(self):
         # This call should cover projections that have rectangular borders
@@ -566,8 +568,8 @@ class ETOPOBasemap(Basemap):
     def gmt_label_offsets(self):
         """Gives offsets to space fancy border labels away from the border."""
         if self.is_proj_cylindrical:
-            yoffset = (self.urcrnry - self.llcrnry) / 100. * 2.5 * self.aspect
-            xoffset = (self.urcrnrx - self.llcrnrx) / 100. * 2
+            yoffset = (self.urcrnry - self.llcrnry) / 100. * 2.6 * self.aspect
+            xoffset = (self.urcrnrx - self.llcrnrx) / 100. * 1.5
         elif self.is_proj_pseudocylindrical:
             yoffset = (self.urcrnry - self.llcrnry) / 100. * 2.5 * self.aspect
             xoffset = (self.urcrnrx - self.llcrnrx) / 100. * 1
@@ -618,56 +620,59 @@ class ETOPOBasemap(Basemap):
 
         self.imshow(topo, cmap=cmtopo(topo, etopo_offset))
 
-    def draw_graticules(self, args):
+    def get_graticule_ticks(self, label_nx=6, label_ny=5):
+        if self.is_proj_cylindrical:
+            parallels = np.linspace(self.urcrnrlat, self.llcrnrlat, label_ny)
+            meridians = np.linspace(self.urcrnrlon, self.llcrnrlon, label_nx)
+        elif self.is_proj_pseudocylindrical:
+            parallels = range(-90, 90, 20)
+            meridians = range(
+                self.urcrnrlon / 2, self.urcrnrlon / 2 + 360, 20)
+        else:
+            parallel_spacing = 10
+            if self.is_proj_southern:
+                parallels = range(self.boundinglat, -80, -parallel_spacing)
+            else:
+                parallels = range(self.boundinglat, 90, parallel_spacing)
+            meridians = range(0, 360, 20)
+        return meridians, parallels
+
+    def draw_graticules(self, meridian_ticks, parallel_ticks,
+                        label_font_size=15,
+                        label_font_color = 'k',
+                        label_meridians=[0, 0, 1, 1],
+                        label_parallels=[1, 1, 0, 0],
+                        line_width=0.10,
+                        line_solid=True,
+                        latmax=85):
         """Draw graticules on a Basemap according to an ArgumentParser.
 
         The label settings are set up so that gmt_graticules can do its job with
         less editing.
 
+        The default settings approximate GMT's fancy border settings.
+
+        Doesn't apply exactly to polar projections b/c the parallels don't get
+        labelled.
+
+        latmax - This is the effective inner-most ring for north pole
+            projections and the default matches GMT's setting.
+
         """
-        # specific settings to match GMT. Doesn't exactly apply to polar
-        # projections b/c the parallels don't get labelled.
-        # TODO allow customization
-        label_parallels = [1, 1, 0, 0]
-        label_meridians = [0, 0, 1, 1]
-        label_font_size = 8
-        label_font_color = 'k'
-        label_ny = 5
-        label_nx = 6
-        lines_solid = False
-        line_width = 0.1
-
-        if self.is_proj_cylindrical:
-            nparallels = np.linspace(self.urcrnrlat, self.llcrnrlat, label_ny)
-            nmeridians = np.linspace(self.urcrnrlon, self.llcrnrlon, label_nx)
-        elif self.is_proj_pseudocylindrical:
-            nparallels = range(-90, 90, 20)
-            nmeridians = range(
-                self.urcrnrlon / 2, self.urcrnrlon / 2 + 360, 20)
-        else:
-            parallel_spacing = 10
-            if self.is_proj_southern:
-                nparallels = range(self.boundinglat, -80, -parallel_spacing)
-            else:
-                nparallels = range(self.boundinglat, 90, parallel_spacing)
-            nmeridians = range(0, 360, 20)
-
-        # Move the maximum drawn latitude in. This is the effective inner-most
-        # ring for north pole projections and matches GMT's setting.
-        latmax = 85
-
         line_dashes = [1, 1]
-        if lines_solid:
-            line_dashes = []
+        if line_solid:
+            line_dashes = [1, 0]
+
         xoffset, yoffset = self.gmt_label_offsets
-        parallels = self.drawparallels(
-            nparallels, label_font_color, line_width, line_dashes, 
+        artists = {}
+        artists['parallels'] = self.drawparallels(
+            parallel_ticks, label_font_color, line_width, dashes=line_dashes, 
             latmax=latmax,
             fmt=gmt_label_fmt, xoffset=xoffset, yoffset=yoffset,
             labels=label_parallels, fontsize=label_font_size)
-        meridians = self.drawmeridians(
-            nmeridians, label_font_color, line_width, line_dashes,
-            latmax=latmax,
+        artists['meridians'] = self.drawmeridians(
+            meridian_ticks, label_font_color, line_width, dashes=line_dashes,
+            latmax=latmax, 
             fmt=gmt_label_fmt, xoffset=xoffset, yoffset=yoffset,
             labels=label_meridians, fontsize=label_font_size)
 
@@ -675,7 +680,7 @@ class ETOPOBasemap(Basemap):
         # they show up.
         margins = None
         if self.is_proj_cylindrical:
-            margins = (0.06, 0.03)
+            margins = (0.07, 0.02)
         elif self.is_proj_pseudocylindrical:
             margins = (0.05, 0.06)
         elif self.is_proj_polar:
@@ -691,7 +696,8 @@ class ETOPOBasemap(Basemap):
             # margins
             self.axes.autoscale()
             self.axes.margins(*margins)
-        return {'parallels': parallels, 'meridians': meridians}
+        self.hide_axes_borders()
+        return artists
 
     def gmt_graticules(self, graticules, draw_fancy_borders=True):
         """Edit the graticules of the basemap to act like GMT graticules.
@@ -713,60 +719,96 @@ class ETOPOBasemap(Basemap):
         if self.is_proj_cylindrical:
             xoffset, yoffset = self.gmt_label_offsets
 
+            # Make the offsets square 2/3 of distance to label xoffset
+            xoffset /= 1.5
+            yoffset = xoffset
+
+            # Actual ys leave a line at top obscured and a line at bottom empty.
+            # Shift the borders up a little.
+            yshift = xoffset / 10
+
+            xlims = []
+            yticks = []
+            for i, p in enumerate(sorted(parallels.keys())):
+                lines, labels = parallels[p]
+                is_border = False
+                if i == 0 or i == len(parallels.keys()) - 1:
+                    is_border = True
+
+                for line in lines:
+                    xdata = line.get_xdata()
+                    ydata = line.get_ydata()
+
+                    xlims.append([xdata[0] - xoffset, xdata[-1]])
+                    yticks.append([ydata[0] + yshift, ydata[-1] + yshift])
+
+                    if draw_fancy_borders and is_border:
+                        line.remove()
+
+            if draw_fancy_borders:
+                # Tack on extra boxes for the parallel pass (the four corners)
+                yticks = [[yticks[0][0] - xoffset, yticks[0][1] - yoffset]] + \
+                    yticks + \
+                    [[yticks[-1][0] + xoffset, yticks[-1][1] + yoffset]]
+                xlims = [copy(xlims[0])] + xlims + [copy(xlims[-1])]
+
+                lastxs = None
+                lastys = None
+                for i, (xs, ys) in enumerate(zip(xlims, yticks)):
+                    if not (lastxs is None and lastys is None):
+                        rects = zip(zip(lastxs, lastys), zip(xs, ys))
+                        color = 'w'
+                        if i % 2 == 1 and not (i == 0 or i == len(rects) - 1):
+                            color = 'k'
+                        for rect in rects:
+                            h = rect[1][1] - rect[0][1]
+                            r = Rectangle(
+                                rect[0], xoffset, h, alpha=1, antialiased=False,
+                                linewidth=fancy_linewidth, facecolor=color)
+                            ax.add_patch(r)
+                            fancyborder['parallels'].append(r)
+                    lastxs = xs
+                    lastys = ys
+
+            # The limits for y are those of the yticks
+            start = yticks[1][1]
+            end = yticks[-2][1]
+
             xticks = []
             ylims = []
-            for m in sorted(meridians.keys()):
+            for i, m in enumerate(sorted(meridians.keys())):
                 lines, labels = meridians[m]
+                is_border = False
+                if i == 0 or i == len(meridians.keys()) - 1:
+                    is_border = True
+
                 for line in lines:
-                    # Need to shorten the meridian lines a bit
+                    # Shorten the meridian lines a bit
                     ydata = line.get_ydata()
                     xdata = line.get_xdata()
-                    start = ydata[0] + yoffset
-                    end = ydata[-1] - yoffset
 
-                    istart = 0
-                    iend = len(ydata) - 1
-                    it = np.nditer(ydata, flags=['f_index'])
-                    while not it.finished:
-                        if it[0] >= start:
-                            istart = it.index
-                            break
-                        it.iternext()
+                    mask = np.logical_and(start < ydata, ydata < end)
+                    ydata = ydata[mask]
+                    xdata = xdata[mask]
 
-                    it = np.nditer(ydata[::-1], flags=['f_index'])
-                    while not it.finished:
-                        if it[0] <= end:
-                            iend = it.index
-                            break
-                        it.iternext()
-                    ydata = ydata[istart:iend - istart]
-                    xdata = xdata[istart:iend - istart]
                     line.set_ydata(ydata)
                     line.set_xdata(xdata)
 
                     xticks.append([xdata[0], xdata[-1]])
-                    ylims.append([start, end])
+                    ylims.append([start - yoffset, end])
 
-            # Make the offsets square
-            yoffset /= 1.5
-            xoffset = yoffset
+                    if draw_fancy_borders and is_border:
+                        line.remove()
 
             if draw_fancy_borders:
-                # Tack on extra boxes for the meridian pass (the four corners)
-                xticks = [[xticks[0][0] - xoffset, xticks[0][1] - xoffset]] + \
-                    xticks + [[xticks[-1][0] + xoffset, xticks[-1][1] + xoffset]]
-                ylims = [copy(ylims[0])] + ylims + [copy(ylims[-1])]
-                for ylim in ylims:
-                    # shift bottom row down (rects are defined by lower-left corner)
-                    ylim[0] -= 0.5 * yoffset
-                    # shift top row up
-                    ylim[1] -= 0.45 * yoffset
-
                 lastxs = None
                 lastys = None
                 for i, (xs, ys) in enumerate(zip(xticks, ylims)):
                     if not (lastxs is None and lastys is None):
                         rects = zip(zip(lastxs, lastys), zip(xs, ys))
+                        # TODO This isn't exactly how GMT does the alternation
+                        # (seems to start black on 0-10deg) but it will do for
+                        # now.
                         color = 'w'
                         if i % 2 == 0:
                             color = 'k'
@@ -777,47 +819,6 @@ class ETOPOBasemap(Basemap):
                                 linewidth=fancy_linewidth, facecolor=color)
                             ax.add_patch(r)
                             fancyborder['meridians'].append(r)
-                    lastxs = xs
-                    lastys = ys
-
-            xlims = []
-            yticks = []
-            for i, p in enumerate(sorted(parallels.keys())):
-                lines, labels = parallels[p]
-                border = False
-                if i == 0 or i == len(parallels.keys()) - 1:
-                    border = True
-                for line in lines:
-                    xdata = line.get_xdata()
-                    ydata = line.get_ydata()
-
-                    if draw_fancy_borders and border:
-                        line.remove()
-
-                    xlims.append([xdata[0], xdata[-1]])
-                    # Shift slightly up to get things to line up
-                    yticks.append([
-                        ydata[0] + yoffset * 0.05,
-                        ydata[-1] + yoffset * 0.05])
-            for xlim in xlims:
-                xlim[0] -= xoffset
-
-            if draw_fancy_borders:
-                lastxs = None
-                lastys = None
-                for i, (xs, ys) in enumerate(zip(xlims, yticks)):
-                    if not (lastxs is None and lastys is None):
-                        rects = zip(zip(lastxs, lastys), zip(xs, ys))
-                        color = 'w'
-                        if i % 2 == 0:
-                            color = 'k'
-                        for rect in rects:
-                            h = rect[1][1] - rect[0][1]
-                            r = Rectangle(
-                                rect[0], xoffset, h, alpha=1, antialiased=False,
-                                linewidth=fancy_linewidth, facecolor=color)
-                            ax.add_patch(r)
-                            fancyborder['parallels'].append(r)
                     lastxs = xs
                     lastys = ys
         elif self.is_proj_pseudocylindrical:
@@ -871,36 +872,38 @@ class ETOPOBasemap(Basemap):
             cx = minx + w / 2.
             cy = miny + h / 2.
             ri = w / 2
-            ro = ri + w * 0.015
+            ro = ri + w * 0.012
             ra = (ro - ri) / 2
             rmid = ri + ra
             rlabel = ro + 3 * ra
 
+            linewidth = 1
+            border_linewidth = 9
+            border_color = 'k'
+
             if draw_fancy_borders:
                 fancyborder['circles'] = []
 
-                border_linewidth = 5
-                border_color = 'k'
-
                 inner = Circle((cx, cy), ri,
-                    facecolor='none', linewidth=1, edgecolor=border_color,
-                    zorder=110)
+                    facecolor='none', linewidth=linewidth,
+                    edgecolor=border_color, zorder=110)
                 ax.add_patch(inner)
-                outer = Circle((cx, cy), ro,
-                    facecolor='none', linewidth=1, edgecolor=border_color,
-                    zorder=110)
-                ax.add_patch(outer)
                 blank = Circle((cx, cy), rmid,
                     facecolor='none', linewidth=border_linewidth, edgecolor='w',
                     zorder=100)
                 ax.add_patch(blank)
+                outer = Circle((cx, cy), ro,
+                    facecolor='none', linewidth=linewidth,
+                    edgecolor=border_color, zorder=110)
+                ax.add_patch(outer)
 
+                # Shift the thetas slightly so the border lines up
                 if self.is_proj_southern:
-                    theta1 = -29.2
-                    theta2 = -10.8
+                    theta1 = -29.5
+                    theta2 = -10.5
                 else:
-                    theta1 = -9.1
-                    theta2 = 9.1
+                    theta1 = -9.5
+                    theta2 = 9.5
 
                 arcs = []
                 for i in range(0, 360, 40):

@@ -592,6 +592,8 @@ def plot_etopo(args):
             'family': 'sans-serif',
             'sans-serif': ['Helvetica'],
         })
+    label_font_size = 15
+    title_font_size = 28
 
     bm = etopo.ETOPOBasemap.new_from_argparser(args)
     if args.cmap == 'gray':
@@ -603,30 +605,43 @@ def plot_etopo(args):
     bm.draw_etopo(args.minutes, 3, cmtopo=cmtopofn)
     if args.fill_continents:
         bm.fillcontinents(color='k')
-
-    graticules = bm.draw_graticules(args)
+    graticule_ticks = bm.get_graticule_ticks()
+    graticules = bm.draw_graticules(
+        graticule_ticks[0], graticule_ticks[1],
+        label_font_size=label_font_size)
     fancy_border = bm.gmt_graticules(graticules)
-    bm.hide_axes_borders()
 
-    # Set a nice title
-    if bm.is_proj_cylindrical:
-        title_text = 'from {} to {}'.format(
-            args.bounds_cylindrical[0:2], args.bounds_cylindrical[2:4])
-    elif bm.is_proj_pseudocylindrical:
-        title_text = 'centered on {}'.format(args.bounds_elliptical)
-    else:
-        title_text = None
-    title_text = ' '.join(filter(None, [bm.projection, title_text]))
-    bm.add_title(title_text)
+    # Resize the figure to approximate dpi
+    fig = etopo.plt.gcf()
+    figsize = fig.get_size_inches()
+    ratio = (args.width / fig.dpi) / figsize[0]
+    figsize = [ratio * x for x in figsize]
+    figsize[1] = figsize[0]
+    fig.set_size_inches(*figsize)
 
-    LOG.info('Rasterizing')
+    if ratio < 1:
+        label_font_size *= ratio
+        title_font_size *= ratio
 
+    # change axes position so it approximately fits the entire figure
+    axheight = 1.0
+    if args.title:
+        bm.add_title(args.title, title_font_size)
+        axheight = 0.945
+
+    xoff = 0.00
+    yoff = 0.01
+    bm.axes.set_position([xoff, yoff, 1.0 - xoff * 2, axheight - yoff * 2])
+
+    LOG.info('Rasterizing...')
     try:
-        padding = 0.1
-        etopo.plt.savefig(args.output_filename,
-            dpi=etopo.preset_dpi(str(args.width)),
+        extent = 'tight'
+        etopo.plt.savefig(
+            args.output_filename,
+            dpi=fig.dpi,
             transparent=True,
-            format='png', bbox_inches='tight', pad_inches=padding)
+            format='png',
+            bbox_inches=extent)
     except AssertionError:
         LOG.info(
             u'Matplotlib has a problem with plotting Basemaps that have '
