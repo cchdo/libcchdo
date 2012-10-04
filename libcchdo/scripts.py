@@ -1267,7 +1267,24 @@ plot_parsers = plot_parser.add_subparsers(title='plotters')
 
 
 def plot_etopo(args):
-    """Plot the world with ETOPO bathymetry."""
+    """Plot the world and, optionally, some points with ETOPO bathymetry.
+
+    Note: It is recommended to use a resolution higher than 5 degrees for north
+    polar plots, i.e. use ETOPO2 or ETOPO1.
+
+    # Examples
+
+    # plot of a bottle file in mercator with cberys color map and high
+    # resolution etopo data
+    $ hydro plot etopo --proj merc --bounds-cylindrical 130 30 150 45 \
+        --cmap cberys --width 720 --any-file cruise_hy1.csv \
+        --output-filename cruise.png 2
+
+    # large plot of the south pole in grayscale and medium resolution etopo data
+    $ hydro plot etopo --proj spstere --cmap gray --width 1024 \
+        --output-filename map.png 5
+
+    """
     from libcchdo.plot.etopo import plot, plot_line_dots
 
     bm = plot(args)
