@@ -9,9 +9,10 @@ $ hydro --help
 
 
 import argparse
-from datetime import datetime
+from datetime import datetime, date
 from contextlib import closing
 import sys
+import os
 import os.path
 
 from libcchdo import LOG
@@ -897,6 +898,64 @@ datadir_ensure_navs_parser = datadir_parsers.add_parser(
     help=datadir_ensure_navs.__doc__)
 datadir_ensure_navs_parser.set_defaults(
     main=datadir_ensure_navs)
+
+
+def datadir_mkdir_working(args):
+    """Create a working directory for data work.
+
+    """
+    from libcchdo.datadir.util import mkdir_ensure, make_subdirs
+    date = datetime.strptime(args.date, '%Y-%m-%d').date()
+    dirname = args.separator.join(
+        [date.strftime('%Y.%m.%d'), args.title, args.person])
+    dirpath = os.path.join(args.basepath, dirname)
+
+    dir_perms = 0770
+    file_perms = 0660
+
+    mkdir_ensure(dirpath, dir_perms)
+
+    files = ['00_README.txt']
+    subdirs = [
+        'submission',
+        ['processing', ['exchange', 'woce', 'netcdf']],
+        'to_go_online',
+    ]
+
+    for fname in files:
+        fpath = os.path.join(dirpath, fname)
+        try:
+            os.chmod(fpath, file_perms)
+        except OSError:
+            pass
+        with file(fpath, 'a'):
+            os.utime(fpath, None)
+            os.chmod(fpath, file_perms)
+    make_subdirs(dirpath, subdirs, dir_perms)
+
+    print dirpath
+
+
+datadir_mkdir_working_parser = datadir_parsers.add_parser(
+    'mkdir_working',
+    help=datadir_mkdir_working.__doc__)
+datadir_mkdir_working_parser.set_defaults(
+    main=datadir_mkdir_working)
+datadir_mkdir_working_parser.add_argument(
+    '--basepath', default=os.getcwd(),
+    help='Base path to put working directory in (default: current directory)')
+datadir_mkdir_working_parser.add_argument(
+    '--separator', default='_')
+datadir_mkdir_working_parser.add_argument(
+    '--date', default=date.today().isoformat(),
+    help='The date for the work being done (default: today)')
+datadir_mkdir_working_parser.add_argument(
+    '--title', default='working',
+    help='A title for the work being done. E.g. CTD, BOT, params '
+        '(default: working)')
+datadir_mkdir_working_parser.add_argument(
+    '--person', default=os.getlogin(),
+    help='The person doing the work (default: {0})'.format(os.getlogin()))
 
 
 plot_parser = hydro_subparsers.add_parser(

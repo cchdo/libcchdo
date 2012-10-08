@@ -96,3 +96,29 @@ def do_for_cruise_directories(operation):
           # Only operate if this is a data directory
           if is_data_dir(root):
               operation(root, dirs, files)
+
+
+def mkdir_ensure(path, mode=0777):
+    try:
+        os.mkdir(path, mode)
+    except OSError:
+        pass
+    os.chmod(path, mode)
+
+
+def _make_subdir(root, dirname, perms):
+    subroot = os.path.join(root, dirname)
+    mkdir_ensure(subroot, perms)
+    os.chmod(subroot, perms)
+
+
+def make_subdirs(root, subdirs, perms):
+    for subdir in subdirs:
+        if type(subdir) is list:
+            subdir, subdirs = subdir[0], subdir[1]
+            _make_subdir(root, subdir, perms)
+            make_subdirs(os.path.join(root, subdir), subdirs, perms)
+        else:
+            _make_subdir(root, subdir, perms)
+
+
