@@ -9,6 +9,7 @@ $ hydro --help
 
 
 import argparse
+from argparse import RawTextHelpFormatter
 from datetime import datetime, date
 from contextlib import closing
 import sys
@@ -18,11 +19,9 @@ import os.path
 from libcchdo import LOG
 
 from libcchdo.fns import all_formats
+from libcchdo.formats.netcdf_oceansites import (
+    OCEANSITES_VERSIONS, OCEANSITES_TIMESERIES)
 known_formats = all_formats.keys()
-
-
-OCEANSITES_VERSIONS = ['1.1', '1.2']
-KNOWN_TIMESERIES = ['BATS', 'HOT']
 
 
 def _qualify_oceansites_type(args):
@@ -34,7 +33,9 @@ def _qualify_oceansites_type(args):
             u'Printing a {0} OceanSITES NetCDF Zip'.format(args.timeseries))
 
 
-hydro_parser = argparse.ArgumentParser(description='libcchdo tools')
+hydro_parser = argparse.ArgumentParser(
+    description='libcchdo tools',
+    formatter_class=RawTextHelpFormatter)
 
 
 hydro_subparsers = hydro_parser.add_subparsers(
@@ -451,7 +452,8 @@ ctd_netcdf_to_ctd_netcdf_oceansites_parser.add_argument(
     default=sys.stdout,
     help='output CTD NetCDF OceanSITES file')
 ctd_netcdf_to_ctd_netcdf_oceansites_parser.add_argument(
-    'timeseries', type=str, nargs='?', default=None, choices=KNOWN_TIMESERIES,
+    'timeseries', type=str, nargs='?', default=None,
+    choices=OCEANSITES_TIMESERIES,
     help='timeseries location (default: None)')
 
 
@@ -543,7 +545,8 @@ ctdzip_exchange_to_ctdzip_netcdf_oceansites_parser.add_argument(
     'ctdzipex', type=argparse.FileType('r'),
     help='input CTD ZIP Exchange file')
 ctdzip_exchange_to_ctdzip_netcdf_oceansites_parser.add_argument(
-    'timeseries', type=str, nargs='?', default=None, choices=KNOWN_TIMESERIES,
+    'timeseries', type=str, nargs='?', default=None,
+    choices=OCEANSITES_TIMESERIES,
     help='timeseries location (default: None)')
 ctdzip_exchange_to_ctdzip_netcdf_oceansites_parser.add_argument(
     'ctdzipnc_os', type=argparse.FileType('w'), nargs='?', default=sys.stdout,
@@ -581,7 +584,8 @@ ctdzip_netcdf_to_ctdzip_netcdf_oceansites_parser.add_argument(
     'ctdzipnc', type=argparse.FileType('r'),
     help='input CTD ZIP NetCDF file')
 ctdzip_netcdf_to_ctdzip_netcdf_oceansites_parser.add_argument(
-    'timeseries', type=str, nargs='?', default=None, choices=KNOWN_TIMESERIES,
+    'timeseries', type=str, nargs='?', default=None,
+    choices=OCEANSITES_TIMESERIES,
     help='timeseries location (default: None)')
 ctdzip_netcdf_to_ctdzip_netcdf_oceansites_parser.add_argument(
     'ctdzipnc_os', type=argparse.FileType('w'), nargs='?', default=sys.stdout,

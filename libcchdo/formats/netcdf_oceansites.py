@@ -12,12 +12,13 @@ from .. import LOG, fns
 from ..algorithms import depth
 
 
-__all__ = ['OCEANSITES_VERSIONS', 'OCEANSITES_PREFIX',
-           'WOCE_to_OceanSITES_flag', 'TIMESERIES_INFO',
-           'pick_timeseries_or_timeseries_info', 'param_to_oceansites',
-           'oceansites_variables', 'oceansites_uncertainty', 'FLAG_MEANINGS',
-           'VARIABLES_TO_TRANSFER', 'oceansites_id',
-           'file_and_timeseries_info_to_id', 'fallback_depth_unesco', ]
+__all__ = [
+    'OCEANSITES_VERSIONS', 'OCEANSITES_PREFIX', 'WOCE_to_OceanSITES_flag',
+    'TIMESERIES_INFO', 'OCEANSITES_TIMESERIES',
+    'pick_timeseries_or_timeseries_info', 'param_to_oceansites',
+    'oceansites_variables', 'oceansites_uncertainty', 'FLAG_MEANINGS',
+    'VARIABLES_TO_TRANSFER', 'oceansites_id', 'file_and_timeseries_info_to_id',
+    'fallback_depth_unesco', ]
 
 
 # List of OceanSITES versions in increasing order
@@ -84,6 +85,9 @@ TIMESERIES_INFO = {
 TIMESERIES_INFO['BATS_BATS-1'] = dict(TIMESERIES_INFO['BATS'])
 TIMESERIES_INFO['BATS_HYDROS'] = dict(TIMESERIES_INFO['BATS'])
 TIMESERIES_INFO['BATS_HYDROS']['platform_code'] = 'BHYDROS'
+
+
+OCEANSITES_TIMESERIES = TIMESERIES_INFO.keys()
 
 
 def pick_timeseries_or_timeseries_info(df, timeseries=None, timeseries_info=None):
