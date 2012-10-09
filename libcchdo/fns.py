@@ -7,6 +7,7 @@ try:
     from cdecimal import Decimal, getcontext
 except ImportError:
     from decimal import Decimal, getcontext
+from collections import OrderedDict
 import math
 import os.path
 import sys
@@ -57,6 +58,23 @@ class file_type_dict(dict):
         module = 'libcchdo.formats.' + super(file_type_dict, self).__getitem__(key)
         __import__(module)
         return sys.modules[module]
+
+
+file_extensions = OrderedDict([
+    ['sumhot', ['.hot.su.txt']],
+    ['sumwoce', ['su.txt']],
+    ['botwoce', ['hy.txt']],
+    ['botex', ['hy1.csv']],
+    ['botnc', ['hy1.nc']],
+    ['botzipnc', ['nc_hyd.zip']],
+    ['ctdex', ['ct1.csv']],
+    ['ctdzipex', ['ct1.zip']],
+    ['ctdnc', ['ctd.nc']],
+    ['ctdzipnc', ['nc_ctd.zip']],
+    ['coriolis', ['coriolis']],
+    ['nodc_sd2', ['.sd2']],
+    ['geosecs', ['.shore']],
+])
     
 
 all_formats = file_type_dict({
@@ -83,32 +101,10 @@ def guess_file_type(filename, file_type=None):
     if file_type is not None:
         return file_type
 
-    if filename.endswith('.hot.su.txt'):
-        return 'sumhot'
-    if filename.endswith('su.txt'):
-        return 'sumwoce'
-    if filename.endswith('hy.txt'):
-        return 'botwoce'
-    if filename.endswith('hy1.csv'):
-        return 'botex'
-    if filename.endswith('hy1.nc'):
-        return 'botnc'
-    if filename.endswith('nc_hyd.zip'):
-        return 'botzipnc'
-    if filename.endswith('ct1.csv'):
-        return 'ctdex'
-    if filename.endswith('ct1.zip'):
-        return 'ctdzipex'
-    if filename.endswith('ctd.nc'):
-        return 'ctdnc'
-    if filename.endswith('nc_ctd.zip'):
-        return 'ctdzipnc'
-    if file_type == 'coriolis':
-        return 'coriolis'
-    if filename.endswith('.sd2'):
-        return 'nodc_sd2'
-    if filename.endswith('.shore'):
-        return 'geosecs'
+    for fmt, exts in file_extensions.items():
+        for ext in exts:
+            if filename.endswith(ext):
+                return fmt
     return None
 
 

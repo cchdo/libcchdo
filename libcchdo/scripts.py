@@ -958,6 +958,66 @@ datadir_mkdir_working_parser.add_argument(
     help='The person doing the work (default: {0})'.format(os.getlogin()))
 
 
+def datadir_move_replaced(args):
+    """Move a replaced file to its special name.
+
+    """
+    from libcchdo.fns import file_extensions, guess_file_type
+
+    dirname, filename = os.path.split(args.filename)
+    dirname = os.path.join(os.getcwd(), dirname)
+    file_type = guess_file_type(filename)
+    if file_type is None:
+        LOG.error(
+            u'File {0} does not have a recognizable file extension.'.format(
+            args.filename))
+        return 1
+
+    exts = file_extensions[file_type]
+    sorted_exts = sorted(
+        zip(exts, map(len, exts)), key=lambda x: x[1], reverse=True)
+    exts = [x[0] for x in sorted_exts]
+
+    basename = args.filename
+    extension = None
+    for ext in exts:
+        if args.filename.endswith(ext):
+            basename = args.filename[:-len(ext)]
+            extension = ext
+
+    date = datetime.strptime(args.date, '%Y-%m-%d').date()
+    replaced_str = args.separator.join(
+        ['_rplcd', date.strftime('%Y%m%d')])
+    extra_extension = extension.split('.')[0]
+
+    new_name = os.path.relpath(os.path.join(dirname, 'original', ''.join(
+        [basename, extra_extension, replaced_str, extension])))
+
+    print args.filename, '->', new_name
+    accepted = raw_input('move? (y/[n]) ')
+    if accepted == 'y':
+        try:
+            os.rename(args.filename, new_name)
+        except OSError, e:
+            LOG.error(u'Could not move file: {0}'.format(e))
+            return 1
+
+
+datadir_move_replaced_parser = datadir_parsers.add_parser(
+    'move_replaced',
+    help=datadir_move_replaced.__doc__)
+datadir_move_replaced_parser.set_defaults(
+    main=datadir_move_replaced)
+datadir_move_replaced_parser.add_argument(
+    '--separator', default='_')
+datadir_move_replaced_parser.add_argument(
+    '--date', default=date.today().isoformat(),
+    help='The date for the work being done (default: today)')
+datadir_move_replaced_parser.add_argument(
+    'filename', 
+    help='The file that is replaced and needs to be moved.')
+
+
 plot_parser = hydro_subparsers.add_parser(
     'plot', help='Plotters')
 plot_parsers = plot_parser.add_subparsers(title='plotters')
@@ -1182,6 +1242,7 @@ def report_data_updates(args):
 
 
 today = datetime.utcnow()
+
 
 report_data_updates_parser = report_parsers.add_parser(
     'data_updates',
