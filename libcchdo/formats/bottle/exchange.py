@@ -60,6 +60,7 @@ def read(self, handle):
     self.create_columns(columns, units)
 
     # Read data
+    row_i = 0
     l = handle.readline().strip()
     while l:
         if l.startswith('END_DATA'): break
@@ -82,23 +83,34 @@ def read(self, handle):
                 value = _decimal(value)
             except:
                 pass
+
+            param_name = column[:-7]
+            flag_column = None
+            flag_type = None
             if column.endswith('_FLAG_W'):
-                try:
-                    self[column[:-7]].flags_woce.append(int(value))
-                except KeyError:
-                    LOG.warn(
-                        ("Flag WOCE column exists for parameter %s but "
-                         "parameter column does not exist.") % column[:-7])
+                flag_column = self[param_name].flags_woce
+                flag_type = 'WOCE'
             elif column.endswith('_FLAG_I'):
-                try:
-                    self[column[:-7]].flags_igoss.append(int(value))
-                except KeyError:
-                    LOG.warn(
-                        ("Flag IGOSS column exists for parameter %s but "
-                         "parameter column does not exist.") % column[:-7])
+                flag_column = self[param_name].flags_igoss
+                flag_type = 'IGOSS'
             else:
                 self[column].append(value)
+
+            if flag_column is not None:
+                try:
+                    flag_column.append(int(value))
+                except TypeError:
+                    LOG.warn(
+                        u'Flag {0} for parameter {1} has bad flag {2!r} on '
+                        'data line {3}'.format(
+                        flag_type, param_name, value, row_i))
+                except KeyError:
+                    LOG.warn(
+                        u'Flag {0} column exists for parameter {1} but '
+                        'parameter column does not exist.'.format(
+                        flag_type, param_name))
         l = handle.readline().strip()
+        row_i += 1
 
     # Format all data to be what it is
     try:
