@@ -962,10 +962,11 @@ datadir_mkdir_working_parser.add_argument(
     help='The person doing the work (default: {0})'.format(os.getlogin()))
 
 
-def datadir_move_replaced(args):
+def datadir_copy_replaced(args):
     """Move a replaced file to its special name.
 
     """
+    import shutil
     from libcchdo.fns import file_extensions, guess_file_type
 
     dirname, filename = os.path.split(args.filename)
@@ -991,33 +992,33 @@ def datadir_move_replaced(args):
 
     date = datetime.strptime(args.date, '%Y-%m-%d').date()
     replaced_str = args.separator.join(
-        ['_rplcd', date.strftime('%Y%m%d')])
+        ['', 'rplcd', date.strftime('%Y%m%d'), ''])
     extra_extension = extension.split('.')[0]
 
     new_name = os.path.relpath(os.path.join(dirname, 'original', ''.join(
         [basename, extra_extension, replaced_str, extension])))
 
     print args.filename, '->', new_name
-    accepted = raw_input('move? (y/[n]) ')
+    accepted = raw_input('copy? (y/[n]) ')
     if accepted == 'y':
         try:
-            os.rename(args.filename, new_name)
+            shutil.copy2(args.filename, new_name)
         except OSError, e:
             LOG.error(u'Could not move file: {0}'.format(e))
             return 1
 
 
-datadir_move_replaced_parser = datadir_parsers.add_parser(
-    'move_replaced',
-    help=datadir_move_replaced.__doc__)
-datadir_move_replaced_parser.set_defaults(
-    main=datadir_move_replaced)
-datadir_move_replaced_parser.add_argument(
+datadir_copy_replaced_parser = datadir_parsers.add_parser(
+    'copy_replaced',
+    help=datadir_copy_replaced.__doc__)
+datadir_copy_replaced_parser.set_defaults(
+    main=datadir_copy_replaced)
+datadir_copy_replaced_parser.add_argument(
     '--separator', default='_')
-datadir_move_replaced_parser.add_argument(
+datadir_copy_replaced_parser.add_argument(
     '--date', default=date.today().isoformat(),
     help='The date for the work being done (default: today)')
-datadir_move_replaced_parser.add_argument(
+datadir_copy_replaced_parser.add_argument(
     'filename', 
     help='The file that is replaced and needs to be moved.')
 
