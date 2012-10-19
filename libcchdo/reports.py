@@ -1,12 +1,12 @@
+import re
 from datetime import datetime, timedelta
 from contextlib import closing
 
 from sqlalchemy.sql import not_, between
 
 from libcchdo import LOG
-from libcchdo.db.model import legacy
 from libcchdo.db.model.legacy import (
-    Document, Cruise, Submission, QueueFile,
+    session as lsession, Document, Cruise, Submission, QueueFile,
     )
 
 
@@ -24,7 +24,7 @@ def report_data_updates(args):
     * number of cruises with updated files
 
     """
-    with closing(legacy.session()) as session:
+    with closing(lsession()) as session:
         date_end = args.date_end
         date_start = args.date_start
         args.output.write('/'.join(map(str, [date_start, date_end])) + '\n')
@@ -89,7 +89,7 @@ def report_submission_and_queue(args):
     * number of queue updates
 
     """
-    with closing(legacy.session()) as session:
+    with closing(lsession()) as session:
         date_end = args.date_end
         date_start = args.date_start
         args.output.write('/'.join(map(str, [date_start, date_end])) + '\n')
@@ -135,3 +135,74 @@ def report_submission_and_queue(args):
             '# queued and merged: {0}\n'.format(queued_and_merged))
         args.output.write(
             '# queued and not merged: {0}\n'.format(queued - queued_and_merged))
+        args.output.write(str(len(cruises)) + '\n')
+
+
+def report_old_style_expocodes(args):
+    """Counts expocodes that are not new-style.
+
+    New style ExpoCode specification:
+    http://cchdo.ucsd.edu/policies/postwoce_name.html
+
+    """
+    with closing(lsession()) as session:
+        cruises = session.query(Cruise.ExpoCode, Cruise.Begin_Date).all()
+
+        re_part_ship = '[A-Z0-9]{4}'
+        re_part_date = '[0-9]{8}'
+        re_new_style = re.compile(re_part_ship + re_part_date)
+
+        expos_new_style = []
+        expos_old_style = {
+            'prewoce': [], 'woce': [], 'postwoce': [], 'unknown': []}
+        expos_new_style_bad_date = []
+
+        for c in cruises:
+            expo = c.ExpoCode
+            print >> args.output, expo, c.Begin_Date
+            if re_new_style.match(expo):
+                try:
+                    datetime.strptime(expo[4:], '%Y%m%d')
+                    expos_new_style.append(expo)
+                except ValueError:
+                    expos_new_style_bad_date.append(expo)
+            else:
+                date = c.Begin_Date
+                if not date:
+                    bin_name = 'unknown'
+                else:
+                    year = date.year
+                    if year < 1990:
+                        bin_name = 'prewoce'
+                    elif year < 2000:
+                        bin_name = 'woce'
+                    else:
+                        bin_name = 'postwoce'
+
+                oldbin = expos_old_style[bin_name]
+                oldbin.append(expo)
+
+        print >> args.output, 'Old-style ExpoCodes'
+        print >> args.output, 'prewoce:\t', expos_old_style['prewoce']
+        print >> args.output, 'woce:\t\t', expos_old_style['woce']
+        print >> args.output, 'postwoce:\t', expos_old_style['postwoce']
+        print >> args.output, 'unknown:\t', expos_old_style['unknown']
+
+        print >> args.output, 'New-style ExpoCodes'
+        print >> args.output, 'good:\t', expos_new_style
+        print >> args.output, 'bad date:\t', expos_new_style_bad_date
+
+        print >> args.output
+        print >> args.output, 'Counts'
+
+        print >> args.output, 'Old-style ExpoCodes'
+        print >> args.output, 'prewoce:\t', len(expos_old_style['prewoce'])
+        print >> args.output, 'woce:\t\t', len(expos_old_style['woce'])
+        print >> args.output, 'postwoce:\t', len(expos_old_style['postwoce'])
+        print >> args.output, 'unknown:\t', len(expos_old_style['unknown'])
+        print >> args.output, 'TOTAL:\t\t', \
+            len(reduce(lambda x, y: x + y, expos_old_style.values(), []))
+
+        print >> args.output, 'New-style ExpoCodes'
+        print >> args.output, 'good:\t\t', len(expos_new_style)
+        print >> args.output, 'bad date:\t', len(expos_new_style_bad_date)

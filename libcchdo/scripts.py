@@ -1844,6 +1844,25 @@ with subcommand(report_parsers, 'submission_and_queue',
         help='output file')
 
 
+def report_old_style_expocodes(args):
+    """Generate report of number of expocodes that are not new-style.
+
+    """
+    from libcchdo.reports import report_old_style_expocodes
+    report_old_style_expocodes(args)
+
+
+with subcommand(report_parsers, 'old_style_expocodes',
+                report_old_style_expocodes) as p:
+    p.add_argument(
+        'output', type=argparse.FileType('w'), nargs='?', default=sys.stdout,
+        help='output file')
+
+
+def deprecated_reorder_surface_to_bottom():
+    call_deprecated('misc', 'reorder_surface_to_bottom')
+
+
 def _subparsers(parser):
     """Get the subparsers for an ArgumentParser."""
     try:
