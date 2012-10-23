@@ -43,7 +43,7 @@ def read(self, handle, retain_order=False):
     else:
         raise ValueError(('Expected NUMBER_HEADERS as the second line in '
                           'the file.'))
-    header = re.compile('(\w+)\s*=\s*(-?[\w\.]+)')
+    header = re.compile('(\w+)\s*=\s*(-?[\w\.]*)')
     for i in range(0, num_headers):
         m = header.match(handle.readline())
         if m:
