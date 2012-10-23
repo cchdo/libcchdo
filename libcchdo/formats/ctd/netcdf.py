@@ -110,15 +110,15 @@ def read(self, handle):
 
 
 def _create_common_variables(df, nc_file, woce_datetime):
-    if 'LATITUDE' not in df.globals:
-        raise AttributeError('"LATITUDE" not in globals; abort')
-    else:
+    try:
         latitude = float(df.globals['LATITUDE'])
+    except KeyError:
+        raise KeyError('"LATITUDE" not in globals; abort')
 
-    if 'LONGITUDE' not in df.globals:
-        raise AttributeError('"LONGITUDE" not in globals; abort')
-    else:
+    try:
         longitude = float(df.globals['LONGITUDE'])
+    except KeyError:
+        raise KeyError('"LONGITUDE" not in globals; abort')
 
     stnnbr = df.globals.get('STNNBR', nc.UNKNOWN)
     castno = df.globals.get('CASTNO', nc.UNKNOWN)
@@ -158,14 +158,18 @@ def write(self, handle):
 
     nc.create_and_fill_data_variables(self, nc_file)
 
-    var_number = nc_file.createVariable(
-        'number_observations', 'i4', ('pressure',))
-    var_number.long_name = 'number_observations'
-    var_number.units = 'integer'
-    var_number.data_min = float(min(self['NUMBER']))
-    var_number.data_max = float(max(self['NUMBER']))
-    var_number.C_format = '%1d'
-    var_number[:] = self['NUMBER']
+    try:
+        self['NUMBER']
+        var_number = nc_file.createVariable(
+            'number_observations', 'i4', ('pressure',))
+        var_number.long_name = 'number_observations'
+        var_number.units = 'integer'
+        var_number.data_min = float(min(self['NUMBER']))
+        var_number.data_max = float(max(self['NUMBER']))
+        var_number.C_format = '%1d'
+        var_number[:] = self['NUMBER']
+    except KeyError:
+        pass
 
     _create_common_variables(self, nc_file, woce_datetime)
 
