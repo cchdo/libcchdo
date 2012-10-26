@@ -141,9 +141,10 @@ def read_arbitrary(handle, file_type=None, file_name=None):
         file_type = 'nodc_sd2'
 
     try:
-        all_formats[file_type].read(datafile, handle)
+        format_module = all_formats[file_type]
     except KeyError:
         raise ValueError('Unrecognized file type for %s' % handle.name)
+    format_module.read(datafile, handle)
 
     return datafile
 

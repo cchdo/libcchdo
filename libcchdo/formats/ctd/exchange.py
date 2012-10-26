@@ -169,7 +169,7 @@ def write(self, handle):
             fmt = c.parameter.format
             if fmt.endswith('f'):
                 parts = fmt[:-1].split('.')
-                assert len(parts) <=2 and len(parts) >= 1
+                assert len(parts) <= 2 and len(parts) >= 1
                 if len(parts) == 2:
                     # Should do this check before printing to prevent ragged columns.
                     if type(c[i]) is Decimal:
@@ -178,9 +178,13 @@ def write(self, handle):
                         if exponent > -1 and exponent > parts[1]:
                             fmt = '%%%d.%df' % (parts[0], exponent)
             try:
-                string = c.parameter.format % (c[i] if c[i] else woce.FILL_VALUE)
+                if c[i] is not None:
+                    value = c[i]
+                else:
+                    value = woce.FILL_VALUE
+                string = c.parameter.format % value
             except TypeError:
-                print type(c[i]), c[i]
+                LOG.debug(u'{0} {1}'.format(type(c[i]), c[i]))
                 raise
 
             data.append(string)

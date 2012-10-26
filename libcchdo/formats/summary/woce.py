@@ -1,7 +1,7 @@
 import re
 import datetime
 
-from ... import fns
+from ... import fns, LOG
 from ... import config
 from .. import woce
 
@@ -62,7 +62,7 @@ def read(self, handle):
     header_delimiter = re.compile('^-+$')
     column_starts = []
     column_widths = []
-    for line in handle:
+    for i, line in enumerate(handle):
         if header:
             if header_delimiter.match(line):
                 header = False
@@ -79,6 +79,9 @@ def read(self, handle):
             else:
                 self.globals['header'] += line
         else:
+            if not line.strip():
+                LOG.warn(u'Illegal empty line in summary file, row {0}'.format(i))
+                continue
             tokens = []
             for s, w in zip(column_starts, column_widths):
                 tokens.append(line[:-1][s:s+w].strip())

@@ -159,7 +159,10 @@ def write(self, handle):
 
     self['STNNBR'].values = map(if_float_then_int, self['STNNBR'].values)
     self['CASTNO'].values = map(if_float_then_int, self['CASTNO'].values)
-    self['SAMPNO'].values = map(if_float_then_int, self['SAMPNO'].values)
+    try:
+        self['SAMPNO'].values = map(if_float_then_int, self['SAMPNO'].values)
+    except KeyError:
+        pass
     self['BTLNBR'].values = map(if_float_then_int, self['BTLNBR'].values)
     self.check_and_replace_parameters()
 

@@ -317,8 +317,9 @@ class Parameter(Base):
         return True
 
     def __repr__(self):
-        return u"<Parameter(%r, %r, %r, %r)>" % (
-            self.name, self.format, self.units, self.aliases)
+        return u"<Parameter(%r, %r, %r, %r, %r)>" % (
+            self.name, self.format, self.units, self.aliases,
+            self.display_order)
 
 
 S.Index('parameters_name_netcdf', Parameter.name_netcdf, unique=True)

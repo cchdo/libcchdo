@@ -133,6 +133,34 @@ def strftime_woce_date_time(dt):
     return (dt.strftime('%Y%m%d'), dt.strftime('%H%M'))
 
 
+def strptime_woce_date(woce_date):
+    if woce_date is None:
+        return None
+
+    if '-' in str(woce_date):
+        woce_date = str(woce_date).translate(None, '-')
+    try:
+        i_woce_date = int(woce_date)
+        return datetime.datetime.strptime('%08d' % i_woce_date, '%Y%m%d').date()
+    except (TypeError, ValueError):
+        LOG.warn(u"Malformed date {0!r}. Omitting.".format(woce_date))
+        return None
+
+
+def strptime_woce_time(woce_time):
+    try:
+        i_woce_time = int(woce_time)
+        if i_woce_time >= 2400:
+            LOG.warn(
+                u"Illegal time {0:04d} >= 2400. Setting to 0.".format(
+                    i_woce_time))
+            i_woce_time = 0
+        return datetime.datetime.strptime('%04d' % i_woce_time, '%H%M').time()
+    except (TypeError, ValueError):
+        LOG.warn(u"Illegal time {0}. Setting to 0.".format(woce_time))
+        return datetime.datetime.strptime('0000', '%H%M').time()
+
+
 def strptime_woce_date_time(woce_date, woce_time):
     """ Parses WOCE date and time into a datetime or date object.
         Args:
@@ -148,31 +176,8 @@ def strptime_woce_date_time(woce_date, woce_time):
             3. DATE does not exist but TIME does
                 None
     """
-    if woce_date is None:
-        return None
-
-    if '-' in str(woce_date):
-        woce_date = str(woce_date).translate(None, '-')
-    try:
-        i_woce_date = int(woce_date)
-        d = datetime.datetime.strptime('%08d' % i_woce_date, '%Y%m%d').date()
-    except (TypeError, ValueError):
-        LOG.warn(u"Malformed date {0!r}. Omitting.".format(woce_date))
-        return None
-    
-    try:
-        i_woce_time = int(woce_time)
-        if i_woce_time >= 2400:
-            LOG.warn(
-                u"Illegal time {0:04d} >= 2400. Setting to 0.".format(
-                    i_woce_time))
-            i_woce_time = 0
-        t = datetime.datetime.strptime('%04d' % i_woce_time, '%H%M').time()
-    except (TypeError, ValueError):
-        LOG.warn(u"Illegal time {0}. Setting to 0.".format(woce_time))
-        t = datetime.datetime.strptime('0000', '%H%M').time()
-
-    return datetime.datetime.combine(d, t)
+    return datetime.datetime.combine(
+        strptime_woce_date(woce_date), strptime_woce_time(woce_time))
 
 
 def _bad_column_alignment(parameters):
@@ -415,9 +420,20 @@ def fuse_datetime(file):
         Arg:
             file - a DataFile object
     """
+    try:
+        dates = file['DATE'].values
+    except KeyError:
+        LOG.error(u'No DATE column is present.')
+        return
+
+    try:
+        times = file['TIME'].values
+    except KeyError:
+        LOG.warn(u'No TIME column is present.')
+
     file['_DATETIME'] = datafile.Column('_DATETIME')
     file['_DATETIME'].values = [strptime_woce_date_time(*x) for x in zip(
-            file['DATE'].values, file['TIME'].values)]
+        dates, times)]
     del file['DATE']
     del file['TIME']
 

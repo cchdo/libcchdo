@@ -19,7 +19,7 @@ def read(self, handle):
     except Exception, e:
         raise ValueError('Malformed WOCE header in WOCE Bottle file: %s' % e)
     # Get stamp
-    stamp = re.compile('EXPOCODE\s*([\w/]+)\s*WHP.?ID\s*([\w/]+(,[\w/]+)*)\s*CRUISE DATES\s*(\d{6}) TO (\d{6})\s*(\d{8}\w+)?')
+    stamp = re.compile('EXPOCODE\s*([\w/]+)\s*WHP.?ID\s*([\w/-]+(,[\w/-]+)*)\s*CRUISE DATES\s*(\d{6}) TO (\d{6})\s*(\d{8}\w+)?')
     m = stamp.match(stamp_line)
     if m:
         self.globals['EXPOCODE'] = m.group(1)

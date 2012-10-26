@@ -42,6 +42,70 @@ hydro_subparsers = hydro_parser.add_subparsers(
     title='subcommands')
 
 
+check_parser = hydro_subparsers.add_parser(
+    'check', help='Format checkers')
+check_parsers = check_parser.add_subparsers(
+    title='format checkers')
+
+
+def check_any(args):
+    """Check the format for any recognized CCHDO file."""
+    from libcchdo.fns import read_arbitrary, all_formats
+
+    with closing(args.cchdo_file) as in_file:
+        try:
+            file = read_arbitrary(in_file, args.input_type)
+        except Exception, e:
+            LOG.error('Unable to read file {0}: {1}'.format(args.cchdo_file, e))
+            raise e
+
+    # Water Quality flags that require fill value
+    flags_fill = [1, 5, 9]
+
+    def check_fill_value_has_flag_w_9(df):
+        for c in df.columns.values():
+            if not c.flags_woce:
+                continue
+            if c.parameter.name in ['BTLNBR']:
+                continue
+
+            for i in range(len(df)):
+                value = c[i]
+                flag = c.flags_woce[i]
+                is_fill_value = value is None
+                require_fill_value = flag in flags_fill
+                if (    (require_fill_value and not is_fill_value) or 
+                        (is_fill_value and not require_fill_value)):
+                    LOG.warn(
+                        (u'column {0} row {1} has fill value for '
+                         'flag {2}').format(c.parameter.name, i, flag))
+
+    def check_datafile(df):
+        check_fill_value_has_flag_w_9(df)
+
+    with closing(args.output) as out_file:
+        try:
+            for f in file.files:
+                check_datafile(f)
+        except AttributeError:
+            check_datafile(file)
+
+
+check_any_parser = check_parsers.add_parser(
+    'any',
+    help=check_any.__doc__)
+check_any_parser.set_defaults(
+    main=check_any)
+check_any_parser.add_argument('-i', '--input-type', choices=known_formats,
+    help='force the input file to be read as the specified type')
+check_any_parser.add_argument(
+    'cchdo_file', type=argparse.FileType('r'),
+     help='any recognized CCHDO file')
+check_any_parser.add_argument(
+    'output', type=argparse.FileType('w'), nargs='?', default=sys.stdout,
+     help='output file (default: stdout)')
+
+
 converter_parser = hydro_subparsers.add_parser(
     'convert', help='Format converters')
 converter_parsers = converter_parser.add_subparsers(

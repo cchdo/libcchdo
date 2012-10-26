@@ -11,7 +11,7 @@ def read(self, handle):
 
     # Get record 1
     re_frag_expocode = 'EXPOCODE\s*([\w/]+)\s*'
-    re_frag_whpid = 'WHP.?IDS?\s*([\w/]+(,[\w/]+)?)\s*'
+    re_frag_whpid = 'WHP.?IDS?\s*([\w/-]+(,[\w/-]+)?)\s*'
     re_frag_date = 'DATE\s*(\d{6})(?:\s*1)?'
     re_record1 = re.compile(
         ''.join([re_frag_expocode, re_frag_whpid, re_frag_date]),
