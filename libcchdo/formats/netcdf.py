@@ -1,6 +1,8 @@
 """Common utilities that NetCDF handlers need."""
 
 
+import tempfile
+from contextlib import contextmanager
 import datetime
 
 try:
@@ -263,3 +265,19 @@ def create_and_fill_data_variables(df, nc_file):
             vfw.units = 'woce_flags'
             vfw.C_format = '%1d'
             vfw[:] = column.flags_woce
+
+
+@contextmanager
+def buffered_netcdf(handle, *args, **kwargs):
+    """Buffer netcdf writing to a temporary file before writing it to handle.
+
+    """
+    tmp = tempfile.NamedTemporaryFile()
+    nc_file = Dataset(tmp.name, *args, **kwargs)
+
+    try:
+        yield nc_file
+    finally:
+        nc_file.close()
+        handle.write(tmp.read())
+        tmp.close()

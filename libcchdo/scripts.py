@@ -13,6 +13,7 @@ from copy import copy
 import sys
 import os
 import os.path
+import traceback
 
 from libcchdo.log import LOG
 from libcchdo.fns import all_formats, read_arbitrary, get_editor
@@ -123,8 +124,9 @@ def check_any(args):
         try:
             file = read_arbitrary(in_file, args.input_type)
         except Exception, e:
-            LOG.error('Unable to read file {0}: {1}'.format(args.cchdo_file, e))
-            raise e
+            LOG.error('Unable to read file {0}:\n{1}'.format(
+                args.cchdo_file, traceback.format_exc(e)))
+            hydro_parser.exit(1) 
 
     # Water Quality flags that require fill value
     flags_fill = [1, 5, 9]
