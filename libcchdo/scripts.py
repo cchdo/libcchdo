@@ -1106,7 +1106,9 @@ def plot_etopo(args):
         if not (lats and lons):
             LOG.error(u'Cannot plot file without LATITUDE and LONGITUDE data')
             return
-        xs, ys = bm(lons.values, lats.values)
+        lats = map(float, lats.values)
+        lons = map(float, lons.values)
+        xs, ys = bm(lons, lats)
 
         dots = bm.scatter(xs, ys, **bm.GMT_STYLE_DOTS)
         line = bm.plot(xs, ys, **bm.GMT_STYLE_LINE)
