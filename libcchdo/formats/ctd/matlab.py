@@ -89,7 +89,7 @@ ans =
 import numpy
 import scipy.io
 
-from libcchdo.formats.matlab import convert_value
+from libcchdo.formats.matlab.util import convert_value
 from libcchdo.log import LOG
 
 

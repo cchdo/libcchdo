@@ -22,7 +22,7 @@ required struct {
 from datetime import datetime
 import scipy.io
 
-from libcchdo.formats.matlab import convert_value
+from libcchdo.formats.matlab.util import convert_value
 
 
 def write(self, handle, ):
