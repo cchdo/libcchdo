@@ -12,7 +12,7 @@ from libcchdo.formats import zip as Zip
 
 def read(self, handle):
     """How to read CTD NetCDF files from a Zip."""
-    zip = zipfile.ZipFile(handle, 'r')
+    zip = Zip.ZeroCommentZipFile(handle, 'r')
     for file in zip.namelist():
         if '.nc' not in file: continue
         tmpfile = tempfile.NamedTemporaryFile()

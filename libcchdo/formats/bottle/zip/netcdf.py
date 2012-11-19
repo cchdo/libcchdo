@@ -11,7 +11,7 @@ from .. import netcdf as botnc
 
 def read(self, handle):
     """How to read Bottle NetCDF files from a Zip."""
-    zip = zipfile.ZipFile(handle, 'r')
+    zip = Zip.ZeroCommentZipFile(handle, 'r')
     for file in zip.namelist():
         if '.csv' not in file:
             continue

@@ -10,7 +10,7 @@ from libcchdo.formats.ctd import exchange as ctdex
 
 def read(self, handle, retain_order=False):
     """How to read CTD Exchange files from a Zip."""
-    zip = zipfile.ZipFile(handle, 'r')
+    zip = Zip.ZeroCommentZipFile(handle, 'r')
     for filename in zip.namelist():
         if '.csv' not in filename: continue
         if filename.find('/') > -1:

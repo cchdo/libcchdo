@@ -1,20 +1,19 @@
-import StringIO
-import zipfile
-
-from ....model import datafile
+from libcchdo import StringIO
+from libcchdo.formats import zip as Zip
+from libcchdo.model.datafile import DataFile
 from ..oden import oden
 
 
 def read(self, handle):
     """How to read CTD ODEN files from a Zip."""
-    zip = zipfile.ZipFile(handle, 'r')
+    zip = Zip.ZeroCommentZipFile(handle, 'r')
     for file in zip.namelist():
         if 'DOC' in file or 'README' in file:
             continue
-        tempstream = StringIO.StringIO(zip.read(file))
-        ctdfile = datafile.DataFile()
+        tempstream = StringIO(zip.read(file))
+        ctdfile = DataFile()
         oden(ctdfile).read(tempstream)
-        self.datafile.files.append(ctdfile)
+        self.files.append(ctdfile)
         tempstream.close()
     zip.close()
 
