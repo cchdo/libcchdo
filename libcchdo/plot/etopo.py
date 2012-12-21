@@ -526,6 +526,16 @@ class ETOPOBasemap(Basemap):
                 boundinglat=boundinglat,
                 lon_0=lon_0, **kwargs)
             newcls.boundinglat = boundinglat
+        elif args.projection == 'tmerc':
+            newcls = cls(
+                projection=args.projection,
+                llcrnrlat=args.bounds_cylindrical[1],
+                llcrnrlon=args.bounds_cylindrical[0],
+                urcrnrlat=args.bounds_cylindrical[3],
+                urcrnrlon=args.bounds_cylindrical[2], 
+                lon_0=-4.36,
+                lat_0=54.7,
+                **kwargs)
         else:
             LOG.error(u'Unhandled projection {0}'.format(args.projection))
             newcls = None
@@ -641,7 +651,8 @@ class ETOPOBasemap(Basemap):
             cmtopofn = colormap_cberys
         else:
             cmtopofn = colormap_cberys
-        self.draw_etopo(args.minutes, 3, cmtopo=cmtopofn)
+        if not args.no_etopo:
+            self.draw_etopo(args.minutes, 3, cmtopo=cmtopofn)
 
         if args.fill_continents:
             self.fillcontinents(color='k')

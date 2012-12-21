@@ -602,5 +602,6 @@ def plot_etopo(args):
 
     if args.title:
         bm.add_title(args.title, title_font_size)
-    bm.draw_gmt_fancy_border(label_font_size)
+    if not args.no_etopo:
+        bm.draw_gmt_fancy_border(label_font_size)
     return bm

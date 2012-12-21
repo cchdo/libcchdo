@@ -1122,6 +1122,9 @@ plot_etopo_parser = plot_parsers.add_parser(
 plot_etopo_parser.set_defaults(
     main=plot_etopo)
 plot_etopo_parser.add_argument(
+    '--no-etopo', action='store_const', const=True,
+    help='Do not draw ETOPO')
+plot_etopo_parser.add_argument(
     'minutes', type=int, nargs='?', default=5, choices=[1, 2, 5, 30, 60], 
     help='The desired resolution of the ETOPO grid data in minutes '
          '(default: 5)')
@@ -1135,7 +1138,7 @@ plot_etopo_parser.add_argument(
          '(default: False)')
 plot_etopo_parser.add_argument(
     '--projection', default='merc',
-    choices=['merc', 'robin', 'npstere', 'spstere', ],
+    choices=['merc', 'robin', 'npstere', 'spstere', 'tmerc', ],
     help='The projection of map to use (default: merc)')
 plot_etopo_parser.add_argument(
     '--cmap', default='cberys',
