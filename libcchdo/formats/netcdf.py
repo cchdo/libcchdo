@@ -241,13 +241,15 @@ def create_and_fill_data_variables(df, nc_file):
         if parameter.format:
             var.C_format = ascii(parameter.format)
         else:
-            # TODO TEST
-            LOG.warn(u'Parameter {0} has no format'.format(parameter.name))
-            var.C_format = '%s'
+            # TODO TEST this
+            LOG.warn(u"Parameter {0} has no format. defaulting to '%f'".format(
+                parameter.name))
+            var.C_format = '%f'
         if var.C_format.endswith('s'):
-            LOG.error(
-                'Parameter does not have format that is for data. Setting '
-                'format to double to prevent segfault in nc readers.')
+            LOG.warn(
+                u'Parameter {0} does not have a format string acceptable for '
+                "numeric data. Defaulting to '%f' to prevent ncdump "
+                'segfault.'.format(parameter.name))
             var.C_format = '%f'
         var.WHPO_Variable_Name = parameter_name
         var[:] = column.values

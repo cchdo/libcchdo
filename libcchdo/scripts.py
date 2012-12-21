@@ -19,6 +19,7 @@ import os.path
 from libcchdo import LOG
 
 from libcchdo.fns import all_formats
+from libcchdo.formats import woce
 from libcchdo.formats.netcdf_oceansites import (
     OCEANSITES_VERSIONS, OCEANSITES_TIMESERIES)
 known_formats = all_formats.keys()
@@ -74,11 +75,18 @@ def check_any(args):
                 flag = c.flags_woce[i]
                 is_fill_value = value is None
                 require_fill_value = flag in flags_fill
-                if (    (require_fill_value and not is_fill_value) or 
-                        (is_fill_value and not require_fill_value)):
+                if require_fill_value and not is_fill_value:
                     LOG.warn(
-                        (u'column {0} row {1} has fill value for '
-                         'flag {2}').format(c.parameter.name, i, flag))
+                        (u'column {0} row {1} has data {2!r} but expected '
+                         'fill value for flag {3}: {4!r}').format(
+                            c.parameter.name, i, value, flag,
+                            woce.WATER_SAMPLE_FLAGS[flag]))
+                elif is_fill_value and not require_fill_value:
+                    LOG.warn(
+                        (u'column {0} row {1} has unexpected fill value for '
+                         'flag {2}: {3!r}').format(
+                            c.parameter.name, i, flag,
+                            woce.WATER_SAMPLE_FLAGS[flag]))
 
     def check_datafile(df):
         check_fill_value_has_flag_w_9(df)
@@ -310,7 +318,6 @@ bottle_exchange_to_bottlezip_netcdf_parser.add_argument(
 
 def bottle_woce_and_summary_woce_to_bottle_exchange(args):
     from libcchdo.model.datafile import DataFile, SummaryFile
-    from libcchdo.formats import woce
     import libcchdo.formats.summary.woce as sumwoce
     import libcchdo.formats.bottle.woce as botwoce
     import libcchdo.formats.bottle.exchange as botex

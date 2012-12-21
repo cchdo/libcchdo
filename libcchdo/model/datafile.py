@@ -80,6 +80,9 @@ class Column(object):
 
         # A leading _ indicates a contrived parameter. Skip it.
         if parameter.name.startswith('_'):
+            LOG.info((
+                u"Parameter {0!r} has a leading '_' and will not be "
+                "checked against known parameters.").format(parameter.name))
             return
 
         std_parameter = std.find_by_mnemonic(parameter.name)
