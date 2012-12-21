@@ -12,7 +12,7 @@ import math
 import os.path
 import sys
 
-from . import RADIUS_EARTH
+from . import LOG, RADIUS_EARTH
 
 # Define isnan for python <2.6
 try:
@@ -74,6 +74,7 @@ file_extensions = OrderedDict([
     ['coriolis', ['coriolis']],
     ['nodc_sd2', ['.sd2']],
     ['geosecs', ['.shore']],
+    ['tracks', ['_tracks.txt', 'na.txt']],
 ])
     
 
@@ -94,6 +95,7 @@ all_formats = file_type_dict({
     'nodc_sd2': 'nodc_sd2',
     'geosecs': 'geosecs',
     'sbe9': 'ctd.sbe9',
+    'tracks': 'common.nav',
 })
 
 
@@ -202,6 +204,8 @@ def int_or_none(x):
 
 def equal_with_epsilon(a, b, epsilon=Decimal('1e-6')):
     delta = abs(_decimal(a) - _decimal(b))
+    if delta.is_nan():
+        return False
     return delta < _decimal(epsilon)
 
 

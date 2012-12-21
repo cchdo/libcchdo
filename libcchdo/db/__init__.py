@@ -8,7 +8,7 @@ for more information.
 
 
 # Enum type for sqlalchemy
-from sqlalchemy import types, exceptions
+from sqlalchemy import types
 
 
 class Enum(types.TypeDecorator):

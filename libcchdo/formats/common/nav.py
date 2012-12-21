@@ -15,6 +15,19 @@ def _dt_to_str(dt):
         return dt.strftime('%Y-%m-%d')
     except AttributeError:
         return ''
+
+
+def read(self, handle):
+    """How to read a CCHDO tracks file."""
+    self.create_columns(['LONGITUDE', 'LATITUDE'])
+
+    lons = self['LONGITUDE']
+    lats = self['LATITUDE']
+
+    for l in handle:
+        lon, lat = map(fns._decimal, l.split())
+        lons.append(lon)
+        lats.append(lat)
     
 
 def write(self, handle):
