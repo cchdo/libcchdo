@@ -899,7 +899,7 @@ def merge_botex_and_botex(args):
 
     with closing(args.file1) as in_file1:
         with closing(args.file2) as in_file2:
-            m = Merger(f1_handle, f2_handle)
+            m = Merger(in_file1, in_file2)
             if args.parameters_to_merge:
                 columns_to_merge = []
                 units_to_merge = []
@@ -907,7 +907,10 @@ def merge_botex_and_botex(args):
                     columns_to_merge.append(parameter)
                     unit_index = \
                         m.dataframe2.columns.values.tolist().index(parameter)
-                    units_to_merge.append(m.units2[unit_index])
+                    try:
+                        units_to_merge.append(m.units2[unit_index])
+                    except IndexError:
+                        LOG.error(u'File does not have enough units')
                 df = DataFile()
                 result_units = m.units1 + (units_to_merge)
                 result = m.mergeit(columns_to_merge)
@@ -918,12 +921,9 @@ def merge_botex_and_botex(args):
             else:
                 # Show parameters with differing data
                 different_columns = m.different_cols()
-                with closing(args.output) as out_file:
-                    out_file.write(
-                        u'The following parameters in {0} are different'
-                        '\n'.format(file2))
-                for col in different_columns:
-                    out_file.write(u'{0}\n'.format(col))
+                LOG.info(
+                    u'The following parameters in {0} are different\n'
+                    '{1!r}'.format(in_file2.name, different_columns))
 
 
 merge_botex_and_botex_parser = merge_parsers.add_parser(
