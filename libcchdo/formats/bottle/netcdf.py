@@ -151,6 +151,13 @@ def _create_common_variables(df, nc_file):
         nc_file, latitude, longitude, woce_datetime, stnnbr, castno)
 
 
+def _nc_bottom_depth(df):
+    try:
+        return int(max(df['DEPTH'].values))
+    except (KeyError, AttributeError):
+        return woce.FILL_VALUE
+
+
 def write(self, handle):
     """How to write a Bottle NetCDF file."""
     temp = tempfile.NamedTemporaryFile()
@@ -166,19 +173,24 @@ def write(self, handle):
         'WOCE Bottle',
         _lambda_or_unknown(lambda: nc.simplest_str(self['STNNBR'][0])),
         _lambda_or_unknown(lambda: nc.simplest_str(self['CASTNO'][0])),
-        int(max(self['DEPTH'].values) or woce.FILL_VALUE),
+        _nc_bottom_depth(self),
         )
 
     header = 'BOTTLE,%s\n' % self.globals['stamp'] + self.globals['header']
     nc_file.ORIGINAL_HEADER = header
 
+    try:
+        bottle_column = self['BTLNBR']
+    except KeyError:
+        bottle_column = self['SAMPNO']
+
     nc_file.BOTTLE_NUMBERS = ' '.join(
-        map(nc.simplest_str, self['BTLNBR'].values))
-    if self['BTLNBR'].is_flagged_woce():
+        map(nc.simplest_str, bottle_column.values))
+    if bottle_column.is_flagged_woce():
         # Java OceanAtlas 5.0.2 and possibly before requires bottle quality
         # codes to be shorts.
         btl_quality_codes = \
-            np.array(self['BTLNBR'].flags_woce).astype(np.int16)
+            np.array(bottle_column.flags_woce).astype(np.int16)
         nc_file.BOTTLE_QUALITY_CODES = btl_quality_codes
 
     nc_file.WOCE_BOTTLE_FLAG_DESCRIPTION = woce.BOTTLE_FLAG_DESCRIPTION
