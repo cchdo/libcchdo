@@ -1,5 +1,7 @@
 from pandas import *
 
+from libcchdo.formats import woce
+
 
 class Merger(object):
     DONT_MERGE = [
@@ -26,7 +28,7 @@ class Merger(object):
         header = ""
         stamp = file_handle.readline()
         if not stamp.startswith('BOTTLE'):
-            raise Exception
+            raise ValueError('Stamp {0!r} must start with BOTTLE'.format(stamp))
         line = file_handle.readline()
         while line:
             if line.startswith('#'):
