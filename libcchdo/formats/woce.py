@@ -176,8 +176,12 @@ def strptime_woce_date_time(woce_date, woce_time):
             3. DATE does not exist but TIME does
                 None
     """
-    return datetime.datetime.combine(
-        strptime_woce_date(woce_date), strptime_woce_time(woce_time))
+    date = strptime_woce_date(woce_date)
+    time = strptime_woce_time(woce_time)
+    try:
+        return datetime.datetime.combine(date, time)
+    except TypeError:
+        return date
 
 
 def _bad_column_alignment(parameters):

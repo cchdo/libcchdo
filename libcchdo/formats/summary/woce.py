@@ -92,7 +92,12 @@ def read(self, handle):
             self['STNNBR'].append(tokens[2])
             self['CASTNO'].append(fns.int_or_none(tokens[3]))
             self['_CAST_TYPE'].append(tokens[4])
-            date = datetime.datetime.strptime(tokens[5], '%m%d%y')
+            try:
+                date = datetime.datetime.strptime(tokens[5], '%m%d%y')
+            except ValueError, e:
+                LOG.error(u'Expected date format %m%d%y. Got {0!r}.'.format(
+                    tokens[5]))
+                raise e
             self['DATE'].append(date.strftime('%Y%m%d'))
             self['TIME'].append(fns.int_or_none(tokens[6]))
             self['_CODE'].append(tokens[7])
