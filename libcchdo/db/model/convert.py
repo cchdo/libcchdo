@@ -124,7 +124,7 @@ _non_word = re.compile('\W+')
 
 
 def _name_to_netcdf_name(n):
-    return _non_word.sub('_', n)
+    return _non_word.sub('_', n.lower())
 
 
 def all_parameters(lsession, session):
@@ -164,8 +164,12 @@ def all_parameters(lsession, session):
         if p.name in KNOWN_NETCDF_VARIABLE_NAMES:
             netcdf_name = KNOWN_NETCDF_VARIABLE_NAMES[p.name]
         else:
-            best_name = (p.full_name or p.name).lower()
+            best_name = p.full_name
+            if not best_name or best_name == 'None':
+                best_name = p.name
             netcdf_name = _name_to_netcdf_name(best_name)
+            if netcdf_name == 'none':
+                LOG.debug('{0!r} {1!r} {2}'.format(p.full_name, p.name, p))
         while netcdf_name in used_netcdf_names:
             netcdf_name += '1'
         p.name_netcdf = netcdf_name

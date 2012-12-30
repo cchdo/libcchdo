@@ -62,13 +62,19 @@ def check_any(args):
 
     # Water Quality flags that require fill value
     flags_fill = [1, 5, 9]
+    not_water_parameters = ['BTLNBR']
 
     def check_fill_value_has_flag_w_9(df):
         for c in df.columns.values():
             if not c.flags_woce:
                 continue
-            if c.parameter.name in ['BTLNBR']:
+            if c.parameter.name in not_water_parameters:
                 continue
+
+            if len(c.flags_woce) != len(c.values):
+                LOG.error(u'column {0} has different number of values ({1}) '
+                    'and flags ({2})'.format(
+                        c.parameter.name, len(c.values), len(c.flags_woce)))
 
             for i in range(len(df)):
                 value = c[i]
