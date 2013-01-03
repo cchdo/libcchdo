@@ -494,6 +494,36 @@ ctd_sbe_to_ctd_exchange_parser.add_argument(
         'if not speified will default to standard out.')
 
 
+def sbe_asc_to_ctd_exchange(args):
+    """Convert the SeaBird asc ASCII interchange format to ctd exchange
+
+    This format is not the cnv ASCII format which contains raw headers.
+
+    """
+    from libcchdo.tools import sbe_asc_to_ctd_exchange
+
+    sbe_asc_to_ctd_exchange(args)
+
+
+sbe_asc_to_ctd_exchange_parser = ctd_converter_parsers.add_parser(
+    'sbe_asc_to_exchange',
+    help=sbe_asc_to_ctd_exchange.__doc__)
+sbe_asc_to_ctd_exchange_parser.set_defaults(
+    main=sbe_asc_to_ctd_exchange)
+sbe_asc_to_ctd_exchange_parser.add_argument(
+    'files', type=file, nargs='+',
+    help='File or list of files that will be converted to exchange format, if '
+        'a single file is given, a flat exchange file will be output, if more '
+        'than one is given, a ctd zip will be output')
+sbe_asc_to_ctd_exchange_parser.add_argument(
+    '-o', '--output',
+    help='name of output file, _ct1.[csv, zip] will be added automatically, '
+        'if not speified will default to standard out.')
+sbe_asc_to_ctd_exchange_parser.add_argument(
+        '-e', '--expo',
+        help="Manually enter an expocode if the files do not contain one")
+
+
 def ctd_netcdf_to_ctd_netcdf_oceansites(args):
     from libcchdo.model.datafile import DataFile
     import libcchdo.formats.ctd.netcdf as ctdnc
