@@ -22,13 +22,13 @@ from libcchdo.model.datafile import DataFile, DataFileCollection, Column
 from libcchdo.units import convert as ucvt
 from libcchdo.formats import add_pre_write
 from libcchdo import fns
+from libcchdo.formats.ctd import asc
 import libcchdo.formats.summary.woce as sumwoce
 import libcchdo.formats.bottle.exchange as botex
 import libcchdo.formats.ctd.exchange as ctdex
 import libcchdo.formats.ctd.sbe9 as sbe
 import libcchdo.formats.ctd.zip.netcdf_oceansites as ctdzipnc_os
 import libcchdo.formats.ctd.zip.exchange as ctdzipex
-import libcchdo.formats.ctd.asc as asc
 
 
 def _get_legacy_parameter(session, parameter):

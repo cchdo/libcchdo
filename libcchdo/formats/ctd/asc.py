@@ -1,8 +1,7 @@
 import sys
 import re
 import datetime
-from libcchdo.fns import Decimal
-from libcchdo.fns import ddm_to_dd
+from libcchdo.fns import _decimal, ddm_to_dd
 
 def read(self, f, expo=None):
 
@@ -79,9 +78,9 @@ def read(self, f, expo=None):
             if 'NaN' in value:
                 col.append(None, flag_woce=9)
             elif column is not "CTDPRS":
-                col.append(Decimal(value), flag_woce=2)
+                col.append(_decimal(value), flag_woce=2)
             else:
-                col.append(Decimal(value))
+                col.append(_decimal(value))
 
         l = f.readline()
 

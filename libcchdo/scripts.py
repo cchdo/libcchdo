@@ -495,7 +495,10 @@ ctd_sbe_to_ctd_exchange_parser.add_argument(
 
 
 def sbe_asc_to_ctd_exchange(args):
-    """Add a doc string here
+    """Convert the SeaBird asc ASCII interchange format to ctd exchange
+
+    This format is not the cnv ASCII format which contains raw headers.
+
     """
     from libcchdo.tools import sbe_asc_to_ctd_exchange
 
@@ -519,6 +522,7 @@ sbe_asc_to_ctd_exchange_parser.add_argument(
 sbe_asc_to_ctd_exchange_parser.add_argument(
         '-e', '--expo',
         help="Manually enter an expocode if the files do not contain one")
+
 
 def ctd_netcdf_to_ctd_netcdf_oceansites(args):
     from libcchdo.model.datafile import DataFile
