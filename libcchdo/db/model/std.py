@@ -41,6 +41,12 @@ def _populate_library_database_parameters(std_session):
     with closing(LegacySession()) as legacy_session:
         from ...db.model import convert
         return convert.all_parameters(legacy_session, std_session)
+
+
+def _regenerate_database_cache(std_session):
+    Base.metadata.drop_all(std_session.get_bind())
+    Base.metadata.create_all(std_session.get_bind())
+    _populate_library_database_parameters(std_session)
             
 
 def _ensure_database_cache():
@@ -70,11 +76,8 @@ def _ensure_database_cache():
             LOG.info(
                 u'Database operational error possibly due to schema change.'
                 'Regenerating cache. Original error: %s' % e)
-            Base.metadata.drop_all(std_session.get_bind())
-            Base.metadata.create_all(std_session.get_bind())
-            _populate_library_database_parameters(std_session)
+            _regenerate_database_cache(std_session)
         std_session.commit()
-
 
     _cache_checked = True
     _cache_checking.release()

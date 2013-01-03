@@ -15,10 +15,10 @@ UNITS_MAP = {
     (u'umol/kg', u'UMOL/KG'): (u'\u03BCmol/kg', 'UMOL/KG'),
     (u'pmol/liter', u'PMOL/L'): (u'pmol/l', 'PMOL/L'),
     (u'DBAR', u'DBAR'): (u'decibar', 'DBAR'),
-    (u'\xc2\xb0C', u'DEG C'): (u'\xc2\xb0C (DEG C)', 'DEG C'),
-    (u'\xc2\xb0C(ITS90)', u'ITS-90'): (u'\xc2\xb0C (ITS-90)', 'ITS-90'),
-    (u'\xc2\xb0C', u'ITS-90'): (u'\xc2\xb0C (ITS-90)', 'ITS-90'),
-    (u'ITS-90', u'ITS-90'): (u'\xc2\xb0C (ITS-90)', 'ITS-90'),
+    (u'\xb0C', u'DEG C'): (u'\xb0C (DEG C)', 'DEG C'),
+    (u'\xb0C(ITS90)', u'ITS-90'): (u'\xb0C (ITS-90)', 'ITS-90'),
+    (u'\xb0C', u'ITS-90'): (u'\xb0C (ITS-90)', 'ITS-90'),
+    (u'ITS-90', u'ITS-90'): (u'\xb0C (ITS-90)', 'ITS-90'),
 }
 
 
@@ -47,8 +47,18 @@ KNOWN_NETCDF_VARIABLE_NAMES = {
 }
 
 
+def _unicode_fake(u):
+    """Convert a "unicode" string that is really a bytestring into real UTF-8.
+
+    """
+    try:
+        return unicode(u.encode('raw_unicode_escape'), 'utf-8')
+    except AttributeError:
+        return u
+
+
 def convert_unit(session, name, mnemonic):
-    units_name = unicode(name.strip())
+    units_name = _unicode_fake(name.strip())
     units_mnemonic = str(mnemonic.strip())
 
     try:
@@ -62,11 +72,15 @@ def convert_unit(session, name, mnemonic):
         session.add(units)
     else:
         if units.mnemonic != units_mnemonic:
-            LOG.warn(u'Mismatched mnemonic for unit {0}.'.format(units_name))
             if not units.mnemonic:
                 units.mnemonic = units_mnemonic
-                LOG.info(u'Setting mnemonic for unit {0} to {1}'.format(
+                LOG.info(u'Set mnemonic for existing unit {0} to {1}'.format(
                     units_name, units_mnemonic))
+            else:
+                LOG.error(
+                    u'unit {0} exists with mnemonic {1} which != {2}'.format(
+                        units_name, units_mnemonic, units.mnemonic))
+                raise ValueError()
     return units
 
 
@@ -85,7 +99,7 @@ def convert_parameter(session, legacy_param):
 
     parameter = _find_or_create_parameter(session, legacy_param.name)
 
-    parameter.full_name = (unicode(legacy_param.full_name) or u'').strip()
+    parameter.full_name = (_unicode_fake(legacy_param.full_name) or u'').strip()
     try:
         precision = legacy_param.ruby_precision
         if precision:
@@ -94,7 +108,7 @@ def convert_parameter(session, legacy_param):
             parameter.format = '%11s'
     except AttributeError:
         parameter.format = '%11s'
-    parameter.description = unicode(legacy_param.description or u'')
+    parameter.description = _unicode_fake(legacy_param.description or u'')
 
     range = legacy_param.range.split(',') if legacy_param.range else [None, None]
     parameter.bound_lower = float(range[0]) if range[0] else None
@@ -102,8 +116,11 @@ def convert_parameter(session, legacy_param):
 
     if legacy_param.units:
         legacy_param.units = legacy_param.units
-        parameter.units = convert_unit(
-            session, legacy_param.units, legacy_param.unit_mnemonic)
+        try:
+            parameter.units = convert_unit(
+                session, legacy_param.units, legacy_param.unit_mnemonic)
+        except ValueError:
+            LOG.warn(u'Unable to convert unit for {0}'.format(parameter))
     else:
         parameter.units = None
 

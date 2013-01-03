@@ -1186,6 +1186,21 @@ misc_parser = hydro_subparsers.add_parser(
 misc_parsers = misc_parser.add_subparsers(title='miscellaneous')
 
 
+def regen_db_cache(args):
+    """Regenerate database cache"""
+    from libcchdo.db.model import std
+    std_session = std.session()
+    std._regenerate_database_cache(std_session)
+    std_session.commit()
+
+
+regen_db_cache_parser = misc_parsers.add_parser(
+    'regen_db_cache',
+    help=regen_db_cache.__doc__)
+regen_db_cache_parser.set_defaults(
+    main=regen_db_cache)
+
+
 def any_to_legacy_parameter_statuses(args):
     """Show legacy parameter ids for the parameters in a data file."""
     from libcchdo.fns import read_arbitrary
