@@ -12,6 +12,7 @@ import argparse
 from argparse import RawTextHelpFormatter
 from datetime import datetime, date, timedelta
 from contextlib import closing
+from copy import copy
 import sys
 import os
 import os.path
@@ -1211,6 +1212,122 @@ plot_etopo_parser.add_argument(
     help='The center meridian of the map lon_0 (default: 180 centers the '
         'Pacific Ocean)')
 
+
+def plot_data_holdings_around(args):
+    """Plot the CCHDO data holdings binned around a year."""
+    from libcchdo.tools import plot_etopo
+    from libcchdo.plot.etopo import plt, ETOPOBasemap
+    from libcchdo.db.util import _tracks
+
+    args.no_etopo = True
+    args.fill_continents = True
+    args.no_etopo = False
+    args.fill_continents = False
+
+    args.minutes = 2
+    args.projection = 'eck4'
+    args.cmap = 'gray'
+    args.title = ''
+    args.width = 2048
+    args.any_file = None
+    args.bounds_elliptical = 200
+
+    around = datetime(args.around, 12, 1)
+    
+    fig_eck4 = plt.figure(1)
+    bm_eck4 = plot_etopo(
+        args, label_font_size=24,
+        draw_graticules_kwargs={'line_width': 1},
+        graticule_ticks_kwargs={'parallel_spacing': 30, 'meridian_spacing': 30})
+
+    args.projection = 'npstere'
+    args.minutes = 1
+    args.bounds_elliptical = 180
+    fig_npstere = plt.figure(2)
+    bm_npstere = plot_etopo(args,
+        label_font_size=28,
+        draw_graticules_kwargs={'line_width': 1},
+        gmt_graticules_kwargs={})
+
+    args.projection = 'spstere'
+    fig_spstere = plt.figure(3)
+    bm_spstere = plot_etopo(args,
+        label_font_size=28,
+        draw_graticules_kwargs={'line_width': 1},
+        gmt_graticules_kwargs={'border_linewidth': 11, 'border_ratio': 0.008})
+
+    gmt_style = copy(ETOPOBasemap.GMT_STYLE_DOTS)
+    gmt_style['s'] = 2
+    gmt_style['linewidth'] = 0
+
+    colors = ['g', 'b', 'r', None, ]
+    colors = colors[::-1]
+    sizes = [6, 6, 6, None, ]
+    sizes = sizes[::-1]
+
+    def bin_end():
+        # change color of dots
+        gmt_style['c'] = colors.pop()
+        gmt_style['s'] = sizes.pop()
+        LOG.debug(gmt_style)
+
+    def track_points(track, expocode, date_start):
+        lons = []
+        lats = []
+        for coord in track:
+            lons.append(coord[0])
+            lats.append(coord[1])
+        if lons and lats:
+            plt.figure(fig_eck4.number)
+            xs, ys = bm_eck4(lons, lats)
+            dots = bm_eck4.scatter(xs, ys, **gmt_style)
+
+        lons = []
+        lats = []
+        for coord in track:
+            if coord[1] >= 60:
+                lons.append(coord[0])
+                lats.append(coord[1])
+        if lons and lats:
+            plt.figure(fig_npstere.number)
+            npstere_gmt_style = copy(gmt_style)
+            npstere_gmt_style['s'] = npstere_gmt_style['s'] + 12
+            xs, ys = bm_npstere(lons, lats)
+            dots = bm_npstere.scatter(xs, ys, **npstere_gmt_style)
+
+        lons = []
+        lats = []
+        for coord in track:
+            if coord[1] <= -30:
+                lons.append(coord[0])
+                lats.append(coord[1])
+        if lons and lats:
+            plt.figure(fig_spstere.number)
+            spstere_gmt_style = copy(gmt_style)
+            spstere_gmt_style['s'] = spstere_gmt_style['s'] + 14
+            xs, ys = bm_spstere(lons, lats)
+            dots = bm_spstere.scatter(xs, ys, **spstere_gmt_style)
+
+    bin_end()
+    _tracks(bin_end, track_points, around)
+
+    plt.figure(fig_eck4.number)
+    bm_eck4.savefig('data_holdings_around_{0}_eckert4.png'.format(args.around))
+    plt.figure(fig_npstere.number)
+    bm_npstere.savefig('data_holdings_around_{0}_npstere.png'.format(args.around))
+    plt.figure(fig_spstere.number)
+    bm_spstere.savefig('data_holdings_around_{0}_spstere.png'.format(args.around))
+
+
+plot_data_holdings_around_parser = plot_parsers.add_parser(
+    'data_holdings_around',
+    help=plot_data_holdings_around.__doc__)
+plot_data_holdings_around_parser.set_defaults(
+    main=plot_data_holdings_around)
+plot_data_holdings_around_parser.add_argument(
+    'around', type=int, help='The year to bin around')
+
+
 misc_parser = hydro_subparsers.add_parser(
     'misc', help='Miscellaneous')
 misc_parsers = misc_parser.add_subparsers(title='miscellaneous')
@@ -1229,6 +1346,27 @@ regen_db_cache_parser = misc_parsers.add_parser(
     help=regen_db_cache.__doc__)
 regen_db_cache_parser.set_defaults(
     main=regen_db_cache)
+
+
+def db_dump_tracks(args):
+    """Dump the track points from the legacy database into a nav file.
+
+    """
+    from libcchdo.db.util import tracks
+    tracks(args.output_file, args.around)
+
+
+db_dump_tracks_parser = misc_parsers.add_parser(
+    'db_dump_tracks',
+    help=db_dump_tracks.__doc__)
+db_dump_tracks_parser.set_defaults(
+    main=db_dump_tracks)
+db_dump_tracks_parser.add_argument('-a', '--around',
+    help='the year to bin around')
+db_dump_tracks_parser.add_argument(
+    'output_file', type=argparse.FileType('w'), nargs='?',
+    default=sys.stdout,
+    help='output file (default: stdout)')
 
 
 def any_to_legacy_parameter_statuses(args):

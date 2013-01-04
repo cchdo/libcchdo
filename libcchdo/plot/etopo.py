@@ -401,7 +401,7 @@ def colormap_grayscale(topo, etopo_offset=0):
     ground_color = (0, 0, 0)
     mount_color = (0.1, 0.1, 0.1)
 
-    groundpt = etopo_ground_point(topo, etopo_offset=0)
+    groundpt = etopo_ground_point(topo, etopo_offset=10)
 
     colormap = LinearSegmentedColormap.from_list(
         'cchdo_grayscale',
@@ -430,7 +430,7 @@ def colormap_cberys(topo, etopo_offset=0):
     ground_color = (0, 0, 0)
     mount_color = (0.1, 0.1, 0.1)
 
-    groundpt = etopo_ground_point(topo, etopo_offset=0)
+    groundpt = etopo_ground_point(topo, etopo_offset=10)
 
     colormap = LinearSegmentedColormap.from_list(
         'cchdo_cberys',
@@ -652,7 +652,7 @@ class ETOPOBasemap(Basemap):
         else:
             cmtopofn = colormap_cberys
         if not args.no_etopo:
-            self.draw_etopo(args.minutes, 3, cmtopo=cmtopofn)
+            self.draw_etopo(args.minutes, 3, version='ice', cmtopo=cmtopofn)
 
         if args.fill_continents:
             self.fillcontinents(color='k')
@@ -688,22 +688,32 @@ class ETOPOBasemap(Basemap):
         self.axes.autoscale()
         self.axes.margins(*margins)
         
-    def get_graticule_ticks(self, label_nx=6, label_ny=5):
+    def get_graticule_ticks(self, label_nx=6, label_ny=5,
+                            meridian_spacing=None,
+                            parallel_spacing=None):
         """Return tick marks for graticules within the current bounds."""
+        LOG.info(u'Determining graticule ticks')
         if self.is_proj_cylindrical:
             parallels = np.linspace(self.urcrnrlat, self.llcrnrlat, label_ny)
             meridians = np.linspace(self.urcrnrlon, self.llcrnrlon, label_nx)
         elif self.is_proj_pseudocylindrical:
-            parallels = range(-90, 90, 20)
+            if not meridian_spacing:
+                meridian_spacing = 20
+            if not parallel_spacing:
+                parallel_spacing = 20
+            parallels = range(-90, 90, parallel_spacing)
             meridians = range(
-                self.urcrnrlon / 2, self.urcrnrlon / 2 + 360, 20)
+                self.urcrnrlon / 2, self.urcrnrlon / 2 + 360, meridian_spacing)
         else:
-            parallel_spacing = 10
+            if not meridian_spacing:
+                meridian_spacing = 20
+            if not parallel_spacing:
+                parallel_spacing = 10
             if self.is_proj_southern:
                 parallels = range(self.boundinglat, -80, -parallel_spacing)
             else:
                 parallels = range(self.boundinglat, 90, parallel_spacing)
-            meridians = range(0, 360, 20)
+            meridians = range(0, 360, meridian_spacing)
         return meridians, parallels
 
     def draw_graticules(self, meridian_ticks, parallel_ticks,
@@ -750,7 +760,8 @@ class ETOPOBasemap(Basemap):
         self.set_axes_limits()
         return artists
 
-    def gmt_graticules(self, graticules, draw_fancy_borders=True):
+    def gmt_graticules(self, graticules, draw_fancy_borders=True,
+                       border_ratio=0.012, border_linewidth=9):
         """Edit the graticules of the basemap to act like GMT graticules.
 
         Also handles drawing GMT fancy borders.
@@ -924,14 +935,14 @@ class ETOPOBasemap(Basemap):
 
             cx = minx + w / 2.
             cy = miny + h / 2.
-            ri = w / 2
-            ro = ri + w * 0.012
-            ra = (ro - ri) / 2
+            # Radii for the border, inner, outer, average
+            ri = w / 2.
+            ro = ri + w * border_ratio
+            ra = (ro - ri) / 2.
             rmid = ri + ra
-            rlabel = ro + 3 * ra
+            rlabel = ro + 3. * ra
 
             linewidth = 1
-            border_linewidth = 9
             border_color = 'k'
 
             if draw_fancy_borders:
@@ -1038,14 +1049,17 @@ class ETOPOBasemap(Basemap):
                 'sans-serif': ['Helvetica'],
             })
 
-    def draw_gmt_fancy_border(self, label_font_size=15):
+    def draw_gmt_fancy_border(self, label_font_size=15,
+                              draw_graticules_kwargs={},
+                              graticule_ticks_kwargs={},
+                              gmt_graticules_kwargs={}):
         """Draw a GMT fancy border around the map plot if able."""
         self.set_gmt_font()
-        graticule_ticks = self.get_graticule_ticks()
+        graticule_ticks = self.get_graticule_ticks(**graticule_ticks_kwargs)
         graticules = self.draw_graticules(
             graticule_ticks[0], graticule_ticks[1],
-            label_font_size=label_font_size)
-        fancy_border = self.gmt_graticules(graticules)
+            label_font_size=label_font_size, **draw_graticules_kwargs)
+        fancy_border = self.gmt_graticules(graticules, **gmt_graticules_kwargs)
         return graticule_ticks, graticules, fancy_border
 
     def resize_figure_to_pixel_width(self, width, ax_height=1.0, ax_xoff=0.0,
