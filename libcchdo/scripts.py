@@ -10,7 +10,7 @@ $ hydro --help
 
 import argparse
 from argparse import RawTextHelpFormatter
-from datetime import datetime, date
+from datetime import datetime, date, timedelta
 from contextlib import closing
 import sys
 import os
@@ -1362,6 +1362,23 @@ report_parser = hydro_subparsers.add_parser(
 report_parsers = report_parser.add_subparsers(title='Reports')
 
 
+today = datetime.utcnow()
+
+
+def _sanitize_report_dates(args):
+    """Convert string dates in argparser to datetime.
+
+    Defaults to the past fiscal year.
+
+    """
+    if type(args.date_start) != datetime:
+        args.date_start = datetime.strptime(args.date_start, '%Y-%m-%d')
+    if args.date_end is None:
+        args.date_end = args.date_start - timedelta(366)
+    if type(args.date_end) != datetime:
+        args.date_end = datetime.strptime(args.date_end, '%Y-%m-%d')
+
+
 def report_data_updates(args):
     """Generate report of number of data formats change in a time range.
 
@@ -1370,10 +1387,8 @@ def report_data_updates(args):
     """
     from libcchdo.reports import report_data_updates
 
+    _sanitize_report_dates(args)
     report_data_updates(args)
-
-
-today = datetime.utcnow()
 
 
 report_data_updates_parser = report_parsers.add_parser(
@@ -1382,15 +1397,40 @@ report_data_updates_parser = report_parsers.add_parser(
 report_data_updates_parser.set_defaults(
     main=report_data_updates)
 report_data_updates_parser.add_argument(
-    '--year', nargs='?', default=today.year,
-    help='Year to end')
+    '--date-start', nargs='?', default=None,
+    help='Day to end (default: a year before date-end)')
 report_data_updates_parser.add_argument(
-    '--month', nargs='?', default=today.month,
-    help='Month to end')
+    '--date-end', nargs='?', default=today,
+    help='Start of date range (default: today)')
 report_data_updates_parser.add_argument(
-    '--day', nargs='?', default=today.day,
-    help='Day to end')
-report_data_updates_parser.add_argument(
+    'output', type=argparse.FileType('w'), nargs='?', default=sys.stdout,
+    help='output file')
+
+
+def report_submission_and_queue(args):
+    """Generate report of submissions and queue.
+
+    Defaults to the past fiscal year.
+
+    """
+    from libcchdo.reports import report_submission_and_queue
+
+    _sanitize_report_dates(args)
+    report_submission_and_queue(args)
+
+
+report_submission_and_queue_parser = report_parsers.add_parser(
+    'submission_and_queue',
+    help=report_submission_and_queue.__doc__)
+report_submission_and_queue_parser.set_defaults(
+    main=report_submission_and_queue)
+report_submission_and_queue_parser.add_argument(
+    '--date-start', nargs='?', default=None,
+    help='Day to end (default: a year before date-end)')
+report_submission_and_queue_parser.add_argument(
+    '--date-end', nargs='?', default=today,
+    help='Start of date range (default: today)')
+report_submission_and_queue_parser.add_argument(
     'output', type=argparse.FileType('w'), nargs='?', default=sys.stdout,
     help='output file')
 
