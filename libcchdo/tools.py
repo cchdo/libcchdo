@@ -1,9 +1,12 @@
+import code
 import struct
 import sys
 import os
 import os.path
 import shutil
 from tarfile import TarFile
+import readline
+import atexit
 
 import filecmp
 
@@ -112,6 +115,26 @@ def collect_into_archive():
     os.chdir(cwd)
 
     shutil.rmtree(tempdir)
+
+
+class HistoryConsole(code.InteractiveConsole):
+    def __init__(self, locals=None, filename="<console>",
+                 histfile=os.path.expanduser('~/.libcchdo/.console-history')):
+        code.InteractiveConsole.__init__(self, locals, filename)
+        self.init_history(histfile)
+
+    def init_history(self, histfile):
+        readline.parse_and_bind('tab: complete')
+        if hasattr(readline, 'read_history_file'):
+            try:
+                readline.read_history_file(histfile)
+            except IOError:
+                pass
+            atexit.register(self.save_history, histfile)
+
+    def save_history(self, histfile):
+        readline.write_history_file(histfile)
+
 
 
 def _check_and_replace_parameters_convert(self):
@@ -610,6 +633,7 @@ def plot_etopo(args, label_font_size=15, title_font_size=15,
             label_font_size, draw_graticules_kwargs, graticule_ticks_kwargs,
             gmt_graticules_kwargs)
     return bm
+
 
 def sbe_asc_to_ctd_exchange(args):
     output, expo = (sys.stdout, '')

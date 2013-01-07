@@ -836,6 +836,33 @@ misc_converter_parsers = misc_converter_parser.add_subparsers(
     title='Miscellaneous converters')
 
 
+def explore_any(args):
+    """Attempt to read any CCHDO file and drop into a REPL."""
+    from libcchdo.fns import read_arbitrary, all_formats
+    from libcchdo.tools import HistoryConsole
+
+    with closing(args.cchdo_file) as in_file:
+        file = read_arbitrary(in_file, args.input_type)
+
+    console = HistoryConsole(locals=locals())
+    banner = (
+        'Exploring {0}. Your data file is available as the variable '
+        '"file".').format(args.cchdo_file.name)
+    console.interact(banner)
+
+
+explore_any_parser = misc_converter_parsers.add_parser(
+    'explore_any',
+    help=explore_any.__doc__)
+explore_any_parser.set_defaults(
+    main=explore_any)
+explore_any_parser.add_argument('-i', '--input-type', choices=known_formats,
+    help='force the input file to be read as the specified type')
+explore_any_parser.add_argument(
+    'cchdo_file', type=argparse.FileType('r'),
+     help='any recognized CCHDO file')
+
+
 def convert_per_litre_to_per_kg_botex(args):
     from libcchdo.tools import convert_per_litre_to_per_kg
 
