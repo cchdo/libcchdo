@@ -1213,7 +1213,7 @@ plot_etopo_parser.add_argument(
     help='The projection of map to use (default: merc)')
 plot_etopo_parser.add_argument(
     '--cmap', default='cberys',
-    choices=['cberys', 'gray'],
+    choices=['cberys', 'gray', 'ushydro'],
     help='The colormap to use for the ETOPO data (default: cberys)')
 plot_etopo_parser.add_argument(
     '--title', type=str, 
