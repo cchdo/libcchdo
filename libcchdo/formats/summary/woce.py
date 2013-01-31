@@ -134,17 +134,17 @@ def write(self, handle):
     for i in range(0, len(self)):
         exdate = self.columns['DATE'][i]
         date_str = exdate[4:6] + exdate[6:8] + exdate[2:4]
-        row = ('%-14s %-5s %5s    %3d  %3s %-6s %04d   %2s %-10s %-11s %3s %5d       %-6d      %5d %7d %-15s %-20s' %
-          (self['EXPOCODE'][i], self['SECT_ID'][i],
-           self['STNNBR'][i], self['CASTNO'][i],
-           self['_CAST_TYPE'][i], date_str,
-           self['TIME'][i], self['_CODE'][i],
-           woce.dec_lat_to_woce_lat(self['LATITUDE'][i]),
-           woce.dec_lng_to_woce_lng(self['LONGITUDE'][i]),
-           self['_NAV'][i], self['DEPTH'][i],
-           self['_ABOVE_BOTTOM'][i],
-           self['_MAX_PRESSURE'][i],
-           self['_NUM_BOTTLES'][i], self['_PARAMETERS'][i],
-           self['_COMMENTS'][i]))
-        handle.write(row+'\n')
-    handle.close()
+        row = '%-14s %-5s %5s    ' % (
+            self['EXPOCODE'][i], self['SECT_ID'][i], self['STNNBR'][i])
+        row += '%3d  %3s %-6s %04s   ' % (
+            self['CASTNO'][i], self['_CAST_TYPE'][i], date_str, self['TIME'][i])
+        row += '%2s %-10s %-11s %3s %5d       ' % (
+            self['_CODE'][i], woce.dec_lat_to_woce_lat(self['LATITUDE'][i]),
+            woce.dec_lng_to_woce_lng(self['LONGITUDE'][i]), self['_NAV'][i],
+            self['DEPTH'][i])
+        row += '%-6d      ' % self['_ABOVE_BOTTOM'][i]
+        row += '%5d %7d %-15s %-20s' % (
+            self['_MAX_PRESSURE'][i], self['_NUM_BOTTLES'][i],
+            self['_PARAMETERS'][i], self['_COMMENTS'][i])
+        handle.write(row + '\n')
+    woce.fuse_datetime(self)

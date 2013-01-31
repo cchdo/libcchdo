@@ -47,7 +47,7 @@ def read(self, handle):
         self['LONGITUDE'].append(lng)
 
         self['_NAV'].append(None)
-        self['DEPTH'].append(int(tokens[5]))
+        self['DEPTH'].append(float(tokens[5]))
         self['_ABOVE_BOTTOM'].append(None)
         self['_MAX_PRESSURE'].append(None)
         self['_NUM_BOTTLES'].append(None)

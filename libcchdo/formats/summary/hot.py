@@ -46,6 +46,7 @@ def read(self, handle):
           if len(tokens) > 20:
               self.columns['_COMMENTS'].append(' '.join(tokens[20:]))
 
+    woce.fuse_datetime(self)
     self.check_and_replace_parameters()
 
 

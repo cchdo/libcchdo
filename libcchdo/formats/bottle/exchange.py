@@ -213,3 +213,5 @@ def write(self, handle):
         handle.write('\n')
 
     handle.write(woce.END_DATA)
+
+    woce.fuse_datetime(self)
