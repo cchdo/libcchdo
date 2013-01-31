@@ -2,7 +2,9 @@
 Install
 =======
 
-    python setup.py install
+::
+
+    pip install .
 
 Dependencies
 ============
@@ -17,13 +19,19 @@ All nodes are python packages except those marked as libraries.
 
 * libcchdo
   - geoalchemy
+
     + SQLAlchemy
     + MySQL-python (optional if you have downloaded a cached database)
+
       * MySQL (library)
+
   - netCDF4 (optional) for netCDF file manipulation
+
     + numpy
     + netCDF >=3.0 (library)
+
       * HDF5 (library, needed to write netCDF 4 files)
+
   - cdecimal (optional but highly recommended) provides a HUGE speed boost
   - coverage (optional) only needed for test coverage
   - scipy (optional) needed for interpolation and scientific math
@@ -38,19 +46,40 @@ You need to install these yourself based on your operating system.
 
 * MySQL
 * netCDF4
+
   - HDF5 - library needed by netCDF 4 to write files
 
-Python packages
----------------
+* libgeos
 
-You'll want to install pip (a package manager for Python).
+Using pip
+=========
 
-If you do not want any optional packages you can simply install geoalchemy::
+You'll want to install pip (package manager for Python).
 
-    pip install geoalchemy
+Developing
+----------
 
-Note about order
-----------------
+When developing, you want to be able to edit and run code without reinstalling.
+`pip` will allow you to do this by installing the package as editable::
 
-Pip runs into problems installing numpy and netCDF4 in one go. You should
-install numpy first and then netCDF4.
+    pip install --editable .
+
+or
+
+::
+
+    pip install -e .
+
+Deploying
+---------
+
+If you do not want any optional packages you can simply run pip install::
+
+    pip install .
+
+If you do want extras, you can find them under `extras_require`. Only 
+`pip>=1.2.0` understands this command.
+
+::
+
+    pip install .[speed,netcdf,plot,merge]

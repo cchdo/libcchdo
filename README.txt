@@ -8,6 +8,7 @@ Package Structure
 =================
 
 * libcchdo
+
   * libcchdo - library source files (see docstrings for more information)
   * scripts - a collection of scripts (yes I'm a pack-rat)
 
@@ -24,10 +25,12 @@ Quick start
 Reading a file
 --------------
 
-For example, a bottle exchange file 'bottle_hy1.csv'.
+For example, a bottle exchange file `bottle_hy1.csv`.
 
 libcchdo attempts to abstract files into a DataFile object. Let's create one to
-hold the data in 'bottle_hy1.csv'.
+hold the data in `bottle_hy1.csv`.
+
+::
 
     >>> import libcchdo.model.datafile as DF
     >>> import libcchdo.formats.bottle.exchange as botex
@@ -48,15 +51,21 @@ hold the data in 'bottle_hy1.csv'.
 
 Do some changes to the file. For example, let's delete OXYGEN from the file.
 
+::
+
     >>> del d.columns['OXYGEN']
 
-Now to write the masked file back out
+Now, write the masked file back out
     
+::
+
     >>> output = open('masked_bottle_hy1.csv', 'w')
     >>> botex.write(d, output)
     >>> output.close()
 
 Using some binaries
+
+::
 
     $ path/to/installation/hydro --help
     $ path/to/installation/hydro convet --help

@@ -1,17 +1,12 @@
 from __future__ import with_statement
-import setuptools
-import unittest
-import glob
+from setuptools import setup, find_packages
+import sys
 import os
 
 import libcchdo
 from libcchdo.setup_commands import (
     DIRECTORY, PACKAGE_NAME,
-    CoverageCommand,
-    CleanCommand,
-    PurgeCommand,
-    ProfileCommand,
-    REPLCommand,
+    CoverageCommand, CleanCommand, PurgeCommand, ProfileCommand, REPLCommand,
     )
 
 
@@ -23,6 +18,8 @@ if __name__ == "__main__":
     except IOError:
         pass
 
+    # To install extras with pip as editable:
+    # pip install -e .[speed,netcdf]
     extras_require = {
         'db': ['MySQL-python', ],
         'speed': ['cdecimal', ],
@@ -34,29 +31,21 @@ if __name__ == "__main__":
 
     install_requires = [
         'geoalchemy',
-        'pysqlite',
-        'argparse',
     ]
+    if sys.version_info[:3] < (2,5,0):
+        install_requires.append('pysqlite')
+    if sys.version_info[:3] < (2,7,0):
+        install_requires.append('argparse')
 
-    # Add all the extras as requirements. Pip and setup.py develop don't support
-    # extras_require.
-    install_requires = reduce(
-        lambda l, m: l + m, extras_require.values(), install_requires)
+    packages = find_packages(exclude=['libcchdo.tests'])
 
-    setuptools.setup(
+    setup(
         name=PACKAGE_NAME,
         version=libcchdo.__version__,
         description="CLIVAR and Carbon Hydrographic Data Office library",
         long_description=long_description,
         provides=[PACKAGE_NAME],
-        packages=['%s%s' % (PACKAGE_NAME, x) for x in (
-            '', '.algorithms', '.datadir',
-            '.db', '.db.model', '.formats',
-            '.formats.ctd', '.formats.ctd.zip',
-            '.formats.bottle', '.formats.bottle.zip',
-            '.formats.common', '.formats.summary',
-            '.model', '.model.convert',
-            '.plot', '.recipes', '.region', '.units', )],
+        packages=packages,
         test_suite='libcchdo.tests',
         install_requires=install_requires,
         extras_require=extras_require,
