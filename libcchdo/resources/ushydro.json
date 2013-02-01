@@ -1,0 +1,279 @@
+{ "type": "FeatureCollection",
+  "features": [
+  {"type": "Feature",
+    "geometry": {
+      "type": "LineString",
+      "coordinates": [
+        [137.0, 33.0], [140.0, 30.0], [-122.0, 30.0], [-120.0, 32.0]
+        ]
+    },
+    "properties": {
+      "title": "P2",
+      "line": "P2",
+      "completed": [2004],
+      "pending": [2013],
+      "box": [160, 30]
+    }
+  },
+  {"type": "Feature",
+    "geometry": {
+      "type": "LineString",
+      "coordinates": [
+        [-152, 57], [-150, 55], [-150, -20]
+        ]
+    },
+    "properties": {
+      "title": "P16N",
+      "line": "P16N",
+      "completed": [2006],
+      "pending": [2015],
+      "box":[210,45]
+    }
+  },
+  {"type": "Feature",
+    "geometry": {
+      "type": "LineString",
+      "coordinates": [
+        [-150, -20],[-150, -75]
+        ]
+    },
+    "properties": {
+      "title": "P16S",
+      "line": "P16S",
+      "completed": [2005],
+      "pending": [2014],
+      "box":[210,-50]
+    }
+  },
+  {"type": "Feature",
+    "geometry": {
+      "type": "LineString",
+      "coordinates": [
+        [155, -30],[175, -30],[177,-32],[-75,-32]
+        ]
+    },
+    "properties": {
+      "title": "P6",
+      "line": "P6",
+      "completed": [2010],
+      "pending": [],
+      "box":[230,-32]
+    }
+  },
+  {"type": "Feature",
+    "geometry": {
+      "type": "LineString",
+      "coordinates": [
+        [-110, 22],[-110,-2],[-102,-10],[-102,-70]
+        ]
+    },
+    "properties": {
+      "title": "P18",
+      "line": "P18",
+      "completed": [2008],
+      "pending": [2016],
+      "box":[258,-55]
+    }
+  },
+  {"type": "Feature",
+    "geometry": {
+      "type": "LineString",
+      "coordinates": [
+        [167, -77],
+        [167,-75],
+        [173,-73],
+        [173,-71],
+        [170,-70],
+        [177,-67],
+        [-150,-67],
+        [-150,-75],
+        [-159,-76],
+        [-161,-77],
+        [177,-75],
+        [-170,-72],
+        [-170,-67],
+        [-170,-67],
+        [-102,-67],
+        [-102,-70],
+        [-98,-69],
+        [-102,-67],
+        [-79,-67],
+        [-75,-65],
+        [-70,-67]
+        ]
+    },
+    "properties": {
+      "title": "S4P",
+      "line": "S4P",
+      "completed": [2011],
+      "pending": [],
+      "box":[174,-65]
+    }
+  },
+  {"type": "Feature",
+    "geometry": {
+      "type": "LineString",
+      "coordinates": [
+        [30,-35],[30,-67]
+        ]
+    },
+    "properties": {
+      "title": "I6S",
+      "line": "I6S",
+      "completed": [2008],
+      "pending": [],
+      "box":[35,-55]
+    }
+  },
+  {"type": "Feature",
+    "geometry": {
+      "type": "LineString",
+      "coordinates": [
+        [32,-33],[60,-33],[70,-30],[85,-35],[100,-35],[102,-33],[113,-33]
+        ]
+    },
+    "properties": {
+      "title": "I5",
+      "line": "I5",
+      "completed": [2009],
+      "pending": [],
+      "box":[45,-35]
+    }
+  },
+  {"type": "Feature",
+    "geometry": {
+      "type": "LineString",
+      "coordinates": [
+        [57,-30],[57,-13],[51,-11],[54,-9],[54,1],[63,6],[63,15],[59,17.5]
+        ]
+    },
+    "properties": {
+      "title": "I7N",
+      "line": "I7N",
+      "completed": [],
+      "pending": [],
+      "box":[63,0]
+    }
+  },
+  {"type": "Feature",
+    "geometry": {
+      "type": "LineString",
+      "coordinates": [
+        [90,20],[90,10],[95,-1],[95,-16]
+        ]
+    },
+    "properties": {
+      "title": "I9N/I8S",
+      "line": "I9N",
+      "completed": [2007],
+      "pending": [],
+      "box":[95,-16]
+    }
+  },
+  {"type": "Feature",
+    "geometry": {
+      "type": "LineString",
+      "coordinates": [
+        [95,-16],[95,-50],[85,-60],[85,-66]
+        ]
+    },
+    "properties": {
+      "title": "I9N/I8S",
+      "line": "I8S",
+      "completed": [2007],
+      "pending": [],
+      "box":[95,-16]
+    }
+  },
+  {"type": "Feature",
+    "geometry": {
+      "type": "LineString",
+      "coordinates": [
+        [-67.5,42.5],[-66,40],[-66,12]
+        ]
+    },
+    "properties": {
+      "title": "A22",
+      "line": "A22",
+      "completed": [2003, 2012],
+      "pending": [],
+      "box":[280,48]
+    }
+  },
+  {"type": "Feature",
+    "geometry": {
+      "type": "LineString",
+      "coordinates": [
+        [-55,7],[-53,11],[-53,30],[-52,31],[-52,42],[-50,44]
+        ]
+    },
+    "properties": {
+      "title": "A20",
+      "line": "A20",
+      "completed": [2003, 2012],
+      "pending": [],
+      "box":[305,0]
+    }
+  },
+  {"type": "Feature",
+    "geometry": {
+      "type": "LineString",
+      "coordinates": [
+        [-21,63],[-21,34],[-26,24],[-26,12],[-22,5],[-22,-5]
+        ]
+    },
+    "properties": {
+      "title": "A16N",
+      "line": "A16N",
+      "completed": [2003],
+      "pending": [2013],
+      "box":[330,58]
+    }
+  },
+  {"type": "Feature",
+    "geometry": {
+      "type": "LineString",
+      "coordinates": [
+        [-22,-5],[-22,-39],[-30,-53],[-26,-58],[-26,-60]
+        ]
+    },
+    "properties": {
+      "title": "A16S",
+      "line": "A16S",
+      "completed": [2005],
+      "pending": [2014],
+      "box":[320,-45]
+    }
+  },
+  {"type": "Feature",
+    "geometry": {
+      "type": "LineString",
+      "coordinates": [
+        [-47,-28],[-40,-30],[11,-30],[14,-28.5]
+        ]
+    },
+    "properties": {
+      "title": "A10",
+      "line": "A10",
+      "completed": [2011],
+      "pending": [],
+      "box":[350,-30]
+    }
+  },
+  {"type": "Feature",
+    "geometry": {
+      "type": "LineString",
+      "coordinates": [
+        [-3,4],[-3,0],[0,-3],[0,-69]
+        ]
+    },
+    "properties": {
+      "title": "A13.5",
+      "line": "A13.5",
+      "completed": [2010],
+      "pending": [],
+      "box":[360,-55]
+    }
+  }
+  ]
+}
