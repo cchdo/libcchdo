@@ -433,7 +433,7 @@ def colormap_cberys(topo, etopo_offset=0):
     groundpt = etopo_ground_point(topo, etopo_offset=10)
 
     colormap = LinearSegmentedColormap.from_list(
-        'cchdo_ushydro',
+        'cchdo_cberys',
         ((0, locolor),
          (groundpt, hicolor),
          (groundpt, ground_color),
@@ -459,7 +459,7 @@ def colormap_ushydro(topo, etopo_offset=0):
     groundpt = etopo_ground_point(topo, etopo_offset=0)
 
     colormap = LinearSegmentedColormap.from_list(
-        'cchdo_grayscale',
+        'cchdo_ushydro',
         ((0, locolor),
          (groundpt, hicolor),
          (groundpt, ground_color),
