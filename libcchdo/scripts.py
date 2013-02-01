@@ -1213,7 +1213,7 @@ plot_etopo_parser.add_argument(
     help='The projection of map to use (default: merc)')
 plot_etopo_parser.add_argument(
     '--cmap', default='cberys',
-    choices=['cberys', 'gray'],
+    choices=['cberys', 'gray', 'ushydro'],
     help='The colormap to use for the ETOPO data (default: cberys)')
 plot_etopo_parser.add_argument(
     '--title', type=str, 
@@ -1239,6 +1239,43 @@ plot_etopo_parser.add_argument(
     help='The center meridian of the map lon_0 (default: 180 centers the '
         'Pacific Ocean)')
 
+
+def plot_ushydro(args):
+    '''Rebuild all the ushydro maps with lines and years
+    '''
+    from libcchdo.plot.ushydro import genfrom_args
+    this_dir, filename = os.path.split(__file__)
+    default = os.path.join(this_dir, 'resources', 'ushydro.json')
+    if args.config:
+        f = args.config
+    else:
+        f = open(default, 'rb')
+
+    if args.config_dump:
+        print open(default, 'rb').read()
+    else:
+        genfrom_args(args, f)
+
+
+plot_ushydro_parser = plot_parsers.add_parser(
+        'ushydro',
+        help=plot_ushydro.__doc__)
+plot_ushydro_parser.set_defaults(
+        main=plot_ushydro)
+plot_ushydro_parser.add_argument(
+        '--config', type=argparse.FileType('r'),
+        help='Override default config file')
+plot_ushydro_parser.add_argument(
+        '--config-dump', 
+        action='store_true',
+        help='Dump the default configureation to stdout for user editing')
+plot_ushydro_parser.add_argument(
+        '--save-dir', default=os.getcwd(),
+        help="The directory the maps will be saved in, deaults to cwd",)
+plot_ushydro_parser.add_argument(
+        '--html-prefix',
+        default="/images/map_images/", help=("Define the location the maps will"
+        "exist on the server, this modifies the html output"),)
 
 def plot_data_holdings_around(args):
     """Plot the CCHDO data holdings binned around a year."""

@@ -446,6 +446,32 @@ def colormap_cberys(topo, etopo_offset=0):
     return colormap
 
 
+def colormap_ushydro(topo, etopo_offset=0):
+    """Return a colormap based on the USHYDRO cruise map
+
+    """
+    LOG.info(u'Generating USHYDRO colormap for ETOPO')
+    locolor = (0.51, 0.64, 0.72)
+    hicolor = (0.85, 0.95, 0.96)
+    ground_color = (0, 0, 0)
+    mount_color = (0.1, 0.1, 0.1)
+
+    groundpt = etopo_ground_point(topo, etopo_offset=0)
+
+    colormap = LinearSegmentedColormap.from_list(
+        'cchdo_ushydro',
+        ((0, locolor),
+         (groundpt, hicolor),
+         (groundpt, ground_color),
+         (1, mount_color)
+        )
+    )
+    colormap.set_bad(color='k', alpha=0.0)
+    colormap.set_over(color='y')
+    colormap.set_under(color='c')
+    return colormap
+
+
 def gmt_label_fmt(lon):
     """Format latlons with negative and no positive.
 
@@ -649,6 +675,8 @@ class ETOPOBasemap(Basemap):
             cmtopofn = colormap_grayscale
         elif args.cmap == 'cberys':
             cmtopofn = colormap_cberys
+        elif args.cmap == 'ushydro':
+            cmtopofn = colormap_ushydro
         else:
             cmtopofn = colormap_cberys
         if not args.no_etopo:

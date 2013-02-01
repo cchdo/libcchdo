@@ -46,6 +46,10 @@ if __name__ == "__main__":
         long_description=long_description,
         provides=[PACKAGE_NAME],
         packages=packages,
+        package_data={PACKAGE_NAME:[
+            'resources/ushydro.json',
+            ],
+        },
         test_suite='libcchdo.tests',
         install_requires=install_requires,
         extras_require=extras_require,
