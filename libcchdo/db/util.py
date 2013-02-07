@@ -77,7 +77,8 @@ def _grouped_cruises_with_data_modifications(lsesh,
     return [pre, during, post]
 
 
-def _tracks(bin_callback, track_callback, around_year=None):
+def _tracks(bin_callback, track_callback,
+            dt_from=None, dt_to=None, around_year=None):
     with closing(legacy.session()) as lsesh:
         if around_year is None:
             bins = [[]]
@@ -91,6 +92,11 @@ def _tracks(bin_callback, track_callback, around_year=None):
                     legacy.Cruise.ExpoCode == legacy.TrackLine.ExpoCode)
             if range_bin:
                 query = query.filter(legacy.TrackLine.ExpoCode.in_(range_bin))
+
+            if dt_from:
+                query = query.filter(legacy.Cruise.Begin_Date >= dt_from)
+            if dt_to:
+                query = query.filter(legacy.Cruise.Begin_Date <= dt_to)
                 
             tracks = query.all()
             for track, expocode, date_start in tracks:
@@ -100,20 +106,34 @@ def _tracks(bin_callback, track_callback, around_year=None):
             bin_callback()
 
 
-def tracks(output, around=None):
+def tracks(output, dt_from=None, dt_to=None, around=None):
+    """Write track coordinates to a nav file from the legacy database.
+    
+    Arguments::
+    dt_from --  (optional) datetime to limit to cruises after; can be used in
+        conjunction with dt_to
+    dt_to --  (optional) datetime to limit cruises before; can be used in
+        conjunction with dt_from
+    around -- (optional) datetime to bin around. Three bins will be created:
+        created before last modified before, created before last modified after,
+        created after last modified after.
+
+    """
     def track_points(track, expocode, date_start):
         for coord in track:
             output.write(
-                ','.join(
-                    map(str, [coord[0], coord[1], date_start])) + '\n')
+                ','.join(map(str, [coord[0], coord[1], date_start])) + '\n')
 
     if around:
         around = int(around)
         def bin_end():
             LOG.info('bin end')
             output.write('\n')
-
-        _tracks(bin_end, track_points, datetime(around, 1, 1))
+        _tracks(bin_end, track_points, around_year=datetime(around, 1, 1))
+    elif dt_from:
+        def bin_end():
+            pass
+        _tracks(bin_end, track_points, dt_from=dt_from, dt_to=dt_to)
     else:
         def bin_end():
             pass

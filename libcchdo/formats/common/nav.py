@@ -1,5 +1,6 @@
 from ... import fns
 from ...model import datafile
+from libcchdo import LOG
 
 
 #def read(self, handle):
@@ -21,11 +22,41 @@ def read(self, handle):
     """How to read a CCHDO tracks file."""
     self.create_columns(['LONGITUDE', 'LATITUDE'])
 
-    lons = self['LONGITUDE']
-    lats = self['LATITUDE']
+    lons = self['LONGITUDE'].values
+    lats = self['LATITUDE'].values
+
+    l = handle.readline()
+    split_on = 'space'
+    coords = []
+    while len(coords) < 2 and split_on != 'failed':
+        if split_on == 'space':
+            coords = l.split()
+            if len(coords) < 2:
+                LOG.warn(u'Coordinates could not be split on whitespace.')
+                split_on = 'comma'
+        elif split_on == 'comma':
+            coords = l.split(',')
+            if len(coords) < 2:
+                LOG.warn(u'Coordinates could not be split on comma.')
+                split_on = None
+    if split_on is None:
+        LOG.error(u'Coordinates could not be split using known schemes.')
+        return
+
+    if split_on == 'space':
+        coords = l.split()
+    elif split_on == 'comma':
+        coords = l.split(',')
+    lon, lat = map(fns._decimal, coords[:2])
+    lons.append(lon)
+    lats.append(lat)
 
     for l in handle:
-        lon, lat = map(fns._decimal, l.split())
+        if split_on == 'space':
+            coords = l.split()
+        elif split_on == 'comma':
+            coords = l.split(',')
+        lon, lat = map(fns._decimal, coords[:2])
         lons.append(lon)
         lats.append(lat)
     

@@ -1417,7 +1417,7 @@ def db_dump_tracks(args):
 
     """
     from libcchdo.db.util import tracks
-    tracks(args.output_file, args.around)
+    tracks(args.output_file, args.date_from, args.date_to, args.around)
 
 
 db_dump_tracks_parser = misc_parsers.add_parser(
@@ -1426,7 +1426,11 @@ db_dump_tracks_parser = misc_parsers.add_parser(
 db_dump_tracks_parser.set_defaults(
     main=db_dump_tracks)
 db_dump_tracks_parser.add_argument('-a', '--around',
-    help='the year to bin around')
+    help='the year to bin around. Takes precedence over date-from and date-to.')
+db_dump_tracks_parser.add_argument('-df', '--date-from',
+    help='the year to limit from')
+db_dump_tracks_parser.add_argument('-dt', '--date-to',
+    help='the year to limit to')
 db_dump_tracks_parser.add_argument(
     'output_file', type=argparse.FileType('w'), nargs='?',
     default=sys.stdout,
