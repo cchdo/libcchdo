@@ -472,6 +472,40 @@ def colormap_ushydro(topo, etopo_offset=0):
     return colormap
 
 
+def colormap_goship(topo, etopo_offset=0):
+    """Return a colormap based on the GO-SHIP map.
+
+    """
+    LOG.info(u'Generating GOSHIP colormap for ETOPO')
+    locolor = (0.803, 0.952, 0.976)
+    hicolor = (0.921, 0.98, 0.988)
+    ground_color = (0.384, 0.384, 0.384)
+    mount_color = (0.404, 0.404, 0.404)
+
+    groundpt = etopo_ground_point(topo, etopo_offset=0)
+
+    colormap = LinearSegmentedColormap.from_list(
+        'goship',
+        ((0, locolor),
+         (groundpt, hicolor),
+         (groundpt, ground_color),
+         (1, mount_color)
+        )
+    )
+    colormap.set_bad(color='k', alpha=0.0)
+    colormap.set_over(color='y')
+    colormap.set_under(color='c')
+    return colormap
+
+
+colormaps = {
+    'gray': colormap_grayscale,
+    'cberys': colormap_cberys,
+    'ushydro': colormap_ushydro,
+    'goship': colormap_goship,
+}
+
+
 def gmt_label_fmt(lon):
     """Format latlons with negative and no positive.
 
@@ -528,33 +562,32 @@ class ETOPOBasemap(Basemap):
         self._graticules_labeled = False
 
     @classmethod
-    def new_from_argparser(cls, args, **kwargs):
-        """Creates a map using the arguments from an ArgumentParser."""
-        if is_proj_cylindrical(args.projection):
+    def new_from_projection(cls, projection, args, **kwargs):
+        if is_proj_cylindrical(projection):
             newcls = cls(
-                projection=args.projection,
+                projection=projection,
                 llcrnrlat=args.bounds_cylindrical[1],
                 llcrnrlon=args.bounds_cylindrical[0],
                 urcrnrlat=args.bounds_cylindrical[3],
                 urcrnrlon=args.bounds_cylindrical[2], **kwargs)
-        elif is_proj_pseudocylindrical(args.projection):
+        elif is_proj_pseudocylindrical(projection):
             newcls = cls(
-                projection=args.projection,
+                projection=projection,
                 lon_0=args.bounds_elliptical, **kwargs)
-        elif is_proj_polar(args.projection):
+        elif is_proj_polar(projection):
             boundinglat = 60
             lon_0 = (args.bounds_elliptical + 180) % 360
-            if args.projection[0] == 's':
+            if projection[0] == 's':
                 boundinglat = -30
                 lon_0 = args.bounds_elliptical
             newcls = cls(
-                projection=args.projection,
+                projection=projection,
                 boundinglat=boundinglat,
                 lon_0=lon_0, **kwargs)
             newcls.boundinglat = boundinglat
-        elif args.projection == 'tmerc':
+        elif projection == 'tmerc':
             newcls = cls(
-                projection=args.projection,
+                projection=projection,
                 llcrnrlat=args.bounds_cylindrical[1],
                 llcrnrlon=args.bounds_cylindrical[0],
                 urcrnrlat=args.bounds_cylindrical[3],
@@ -565,8 +598,14 @@ class ETOPOBasemap(Basemap):
         else:
             LOG.error(u'Unhandled projection {0}'.format(args.projection))
             newcls = None
+        return newcls
 
-        newcls.draw_from_argparser(args)
+    @classmethod
+    def new_from_argparser(cls, args, **kwargs):
+        """Creates a map using the arguments from an ArgumentParser."""
+        newcls = cls.new_from_projection(args.projection, args, **kwargs)
+        if newcls:
+            newcls.draw_from_argparser(args)
         return newcls
 
     @property
@@ -671,19 +710,23 @@ class ETOPOBasemap(Basemap):
 
     def draw_from_argparser(self, args):
         """Draw based on argparser arguments."""
-        if args.cmap == 'gray':
-            cmtopofn = colormap_grayscale
-        elif args.cmap == 'cberys':
+        try:
+            cmtopofn = colormaps[args.cmap]
+        except KeyError:
+            LOG.warn(
+                u'Unknown colormap {0!r}. Defaulted to cberys'.format(
+                args.cmap))
             cmtopofn = colormap_cberys
-        elif args.cmap == 'ushydro':
-            cmtopofn = colormap_ushydro
-        else:
-            cmtopofn = colormap_cberys
+
+        etopo_cut = 3
+        etopo_version = 'ice'
+        fillcontinents_kwargs = {'color': 'k'}
         if not args.no_etopo:
-            self.draw_etopo(args.minutes, 3, version='ice', cmtopo=cmtopofn)
+            self.draw_etopo(
+                args.minutes, etopo_cut, version=etopo_version, cmtopo=cmtopofn)
 
         if args.fill_continents:
-            self.fillcontinents(color='k')
+            self.fillcontinents(fillcontinents_kwargs)
 
     def set_axes_limits(self, ax=None):
         """Extend Basemap set axes limits to account for graticule labels.
@@ -730,8 +773,9 @@ class ETOPOBasemap(Basemap):
             if not parallel_spacing:
                 parallel_spacing = 20
             parallels = range(-90, 90, parallel_spacing)
-            meridians = range(
-                self.urcrnrlon / 2, self.urcrnrlon / 2 + 360, meridian_spacing)
+            mstart = int(self.llcrnrlon / 2)
+            mstart /= meridian_spacing * meridian_spacing
+            meridians = range(mstart, mstart + 360, meridian_spacing)
         else:
             if not meridian_spacing:
                 meridian_spacing = 20
@@ -1122,6 +1166,34 @@ class ETOPOBasemap(Basemap):
             LOG.info(
                 u'Matplotlib has a problem with plotting Basemaps that have '
                 'nothing on them.')
+
+
+def plot(args, label_font_size=15, title_font_size=15, basemap_kwargs={},
+         draw_graticules_kwargs={}, graticule_ticks_kwargs={},
+         gmt_graticules_kwargs={}):
+    """Plot using argparse.
+
+    """
+    bm = ETOPOBasemap.new_from_argparser(args, **basemap_kwargs)
+
+    if args.title:
+        axheight = 0.945
+    else:
+        axheight = 1.0
+
+    ratio = bm.resize_figure_to_pixel_width(args.width, axheight)
+    if ratio < 1:
+        label_font_size *= ratio
+        title_font_size *= ratio
+
+    if args.title:
+        bm.add_title(args.title, title_font_size)
+    if not args.no_etopo:
+        bm.draw_gmt_fancy_border(
+            label_font_size, draw_graticules_kwargs, graticule_ticks_kwargs,
+            gmt_graticules_kwargs)
+    return bm
+
 
 
 def main(argv):

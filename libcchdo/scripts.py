@@ -20,6 +20,7 @@ import os.path
 from libcchdo import LOG
 
 from libcchdo.fns import all_formats
+from libcchdo.plot.etopo import colormaps as plot_colormaps
 from libcchdo.formats import woce
 from libcchdo.formats.netcdf_oceansites import (
     OCEANSITES_VERSIONS, OCEANSITES_TIMESERIES)
@@ -1166,9 +1167,9 @@ plot_parsers = plot_parser.add_subparsers(title='plotters')
 def plot_etopo(args):
     """Plot the world with ETOPO bathymetry."""
     from libcchdo.fns import read_arbitrary
-    from libcchdo.tools import plot_etopo
+    from libcchdo.plot.etopo import plot
 
-    bm = plot_etopo(args)
+    bm = plot(args)
     if args.any_file:
         df = read_arbitrary(args.any_file)
 
@@ -1213,7 +1214,7 @@ plot_etopo_parser.add_argument(
     help='The projection of map to use (default: merc)')
 plot_etopo_parser.add_argument(
     '--cmap', default='cberys',
-    choices=['cberys', 'gray', 'ushydro'],
+    choices=plot_colormaps.keys(),
     help='The colormap to use for the ETOPO data (default: cberys)')
 plot_etopo_parser.add_argument(
     '--title', type=str, 
@@ -1238,6 +1239,81 @@ plot_etopo_parser.add_argument(
     default=180,
     help='The center meridian of the map lon_0 (default: 180 centers the '
         'Pacific Ocean)')
+
+
+def plot_goship(args):
+    """Plot the GO-SHIP basemap.
+
+    With CCHDO cruises overlaid.
+
+    """
+    args.no_etopo = False
+    args.fill_continents = False
+
+    args.minutes = 1
+    args.projection = 'eck4'
+    args.cmap = 'goship'
+    args.title = ''
+    args.width = 8192
+    args.any_file = None
+    args.bounds_elliptical = 205
+
+    label_font_size = 85
+    title_font_size = 28
+    draw_graticules_kwargs = {
+        'line_width': 0.5,
+        'label_font_color': (0.404, 0.404, 0.404),
+    }
+    from libcchdo.plot.etopo import plt, ETOPOBasemap, plot
+    from libcchdo.db.util import _tracks
+
+    if args.draft:
+        args.minutes = 5
+        args.width = 1024
+        label_font_size = 15
+        title_font_size = 15
+
+    bm = plot(
+        args, label_font_size, title_font_size,
+        draw_graticules_kwargs=draw_graticules_kwargs)
+    bm.hide_axes_borders()
+
+    gmt_style = copy(ETOPOBasemap.GMT_STYLE_DOTS)
+    gmt_style['s'] = 80
+    gmt_style['linewidth'] = 0
+    color = tuple([x / 255. for x in [0x7A, 0xCD, 0xE4]])
+    color = tuple([(x - 0x40) / 255. for x in [0x7A, 0xCD, 0xE4]])
+    gmt_style['c'] = color
+
+    def bin_end():
+        pass
+
+    def track_points(track, expocode, date_start):
+        lons = []
+        lats = []
+        for coord in track:
+            lons.append(coord[0])
+            lats.append(coord[1])
+        if lons and lats:
+            xs, ys = bm(lons, lats)
+            dots = bm.scatter(xs, ys, **gmt_style)
+
+    bin_end()
+    _tracks(bin_end, track_points)
+    bm.savefig(args.output_filename)
+
+
+plot_goship_parser = plot_parsers.add_parser(
+        'goship',
+        help=plot_goship.__doc__)
+plot_goship_parser.set_defaults(
+        main=plot_goship)
+plot_goship_parser.add_argument(
+    '--draft', action='store_true',
+    help='Draft form is a small version of the plot')
+plot_goship_parser.add_argument(
+    '--output-filename', default='goship.png',
+    help='Name of the output file (default: goship.png)')
 
 
 def plot_ushydro(args):
@@ -1277,10 +1353,10 @@ plot_ushydro_parser.add_argument(
         default="/images/map_images/", help=("Define the location the maps will"
         "exist on the server, this modifies the html output"),)
 
+
 def plot_data_holdings_around(args):
     """Plot the CCHDO data holdings binned around a year."""
-    from libcchdo.tools import plot_etopo
-    from libcchdo.plot.etopo import plt, ETOPOBasemap
+    from libcchdo.plot.etopo import plt, ETOPOBasemap, plot
     from libcchdo.db.util import _tracks
 
     args.no_etopo = True
@@ -1299,7 +1375,7 @@ def plot_data_holdings_around(args):
     around = datetime(args.around, 12, 1)
     
     fig_eck4 = plt.figure(1)
-    bm_eck4 = plot_etopo(
+    bm_eck4 = plot(
         args, label_font_size=24,
         draw_graticules_kwargs={'line_width': 1},
         graticule_ticks_kwargs={'parallel_spacing': 30, 'meridian_spacing': 30})
@@ -1308,14 +1384,14 @@ def plot_data_holdings_around(args):
     args.minutes = 1
     args.bounds_elliptical = 180
     fig_npstere = plt.figure(2)
-    bm_npstere = plot_etopo(args,
+    bm_npstere = plot(args,
         label_font_size=28,
         draw_graticules_kwargs={'line_width': 1},
         gmt_graticules_kwargs={})
 
     args.projection = 'spstere'
     fig_spstere = plt.figure(3)
-    bm_spstere = plot_etopo(args,
+    bm_spstere = plot(args,
         label_font_size=28,
         draw_graticules_kwargs={'line_width': 1},
         gmt_graticules_kwargs={'border_linewidth': 11, 'border_ratio': 0.008})

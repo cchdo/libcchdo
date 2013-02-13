@@ -607,34 +607,6 @@ def sbe_to_ctd_exchange(args):
         _single_file(sbe, args.files, output, salt=salt, temp=temp)
 
 
-def plot_etopo(args, label_font_size=15, title_font_size=15,
-               basemap_kwargs={},
-               draw_graticules_kwargs={},
-               graticule_ticks_kwargs={},
-               gmt_graticules_kwargs={}):
-    from libcchdo.plot.etopo import ETOPOBasemap
-
-    bm = ETOPOBasemap.new_from_argparser(args, **basemap_kwargs)
-
-    if args.title:
-        axheight = 0.945
-    else:
-        axheight = 1.0
-
-    ratio = bm.resize_figure_to_pixel_width(args.width, axheight)
-    if ratio < 1:
-        label_font_size *= ratio
-        title_font_size *= ratio
-
-    if args.title:
-        bm.add_title(args.title, title_font_size)
-    if not args.no_etopo:
-        bm.draw_gmt_fancy_border(
-            label_font_size, draw_graticules_kwargs, graticule_ticks_kwargs,
-            gmt_graticules_kwargs)
-    return bm
-
-
 def sbe_asc_to_ctd_exchange(args):
     output, expo = (sys.stdout, '')
     if (args.expo):
