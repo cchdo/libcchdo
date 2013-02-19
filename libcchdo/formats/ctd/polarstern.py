@@ -17,7 +17,7 @@ def read(meta, filename):
         "param_chl_fluores": "FLUOR", # FIXME
     }
 
-    datafile = datafile.DataFile()
+    df = datafile.DataFile()
 
     preamble = """\
 # Auto-generated Exchange CTD file from ctd_polarstern_to_ctd_exchange
@@ -47,10 +47,10 @@ def read(meta, filename):
                     meta[attr]["comment"],
                     meta[attr]["pi"])
 
-    datafile.globals['header'] = preamble + citation + reference + parameter_descriptions
+    df.globals['header'] = preamble + citation + reference + parameter_descriptions
 
-    datafile.globals["EXPOCODE"] = None
-    datafile.globals["SECT"] = meta["events"]["campaign"]
+    df.globals["EXPOCODE"] = None
+    df.globals["SECT"] = meta["events"]["campaign"]
 
     cruise = None
     cast_info = None
@@ -64,20 +64,20 @@ def read(meta, filename):
         cast_info = "000-0"
 
     if len(cast_info.split("-")) == 1:
-        datafile.globals["STNNBR"] = cast_info
-        datafile.globals["CASTNO"] = "1"
+        df.globals["STNNBR"] = cast_info
+        df.globals["CASTNO"] = "1"
     else:
-        datafile.globals["STNNBR"], datafile.globals["CASTNO"] = \
+        df.globals["STNNBR"], df.globals["CASTNO"] = \
                 cast_info.split("-")
 
     date_time = datetime.datetime.strptime(
             meta["events"]["date_time"].upper(),
             "%Y-%m-%dT%H:%M:%S")
-    datafile.globals["DATE"] = date_time.strftime("%Y%m%d")
-    datafile.globals["TIME"] = date_time.strftime("%H%M")
-    datafile.globals["LATITUDE"] = meta["events"]["latitude"]
-    datafile.globals["LONGITUDE"] = meta["events"]["longitude"]
-    datafile.globals["DEPTH"] = meta["max_depth"]
+    df.globals["DATE"] = date_time.strftime("%Y%m%d")
+    df.globals["TIME"] = date_time.strftime("%H%M")
+    df.globals["LATITUDE"] = meta["events"]["latitude"]
+    df.globals["LONGITUDE"] = meta["events"]["longitude"]
+    df.globals["DEPTH"] = meta["max_depth"]
 
     with open(filename, "rb") as file:
 
@@ -103,12 +103,12 @@ def read(meta, filename):
                 continue
 
             final_params.append(PARAM_EQUIVS[param])
-            col = datafile.Column(PARAM_EQUIVS[param])
+            col = df.Column(PARAM_EQUIVS[param])
             col.parameter.units = meta[param]["units"] if \
                     meta[param]["units"] else \
                     col.parameter.units
 
-            datafile.columns[PARAM_EQUIVS[param]] = col
+            df.columns[PARAM_EQUIVS[param]] = col
 
         for line in file:
             values = map(lambda x: x.strip(), line.split("\t"))
@@ -116,11 +116,11 @@ def read(meta, filename):
                 if not param:
                     continue
                 if not datum or datum == '':
-                    datafile.columns[param].values.append(woce.FILL_VALUE)
+                    df.columns[param].values.append(woce.FILL_VALUE)
                 else:
-                    datafile.columns[param].values.append(float(datum))
+                    df.columns[param].values.append(float(datum))
 
-    return datafile
+    return df
 
 
 
