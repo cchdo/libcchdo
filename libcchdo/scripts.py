@@ -109,6 +109,7 @@ def check_any(args):
                             woce.WATER_SAMPLE_FLAGS[flag]))
 
     def check_datafile(df):
+        df.check_and_replace_parameters(convert=False)
         check_fill_value_has_flag_w_9(df)
 
     with closing(args.output) as out_file:
@@ -265,7 +266,6 @@ bot_bats_to_bot_ncos_parser.add_argument(
     help='output BOT netCDF OceanSITES ZIP file')
 
 
->>>>>>> Stashed changes
 def bottle_exchange_to_db(args):
     from libcchdo.model.datafile import DataFile
     import libcchdo.formats.bottle.exchange as botex
@@ -584,7 +584,7 @@ def ctd_netcdf_to_ctd_netcdf_oceansites(args):
     with closing(args.ctdnc) as in_file:
         ctdnc.read(df, in_file)
 
-    _qualify_oceansites_type()
+    _qualify_oceansites_type(args)
 
     with closing(args.ctdnc_os) as out_file:
         ctdnc_oceansites.write(
@@ -596,11 +596,7 @@ ctd_netcdf_to_ctd_netcdf_oceansites_parser = ctd_converter_parsers.add_parser(
     help=ctd_netcdf_to_ctd_netcdf_oceansites.__doc__)
 ctd_netcdf_to_ctd_netcdf_oceansites_parser.set_defaults(
     main=ctd_netcdf_to_ctd_netcdf_oceansites)
-ctd_netcdf_to_ctd_netcdf_oceansites_parser.add_argument(
-    '--os-version', choices=OCEANSITES_VERSIONS,
-    default=OCEANSITES_VERSIONS[-1],
-    help='OceanSITES version number (default: {0})'.format(
-        OCEANSITES_VERSIONS[-1]))
+_add_oceansites_arguments(ctd_netcdf_to_ctd_netcdf_oceansites_parser)
 ctd_netcdf_to_ctd_netcdf_oceansites_parser.add_argument(
     'ctdnc', type=FileType('r'),
     help='input CTD Exchange file')
@@ -608,10 +604,6 @@ ctd_netcdf_to_ctd_netcdf_oceansites_parser.add_argument(
     'ctdnc_os', type=FileType('w'), nargs='?',
     default=sys.stdout,
     help='output CTD NetCDF OceanSITES file')
-ctd_netcdf_to_ctd_netcdf_oceansites_parser.add_argument(
-    'timeseries', type=str, nargs='?', default=None,
-    choices=OCEANSITES_TIMESERIES,
-    help='timeseries location (default: None)')
 
 
 def ctdzip_andrex_to_ctdzip_exchange(args):
@@ -680,7 +672,7 @@ def ctdzip_exchange_to_ctdzip_netcdf_oceansites(args):
     with closing(args.ctdzipex) as in_file:
         ctdzipex.read(dfc, in_file)
     
-    _qualify_oceansites_type()
+    _qualify_oceansites_type(args)
 
     with closing(args.ctdzipnc_os) as out_file:
         ctdzipnc_oceansites.write(
@@ -693,11 +685,7 @@ ctdzip_exchange_to_ctdzip_netcdf_oceansites_parser = \
         help=ctdzip_exchange_to_ctdzip_netcdf_oceansites.__doc__)
 ctdzip_exchange_to_ctdzip_netcdf_oceansites_parser.set_defaults(
     main=ctdzip_exchange_to_ctdzip_netcdf_oceansites)
-ctdzip_exchange_to_ctdzip_netcdf_oceansites_parser.add_argument(
-    '--os-version', choices=OCEANSITES_VERSIONS,
-    default=OCEANSITES_VERSIONS[-1],
-    help='OceanSITES version number (default: {0})'.format(
-        OCEANSITES_VERSIONS[-1]))
+_add_oceansites_arguments(ctdzip_exchange_to_ctdzip_netcdf_oceansites_parser)
 ctdzip_exchange_to_ctdzip_netcdf_oceansites_parser.add_argument(
     'ctdzipex', type=FileType('r'),
     help='input CTD ZIP Exchange file')
@@ -715,7 +703,7 @@ def ctdzip_netcdf_to_ctdzip_netcdf_oceansites(args):
     with closing(args.ctdzipnc) as in_file:
         ctdzipnc.read(dfc, in_file)
     
-    _qualify_oceansites_type()
+    _qualify_oceansites_type(args)
 
     with closing(args.ctdzipnc_os) as out_file:
         ctdzipnc_oceansites.write(
@@ -728,11 +716,7 @@ ctdzip_netcdf_to_ctdzip_netcdf_oceansites_parser = \
         help=ctdzip_netcdf_to_ctdzip_netcdf_oceansites.__doc__)
 ctdzip_netcdf_to_ctdzip_netcdf_oceansites_parser.set_defaults(
     main=ctdzip_netcdf_to_ctdzip_netcdf_oceansites)
-ctdzip_netcdf_to_ctdzip_netcdf_oceansites_parser.add_argument(
-    '--os-version', choices=OCEANSITES_VERSIONS,
-    default=OCEANSITES_VERSIONS[-1],
-    help='OceanSITES version number (default: {0})'.format(
-        OCEANSITES_VERSIONS[-1]))
+_add_oceansites_arguments(ctdzip_netcdf_to_ctdzip_netcdf_oceansites_parser)
 ctdzip_netcdf_to_ctdzip_netcdf_oceansites_parser.add_argument(
     'ctdzipnc', type=FileType('r'),
     help='input CTD ZIP NetCDF file')

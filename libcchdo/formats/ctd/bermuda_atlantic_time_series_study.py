@@ -1,46 +1,19 @@
-from datetime import datetime, timedelta
-
-from ... import LOG
-from .. import woce
-from ...fns import Decimal
-
-
-def _timedelta_to_seconds(td):
-    return td.days * 3600 * 24 + td.seconds + td.microseconds * 1e-9
-
-
-def _idparts(filename):
-    try:
-        idpart = filename[:filename.rindex('.dpr')]
-    except ValueError:
-        LOG.warn('BATS filename does not end in .dpr')
-        return (None, None, None)
-    type_id = idpart[0]
-    cruise_id = idpart[1:5]
-    cast_id = idpart[6]
-    return (type_id, cruise_id, cast_id)
+from libcchdo import LOG
+from libcchdo.fns import _decimal, equal_with_epsilon
+from libcchdo.formats import woce
+from libcchdo.datadir import create_expocode
+from libcchdo.formats.bermuda_atlantic_time_series_study import (
+    dpr_idparts, bats_time_to_dt, BATS_SECT_ID, correct_longitude,
+    collapse_globals,
+    )
 
 
-def is_global(column):
-    check = None
-    for x in column:
-        if check is None:
-            check = x
-            continue
-        if check != x:
-            return False
-    return True
-
-
-def _append_to_column(column, value):
-    flag = 2
-    if not column.parameter.is_in_range(value):
-        LOG.warn('%r is not in range %s (%r, %r)' % (
-                    value, column.parameter, column.parameter.bound_lower,
-                    column.parameter.bound_upper))
-        flag = 9
-        value = None
-    column.append(value, flag)
+def _decimal_check_missing(str):
+    """Convert str to a decimal or None if matches dpr fill value."""
+    x = _decimal(str)
+    if equal_with_epsilon(x, -9.99) or equal_with_epsilon(x, -10):
+        return None
+    return x
 
 
 def read(self, handle):
@@ -62,47 +35,23 @@ def read(self, handle):
         year, frac_year = parts[1].split('.')
         year = int(year)
 
-        start = datetime(year, 1, 1)
-        seconds_in_year = Decimal(
-            str(_timedelta_to_seconds(datetime(year + 1, 1, 1) - start))) * \
-            Decimal('0.' + frac_year)
-        dt = datetime(1970, 1, 1) + \
-            timedelta(
-                seconds=float(int(start.strftime('%s')) + seconds_in_year))
+        self['_DATETIME'].append(bats_time_to_dt(parts[1]))
+        self['LATITUDE'].append(_decimal(parts[2]))
+        self['LONGITUDE'].append(_decimal(correct_longitude(parts[3])))
 
-        self['_DATETIME'].append(dt)
-        self['LATITUDE'].append(Decimal(parts[2]))
-        # BATS files don't record negative longitude because their study area
-        # is small.
-        self['LONGITUDE'].append(Decimal('-' + parts[3]))
-
-        _append_to_column(self['CTDPRS'], Decimal(parts[4]))
-        _append_to_column(self['CTDTMP'], Decimal(parts[6]))
-        _append_to_column(self['CTDSAL'], Decimal(parts[7]))
-        _append_to_column(self['CTDOXY'], Decimal(parts[8]))
-        _append_to_column(self['FLUOR'], Decimal(parts[10]))
+        self['CTDPRS'].append_check_range(_decimal_check_missing(parts[4]))
+        self['CTDTMP'].append_check_range(_decimal_check_missing(parts[6]))
+        self['CTDSAL'].append_check_range(_decimal_check_missing(parts[7]))
+        self['CTDOXY'].append_check_range(_decimal_check_missing(parts[8]))
+        self['FLUOR'].append_check_range(_decimal_check_missing(parts[10]))
 
     self.globals['_COMMENTS'] = ';'.join(comments)
+    self.globals['EXPOCODE'] = create_expocode('33H4', self['_DATETIME'][0])
+    self.globals['SECT_ID'] = BATS_SECT_ID
+    idparts = dpr_idparts(handle.name)
+    self.globals['_OS_ID'] = idparts['cruise']
+    self.globals['STNNBR'] = idparts['type']
+    self.globals['CASTNO'] = idparts['cast']
     self.globals['DEPTH'] = woce.FILL_VALUE
-    self.globals['SECT_ID'] = 'ARS20'
 
-    type_id, cruise_id, cast_id = _idparts(handle.name)
-
-    self.globals['STNNBR'] = cruise_id
-    self.globals['CASTNO'] = cast_id
-
-    if is_global(self['_DATETIME']):
-        date_str, time_str = woce.strftime_woce_date_time(self['_DATETIME'][0])
-        self.globals['DATE'] = date_str
-        self.globals['TIME'] = time_str
-        del self['_DATETIME']
-
-    self.globals['EXPOCODE'] = '33H4%s' % date_str
-
-    if is_global(self['LATITUDE']):
-        self.globals['LATITUDE'] = self['LATITUDE'][0]
-        del self['LATITUDE']
-
-    if is_global(self['LONGITUDE']):
-        self.globals['LONGITUDE'] = self['LONGITUDE'][0]
-        del self['LONGITUDE']
+    collapse_globals(self, ['_DATETIME', 'LATITUDE', 'LONGITUDE'])

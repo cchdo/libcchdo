@@ -2,6 +2,9 @@
 
 import re
 import os
+from shutil import copy2
+
+from libcchdo import LOG
 
 
 def intersection(self, o):
@@ -26,16 +29,16 @@ def cd_to_data_directory():
 
   found = False
   for dir in directories_to_try:
-      logging.info('Checking for data directory %s' % dir)
+      LOG.info('Checking for data directory %s' % dir)
       os.chdir(dir)
       if is_root_data_dir():
           found = True
           break
   if not found:
-      logging.error('Unable to find data directory with subdirectories: %s' % \
+      LOG.error('Unable to find data directory with subdirectories: %s' % \
                     ' '.join(main_data_directories))
       exit(1)
-  logging.info('Selected data directory %s' % os.getcwd())
+  LOG.info('Selected data directory %s' % os.getcwd())
 
 
 datafile_extensions = ['su.txt', 'hy.txt', 'hy1.csv', 'ct.zip', 'ct1.zip',

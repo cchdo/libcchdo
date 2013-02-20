@@ -121,11 +121,7 @@ def write(self, handle):
     del self.globals['stamp']
     del self.globals['header']
 
-    try:
-        del self.globals['_DATETIME']
-    except KeyError:
-        pass
-
+    woce.split_datetime(self)
     handle.write('NUMBER_HEADERS = '+str(len(self.globals.keys())+1)+"\n")
     for header in REQUIRED_HEADERS:
         try:
@@ -134,7 +130,8 @@ def write(self, handle):
             LOG.warn('Missing required header %s' % header)
 
     for key in set(self.globals.keys()) - set(REQUIRED_HEADERS):
-        handle.write(key+' = '+str(self.globals[key])+"\n")
+        handle.write('{key} = {val}\n'.format(key=key, val=self.globals[key]))
+    woce.fuse_datetime(self)
 
     self.globals['stamp'] = stamp
     self.globals['header'] = header

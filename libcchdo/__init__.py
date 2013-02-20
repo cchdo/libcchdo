@@ -142,7 +142,7 @@ class _LibLogFormatter(logging.Formatter):
         d['color_level'] = COLORS[self._get_color(record.levelno)]
         d['levelname'] = record.levelname[0]
         path = d['pathname']
-        path = path.replace(self.library_abspath, '')
+        path = path.replace(self.library_abspath + '/', '')
         d['pathname'] = path
         return self._fmt % d
 
@@ -157,7 +157,7 @@ _LIBLOG_HANDLER = logging.StreamHandler()
 _LIBLOG_HANDLER.setFormatter(_LibLogFormatter(
     ''.join((
         '%(asctime)-11s %(color_level)s%(levelname)s ',
-        '%(color_path)s%(name)s%(pathname)s:%(lineno)d', COLORS['CLEAR'],
+        '%(color_path)s%(pathname)s:%(lineno)d', COLORS['CLEAR'],
         '\t%(message)s', COLORS['CLEAR'])), "%H%M:%S"))
 
 LOG = logging.getLogger(__name__)
