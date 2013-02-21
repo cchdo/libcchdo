@@ -103,7 +103,7 @@ COLORS = {
     'BOLDRED': COLOR_ESCAPE + '1;31m',
     'BOLDYELLOW': COLOR_ESCAPE + '1;33m',
     'RED': COLOR_ESCAPE + '0;31m',
-    'GREEN': COLOR_ESCAPE + '0;32m',
+    'GREEN': COLOR_ESCAPE + '1;32m',
     'YELLOW': COLOR_ESCAPE + '0;33m',
     'BLUE': COLOR_ESCAPE + '1;34m',
     'CYAN': COLOR_ESCAPE + '0;36m',
@@ -140,7 +140,10 @@ class _LibLogFormatter(logging.Formatter):
         d['message'] = record.getMessage()
         d['color_path'] = COLORS['BLUE']
         d['color_level'] = COLORS[self._get_color(record.levelno)]
-        d['pathname'] = d['pathname'].replace(self.library_abspath, '')
+        d['levelname'] = record.levelname[0]
+        path = d['pathname']
+        path = path.replace(self.library_abspath, '')
+        d['pathname'] = path
         return self._fmt % d
 
     def formatTime(self, record, fmt):
@@ -153,9 +156,9 @@ class _LibLogFormatter(logging.Formatter):
 _LIBLOG_HANDLER = logging.StreamHandler()
 _LIBLOG_HANDLER.setFormatter(_LibLogFormatter(
     ''.join((
-        '%(asctime)-21s %(color_level)s%(levelname)s', COLORS['CLEAR'],
-        ': %(message)s %(color_path)s%(name)s%(pathname)s:%(lineno)d',
-        COLORS['CLEAR'])), "%Y-%j %H:%M:%S"))
+        '%(asctime)-11s %(color_level)s%(levelname)s ',
+        '%(color_path)s%(name)s%(pathname)s:%(lineno)d', COLORS['CLEAR'],
+        '\t%(message)s', COLORS['CLEAR'])), "%H%M:%S"))
 
 LOG = logging.getLogger(__name__)
 LOG.setLevel(logging.DEBUG)
