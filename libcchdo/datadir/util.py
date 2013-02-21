@@ -1,12 +1,7 @@
 """Utilities for operating on the CCHDO data directory"""
 
-import logging
 import re
 import os
-
-logger = logging.getLogger()
-logger.setLevel(logging.DEBUG)
-logger.addHandler(logging.StreamHandler())
 
 
 def intersection(self, o):
@@ -48,12 +43,24 @@ datafile_extensions = ['su.txt', 'hy.txt', 'hy1.csv', 'ct.zip', 'ct1.zip',
 
 
 def is_data_dir(dir):
+    """Determine if the given path is a data directory.
+
+    """
     def filename_has_any_extensions(filename, extensions):
         return any(map(lambda e: filename.endswith(e), extensions))
 
     return any(map(lambda f: filename_has_any_extensions(
                    f, datafile_extensions),
                os.listdir(dir)))
+
+
+def is_cruise_dir(dir):
+    """Determine if the given path is a cruise directory.
+
+    Basically, if the 'ExpoCode' file exists, it's a cruise directory.
+
+    """
+    return 'ExpoCode' in os.listdir(dir)
 
 
 allowable_oceans = ['arctic', 'atlantic', 'pacific', 'indian', 'southern']
@@ -101,9 +108,26 @@ def do_for_cruise_directories(operation):
 def mkdir_ensure(path, mode=0777):
     try:
         os.mkdir(path, mode)
+        os.chmod(path, mode)
+    except OSError:
+        makedirs_ensure(path, mode)
+
+
+def makedirs_ensure(path, mode=0777):
+    try:
+        os.makedirs(path, mode)
+        os.chmod(path, mode)
     except OSError:
         pass
-    os.chmod(path, mode)
+
+
+def copy(src, dst, mode=0664):
+    copy2(src, dst)
+
+    dst_path = dst
+    if os.path.isdir(dst):
+        dst_path = os.path.join(dst, os.path.basename(src))
+    os.chmod(dst_path, mode)
 
 
 def _make_subdir(root, dirname, perms):
@@ -120,5 +144,3 @@ def make_subdirs(root, subdirs, perms):
             make_subdirs(os.path.join(root, subdir), subdirs, perms)
         else:
             _make_subdir(root, subdir, perms)
-
-
