@@ -3,6 +3,7 @@ import sys
 import sqlalchemy as S
 import sqlalchemy.orm
 import sqlalchemy.ext.declarative
+from sqlalchemy.orm import relationship
 from geoalchemy import GeometryColumn, LineString
 
 from ... import memoize
@@ -456,6 +457,26 @@ class QueueFile(Base):
     merge_notes = S.Column(S.String)
     hidden = S.Column(S.Integer)
     documentation = S.Column(S.Integer)
+    submission_id = S.Column(S.Integer, S.ForeignKey('submissions.id'))
+    submission = relationship('Submission')
+    
+    def is_unmerged(self):
+        """Return the unmerged status.
+
+        """
+        return self.merged == 0
+    
+    def is_hidden(self):
+        """Return the hidden status.
+
+        """
+        return self.merged == 2
+    
+    def is_merged(self):
+        """Return the merge status.
+
+        """
+        return self.merged == 1
 
 
 class Submission(Base):
