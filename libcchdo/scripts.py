@@ -1129,23 +1129,13 @@ plot_parsers = plot_parser.add_subparsers(title='plotters')
 def plot_etopo(args):
     """Plot the world with ETOPO bathymetry."""
     from libcchdo.fns import read_arbitrary
-    from libcchdo.plot.etopo import plot
+    from libcchdo.plot.etopo import plot, plot_line_dots
 
     bm = plot(args)
     if args.any_file:
         df = read_arbitrary(args.any_file)
-
-        lats = df['LATITUDE']
-        lons = df['LONGITUDE']
-        if not (lats and lons):
-            LOG.error(u'Cannot plot file without LATITUDE and LONGITUDE data')
-            return
-        lats = map(float, lats.values)
-        lons = map(float, lons.values)
-        xs, ys = bm(lons, lats)
-
-        dots = bm.scatter(xs, ys, **bm.GMT_STYLE_DOTS)
-        line = bm.plot(xs, ys, **bm.GMT_STYLE_LINE)
+        line, dots = plot_line_dots(
+            df['LONGITUDE'].values, df['LATITUDE'].values, bm)
 
     bm.savefig(args.output_filename)
 
