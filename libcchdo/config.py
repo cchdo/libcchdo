@@ -97,8 +97,21 @@ _STORAGE_NOTICE = \
 
 
 def get_db_credentials_cchdo():
-    db_host = 'h2o.ucsd.edu'
-    db_name = 'cchdo'
+    def input_cchdo_db_host():
+        LOG.info(_STORAGE_NOTICE)
+        return raw_input(u'Which host is the legacy CCHDO database on? ')
+
+    cfg_db = 'db_cred'
+    cfg_host = 'cchdo/host'
+    db_host = get_option(cfg_db, cfg_host, input_cchdo_db_host)
+
+    def input_cchdo_db_name():
+        LOG.info(_STORAGE_NOTICE)
+        return raw_input(u'What is the name of the legacy CCHDO database? ')
+
+    cfg_db = 'db_cred'
+    cfg_name = 'cchdo/name'
+    db_name = get_option(cfg_db, cfg_name, input_cchdo_db_name)
 
     def input_cchdo_username():
         LOG.info(_STORAGE_NOTICE)

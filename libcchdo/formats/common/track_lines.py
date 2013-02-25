@@ -1,24 +1,29 @@
-from ...db import connect
+from contextlib import closing
+
+from libcchdo import LOG
+from libcchdo.model.navcoord import iter_coords, LinestringNavCoords
 
 
 #def read(self, handle):
 
-def write(self, handle):
-    """How to write a trackline entry to the cchdo database."""
-    connection = connect.cchdo()
-    cursor = connection.cursor()
-    expocodes = self.datafile.columns['EXPOCODE'].values
-    for expocode in self.datafile.expocodes():
-        indices = [i for i, x in enumerate(expocodes) if x == expocode]
-        lngs = [self.datafile.columns['LONGITUDE'][i] for i in indices]
-        lats = [self.datafile.columns['LATITUDE'][i] for i in indices]
-        points = zip(lngs, lats)
-        linestring = 'LINESTRING('+','.join(map(lambda p: ' '.join(p),
-                                                points))+')'
-        sql = ('SET @g = LineStringFromText("'+linestring+'");'
+
+def write(self, connection):
+    """How to write a trackline entry to the cchdo database.
+
+    This method currently assumes bottle formatted datafile.
+
+    """
+    def write_cruise_coords(expocode, coords):
+        """Persist the given cruise coords pair.
+
+        """
+        sql = ('SET @g = LineStringFromText("{linestring}");\n'
                'INSERT IGNORE INTO track_lines '
-               'VALUES(DEFAULT,"'+expocode+'",@g,"Default")'
-               'ON DUPLICATE KEY UPDATE Track = @g')
-        cursor.execute(sql)
-    cursor.close()
-    connection.close()
+               'VALUES(DEFAULT,"{expocode}",@g,"Default") '
+               'ON DUPLICATE KEY UPDATE Track = @g').format(
+            linestring=coords, expocode=expocode)
+        with connection.begin() as trans:
+            connection.execute(sql)
+        LOG.info(u'Persisted track for {0}\n{1}'.format(expocode, coords))
+
+    iter_coords(self, LinestringNavCoords, write_cruise_coords)

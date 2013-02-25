@@ -187,12 +187,13 @@ any_to_type_parser.add_argument(
 def any_to_db_track_lines(args):
     from libcchdo.fns import read_arbitrary
     from libcchdo.formats.common import track_lines
+    from libcchdo.db.connect import cchdo
 
-    with closing(args.input_file) as in_file:
-        data = read_arbitrary(in_file, args.input_type)
-    
-    with closing(args.output_track_lines) as out_file:
-        track_lines.write(data, out_file)
+    dbcchdo = cchdo()
+    with closing(dbcchdo.connect()) as conn:
+        with closing(args.input_file) as in_file:
+            data = read_arbitrary(in_file, args.input_type)
+        track_lines.write(data, conn)
 
 
 any_to_db_track_lines_parser = any_converter_parsers.add_parser(
