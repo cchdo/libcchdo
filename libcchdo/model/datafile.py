@@ -1,15 +1,15 @@
-import operator
+from operator import itemgetter
 
-from .. import LOG
-from .. import COLORS
-from .. import memoize
-from .. import fns
+from .. import LOG, COLORS, memoize, fns
 from ..db.model import std
 
 
 class Column(object):
 
     def __init__(self, parameter, units=None):
+        """Create a Column given a string parameter name or Parameter instance.
+
+        """
         if not type(parameter) is str and not type(parameter) is unicode:
             self.parameter = parameter
         else:
@@ -41,6 +41,53 @@ class Column(object):
         if flag_igoss is not None:
             fns.set_list(self.flags_igoss, i, flag_igoss)
 
+    def _check_range(self, value, flag_woce=None):
+        """
+        If a value is given, check that it is in range.
+        If a flag is given with no value, set the flag.
+        It is an error to set a flag for a missing value.
+        If no flag is given, default to WOCE 2.
+
+        """
+        if value and not self.parameter.is_in_range(value):
+            LOG.warn(
+                u'{0!r} is not in range {1} ({2!r}, {3!r})'.format(
+                    value, self.parameter, self.parameter.bound_lower,
+                    self.parameter.bound_upper))
+            flag_woce = 9
+            value = None
+        if value is None:
+            if flag_woce is None:
+                flag_woce = 9
+            if flag_woce != 9:
+                raise ValueError(
+                    u'WOCE flag {0} set for missing data value'.format(
+                    flag_woce))
+        if value is not None and flag_woce is None:
+            flag_woce = 2
+        return value, flag_woce
+
+    def set_check_range(self, index, value, flag_woce=None, flag_igoss=None):
+        """Append while being concious of parameter ranges.
+
+        """
+        self.set(index, *self._check_range(value, flag_woce=flag_woce))
+
+    def append_check_range(self, value, flag_woce=None):
+        """Append while being concious of parameter ranges.
+
+        """
+        self.append(*self._check_range(value, flag_woce=flag_woce))
+
+    def set_length(self, length, fill_value=None):
+        """Set the length of the column and fill."""
+        fill_length = length - len(self.values)
+        self.values += [fill_value] * fill_length
+        if self.flags_woce:
+            self.flags_woce += [9] * fill_length
+        if self.flags_igoss:
+            self.flags_igoss += [9] * fill_length
+
     def __getitem__(self, key):
         return self.get(key)
 
@@ -65,6 +112,17 @@ class Column(object):
     def is_flagged_igoss(self):
         return not (self.flags_igoss is None or len(self.flags_igoss) == 0)
 
+    def is_global(self):
+        """Return whether the values for the whole column are the same."""
+        check = None
+        for x in self.values:
+            if check is None:
+                check = x
+                continue
+            if check != x:
+                return False
+        return True
+
     def __str__(self):
         return '%sColumn(%s): %s%s' % (COLORS['YELLOW'], self.parameter,
                                        COLORS['CLEAR'], self.values)
@@ -80,9 +138,9 @@ class Column(object):
 
         # A leading _ indicates a contrived parameter. Skip it.
         if parameter.name.startswith('_'):
-            LOG.info((
-                u"Parameter {0!r} has a leading '_' and will not be "
-                "checked against known parameters.").format(parameter.name))
+            LOG.info(
+                u'Parameter {0!r} will not be checked against known '
+                'parameters.'.format(parameter.name))
             return
 
         std_parameter = std.find_by_mnemonic(parameter.name)
@@ -104,11 +162,14 @@ class Column(object):
 
         if not convert:
             self.parameter = std_parameter
-            if parameter.units:
+            if parameter.units and not parameter.units.id:
                 units = std.Unit.find_by_name(parameter.units.name)
                 if not units:
                     units = parameter.units
-                self.parameter.units = units
+                if self.parameter.units and units.id != self.parameter.units.id:
+                    # TODO figure out why setting without the id check causes
+                    # "conflicting state already present in the identity map"
+                    self.parameter.units = units
             else:
                 self.parameter.units = None
             return
@@ -280,6 +341,9 @@ class DataFile(File):
         return self.get_property_for_columns(
             lambda column: column.parameter.format)
 
+    def parameters(self):
+        return self.get_property_for_columns(lambda column: column.parameter)
+
     def parameter_mnemonics_woce(self):
         return self.get_property_for_columns(
             lambda column: column.parameter.mnemonic_woce() \
@@ -291,10 +355,7 @@ class DataFile(File):
            parameters. A shallow copy of globals is made.
         """
         copy = DataFile()
-
-        parameters = self.parameter_mnemonics_woce()
-        copy.create_columns(parameters)
-
+        copy.create_columns(self.parameters())
         copy.globals = self.globals.copy()
         return copy
 
@@ -339,34 +400,50 @@ class DataFile(File):
             self[mnemonic] = Column(mnemonic)
 
     def create_columns(self, parameters, units=None, ordered=False):
-        '''Create columns given parameters and their units.
-           Args:
-               parameters - parameter names as WOCE mnemonics
-               units - units to check. If None then no check is done.
-        '''
+        """Create columns given parameters and their units.
+        Args:
+            parameters - parameter names as WOCE mnemonics or Parameter
+                instances
+            units - units to check. If None then no check is done.
+            ordered - specifies that the order the parameters were given is the
+                order to use when columns are sorted
+
+        """
         for i, parameter in enumerate(parameters):
-            if parameter.endswith('FLAG_W') or \
-               parameter.endswith('FLAG_I') or \
-               parameter in self.columns:
-                continue
+            if isinstance(parameter, basestring):
+                if (parameter.endswith('FLAG_W') or 
+                    parameter.endswith('FLAG_I')):
+                    LOG.info(
+                        u'Skipped creating flag column {0}'.format(parameter))
+                    continue
+                elif parameter in self.columns:
+                    LOG.info(
+                        u'Skipped creating already present column {0}'.format(
+                        parameter))
+                    continue
+                pname = parameter
+            else:
+                pname = parameter.mnemonic_woce()
             try:
-                self[parameter] = Column(
+                column = self[pname] = Column(
                     parameter, units[i] if units else None)
                 if ordered:
                     self.ordered_columns.append(self[parameter])
             except Exception, e:
                 raise e
 
-            column = self[parameter]
-            expected_units = \
-                column.parameter.units.mnemonic if column.parameter and \
-                column.parameter.units else None
+            # Check the units
+            if column.parameter and column.parameter.units:
+                expected_units = column.parameter.units.mnemonic
+            else:
+                expected_units = None
             if units and expected_units:
                 given_unit = units[i]
                 if expected_units != given_unit:
-                    LOG.warn(("Mismatched units for %s. Expected '%s' and "
-                              "received '%s'") % (parameter, expected_units,
-                                                  given_unit))
+                    LOG.warn(
+                        u"Mismatched units for {0}. Expected {1!r} and "
+                        "received {2!r}".format(
+                        parameter, expected_units, given_unit))
 
     def swap_rows(self, a, b):
         """Swaps two rows in the file."""
@@ -403,10 +480,10 @@ class DataFile(File):
         order = [i for p, b, i in pb_orders]
         # Sort first by bottle order
         reversed_pb_orders = sorted(
-            pb_orders, key=operator.itemgetter(1), reverse=(not bot_ascending))
+            pb_orders, key=itemgetter(1), reverse=(not bot_ascending))
         # Sort second by pressure
         sorted_pb_orders = sorted(
-            reversed_pb_orders, key=operator.itemgetter(0),
+            reversed_pb_orders, key=itemgetter(0),
             reverse=(not pres_ascending))
         sorted_order = [i for p, b, i in sorted_pb_orders]
 

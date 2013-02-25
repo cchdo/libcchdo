@@ -7,29 +7,30 @@ from libcchdo import LOG
 from libcchdo.db.model import legacy
 
 
-def _grouped_cruises_with_data_modifications(lsesh,
-                                             around_year=datetime(2008, 1, 1)):
+def _grouped_cruises_with_data_modifications(
+        lsesh, around_year=datetime(2008, 1, 1)):
+    lDoc = legacy.Document
     query = lsesh.query(
-        legacy.Document.ExpoCode, legacy.Document.LastModified,
-        legacy.Document.Modified).\
-        filter(legacy.Document.FileType != 'Directory').\
-        filter(legacy.Document.FileType != 'Small Plot').\
-        filter(legacy.Document.FileType != 'Large Plot').\
-        filter(legacy.Document.FileType != 'Unrecognized').\
-        filter(legacy.Document.FileType != 'Postscript file').\
-        filter(legacy.Document.FileType != 'Directory Description').\
-        filter(legacy.Document.FileType != 'Old Index HTML File').\
-        filter(legacy.Document.FileType != 'Index HTML File').\
-        filter(legacy.Document.FileType != 'Type HTML').\
-        filter(legacy.Document.FileType != 'Person HTML').\
-        filter(legacy.Document.FileType != 'Data History HTML').\
-        filter(legacy.Document.FileType != 'Coordinates?').\
-        filter(legacy.Document.FileType != None).\
-        filter(legacy.Document.ExpoCode != 'NULL').\
-        filter(legacy.Document.ExpoCode != None).\
-        filter(legacy.Document.LastModified != None).\
-        filter(legacy.Document.Modified != None).\
-        order_by(legacy.Document.ExpoCode)
+        lDoc.ExpoCode, lDoc.LastModified,
+        lDoc.Modified).\
+        filter(lDoc.FileType != 'Directory').\
+        filter(lDoc.FileType != 'Small Plot').\
+        filter(lDoc.FileType != 'Large Plot').\
+        filter(lDoc.FileType != 'Unrecognized').\
+        filter(lDoc.FileType != 'Postscript file').\
+        filter(lDoc.FileType != 'Directory Description').\
+        filter(lDoc.FileType != 'Old Index HTML File').\
+        filter(lDoc.FileType != 'Index HTML File').\
+        filter(lDoc.FileType != 'Type HTML').\
+        filter(lDoc.FileType != 'Person HTML').\
+        filter(lDoc.FileType != 'Data History HTML').\
+        filter(lDoc.FileType != 'Coordinates?').\
+        filter(lDoc.FileType != None).\
+        filter(lDoc.ExpoCode != 'NULL').\
+        filter(lDoc.ExpoCode != None).\
+        filter(lDoc.LastModified != None).\
+        filter(lDoc.Modified != None).\
+        order_by(lDoc.ExpoCode)
     documents = query.all()
 
     # Group all the modifications for each cruise first
