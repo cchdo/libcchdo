@@ -19,23 +19,29 @@ if __name__ == "__main__":
         pass
 
     # To install extras with pip as editable:
-    # pip install -e .[speed,netcdf]
+    # pip install -e .[db,speed,netcdf]
     extras_require = {
         'db': ['MySQL-python', ],
+        'datadir': ['oauth2', ],
         'speed': ['cdecimal', ],
         'coverage': ['coverage', ],
-        'plot': ['matplotlib', 'basemap', ],
         'netcdf': ['numpy', 'netCDF4', ],
         'merge': ['pandas', 'numpy>=1.6'],
+        'plot': ['numpy>=1.4', 'scipy', 'PIL', 'matplotlib', 'basemap', ],
     }
 
     install_requires = [
         'geoalchemy',
+        'docutils',
     ]
     if sys.version_info[:3] < (2,5,0):
         install_requires.append('pysqlite')
     if sys.version_info[:3] < (2,7,0):
         install_requires.append('argparse')
+
+    dependency_links = [
+        'https://github.com/matplotlib/basemap/archive/v1.0.6rel.zip#egg=basemap-1.0.6',
+    ]
 
     packages = find_packages(exclude=['libcchdo.tests'])
 
@@ -52,6 +58,7 @@ if __name__ == "__main__":
         },
         test_suite='libcchdo.tests',
         install_requires=install_requires,
+        dependency_links=dependency_links,
         extras_require=extras_require,
         entry_points={
             'console_scripts': [

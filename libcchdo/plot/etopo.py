@@ -1195,6 +1195,40 @@ def plot(args, label_font_size=15, title_font_size=15, basemap_kwargs={},
     return bm
 
 
+def plot_subtitle(line, pi_inst, ship, year):
+    """Generate plot subtitle as produced by CCHDO.
+
+    https://bitbucket.org/ghdc/cchdo/wiki/data_curation_plot#!title
+
+    """
+    info = {
+        'line': line,
+        'pi_inst': pi_inst,
+        'ship': ship,
+        'year': year,
+    }
+    return '{line} {pi_inst} ({ship} {year})'.format(**info)
+    
+
+
+def plot_line_dots(lons, lats, bm):
+    """Plot the datafile coordinates on basemap.
+
+    Returns:
+        (line_connecting_dots, [dots])
+    
+    """
+    if not (lats and lons):
+        LOG.error(u'Cannot plot file without coordinate data')
+        return
+    lats = map(float, lats)
+    lons = map(float, lons)
+    xs, ys = bm(lons, lats)
+
+    line = bm.plot(xs, ys, **bm.GMT_STYLE_LINE)
+    dots = bm.scatter(xs, ys, **bm.GMT_STYLE_DOTS)
+    return (line, dots)
+
 
 def main(argv):
     LOG.info('Creating basemap')

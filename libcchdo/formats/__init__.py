@@ -44,6 +44,7 @@ Convert CTD Exchange file into CTD NetCDF file::
 _pre_write_functions = []
 
 
+# TODO
 def pre_write(self):
     """ Should be called by all writers before doing anything. """
     for fn in _pre_write_functions:

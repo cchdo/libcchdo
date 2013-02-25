@@ -129,13 +129,7 @@ def _create_common_variables(df, nc_file, woce_datetime):
 
 def write(self, handle):
     '''How to write a CTD NetCDF file.'''
-    if 'DATE' not in self.globals:
-        raise AttributeError('"DATE" not in globals; abort')
-    if 'TIME' not in self.globals:
-        raise AttributeError('"TIME" not in globals; abort')
-    strdate = str(self.globals.get('DATE', nc.UNKNOWN))
-    strtime = str(self.globals.get('TIME', nc.UNKNOWN))
-    woce_datetime = woce.strptime_woce_date_time(strdate, strtime)
+    woce_datetime = self.globals['_DATETIME']
 
     tmp = tempfile.NamedTemporaryFile()
     nc_file = nc.Dataset(tmp.name, 'w', format='NETCDF3_CLASSIC')

@@ -23,6 +23,9 @@ SAFE_COLUMN_WIDTH = COLUMN_WIDTH - 1
 END_DATA = 'END_DATA'
 
 
+UNKNONW_TIME_FILL = '0000'
+
+
 BOTTLE_FLAGS = {
     1: 'Bottle information unavailable.',
     2: 'No problems noted.',
@@ -410,7 +413,30 @@ def write_data(self, handle, ):
         handle.write(base_format % tuple(values))
 
 
-def fuse_datetime(file):
+def fuse_datetime_globals(file):
+    """Fuse a file's "DATE" and "TIME" globals into a "_DATETIME" global.
+
+    There are three cases:
+    1. DATE and TIME both exist
+        A datetime.datetime object is inserted representing the combination
+        of the two objects.
+    2. DATE exists and TIME does not
+        A datetime.date object is inserted only representing the date.
+    3. DATE does not exist but TIME does
+        None is inserted because date is required.
+
+    Arguments:
+    file - a DataFile object
+
+    """
+    date = file.globals['DATE']
+    time = file.globals['TIME']
+    file.globals['_DATETIME'] = strptime_woce_date_time(date, time)
+    del file.globals['DATE']
+    del file.globals['TIME']
+
+
+def fuse_datetime_columns(file):
     """ Fuses a file's "DATE" and "TIME" columns into a "_DATETIME" column.
         There are three cases:
         1. DATE and TIME both exist
@@ -442,7 +468,31 @@ def fuse_datetime(file):
     del file['TIME']
 
 
-def split_datetime(file):
+def fuse_datetime(file):
+    try:
+        fuse_datetime_globals(file)
+    except KeyError:
+        fuse_datetime_columns(file)
+
+
+def split_datetime_globals(file):
+    """Split a file's "_DATETIME" global into "DATE" and "TIME" globals.
+
+    Refer to split_datetime_columns for logic cases.
+
+    Arguments:
+        file - a DataFile object
+
+    """
+    sdate, stime = strftime_woce_date_time(file.globals['_DATETIME'])
+    if not stime:
+        stime = UNKNONW_TIME_FILL
+    file.globals['DATE'] = sdate
+    file.globals['TIME'] = stime
+    del file.globals['_DATETIME']
+
+
+def split_datetime_columns(file):
     """ Splits a file's "_DATETIME" columns into "DATE" and "TIME" columns.
 
         There are three cases:
@@ -472,7 +522,14 @@ def split_datetime(file):
     del file['_DATETIME']
 
     if not any(file['TIME'].values):
-    	del file['TIME']
+    	file['TIME'].values = [UNKNONW_TIME_FILL] * len(file['TIME'])
+
+
+def split_datetime(file):
+    try:
+        split_datetime_globals(file)
+    except KeyError:
+        split_datetime_columns(file)
 
 
 _MSG_NO_STN_CAST_PAIR = (u'The station cast pair ({}, {}) was not found in '
