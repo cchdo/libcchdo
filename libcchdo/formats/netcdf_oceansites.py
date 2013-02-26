@@ -542,7 +542,12 @@ def _find_first(df, parameters):
 
 
 def write_columns(self, nc_file):
-    for column in self.columns.values():
+    LOG.debug(u'writing columns')
+
+    # Because it is possible for multiple parameter names to be mapped to the
+    # same OceanSITES name, start in order so the less important ones are
+    # ignored
+    for column in self.sorted_columns():
         # Determine the parameter's OceanSITES name and CF name
         pname = column.parameter.name
         try:
@@ -557,6 +562,9 @@ def write_columns(self, nc_file):
                 u'OceanSITES variable {0!r} does not have CF and OceanSITES '
                 'information. Skipping.'.format(name))
             continue
+
+        LOG.debug(
+            u'{pname} mapped to {osname}'.format(pname=pname, osname=name))
 
         # Write variable
         # TODO ref table 3 for fill_value
