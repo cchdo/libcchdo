@@ -304,7 +304,7 @@ def read(self, handle, metadata=None):
                 df.globals['_OS_ID'] != cruise_id or
                 df.globals['STNNBR'] != cruise_type or
                 df.globals['CASTNO'] != cast_id):
-            if df:
+            if df is not None:
                 # Done reading one cast. Finalize it.
                 LOG.info(u'finalizing cast {0} {1} {2}'.format(
                     df.globals['_OS_ID'], df.globals['STNNBR'],
@@ -318,6 +318,7 @@ def read(self, handle, metadata=None):
                     port_date = min(df['_DATETIME'])
                 df.globals['EXPOCODE'] = create_expocode(
                     ship_code(ship, raise_on_unknown=False), port_date)
+                LOG.info(df.globals['EXPOCODE'])
                 df.globals['DEPTH'] = max(df['_ACTUAL_DEPTH'])
                 collapse_globals(df, ['_DATETIME', 'LATITUDE', 'LONGITUDE'])
                 # Normalize all the parameter column lengths. There may be
@@ -345,11 +346,11 @@ def read(self, handle, metadata=None):
 
         dt_ascii = datetime.strptime(parts[1] + parts[3], '%Y%m%d%H%M')
         dt_deci = bats_time_to_dt(parts[2])
-        if dt_ascii != dt_deci:
-            LOG.warn(
-                u'Dates differ on data row {0}: {5} {1!r}={2} '
-                '{3!r}={4}'.format(i, parts[1] + parts[3], dt_ascii, parts[2],
-                                   dt_deci, dt_deci - dt_ascii))
+        #if dt_ascii != dt_deci:
+        #    LOG.warn(
+        #        u'Dates differ on data row {0}: {5} {1!r}={2} '
+        #        '{3!r}={4}'.format(i, parts[1] + parts[3], dt_ascii, parts[2],
+        #                           dt_deci, dt_deci - dt_ascii))
         df['_DATETIME'].set(dfi, dt_ascii)
 
         df['LATITUDE'].set(dfi, Decimal(parts[4]))
@@ -384,5 +385,8 @@ def read(self, handle, metadata=None):
                 df[param].set_check_range(dfi, Decimal(v))
 
         dfi += 1
+        # Since this is a super long file that contains multiple cruises and
+        # casts, as the file is processed it is split apart into a list of
+        # DataFileCollection(s) containing DataFile objects for each casts
         if i % 100 == 0:
             LOG.info(u'processed {0} lines'.format(i))

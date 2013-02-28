@@ -248,7 +248,7 @@ class File(object):
 
     def __len__(self):
         try:
-            return len(self.columns.values()[0])
+            return max(map(len, self.columns.values()))
         except:
             return 0
 
