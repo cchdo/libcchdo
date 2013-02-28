@@ -10,7 +10,7 @@ $ hydro --help
 
 from argparse import ArgumentParser, RawTextHelpFormatter, FileType
 from datetime import datetime, date, timedelta
-from contextlib import closing
+from contextlib import closing, contextmanager
 from copy import copy
 import sys
 import os
@@ -55,6 +55,13 @@ hydro_parser = ArgumentParser(
 
 hydro_subparsers = hydro_parser.add_subparsers(
     title='subcommands')
+
+
+@contextmanager
+def subcommand(superparser, name, func):
+    parser = superparser.add_parser(name, help=func.__doc__)
+    parser.set_defaults(main=func)
+    yield parser
 
 
 check_parser = hydro_subparsers.add_parser(
@@ -120,19 +127,15 @@ def check_any(args):
             check_datafile(file)
 
 
-check_any_parser = check_parsers.add_parser(
-    'any',
-    help=check_any.__doc__)
-check_any_parser.set_defaults(
-    main=check_any)
-check_any_parser.add_argument('-i', '--input-type', choices=known_formats,
-    help='force the input file to be read as the specified type')
-check_any_parser.add_argument(
-    'cchdo_file', type=FileType('r'),
-     help='any recognized CCHDO file')
-check_any_parser.add_argument(
-    'output', type=FileType('w'), nargs='?', default=sys.stdout,
-     help='output file (default: stdout)')
+with subcommand(check_parsers, 'any', check_any) as p:
+    p.add_argument('-i', '--input-type', choices=known_formats,
+        help='force the input file to be read as the specified type')
+    p.add_argument(
+        'cchdo_file', type=FileType('r'),
+         help='any recognized CCHDO file')
+    p.add_argument(
+        'output', type=FileType('w'), nargs='?', default=sys.stdout,
+         help='output file (default: stdout)')
 
 
 converter_parser = hydro_subparsers.add_parser(
@@ -176,25 +179,21 @@ def any_to_type(args):
             format.write(file, out_file)
 
 
-any_to_type_parser = any_converter_parsers.add_parser(
-    'type',
-    help=any_to_type.__doc__)
-any_to_type_parser.set_defaults(
-    main=any_to_type)
-any_to_type_parser.add_argument('-t', '--output-type', '--type',
-    choices=['str', 'dict', 'google_wire', 'nav', ] + known_formats,
-    default='str', help='output types (default: str)')
-any_to_type_parser.add_argument('-i', '--input-type', choices=known_formats,
-    help='force the input file to be read as the specified type')
-any_to_type_parser.add_argument('-j', '--json', action='store_true',
-    help='only applies to output type google_wire. Forces the google_wire '
-         'output to be valid JSON.')
-any_to_type_parser.add_argument(
-    'cchdo_file', type=FileType('r'),
-     help='any recognized CCHDO file')
-any_to_type_parser.add_argument(
-    'output', type=FileType('w'), nargs='?', default=sys.stdout,
-     help='output file (default: stdout)')
+with subcommand(any_converter_parsers, 'type', any_to_type) as p:
+    p.add_argument('-t', '--output-type', '--type',
+        choices=['str', 'dict', 'google_wire', 'nav', ] + known_formats,
+        default='str', help='output types (default: str)')
+    p.add_argument('-i', '--input-type', choices=known_formats,
+        help='force the input file to be read as the specified type')
+    p.add_argument('-j', '--json', action='store_true',
+        help='only applies to output type google_wire. Forces the google_wire '
+             'output to be valid JSON.')
+    p.add_argument(
+        'cchdo_file', type=FileType('r'),
+         help='any recognized CCHDO file')
+    p.add_argument(
+        'output', type=FileType('w'), nargs='?', default=sys.stdout,
+         help='output file (default: stdout)')
 
 
 def any_to_db_track_lines(args):
@@ -209,21 +208,18 @@ def any_to_db_track_lines(args):
         track_lines.write(data, conn)
 
 
-any_to_db_track_lines_parser = any_converter_parsers.add_parser(
-    'db_track_lines',
-    help=any_to_db_track_lines.__doc__)
-any_to_db_track_lines_parser.set_defaults(
-    main=any_to_db_track_lines)
-any_to_db_track_lines_parser.add_argument('-i', '--input-type',
-    choices=known_formats,
-    help='force the input file to be read as the specified type')
-any_to_db_track_lines_parser.add_argument(
-    'input_file', type=FileType('r'),
-    help='any recognized CCHDO file')
-any_to_db_track_lines_parser.add_argument(
-    'output_track_lines', type=FileType('w'), nargs='?',
-    default=sys.stdout,
-    help='output track lines file (default: stdout)')
+with subcommand(any_converter_parsers, 'db_track_lines',
+                any_to_db_track_lines) as p:
+    p.add_argument('-i', '--input-type',
+        choices=known_formats,
+        help='force the input file to be read as the specified type')
+    p.add_argument(
+        'input_file', type=FileType('r'),
+        help='any recognized CCHDO file')
+    p.add_argument(
+        'output_track_lines', type=FileType('w'), nargs='?',
+        default=sys.stdout,
+        help='output track lines file (default: stdout)')
 
 
 bot_converter_parser = converter_parsers.add_parser(
@@ -252,18 +248,15 @@ def bot_bats_to_bot_ncos(args):
             version=args.os_version)
 
 
-bot_bats_to_bot_ncos_parser = bot_converter_parsers.add_parser(
-    'bats_to_ncos',
-    help=bot_bats_to_bot_ncos.__doc__)
-bot_bats_to_bot_ncos_parser.set_defaults(
-    main=bot_bats_to_bot_ncos)
-_add_oceansites_arguments(bot_bats_to_bot_ncos_parser, allow_ts_select=False)
-bot_bats_to_bot_ncos_parser.add_argument(
-    'botbats', type=FileType('r'),
-    help='input BOT BATS file')
-bot_bats_to_bot_ncos_parser.add_argument(
-    'botzipncos', type=FileType('w'), nargs='?', default=sys.stdout,
-    help='output BOT netCDF OceanSITES ZIP file')
+with subcommand(bot_converter_parsers, 'bats_to_ncos',
+                bot_bats_to_bot_ncos) as p:
+    _add_oceansites_arguments(p, allow_ts_select=False)
+    p.add_argument(
+        'botbats', type=FileType('r'),
+        help='input BOT BATS file')
+    p.add_argument(
+        'botzipncos', type=FileType('w'), nargs='?', default=sys.stdout,
+        help='output BOT netCDF OceanSITES ZIP file')
 
 
 def bottle_exchange_to_db(args):
@@ -279,14 +272,11 @@ def bottle_exchange_to_db(args):
     botdb.write(df)
 
 
-bottle_exchange_to_db_parser = bot_converter_parsers.add_parser(
-    'exchange_to_db',
-    help=bottle_exchange_to_db.__doc__)
-bottle_exchange_to_db_parser.set_defaults(
-    main=bottle_exchange_to_db)
-bottle_exchange_to_db_parser.add_argument(
-    'input_botex', type=FileType('r'),
-    help='input Bottle Exchange file')
+with subcommand(bot_converter_parsers, 'exchange_to_db',
+                bottle_exchange_to_db) as p:
+    p.add_argument(
+        'input_botex', type=FileType('r'),
+        help='input Bottle Exchange file')
 
 
 def bottle_exchange_to_kml(args):
@@ -303,17 +293,14 @@ def bottle_exchange_to_kml(args):
         bottle_exchange_to_kml(df, out_file)
 
 
-bottle_exchange_to_kml_parser = bot_converter_parsers.add_parser(
-    'exchange_to_kml',
-    help=bottle_exchange_to_kml.__doc__)
-bottle_exchange_to_kml_parser.set_defaults(
-    main=bottle_exchange_to_kml)
-bottle_exchange_to_kml_parser.add_argument(
-    'input_botex', type=FileType('r'),
-    help='input Bottle Exchange file')
-bottle_exchange_to_kml_parser.add_argument(
-    'output', type=FileType('w'), nargs='?', default=sys.stdout,
-    help='output file (default: stdout)')
+with subcommand(bot_converter_parsers, 'exchange_to_kml',
+                bottle_exchange_to_kml) as p:
+    p.add_argument(
+        'input_botex', type=FileType('r'),
+        help='input Bottle Exchange file')
+    p.add_argument(
+        'output', type=FileType('w'), nargs='?', default=sys.stdout,
+        help='output file (default: stdout)')
 
 
 def bottle_exchange_to_parameter_kml(args):
@@ -330,17 +317,14 @@ def bottle_exchange_to_parameter_kml(args):
         bottle_exchange_to_parameter_kml(df, out_file)
 
 
-bottle_exchange_to_parameter_kml_parser = bot_converter_parsers.add_parser(
-    'exchange_to_parameter_kml',
-    help=bottle_exchange_to_parameter_kml.__doc__)
-bottle_exchange_to_parameter_kml_parser.set_defaults(
-    main=bottle_exchange_to_parameter_kml)
-bottle_exchange_to_parameter_kml_parser.add_argument(
-    'input_botex', type=FileType('r'),
-    help='input Bottle Exchange file')
-bottle_exchange_to_parameter_kml_parser.add_argument(
-    'output', type=FileType('w'), nargs='?', default=sys.stdout,
-    help='output file (default: stdout)')
+with subcommand(bot_converter_parsers, 'exchange_to_parameter_kml',
+                bottle_exchange_to_parameter_kml) as p:
+    p.add_argument(
+        'input_botex', type=FileType('r'),
+        help='input Bottle Exchange file')
+    p.add_argument(
+        'output', type=FileType('w'), nargs='?', default=sys.stdout,
+        help='output file (default: stdout)')
 
 
 def bottle_exchange_to_bottlezip_netcdf(args):
@@ -358,18 +342,15 @@ def bottle_exchange_to_bottlezip_netcdf(args):
         botzipnc.write(df2dfc.split_bottle(df), out_file)
 
 
-bottle_exchange_to_bottlezip_netcdf_parser = bot_converter_parsers.add_parser(
-    'exchange_to_zip_netcdf',
-    help=bottle_exchange_to_bottlezip_netcdf.__doc__)
-bottle_exchange_to_bottlezip_netcdf_parser.set_defaults(
-    main=bottle_exchange_to_bottlezip_netcdf)
-bottle_exchange_to_bottlezip_netcdf_parser.add_argument(
-    'input_botex', type=FileType('r'),
-    help='input Bottle Exchange file')
-bottle_exchange_to_bottlezip_netcdf_parser.add_argument(
-    'output_botzipnc', type=FileType('w'), nargs='?',
-    default=sys.stdout,
-    help='output Bottle ZIP NetCDF file (default: stdout)')
+with subcommand(bot_converter_parsers, 'exchange_to_zip_netcdf',
+                bottle_exchange_to_bottlezip_netcdf) as p:
+    p.add_argument(
+        'input_botex', type=FileType('r'),
+        help='input Bottle Exchange file')
+    p.add_argument(
+        'output_botzipnc', type=FileType('w'), nargs='?',
+        default=sys.stdout,
+        help='output Bottle ZIP NetCDF file (default: stdout)')
 
 
 def bottle_woce_and_summary_woce_to_bottle_exchange(args):
@@ -393,22 +374,18 @@ def bottle_woce_and_summary_woce_to_bottle_exchange(args):
         botex.write(bottlefile, out_file)
 
 
-bottle_woce_and_summary_woce_to_bottle_exchange_parser = \
-    bot_converter_parsers.add_parser(
-        'woce_and_summary_woce_to_exchange',
-        help=bottle_woce_and_summary_woce_to_bottle_exchange.__doc__)
-bottle_woce_and_summary_woce_to_bottle_exchange_parser.set_defaults(
-    main=bottle_woce_and_summary_woce_to_bottle_exchange)
-bottle_woce_and_summary_woce_to_bottle_exchange_parser.add_argument(
-    'botwoce', type=FileType('r'),
-    help='input Bottle WOCE file')
-bottle_woce_and_summary_woce_to_bottle_exchange_parser.add_argument(
-    'sumwoce', type=FileType('r'),
-    help='input Summary WOCE file')
-bottle_woce_and_summary_woce_to_bottle_exchange_parser.add_argument(
-    'botex', type=FileType('w'), nargs='?',
-    default=sys.stdout,
-    help='output Bottle Exchange file')
+with subcommand(bot_converter_parsers, 'woce_and_summary_woce_to_exchange',
+                bottle_woce_and_summary_woce_to_bottle_exchange) as p:
+    p.add_argument(
+        'botwoce', type=FileType('r'),
+        help='input Bottle WOCE file')
+    p.add_argument(
+        'sumwoce', type=FileType('r'),
+        help='input Summary WOCE file')
+    p.add_argument(
+        'botex', type=FileType('w'), nargs='?',
+        default=sys.stdout,
+        help='output Bottle Exchange file')
 
 
 ctd_converter_parser = converter_parsers.add_parser(
@@ -431,17 +408,14 @@ def ctd_bats_to_ctd_exchange(args):
         ctdex.write(df, out_file)
 
 
-ctd_bats_to_ctd_exchange_parser = ctd_converter_parsers.add_parser(
-    'bats_to_exchange',
-    help=ctd_bats_to_ctd_exchange.__doc__)
-ctd_bats_to_ctd_exchange_parser.set_defaults(
-    main=ctd_bats_to_ctd_exchange)
-ctd_bats_to_ctd_exchange_parser.add_argument(
-    'ctdbats', type=FileType('r'),
-    help='input CTD BATS file')
-ctd_bats_to_ctd_exchange_parser.add_argument(
-    'ctdex', type=FileType('w'), nargs='?', default=sys.stdout,
-    help='output CTD Exchange file')
+with subcommand(ctd_converter_parsers, 'bats_to_exchange',
+                ctd_bats_to_ctd_exchange) as p:
+    p.add_argument(
+        'ctdbats', type=FileType('r'),
+        help='input CTD BATS file')
+    p.add_argument(
+        'ctdex', type=FileType('w'), nargs='?', default=sys.stdout,
+        help='output CTD Exchange file')
 
 
 def ctd_exchange_to_ctd_netcdf(args):
@@ -458,18 +432,15 @@ def ctd_exchange_to_ctd_netcdf(args):
         ctdnc.write(df, out_file)
 
 
-ctd_exchange_to_ctd_netcdf_parser = ctd_converter_parsers.add_parser(
-    'exchange_to_netcdf',
-    help=ctd_exchange_to_ctd_netcdf.__doc__)
-ctd_exchange_to_ctd_netcdf_parser.set_defaults(
-    main=ctd_exchange_to_ctd_netcdf)
-ctd_exchange_to_ctd_netcdf_parser.add_argument(
-    'ctdex', type=FileType('r'),
-    help='input CTD Exchange file')
-ctd_exchange_to_ctd_netcdf_parser.add_argument(
-    'ctdnc', type=FileType('w'), nargs='?',
-    default=sys.stdout,
-    help='output CTD NetCDF file')
+with subcommand(ctd_converter_parsers, 'exchange_to_netcdf',
+                ctd_exchange_to_ctd_netcdf) as p:
+    p.add_argument(
+        'ctdex', type=FileType('r'),
+        help='input CTD Exchange file')
+    p.add_argument(
+        'ctdnc', type=FileType('w'), nargs='?',
+        default=sys.stdout,
+        help='output CTD NetCDF file')
 
 
 def ctd_polarstern_to_ctd_exchange(args):
@@ -486,25 +457,22 @@ def ctd_polarstern_to_ctd_exchange(args):
         ctd_polarstern_to_ctd_exchange(args, db)
 
 
-ctd_polarstern_to_ctd_exchange_parser = ctd_converter_parsers.add_parser(
-    'polarstern_to_exchange',
-    help=ctd_polarstern_to_ctd_exchange.__doc__)
-ctd_polarstern_to_ctd_exchange_parser.set_defaults(
-    main=ctd_polarstern_to_ctd_exchange)
-ctd_polarstern_to_ctd_exchange_parser.add_argument(
-    '--commit-to-file', type=bool, default=False,
-    help='Write to a file')
-ctd_polarstern_to_ctd_exchange_parser.add_argument(
-    'database_file', type=str,
-    help='SQLite3 database containing PolarStern metadata (previously '
-         'extracted)')
-ctd_polarstern_to_ctd_exchange_parser.add_argument(
-    'files', type=str, nargs='+',
-    help='The PolarStern data file(s) (*.tab -> *.tab.txt)')
-ctd_polarstern_to_ctd_exchange_parser.add_argument(
-    'ctdex', type=FileType('wb'), nargs='?',
-    default=sys.stdout,
-    help='output CTD Exchange file')
+with subcommand(ctd_converter_parsers, 'polarstern_to_exchange',
+                ctd_polarstern_to_ctd_exchange) as p:
+    p.add_argument(
+        '--commit-to-file', type=bool, default=False,
+        help='Write to a file')
+    p.add_argument(
+        'database_file', type=str,
+        help='SQLite3 database containing PolarStern metadata (previously '
+             'extracted)')
+    p.add_argument(
+        'files', type=str, nargs='+',
+        help='The PolarStern data file(s) (*.tab -> *.tab.txt)')
+    p.add_argument(
+        'ctdex', type=FileType('wb'), nargs='?',
+        default=sys.stdout,
+        help='output CTD Exchange file')
 
 
 def ctd_sbe_to_ctd_exchange(args):
@@ -520,28 +488,25 @@ def ctd_sbe_to_ctd_exchange(args):
     sbe_to_ctd_exchange(args)
 
 
-ctd_sbe_to_ctd_exchange_parser = ctd_converter_parsers.add_parser(
-    'sbe_to_exchange',
-    help=ctd_sbe_to_ctd_exchange.__doc__)
-ctd_sbe_to_ctd_exchange_parser.set_defaults(
-    main=ctd_sbe_to_ctd_exchange)
-ctd_sbe_to_ctd_exchange_parser.add_argument(
-    'files', type=file, nargs='+',
-    help='File or list of files that will be converted to exchange format, if '
-        'a single file is given, a flat exchange file will be output, if more '
-        'than one is given, a ctd zip will be output')
-ctd_sbe_to_ctd_exchange_parser.add_argument(
-    '-s', '--salt',
-    help='in the case of multiple salinity channels, the channel may be '
-        'chosen by index')
-ctd_sbe_to_ctd_exchange_parser.add_argument(
-    '-t', '--temp',
-    help='In the case of multiple temperature channels, the channel may be '
-        'chosen by index')
-ctd_sbe_to_ctd_exchange_parser.add_argument(
-    '-o', '--output',
-    help='name of output file, _ct1.[csv, zip] will be added automatically, '
-        'if not speified will default to standard out.')
+with subcommand(ctd_converter_parsers, 'sbe_to_exchange',
+                ctd_sbe_to_ctd_exchange) as p:
+    p.add_argument(
+        'files', type=file, nargs='+',
+        help='File or list of files that will be converted to exchange format, if '
+            'a single file is given, a flat exchange file will be output, if more '
+            'than one is given, a ctd zip will be output')
+    p.add_argument(
+        '-s', '--salt',
+        help='in the case of multiple salinity channels, the channel may be '
+            'chosen by index')
+    p.add_argument(
+        '-t', '--temp',
+        help='In the case of multiple temperature channels, the channel may be '
+            'chosen by index')
+    p.add_argument(
+        '-o', '--output',
+        help='name of output file, _ct1.[csv, zip] will be added automatically, '
+            'if not speified will default to standard out.')
 
 
 def sbe_asc_to_ctd_exchange(args):
@@ -555,21 +520,18 @@ def sbe_asc_to_ctd_exchange(args):
     sbe_asc_to_ctd_exchange(args)
 
 
-sbe_asc_to_ctd_exchange_parser = ctd_converter_parsers.add_parser(
-    'sbe_asc_to_exchange',
-    help=sbe_asc_to_ctd_exchange.__doc__)
-sbe_asc_to_ctd_exchange_parser.set_defaults(
-    main=sbe_asc_to_ctd_exchange)
-sbe_asc_to_ctd_exchange_parser.add_argument(
-    'files', type=file, nargs='+',
-    help='File or list of files that will be converted to exchange format, if '
-        'a single file is given, a flat exchange file will be output, if more '
-        'than one is given, a ctd zip will be output')
-sbe_asc_to_ctd_exchange_parser.add_argument(
-    '-o', '--output',
-    help='name of output file, _ct1.[csv, zip] will be added automatically, '
-        'if not speified will default to standard out.')
-sbe_asc_to_ctd_exchange_parser.add_argument(
+with subcommand(ctd_converter_parsers, 'sbe_asc_to_exchange',
+                sbe_asc_to_ctd_exchange) as p:
+    p.add_argument(
+        'files', type=file, nargs='+',
+        help='File or list of files that will be converted to exchange '
+            'format, if a single file is given, a flat exchange file will be '
+            'output, if more than one is given, a ctd zip will be output')
+    p.add_argument(
+        '-o', '--output',
+        help='name of output file, _ct1.[csv, zip] will be added '
+            'automatically, if not specified will default to standard out.')
+    p.add_argument(
         '-e', '--expo',
         help="Manually enter an expocode if the files do not contain one")
 
@@ -591,19 +553,16 @@ def ctd_netcdf_to_ctd_netcdf_oceansites(args):
             df, out_file, timeseries=args.timeseries, version=args.os_version)
 
 
-ctd_netcdf_to_ctd_netcdf_oceansites_parser = ctd_converter_parsers.add_parser(
-    'netcdf_to_netcdf_oceansites',
-    help=ctd_netcdf_to_ctd_netcdf_oceansites.__doc__)
-ctd_netcdf_to_ctd_netcdf_oceansites_parser.set_defaults(
-    main=ctd_netcdf_to_ctd_netcdf_oceansites)
-_add_oceansites_arguments(ctd_netcdf_to_ctd_netcdf_oceansites_parser)
-ctd_netcdf_to_ctd_netcdf_oceansites_parser.add_argument(
-    'ctdnc', type=FileType('r'),
-    help='input CTD Exchange file')
-ctd_netcdf_to_ctd_netcdf_oceansites_parser.add_argument(
-    'ctdnc_os', type=FileType('w'), nargs='?',
-    default=sys.stdout,
-    help='output CTD NetCDF OceanSITES file')
+with subcommand(ctd_converter_parsers, 'netcdf_to_netcdf_oceansites',
+                ctd_netcdf_to_ctd_netcdf_oceansites) as p:
+    _add_oceansites_arguments(p)
+    p.add_argument(
+        'ctdnc', type=FileType('r'),
+        help='input CTD Exchange file')
+    p.add_argument(
+        'ctdnc_os', type=FileType('w'), nargs='?',
+        default=sys.stdout,
+        help='output CTD NetCDF OceanSITES file')
 
 
 def ctdzip_andrex_to_ctdzip_exchange(args):
@@ -620,18 +579,15 @@ def ctdzip_andrex_to_ctdzip_exchange(args):
         ctdzipex.write(dfc, out_file)
 
 
-ctdzip_andrex_to_ctdzip_exchange_parser = ctd_converter_parsers.add_parser(
-    'zip_andrex_to_zip_exchange',
-    help=ctdzip_andrex_to_ctdzip_exchange.__doc__)
-ctdzip_andrex_to_ctdzip_exchange_parser.set_defaults(
-    main=ctdzip_andrex_to_ctdzip_exchange)
-ctdzip_andrex_to_ctdzip_exchange_parser.add_argument(
-    'ctdzip_andrex', type=FileType('r'),
-    help='ANDREX NetCDF tar.gz')
-ctdzip_andrex_to_ctdzip_exchange_parser.add_argument(
-    'ctdzipex', type=FileType('w'), nargs='?',
-    default=sys.stdout,
-    help='output CTD ZIP Exchange file')
+with subcommand(ctd_converter_parsers, 'zip_andrex_to_zip_exchange',
+                ctdzip_andrex_to_ctdzip_exchange) as p:
+    p.add_argument(
+        'ctdzip_andrex', type=FileType('r'),
+        help='ANDREX NetCDF tar.gz')
+    p.add_argument(
+        'ctdzipex', type=FileType('w'), nargs='?',
+        default=sys.stdout,
+        help='output CTD ZIP Exchange file')
 
 
 def ctdzip_exchange_to_ctdzip_netcdf(args):
@@ -649,18 +605,17 @@ def ctdzip_exchange_to_ctdzip_netcdf(args):
         ctdzipnc.write(dfc, out_file)
 
 
-ctdzip_exchange_to_ctdzip_netcdf_parser = ctd_converter_parsers.add_parser(
-    'zip_exchange_to_zip_netcdf',
-    help=ctdzip_exchange_to_ctdzip_netcdf.__doc__)
-ctdzip_exchange_to_ctdzip_netcdf_parser.set_defaults(
-    main=ctdzip_exchange_to_ctdzip_netcdf)
-ctdzip_exchange_to_ctdzip_netcdf_parser.add_argument(
-    'ctdzipex', type=FileType('r'),
-    help='input CTD ZIP Exchange file')
-ctdzip_exchange_to_ctdzip_netcdf_parser.add_argument(
-    'ctdzipnc', type=FileType('w'), nargs='?',
-    default=sys.stdout,
-    help='output CTD ZIP NetCDF file')
+with subcommand(ctd_converter_parsers, 'zip_exchange_to_zip_netcdf',
+                ctdzip_exchange_to_ctdzip_netcdf) as p:
+    p.set_defaults(
+        main=ctdzip_exchange_to_ctdzip_netcdf)
+    p.add_argument(
+        'ctdzipex', type=FileType('r'),
+        help='input CTD ZIP Exchange file')
+    p.add_argument(
+        'ctdzipnc', type=FileType('w'), nargs='?',
+        default=sys.stdout,
+        help='output CTD ZIP NetCDF file')
 
 
 def ctdzip_exchange_to_ctdzip_netcdf_oceansites(args):
@@ -679,19 +634,15 @@ def ctdzip_exchange_to_ctdzip_netcdf_oceansites(args):
             dfc, out_file, timeseries=args.timeseries, version=args.os_version)
 
 
-ctdzip_exchange_to_ctdzip_netcdf_oceansites_parser = \
-    ctd_converter_parsers.add_parser(
-        'zip_exchange_to_zip_netcdf_oceansites',
-        help=ctdzip_exchange_to_ctdzip_netcdf_oceansites.__doc__)
-ctdzip_exchange_to_ctdzip_netcdf_oceansites_parser.set_defaults(
-    main=ctdzip_exchange_to_ctdzip_netcdf_oceansites)
-_add_oceansites_arguments(ctdzip_exchange_to_ctdzip_netcdf_oceansites_parser)
-ctdzip_exchange_to_ctdzip_netcdf_oceansites_parser.add_argument(
-    'ctdzipex', type=FileType('r'),
-    help='input CTD ZIP Exchange file')
-ctdzip_exchange_to_ctdzip_netcdf_oceansites_parser.add_argument(
-    'ctdzipnc_os', type=FileType('w'), nargs='?', default=sys.stdout,
-    help='output CTD ZIP NetCDF OceanSITES file')
+with subcommand(ctd_converter_parsers, 'zip_exchange_to_zip_netcdf_oceansites',
+                ctdzip_exchange_to_ctdzip_netcdf_oceansites) as p:
+    _add_oceansites_arguments(p)
+    p.add_argument(
+        'ctdzipex', type=FileType('r'),
+        help='input CTD ZIP Exchange file')
+    p.add_argument(
+        'ctdzipnc_os', type=FileType('w'), nargs='?', default=sys.stdout,
+        help='output CTD ZIP NetCDF OceanSITES file')
 
 
 def ctdzip_netcdf_to_ctdzip_netcdf_oceansites(args):
@@ -710,19 +661,15 @@ def ctdzip_netcdf_to_ctdzip_netcdf_oceansites(args):
             dfc, out_file, timeseries=args.timeseries, version=args.os_version)
 
 
-ctdzip_netcdf_to_ctdzip_netcdf_oceansites_parser = \
-    ctd_converter_parsers.add_parser(
-        'zip_netcdf_to_zip_netcdf_oceansites',
-        help=ctdzip_netcdf_to_ctdzip_netcdf_oceansites.__doc__)
-ctdzip_netcdf_to_ctdzip_netcdf_oceansites_parser.set_defaults(
-    main=ctdzip_netcdf_to_ctdzip_netcdf_oceansites)
-_add_oceansites_arguments(ctdzip_netcdf_to_ctdzip_netcdf_oceansites_parser)
-ctdzip_netcdf_to_ctdzip_netcdf_oceansites_parser.add_argument(
-    'ctdzipnc', type=FileType('r'),
-    help='input CTD ZIP NetCDF file')
-ctdzip_netcdf_to_ctdzip_netcdf_oceansites_parser.add_argument(
-    'ctdzipnc_os', type=FileType('w'), nargs='?', default=sys.stdout,
-    help='output CTD ZIP NetCDF OceanSITES file')
+with subcommand(ctd_converter_parsers, 'zip_netcdf_to_zip_netcdf_oceansites',
+                ctdzip_netcdf_to_ctdzip_netcdf_oceansites) as p:
+    _add_oceansites_arguments(p)
+    p.add_argument(
+        'ctdzipnc', type=FileType('r'),
+        help='input CTD ZIP NetCDF file')
+    p.add_argument(
+        'ctdzipnc_os', type=FileType('w'), nargs='?', default=sys.stdout,
+        help='output CTD ZIP NetCDF OceanSITES file')
 
 
 def ctdzip_woce_and_summary_woce_to_ctdzip_exchange(args):
@@ -748,21 +695,18 @@ def ctdzip_woce_and_summary_woce_to_ctdzip_exchange(args):
         ctdzipex.write(ctdfiles, out_file)
 
 
-ctdzip_woce_and_summary_woce_to_ctdzip_exchange_parser = \
-    ctd_converter_parsers.add_parser(
-        'zip_woce_and_summary_woce_to_zip_exchange',
-        help=ctdzip_woce_and_summary_woce_to_ctdzip_exchange.__doc__)
-ctdzip_woce_and_summary_woce_to_ctdzip_exchange_parser.set_defaults(
-    main=ctdzip_woce_and_summary_woce_to_ctdzip_exchange)
-ctdzip_woce_and_summary_woce_to_ctdzip_exchange_parser.add_argument(
-    'ctdzipwoce', type=FileType('r'),
-    help='input CTD ZIP WOCE file')
-ctdzip_woce_and_summary_woce_to_ctdzip_exchange_parser.add_argument(
-    'sumwoce', type=FileType('r'),
-    help='input Summary WOCE file')
-ctdzip_woce_and_summary_woce_to_ctdzip_exchange_parser.add_argument(
-    'ctdzipex', type=FileType('w'), nargs='?', default=sys.stdout,
-    help='output CTD ZIP Exchange file')
+with subcommand(ctd_converter_parsers,
+                'zip_woce_and_summary_woce_to_zip_exchange',
+                ctdzip_woce_and_summary_woce_to_ctdzip_exchange) as p:
+    p.add_argument(
+        'ctdzipwoce', type=FileType('r'),
+        help='input CTD ZIP WOCE file')
+    p.add_argument(
+        'sumwoce', type=FileType('r'),
+        help='input Summary WOCE file')
+    p.add_argument(
+        'ctdzipex', type=FileType('w'), nargs='?', default=sys.stdout,
+        help='output CTD ZIP Exchange file')
 
 
 sum_converter_parser = converter_parsers.add_parser(
@@ -787,18 +731,15 @@ def summary_hot_to_summary_woce(args):
         sumwoce.write(sf, out_file)
 
 
-summary_hot_to_summary_woce_parser = sum_converter_parsers.add_parser(
-    'hot_to_woce',
-    help=summary_hot_to_summary_woce.__doc__)
-summary_hot_to_summary_woce_parser.set_defaults(
-    main=summary_hot_to_summary_woce)
-summary_hot_to_summary_woce_parser.add_argument(
-    'input_sumhot', type=FileType('r'),
-    help='input Summary HOT file')
-summary_hot_to_summary_woce_parser.add_argument(
-    'output_sumwoce', type=FileType('w'), nargs='?',
-    default=sys.stdout,
-    help='output Summary WOCE file (default: stdout)')
+with subcommand(sum_converter_parsers, 'hot_to_woce',
+                summary_hot_to_summary_woce) as p:
+    p.add_argument(
+        'input_sumhot', type=FileType('r'),
+        help='input Summary HOT file')
+    p.add_argument(
+        'output_sumwoce', type=FileType('w'), nargs='?',
+        default=sys.stdout,
+        help='output Summary WOCE file (default: stdout)')
 
 
 to_kml_converter_parser = converter_parsers.add_parser(
@@ -825,20 +766,16 @@ def db_to_kml(args):
             db_to_kml(df, out_file)
 
 
-db_to_kml_parser = to_kml_converter_parsers.add_parser(
-    'db',
-    help=db_to_kml.__doc__)
-db_to_kml_parser.set_defaults(
-    main=db_to_kml)
-db_to_kml_parser.add_argument(
-    'input_botex', type=FileType('r'),
-    help='input Bottle Exchange file')
-db_to_kml_parser.add_argument(
-    '--full', type=bool, default=False,
-    help='full with dates')
-db_to_kml_parser.add_argument(
-    'output', type=FileType('w'), nargs='?', default=sys.stdout,
-    help='output file (default: stdout)')
+with subcommand(to_kml_converter_parsers, 'db', db_to_kml) as p:
+    p.add_argument(
+        'input_botex', type=FileType('r'),
+        help='input Bottle Exchange file')
+    p.add_argument(
+        '--full', type=bool, default=False,
+        help='full with dates')
+    p.add_argument(
+        'output', type=FileType('w'), nargs='?', default=sys.stdout,
+        help='output file (default: stdout)')
 
 
 def db_track_lines_to_kml(args):
@@ -847,11 +784,7 @@ def db_track_lines_to_kml(args):
     db_track_lines_to_kml_parser()
 
 
-db_track_lines_to_kml_parser = to_kml_converter_parsers.add_parser(
-    'db_track_lines',
-    help=db_track_lines_to_kml.__doc__)
-db_track_lines_to_kml_parser.set_defaults(
-    main=db_track_lines_to_kml)
+subcommand(to_kml_converter_parsers, 'db_track_lines', db_track_lines_to_kml)
 
 
 misc_converter_parser = converter_parsers.add_parser(
@@ -876,16 +809,12 @@ def explore_any(args):
     console.interact(banner)
 
 
-explore_any_parser = misc_converter_parsers.add_parser(
-    'explore_any',
-    help=explore_any.__doc__)
-explore_any_parser.set_defaults(
-    main=explore_any)
-explore_any_parser.add_argument('-i', '--input-type', choices=known_formats,
-    help='force the input file to be read as the specified type')
-explore_any_parser.add_argument(
-    'cchdo_file', type=FileType('r'),
-     help='any recognized CCHDO file')
+with subcommand(misc_converter_parsers, 'explore_any', explore_any) as p:
+    p.add_argument('-i', '--input-type', choices=known_formats,
+        help='force the input file to be read as the specified type')
+    p.add_argument(
+        'cchdo_file', type=FileType('r'),
+         help='any recognized CCHDO file')
 
 
 def convert_per_litre_to_per_kg_botex(args):
@@ -902,19 +831,15 @@ def convert_per_litre_to_per_kg_botex(args):
         botex.write(file, f)
 
 
-convert_per_litre_to_per_kg_botex_parser = \
-    misc_converter_parsers.add_parser(
-    'per_litre_to_per_kg_botex',
-    help=convert_per_litre_to_per_kg_botex.__doc__)
-convert_per_litre_to_per_kg_botex_parser.set_defaults(
-    main=convert_per_litre_to_per_kg_botex)
-convert_per_litre_to_per_kg_botex_parser.add_argument(
-    'input_botex', type=FileType('r'),
-    help='input Bottle Exchange file')
-convert_per_litre_to_per_kg_botex_parser.add_argument(
-    'output_botex', type=FileType('w'), nargs='?',
-    default=sys.stdout,
-    help='output Bottle Exchange file')
+with subcommand(misc_converter_parsers, 'per_litre_to_per_kg_botex',
+                convert_per_litre_to_per_kg_botex) as p:
+    p.add_argument(
+        'input_botex', type=FileType('r'),
+        help='input Bottle Exchange file')
+    p.add_argument(
+        'output_botex', type=FileType('w'), nargs='?',
+        default=sys.stdout,
+        help='output Bottle Exchange file')
 
 
 def convert_hly0301(args):
@@ -935,11 +860,7 @@ def convert_hly0301(args):
         ctdzipex.write(dfc, out_file)
 
 
-convert_hly0301_parser = misc_converter_parsers.add_parser(
-    'hly0301',
-    help=convert_hly0301.__doc__)
-convert_hly0301_parser.set_defaults(
-    main=convert_hly0301)
+subcommand(misc_converter_parsers, 'hly0301', convert_hly0301)
 
 
 def convert_bonus_goodhope(args):
@@ -960,17 +881,14 @@ def convert_bonus_goodhope(args):
     ctdzipex.write(dfc, args.output)
 
 
-convert_bonus_goodhope_parser = misc_converter_parsers.add_parser(
-    'bonus_goodhope',
-    help=convert_bonus_goodhope.__doc__)
-convert_bonus_goodhope_parser.set_defaults(
-    main=convert_bonus_goodhope)
-convert_bonus_goodhope_parser.add_argument(
-    'input', type=FileType('r'),
-    help='input ECP tar')
-convert_bonus_goodhope_parser.add_argument(
-    'output', type=FileType('w'), nargs='?', default=sys.stdout,
-    help='output CTD ZIP Exchange file')
+with subcommand(misc_converter_parsers, 'bonus_goodhope',
+                convert_bonus_goodhope) as p:
+    p.add_argument(
+        'input', type=FileType('r'),
+        help='input ECP tar')
+    p.add_argument(
+        'output', type=FileType('w'), nargs='?', default=sys.stdout,
+        help='output CTD ZIP Exchange file')
 
 
 merge_parser = hydro_subparsers.add_parser(
@@ -997,20 +915,17 @@ def merge_ctd_bacp_xmiss_and_ctd_exchange(args):
         ctdex.write(df, out_file)
 
 
-merge_ctd_bacp_xmiss_and_ctd_exchange_parser = merge_parsers.add_parser(
-    'ctd_bacp_xmiss_and_ctd_exchange',
-    help=merge_ctd_bacp_xmiss_and_ctd_exchange.__doc__)
-merge_ctd_bacp_xmiss_and_ctd_exchange_parser.set_defaults(
-    main=merge_ctd_bacp_xmiss_and_ctd_exchange)
-merge_ctd_bacp_xmiss_and_ctd_exchange_parser.add_argument(
-    'ctd_bacp', type=FileType('r'),
-    help='input CTD BACP file')
-merge_ctd_bacp_xmiss_and_ctd_exchange_parser.add_argument(
-    'in_ctdex', type=FileType('r'),
-    help='input CTD Exchange file')
-merge_ctd_bacp_xmiss_and_ctd_exchange_parser.add_argument(
-    'out_ctdex', type=FileType('w'), nargs='?', default=sys.stdout,
-    help='output CTD Exchange file')
+with subcommand(merge_parsers, 'ctd_bacp_xmiss_and_ctd_exchange',
+                merge_ctd_bacp_xmiss_and_ctd_exchange) as p:
+    p.add_argument(
+        'ctd_bacp', type=FileType('r'),
+        help='input CTD BACP file')
+    p.add_argument(
+        'in_ctdex', type=FileType('r'),
+        help='input CTD Exchange file')
+    p.add_argument(
+        'out_ctdex', type=FileType('w'), nargs='?', default=sys.stdout,
+        help='output CTD Exchange file')
 
 
 def merge_botex_and_botex(args):
@@ -1053,26 +968,22 @@ def merge_botex_and_botex(args):
                     '{1!r}'.format(in_file2.name, different_columns))
 
 
-merge_botex_and_botex_parser = merge_parsers.add_parser(
-    'botex_and_botex',
-    help=merge_botex_and_botex.__doc__)
-merge_botex_and_botex_parser.set_defaults(
-    main=merge_botex_and_botex)
-merge_botex_and_botex_parser.add_argument(
-    'file1', type=FileType('r'),
-    help='first file to merge')
-merge_botex_and_botex_parser.add_argument(
-    'file2', type=FileType('r'),
-    help='second file to merge')
-merge_botex_and_botex_group_merge = \
-    merge_botex_and_botex_parser.add_argument_group(
-        title='Merge parameters')
-merge_botex_and_botex_group_merge.add_argument(
-    '--output', type=FileType('w'), nargs='+', default=sys.stdout,
-    help='output Bottle Exchange file')
-merge_botex_and_botex_group_merge.add_argument(
-    'parameters_to_merge', type=str, nargs='*', default=[],
-    help='parameters to merge')
+with subcommand(merge_parsers, 'botex_and_botex', merge_botex_and_botex) as p:
+    p.add_argument(
+        'file1', type=FileType('r'),
+        help='first file to merge')
+    p.add_argument(
+        'file2', type=FileType('r'),
+        help='second file to merge')
+    merge_botex_and_botex_group_merge = \
+        p.add_argument_group(
+            title='Merge parameters')
+    merge_botex_and_botex_group_merge.add_argument(
+        '--output', type=FileType('w'), nargs='+', default=sys.stdout,
+        help='output Bottle Exchange file')
+    merge_botex_and_botex_group_merge.add_argument(
+        'parameters_to_merge', type=str, nargs='*', default=[],
+        help='parameters to merge')
 
 
 datadir_parser = hydro_subparsers.add_parser(
@@ -1088,11 +999,30 @@ def datadir_ensure_navs(args):
     do_for_cruise_directories(ensure_navs)
 
 
-datadir_ensure_navs_parser = datadir_parsers.add_parser(
-    'ensure_navs',
-    help=datadir_ensure_navs.__doc__)
-datadir_ensure_navs_parser.set_defaults(
-    main=datadir_ensure_navs)
+subcommand(datadir_parsers, 'ensure_navs', datadir_ensure_navs)
+
+
+def datadir_commit(args):
+    pass
+
+
+with subcommand(datadir_parsers, 'commit', datadir_commit) as p:
+    p.add_argument(
+        '--basepath', default=os.getcwd(),
+        help='Base path to put working directory in (default: current '
+             'directory)')
+    p.add_argument(
+        '--separator', default='_')
+    p.add_argument(
+        '--date', default=date.today().isoformat(),
+        help='The date for the work being done (default: today)')
+    p.add_argument(
+        '--title', default='working',
+        help='A title for the work being done. E.g. CTD, BOT, params '
+            '(default: working)')
+    p.add_argument(
+        '--person', default=os.getlogin(),
+        help='The person doing the work (default: {0})'.format(os.getlogin()))
 
 
 def datadir_mkdir_working(args):
@@ -1106,26 +1036,22 @@ def datadir_mkdir_working(args):
     print dirpath
 
 
-datadir_mkdir_working_parser = datadir_parsers.add_parser(
-    'mkdir_working',
-    help=datadir_mkdir_working.__doc__)
-datadir_mkdir_working_parser.set_defaults(
-    main=datadir_mkdir_working)
-datadir_mkdir_working_parser.add_argument(
-    '--basepath', default=os.getcwd(),
-    help='Base path to put working directory in (default: current directory)')
-datadir_mkdir_working_parser.add_argument(
-    '--separator', default='_')
-datadir_mkdir_working_parser.add_argument(
-    '--date', default=date.today().isoformat(),
-    help='The date for the work being done (default: today)')
-datadir_mkdir_working_parser.add_argument(
-    '--title', default='working',
-    help='A title for the work being done. E.g. CTD, BOT, params '
-        '(default: working)')
-datadir_mkdir_working_parser.add_argument(
-    '--person', default=os.getlogin(),
-    help='The person doing the work (default: {0})'.format(os.getlogin()))
+with subcommand(datadir_parsers, 'mkdir_working', datadir_mkdir_working) as p:
+    p.add_argument(
+        '--basepath', default=os.getcwd(),
+        help='Base path to put working directory in (default: current directory)')
+    p.add_argument(
+        '--separator', default='_')
+    p.add_argument(
+        '--date', default=date.today().isoformat(),
+        help='The date for the work being done (default: today)')
+    p.add_argument(
+        '--title', default='working',
+        help='A title for the work being done. E.g. CTD, BOT, params '
+            '(default: working)')
+    p.add_argument(
+        '--person', default=os.getlogin(),
+        help='The person doing the work (default: {0})'.format(os.getlogin()))
 
 
 def datadir_copy_replaced(args):
@@ -1137,19 +1063,16 @@ def datadir_copy_replaced(args):
     copy_replaced(args.filename, date, args.separator)
 
 
-datadir_copy_replaced_parser = datadir_parsers.add_parser(
-    'copy_replaced',
-    help=datadir_copy_replaced.__doc__)
-datadir_copy_replaced_parser.set_defaults(
-    main=datadir_copy_replaced)
-datadir_copy_replaced_parser.add_argument(
-    '--separator', default='_')
-datadir_copy_replaced_parser.add_argument(
-    '--date', default=date.today().isoformat(),
-    help='The date for the work being done (default: today)')
-datadir_copy_replaced_parser.add_argument(
-    'filename', 
-    help='The file that is replaced and needs to be moved.')
+with subcommand(datadir_parsers, 'copy_replaced',
+                datadir_copy_replaced) as p:
+    p.add_argument(
+        '--separator', default='_')
+    p.add_argument(
+        '--date', default=date.today().isoformat(),
+        help='The date for the work being done (default: today)')
+    p.add_argument(
+        'filename', 
+        help='The file that is replaced and needs to be moved.')
 
 
 plot_parser = hydro_subparsers.add_parser(
@@ -1171,57 +1094,53 @@ def plot_etopo(args):
     bm.savefig(args.output_filename)
 
 
-plot_etopo_parser = plot_parsers.add_parser(
-    'etopo',
-    help=plot_etopo.__doc__)
-plot_etopo_parser.set_defaults(
-    main=plot_etopo)
-plot_etopo_parser.add_argument(
-    '--no-etopo', action='store_const', const=True,
-    help='Do not draw ETOPO')
-plot_etopo_parser.add_argument(
-    'minutes', type=int, nargs='?', default=5, choices=[1, 2, 5, 30, 60], 
-    help='The desired resolution of the ETOPO grid data in minutes '
-         '(default: 5)')
-plot_etopo_parser.add_argument(
-    '--width', type=int, default=720, choices=[240, 320, 480, 720, 1024],
-    help='The desired width in pixels of the resulting plot image '
-         '(default: 720)')
-plot_etopo_parser.add_argument(
-    '--fill_continents', type=bool, default=False,
-    help='Whether to fill the continent interiors with solid black '
-         '(default: False)')
-plot_etopo_parser.add_argument(
-    '--projection', default='merc',
-    choices=['merc', 'robin', 'npstere', 'spstere', 'tmerc', ],
-    help='The projection of map to use (default: merc)')
-plot_etopo_parser.add_argument(
-    '--cmap', default='cberys',
-    choices=plot_colormaps.keys(),
-    help='The colormap to use for the ETOPO data (default: cberys)')
-plot_etopo_parser.add_argument(
-    '--title', type=str, 
-    help='A title for the plot')
-plot_etopo_parser.add_argument(
-    '--any-file', type=FileType('r'), nargs='?',
-    help='Name of an input file to plot points for')
-plot_etopo_parser.add_argument(
-    '--output-filename', default='etopo.png',
-    help='Name of the output file (default: etopo.png)')
-_llcrnrlat = -89
-# Chosen so that the date line will be centered
-_llcrnrlon = 25
-plot_etopo_parser.add_argument(
-    '--bounds-cylindrical', type=float, nargs=4,
-    default=[_llcrnrlon, _llcrnrlat, 360 + _llcrnrlon, -_llcrnrlat],
-    help='The boundaries of the map as '
-         '[llcrnrlon, llcrnrlat, urcrnrlon, urcrnrlat]')
-# TODO these options need to be matched with the projection
-plot_etopo_parser.add_argument(
-    '--bounds-elliptical', type=float, nargs=1,
-    default=180,
-    help='The center meridian of the map lon_0 (default: 180 centers the '
-        'Pacific Ocean)')
+with subcommand(plot_parsers, 'etopo', plot_etopo) as p:
+    p.add_argument(
+        '--no-etopo', action='store_const', const=True,
+        help='Do not draw ETOPO')
+    p.add_argument(
+        'minutes', type=int, nargs='?', default=5, choices=[1, 2, 5, 30, 60], 
+        help='The desired resolution of the ETOPO grid data in minutes '
+             '(default: 5)')
+    p.add_argument(
+        '--width', type=int, default=720, choices=[240, 320, 480, 720, 1024],
+        help='The desired width in pixels of the resulting plot image '
+             '(default: 720)')
+    p.add_argument(
+        '--fill_continents', type=bool, default=False,
+        help='Whether to fill the continent interiors with solid black '
+             '(default: False)')
+    p.add_argument(
+        '--projection', default='merc',
+        choices=['merc', 'robin', 'npstere', 'spstere', 'tmerc', ],
+        help='The projection of map to use (default: merc)')
+    p.add_argument(
+        '--cmap', default='cberys',
+        choices=plot_colormaps.keys(),
+        help='The colormap to use for the ETOPO data (default: cberys)')
+    p.add_argument(
+        '--title', type=str, 
+        help='A title for the plot')
+    p.add_argument(
+        '--any-file', type=FileType('r'), nargs='?',
+        help='Name of an input file to plot points for')
+    p.add_argument(
+        '--output-filename', default='etopo.png',
+        help='Name of the output file (default: etopo.png)')
+    _llcrnrlat = -89
+    # Chosen so that the date line will be centered
+    _llcrnrlon = 25
+    p.add_argument(
+        '--bounds-cylindrical', type=float, nargs=4,
+        default=[_llcrnrlon, _llcrnrlat, 360 + _llcrnrlon, -_llcrnrlat],
+        help='The boundaries of the map as '
+             '[llcrnrlon, llcrnrlat, urcrnrlon, urcrnrlat]')
+    # TODO these options need to be matched with the projection
+    p.add_argument(
+        '--bounds-elliptical', type=float, nargs=1,
+        default=180,
+        help='The center meridian of the map lon_0 (default: 180 centers the '
+            'Pacific Ocean)')
 
 
 def plot_goship(args):
@@ -1286,17 +1205,13 @@ def plot_goship(args):
     bm.savefig(args.output_filename)
 
 
-plot_goship_parser = plot_parsers.add_parser(
-        'goship',
-        help=plot_goship.__doc__)
-plot_goship_parser.set_defaults(
-        main=plot_goship)
-plot_goship_parser.add_argument(
-    '--draft', action='store_true',
-    help='Draft form is a small version of the plot')
-plot_goship_parser.add_argument(
-    '--output-filename', default='goship.png',
-    help='Name of the output file (default: goship.png)')
+with subcommand(plot_parsers, 'goship', plot_goship) as p:
+    p.add_argument(
+        '--draft', action='store_true',
+        help='Draft form is a small version of the plot')
+    p.add_argument(
+        '--output-filename', default='goship.png',
+        help='Name of the output file (default: goship.png)')
 
 
 def plot_ushydro(args):
@@ -1316,25 +1231,21 @@ def plot_ushydro(args):
         genfrom_args(args, f)
 
 
-plot_ushydro_parser = plot_parsers.add_parser(
-        'ushydro',
-        help=plot_ushydro.__doc__)
-plot_ushydro_parser.set_defaults(
-        main=plot_ushydro)
-plot_ushydro_parser.add_argument(
-        '--config', type=FileType('r'),
-        help='Override default config file')
-plot_ushydro_parser.add_argument(
-        '--config-dump', 
-        action='store_true',
-        help='Dump the default configureation to stdout for user editing')
-plot_ushydro_parser.add_argument(
-        '--save-dir', default=os.getcwd(),
-        help="The directory the maps will be saved in, deaults to cwd",)
-plot_ushydro_parser.add_argument(
-        '--html-prefix',
-        default="/images/map_images/", help=("Define the location the maps will"
-        "exist on the server, this modifies the html output"),)
+with subcommand(plot_parsers, 'ushydro', plot_ushydro) as p:
+    p.add_argument(
+            '--config', type=FileType('r'),
+            help='Override default config file')
+    p.add_argument(
+            '--config-dump', 
+            action='store_true',
+            help='Dump the default configureation to stdout for user editing')
+    p.add_argument(
+            '--save-dir', default=os.getcwd(),
+            help="The directory the maps will be saved in, deaults to cwd",)
+    p.add_argument(
+            '--html-prefix',
+            default="/images/map_images/", help=("Define the location the maps will"
+            "exist on the server, this modifies the html output"),)
 
 
 def plot_data_holdings_around(args):
@@ -1442,13 +1353,10 @@ def plot_data_holdings_around(args):
     bm_spstere.savefig('data_holdings_around_{0}_spstere.png'.format(args.around))
 
 
-plot_data_holdings_around_parser = plot_parsers.add_parser(
-    'data_holdings_around',
-    help=plot_data_holdings_around.__doc__)
-plot_data_holdings_around_parser.set_defaults(
-    main=plot_data_holdings_around)
-plot_data_holdings_around_parser.add_argument(
-    'around', type=int, help='The year to bin around')
+with subcommand(plot_parsers, 'data_holdings_around',
+                plot_data_holdings_around) as p:
+    p.add_argument(
+        'around', type=int, help='The year to bin around')
 
 
 misc_parser = hydro_subparsers.add_parser(
@@ -1464,11 +1372,7 @@ def regen_db_cache(args):
     std_session.commit()
 
 
-regen_db_cache_parser = misc_parsers.add_parser(
-    'regen_db_cache',
-    help=regen_db_cache.__doc__)
-regen_db_cache_parser.set_defaults(
-    main=regen_db_cache)
+subcommand(misc_parsers, 'regen_db_cache', regen_db_cache)
 
 
 def db_dump_tracks(args):
@@ -1479,21 +1383,17 @@ def db_dump_tracks(args):
     tracks(args.output_file, args.date_from, args.date_to, args.around)
 
 
-db_dump_tracks_parser = misc_parsers.add_parser(
-    'db_dump_tracks',
-    help=db_dump_tracks.__doc__)
-db_dump_tracks_parser.set_defaults(
-    main=db_dump_tracks)
-db_dump_tracks_parser.add_argument('-a', '--around',
-    help='the year to bin around. Takes precedence over date-from and date-to.')
-db_dump_tracks_parser.add_argument('-df', '--date-from',
-    help='the year to limit from')
-db_dump_tracks_parser.add_argument('-dt', '--date-to',
-    help='the year to limit to')
-db_dump_tracks_parser.add_argument(
-    'output_file', type=FileType('w'), nargs='?',
-    default=sys.stdout,
-    help='output file (default: stdout)')
+with subcommand(misc_parsers, 'db_dump_tracks', db_dump_tracks) as p:
+    p.add_argument('-a', '--around',
+        help='the year to bin around. Takes precedence over date-from and date-to.')
+    p.add_argument('-df', '--date-from',
+        help='the year to limit from')
+    p.add_argument('-dt', '--date-to',
+        help='the year to limit to')
+    p.add_argument(
+        'output_file', type=FileType('w'), nargs='?',
+        default=sys.stdout,
+        help='output file (default: stdout)')
 
 
 def any_to_legacy_parameter_statuses(args):
@@ -1508,21 +1408,18 @@ def any_to_legacy_parameter_statuses(args):
         df_to_legacy_parameter_statuses(data, out_file)
 
 
-any_to_legacy_parameter_statuses_parser = misc_parsers.add_parser(
-    'any_to_legacy_parameter_statuses',
-    help=any_to_legacy_parameter_statuses.__doc__)
-any_to_legacy_parameter_statuses_parser.set_defaults(
-    main=any_to_legacy_parameter_statuses)
-any_to_legacy_parameter_statuses_parser.add_argument('-i', '--input-type',
-    choices=known_formats,
-    help='force the input file to be read as the specified type')
-any_to_legacy_parameter_statuses_parser.add_argument(
-    'input_file', type=FileType('r'),
-    help='any recognized CCHDO file')
-any_to_legacy_parameter_statuses_parser.add_argument(
-    'output_file', type=FileType('w'), nargs='?',
-    default=sys.stdout,
-    help='output file (default: stdout)')
+with subcommand(misc_parsers, 'any_to_legacy_parameter_statuses',
+                any_to_legacy_parameter_statuses) as p:
+    p.add_argument('-i', '--input-type',
+        choices=known_formats,
+        help='force the input file to be read as the specified type')
+    p.add_argument(
+        'input_file', type=FileType('r'),
+        help='any recognized CCHDO file')
+    p.add_argument(
+        'output_file', type=FileType('w'), nargs='?',
+        default=sys.stdout,
+        help='output file (default: stdout)')
 
 
 def bottle_exchange_canon(args):
@@ -1541,17 +1438,14 @@ def bottle_exchange_canon(args):
         botex.write(df, out_file)
 
 
-bottle_exchange_canon_parser = misc_parsers.add_parser(
-    'bottle_exchange_canon',
-    help=bottle_exchange_canon.__doc__)
-bottle_exchange_canon_parser.set_defaults(
-    main=bottle_exchange_canon)
-bottle_exchange_canon_parser.add_argument(
-    'input_botex', type=FileType('r'),
-    help='input Bottle Exchange file')
-bottle_exchange_canon_parser.add_argument(
-    'output_botex', type=FileType('w'), nargs='?', default=sys.stdout,
-    help='output Bottle Exchange file (default: stdout)')
+with subcommand(misc_parsers, 'bottle_exchange_canon',
+                bottle_exchange_canon) as p:
+    p.add_argument(
+        'input_botex', type=FileType('r'),
+        help='input Bottle Exchange file')
+    p.add_argument(
+        'output_botex', type=FileType('w'), nargs='?', default=sys.stdout,
+        help='output Bottle Exchange file (default: stdout)')
 
 
 def collect_into_archive(args):
@@ -1560,11 +1454,7 @@ def collect_into_archive(args):
     collect_into_archive()
 
 
-collect_into_archive_parser = misc_parsers.add_parser(
-    'collect_into_archive',
-    help=collect_into_archive.__doc__)
-collect_into_archive_parser.set_defaults(
-    main=collect_into_archive)
+subcommand(misc_parsers, 'collect_into_archive', collect_into_archive)
 
 
 def rebuild_hot_bats_oceansites(args):
@@ -1602,24 +1492,20 @@ def reorder_surface_to_bottom(args):
         botex.write(df, f)
 
 
-reorder_surface_to_bottom_parser = misc_parsers.add_parser(
-    'reorder_surface_to_bottom',
-    #aliases=['reorder'],
-    help=reorder_surface_to_bottom.__doc__)
-reorder_surface_to_bottom_parser.set_defaults(
-    main=reorder_surface_to_bottom)
-reorder_surface_to_bottom_parser.add_argument(
-    'input_file', type=FileType('r'),
-    help='input Bottle Exchange file')
-reorder_surface_to_bottom_parser.add_argument(
-    'output_file', type=FileType('w'), nargs='?', default=sys.stdout,
-    help='output Bottle Exchange file')
-reorder_surface_to_bottom_parser.add_argument(
-    '--order-nondesc-pressure', type=bool, nargs='?', default=True,
-    help='Order by non-descending pressure (default: True)')
-reorder_surface_to_bottom_parser.add_argument(
-    '--order-nondesc-btlnbr', type=bool, nargs='?', default=False,
-    help='Order by non-descending bottle number (default: False)')
+with subcommand(misc_parsers, 'reorder_surface_to_bottom',
+                reorder_surface_to_bottom) as p:
+    p.add_argument(
+        'input_file', type=FileType('r'),
+        help='input Bottle Exchange file')
+    p.add_argument(
+        'output_file', type=FileType('w'), nargs='?', default=sys.stdout,
+        help='output Bottle Exchange file')
+    p.add_argument(
+        '--order-nondesc-pressure', type=bool, nargs='?', default=True,
+        help='Order by non-descending pressure (default: True)')
+    p.add_argument(
+        '--order-nondesc-btlnbr', type=bool, nargs='?', default=False,
+        help='Order by non-descending bottle number (default: False)')
 
 
 report_parser = hydro_subparsers.add_parser(
@@ -1656,20 +1542,16 @@ def report_data_updates(args):
     report_data_updates(args)
 
 
-report_data_updates_parser = report_parsers.add_parser(
-    'data_updates',
-    help=report_data_updates.__doc__)
-report_data_updates_parser.set_defaults(
-    main=report_data_updates)
-report_data_updates_parser.add_argument(
-    '--date-start', nargs='?', default=None,
-    help='Day to end (default: a year before date-end)')
-report_data_updates_parser.add_argument(
-    '--date-end', nargs='?', default=today,
-    help='Start of date range (default: today)')
-report_data_updates_parser.add_argument(
-    'output', type=FileType('w'), nargs='?', default=sys.stdout,
-    help='output file')
+with subcommand(report_parsers, 'data_updates', report_data_updates):
+    p.add_argument(
+        '--date-start', nargs='?', default=None,
+        help='Day to end (default: a year before date-end)')
+    p.add_argument(
+        '--date-end', nargs='?', default=today,
+        help='Start of date range (default: today)')
+    p.add_argument(
+        'output', type=FileType('w'), nargs='?', default=sys.stdout,
+        help='output file')
 
 
 def report_submission_and_queue(args):
@@ -1684,20 +1566,17 @@ def report_submission_and_queue(args):
     report_submission_and_queue(args)
 
 
-report_submission_and_queue_parser = report_parsers.add_parser(
-    'submission_and_queue',
-    help=report_submission_and_queue.__doc__)
-report_submission_and_queue_parser.set_defaults(
-    main=report_submission_and_queue)
-report_submission_and_queue_parser.add_argument(
-    '--date-start', nargs='?', default=None,
-    help='Day to end (default: a year before date-end)')
-report_submission_and_queue_parser.add_argument(
-    '--date-end', nargs='?', default=today,
-    help='Start of date range (default: today)')
-report_submission_and_queue_parser.add_argument(
-    'output', type=FileType('w'), nargs='?', default=sys.stdout,
-    help='output file')
+with subcommand(report_parsers, 'submission_and_queue',
+                report_submission_and_queue) as p:
+    p.add_argument(
+        '--date-start', nargs='?', default=None,
+        help='Day to end (default: a year before date-end)')
+    p.add_argument(
+        '--date-end', nargs='?', default=today,
+        help='Start of date range (default: today)')
+    p.add_argument(
+        'output', type=FileType('w'), nargs='?', default=sys.stdout,
+        help='output file')
 
 
 def deprecated_reorder_surface_to_bottom():
