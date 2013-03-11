@@ -942,6 +942,37 @@ convert_hly0301_parser.set_defaults(
     main=convert_hly0301)
 
 
+def convert_bonus_goodhope(args):
+    """Make changes specific to Bonus Goodhope."""
+    from libcchdo.model.datafile import DataFileCollection
+    from libcchdo.formats.ctd.zip import ecp as ecptar
+    from libcchdo.formats.ctd.zip import exchange as ctdzipex
+
+    dfc = DataFileCollection()
+    with closing(args.input) as fff:
+        ecptar.read(dfc, fff)
+    
+    for fff in dfc.files:
+        fff.globals['EXPOCODE'] = '35MF20080207'
+        del fff.columns['DEPTH']
+        del fff.columns['GAMMA']
+    
+    ctdzipex.write(dfc, args.output)
+
+
+convert_bonus_goodhope_parser = misc_converter_parsers.add_parser(
+    'bonus_goodhope',
+    help=convert_bonus_goodhope.__doc__)
+convert_bonus_goodhope_parser.set_defaults(
+    main=convert_bonus_goodhope)
+convert_bonus_goodhope_parser.add_argument(
+    'input', type=FileType('r'),
+    help='input ECP tar')
+convert_bonus_goodhope_parser.add_argument(
+    'output', type=FileType('w'), nargs='?', default=sys.stdout,
+    help='output CTD ZIP Exchange file')
+
+
 merge_parser = hydro_subparsers.add_parser(
     'merge', help='Mergers')
 merge_parsers = merge_parser.add_subparsers(title='mergers')
