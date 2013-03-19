@@ -137,13 +137,13 @@ class HistoryConsole(code.InteractiveConsole):
 
 
 
-def _check_and_replace_parameters_convert(self):
+def _check_and_replace_parameters_convert(self, default_convert=False):
     for column in self.columns.values():
         parameter = column.parameter
         std_parameter = std.find_by_mnemonic(parameter.name)
 
         if not std_parameter and not parameter.name.startswith('_'):
-            L.LOG.warn("Unknown parameter '%s'" % parameter.name)
+            LOG.warn("Unknown parameter '%s'" % parameter.name)
             continue
 
         given_units = parameter.units.mnemonic if parameter.units else None
@@ -152,12 +152,14 @@ def _check_and_replace_parameters_convert(self):
         from_to = (given_units, expected_units)
 
         if given_units and expected_units and given_units != expected_units:
-            L.LOG.warn(("Mismatched units for '%s'. "
+            LOG.warn(("Mismatched units for '%s'. "
                       "Found '%s' but expected '%s'") % \
                       ((parameter.name,) + from_to))
             try:
                 unit_converter = self.unit_converters[from_to]
                 convert = None
+                if default_convert:
+                    convert = 'y'
                 while not convert or convert.lower() not in ('y', 'n'):
                     try:
                         convert = raw_input(
@@ -166,21 +168,22 @@ def _check_and_replace_parameters_convert(self):
                     except EOFError:
                         pass
                 if convert == 'y':
-                    L.LOG.info("Converting from '%s' -> '%s' for %s." % \
+                    LOG.info("Converting from '%s' -> '%s' for %s." % \
                              (from_to + (column.parameter.name,)))
                     column = unit_converter(self, column)
                 else:
                     # Skip conversion and unit change.
                     continue
             except KeyError:
-                L.LOG.info(("No unit converter registered with file for "
+                LOG.info(("No unit converter registered with file for "
                           "'%s' -> '%s'. Skipping conversion.") % from_to)
                 continue
 
         column.parameter = std_parameter
 
 
-def convert_per_litre_to_per_kg(file):
+def convert_per_litre_to_per_kg(
+        file, whole_not_aliquot=None, default_convert=False):
     """Convert WOCE format /L units to /KG.
 
     A small percentage of WOCE format hydro data is submitted with oxygens
@@ -203,7 +206,8 @@ def convert_per_litre_to_per_kg(file):
     file.unit_converters[('DEG C', u'ITS-90')] = ucvt.equivalent
 
     file.unit_converters[('ML/L', u'UMOL/KG')] = \
-        ucvt.milliliter_per_liter_to_umol_per_kg
+        lambda f, c: ucvt.milliliter_per_liter_to_umol_per_kg(
+            f, c, whole_not_aliquot)
     file.unit_converters[('UMOL/L', u'UMOL/KG')] = \
         ucvt.mol_per_liter_to_mol_per_kg
     file.unit_converters[('PMOL/L', u'PMOL/KG')] = \
@@ -213,7 +217,7 @@ def convert_per_litre_to_per_kg(file):
     # XXX YIKES but it's there in the fortran
     #file.unit_converters[('MMOL/L', u'UMOL/KG')] = \
     #    ucvt.mol_per_liter_to_mol_per_kg
-    _check_and_replace_parameters_convert(file)
+    _check_and_replace_parameters_convert(file, default_convert)
 
 
 PRESSURE_COLUMNS = ('CTDPRS', 'CTDRAW', )

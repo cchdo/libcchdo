@@ -817,29 +817,60 @@ with subcommand(misc_converter_parsers, 'explore_any', explore_any) as p:
          help='any recognized CCHDO file')
 
 
-def convert_per_litre_to_per_kg_botex(args):
-    from libcchdo.tools import convert_per_litre_to_per_kg
+def convert_per_litre_to_per_kg(args):
+    """Do some common unit conversions."""
+    from libcchdo.model.datafile import DataFile, DataFileCollection
+    from libcchdo.formats.bottle import exchange as btlex
+    from libcchdo.formats.ctd.zip import exchange as ctdzipex
+    from libcchdo.tools import convert_per_litre_to_per_kg as cvt
 
-    df = DataFile()
+    if args.format_module_name == 'btlex':
+        format_module = btlex
+        df = DataFile()
+    elif args.format_module_name == 'ctdzipex':
+        format_module = ctdzipex
+        df = DataFileCollection()
+    else:
+        LOG.error(u'Unacceptable format name.')
+        return
 
-    with closing(args.input_botex) as in_file:
-        botex.read(df, in_file)
+    with closing(args.input) as in_file:
+        format_module.read(df, in_file)
 
-    convert_per_litre_to_per_kg(df)
+    # This was originally a bottle only utility, hence the were whole/aliquot
+    # question.
+    try:
+        cvt(
+            df, whole_not_aliquot=args.whole_not_aliquot,
+            default_convert=args.default_convert)
+    except AttributeError:
+        for fff in df.files:
+            cvt(fff, whole_not_aliquot=args.whole_not_aliquot,
+                default_convert=args.default_convert)
 
-    with closing(args.output_botex) as out_file:
-        botex.write(file, f)
+    with closing(args.output) as out_file:
+        format_module.write(df, out_file)
 
 
-with subcommand(misc_converter_parsers, 'per_litre_to_per_kg_botex',
-                convert_per_litre_to_per_kg_botex) as p:
+with subcommand(misc_converter_parsers, 'per_litre_to_per_kg',
+                convert_per_litre_to_per_kg) as p:
     p.add_argument(
-        'input_botex', type=FileType('r'),
-        help='input Bottle Exchange file')
+        '--whole-not-aliquot', type=bool, default=None,
+        help='Whether the oxygen measurements where with the whole bottle or '
+             'aliquot')
     p.add_argument(
-        'output_botex', type=FileType('w'), nargs='?',
+        '--default-convert', type=bool, default=False,
+        help='Whether to ask before converting')
+    p.add_argument(
+        '--format-module-name', default='btlex', choices=['btlex', 'ctdzipex'],
+        help='format to use to read and write')
+    p.add_argument(
+        'input', type=FileType('r'),
+        help='input Exchange file')
+    p.add_argument(
+        'output', type=FileType('w'), nargs='?',
         default=sys.stdout,
-        help='output Bottle Exchange file')
+        help='output Exchange file')
 
 
 def convert_hly0301(args):

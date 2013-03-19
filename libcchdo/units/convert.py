@@ -4,7 +4,8 @@
 from __future__ import with_statement
 from decimal import localcontext, Decimal
 
-from .. import LOG
+from libcchdo import LOG
+from libcchdo.fns import _decimal
 from ..algorithms import volume
 from ..db.model import std
 
@@ -41,8 +42,9 @@ def oxygen_method_is_whole_not_aliquot():
             print "In truth it probably doesn't matter."
 
 
-def milliliter_per_liter_to_umol_per_kg(file, column):
-    whole_not_aliquot = oxygen_method_is_whole_not_aliquot()
+def milliliter_per_liter_to_umol_per_kg(file, column, whole_not_aliquot=None):
+    if whole_not_aliquot is None:
+        whole_not_aliquot = oxygen_method_is_whole_not_aliquot()
 
     for i, value in enumerate(column.values):
         salinity = _get_first_value_of_parameters(
@@ -75,7 +77,8 @@ def milliliter_per_liter_to_umol_per_kg(file, column):
             o2_atomic_weight = 31.9988
             density_o2 = 1.42905481 # g/l @ 273.15K
             constant = o2_atomic_weight / density_o2 * 0.001
-            column.values[i] /= (constant * (sigt / 1.0e3 + 1.0))
+            column.values[i] /= (
+                _decimal(constant) * (sigt / _decimal(1.0e3) + _decimal(1.0)))
         else:
             raise ValueError(('Cannot apply conversion for oxygen to '
                               'non-oxygen parameter.'))

@@ -106,6 +106,7 @@ def read(self, handle, retain_order=False):
             col.append(value)
         l = handle.readline().strip()
 
+    woce.fuse_datetime(self)
     self.check_and_replace_parameters()
 
 

@@ -262,10 +262,10 @@ def polynomial(x, coeffs):
     """
     if len(coeffs) <= 0:
         return 0
-    sum = coeffs[0]
+    sum = _decimal(coeffs[0])
     degreed = x
     for coef in coeffs[1:]:
-        sum += coef * degreed
+        sum += _decimal(coef) * degreed
         degreed *= x
     return sum
 

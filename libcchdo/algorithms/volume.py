@@ -4,7 +4,7 @@ newvol.f -> volume.py
 '''
 
 
-from .. import fns
+from libcchdo.fns import _decimal, equal_with_epsilon, polynomial
 
 
 CDMISS = 3.2e4
@@ -15,10 +15,6 @@ COEFF_RHO_W = (999.842594, 0.06793952, -0.00909529, 1.001685e-4,
                -1.120083e-6, 6.536332e-9)
 COEFF_KW_1 = (0, -0.0040899, 7.6438e-5, -8.2467e-7, 5.3875e-9)
 COEFF_K_ST0 = (-0.00572466, 1.0227e-4, -1.6546e-6)
-
-
-equal_with_epsilon = fns.equal_with_epsilon
-polynomial = fns.polynomial
 
 
 def _missing(x):
@@ -40,12 +36,12 @@ def kw_1(potential_temperature):
 
 def kw(potential_temperature, salinity):
     '''Pure water secant bulk modulus?''' # TODO
-    return (kw_1(potential_temperature) + 0.824493) * salinity
+    return (kw_1(potential_temperature) + _decimal(0.824493)) * salinity
 
 
 def k_st0(salinity, potential_temperature):
     return polynomial(potential_temperature, COEFF_K_ST0) * \
-           abs(salinity) ** 1.5
+           abs(salinity) ** _decimal(1.5)
 
 
 def alphy(s, t, p):
@@ -169,10 +165,11 @@ def sigma_r(refprs, press, temp, salty):
         potemp = temp
 
     # sigma theta kg/m**3
-    sigma = rho_w(potemp) + kw(potemp, salty) + k_st0(salty, potemp) + 4.8314e-4 * salty ** 2
+    sigma = (rho_w(potemp) + kw(potemp, salty) + k_st0(salty, potemp) + 
+             _decimal(4.8314e-4) * salty ** 2)
 
     if equal_with_epsilon(refprs, 0.0):
-        return sigma - 1000.0
+        return sigma - _decimal(1000.0)
 
     # Calculate pressure effect
     #

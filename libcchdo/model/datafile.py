@@ -414,7 +414,8 @@ class DataFile(File):
                 if (parameter.endswith('FLAG_W') or 
                     parameter.endswith('FLAG_I')):
                     LOG.info(
-                        u'Skipped creating flag column {0}'.format(parameter))
+                        u'Skipped creating column for flag {0}'.format(
+                        parameter))
                     continue
                 elif parameter in self.columns:
                     LOG.info(

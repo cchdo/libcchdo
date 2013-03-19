@@ -153,7 +153,10 @@ def _create_common_variables(df, nc_file):
 
 def _nc_bottom_depth(df):
     try:
-        return int(max(filter(None, df['DEPTH'].values)))
+        depths = filter(None, df['DEPTH'].values)
+        if not depths:
+            return woce.FILL_VALUE
+        return int(max(depths))
     except (KeyError, AttributeError):
         return woce.FILL_VALUE
 
