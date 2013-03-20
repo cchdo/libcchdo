@@ -22,7 +22,7 @@ if __name__ == "__main__":
     # pip install -e .[db,speed,netcdf]
     extras_require = {
         'db': ['MySQL-python', ],
-        'datadir': ['oauth2', ],
+        'datadir': ['oauth2', 'paramiko', ],
         'speed': ['cdecimal', ],
         'coverage': ['coverage', ],
         'netcdf': ['numpy', 'netCDF4', ],
@@ -54,6 +54,7 @@ if __name__ == "__main__":
         packages=packages,
         package_data={PACKAGE_NAME:[
             'resources/ushydro.json',
+            'resources/csv_view.css',
             ],
         },
         test_suite='libcchdo.tests',

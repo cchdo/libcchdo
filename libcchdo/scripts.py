@@ -16,7 +16,7 @@ import sys
 import os
 import os.path
 
-from libcchdo import LOG
+from libcchdo import LOG, get_library_abspath
 from libcchdo.fns import all_formats
 from libcchdo.plot.etopo import colormaps as plot_colormaps
 from libcchdo.formats import woce
@@ -1249,8 +1249,7 @@ def plot_ushydro(args):
     '''Rebuild all the ushydro maps with lines and years
     '''
     from libcchdo.plot.ushydro import genfrom_args
-    this_dir, filename = os.path.split(__file__)
-    default = os.path.join(this_dir, 'resources', 'ushydro.json')
+    default = os.path.join(get_library_abspath(), 'resources', 'ushydro.json')
     if args.config:
         f = args.config
     else:
@@ -1404,6 +1403,15 @@ def regen_db_cache(args):
 
 
 subcommand(misc_parsers, 'regen_db_cache', regen_db_cache)
+
+
+def csv_view(args):
+    from libcchdo.csv_view import view
+    view(args.csv_file)
+
+
+with subcommand(misc_parsers, 'csv_view', csv_view) as p:
+    p.add_argument('csv_file', help='the CSV Exchange file to view')
 
 
 def db_dump_tracks(args):
