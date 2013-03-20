@@ -1219,8 +1219,7 @@ def plot_line_dots(lons, lats, bm):
     
     """
     if not (lats and lons):
-        LOG.error(u'Cannot plot file without coordinate data')
-        return
+        raise ValueError(u'Cannot plot file without coordinate data')
     lats = map(float, lats)
     lons = map(float, lons)
     xs, ys = bm(lons, lats)

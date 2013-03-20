@@ -1172,6 +1172,47 @@ with subcommand(plot_parsers, 'etopo', plot_etopo) as p:
         default=180,
         help='The center meridian of the map lon_0 (default: 180 centers the '
             'Pacific Ocean)')
+    plot_etopo_parser = p
+
+
+def plot_cruise_json(args):
+    """Plot using cruise.json to specify plotting parameters."""
+    from json import load as json_load
+    with closing(args.cruise_json) as jf:
+        cruise = json_load(jf)
+    if not cruise:
+        return
+
+    plot = cruise['plot']
+    try:
+        args = plot['args']
+    except KeyError:
+        args = []
+    args += [
+        u'--any-file=' + plot[u'source'],
+        unicode(plot[u'etopo_degrees'])]
+    args = plot_etopo_parser.parse_args(args)
+    args.title = ' - '.join([plot[u'title'], cruise['cruise']['expocode']])
+    args.projection = plot[u'projection']
+    args.cmap = plot[u'cmap']
+    args.width = plot[u'width']
+    try:
+        args.output_filename = plot[u'output_filename']
+    except KeyError:
+        args.output_filename = cruise['cruise']['expocode'] + '_trk.gif'
+    try:
+        args.bounds_cylindrical = plot[u'bounds']
+    except KeyError:
+        pass
+
+    plot_etopo(args)
+
+
+with subcommand(plot_parsers, 'cruise_json', plot_cruise_json) as p:
+    p.add_argument(
+        'cruise_json', type=FileType('r'), nargs='?',
+        default='cruise.json',
+         help='Path to cruise.json file. (default: ./cruise.json)')
 
 
 def plot_goship(args):
