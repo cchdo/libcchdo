@@ -1,4 +1,5 @@
 import ConfigParser
+from ConfigParser import Error
 import datetime
 import os
 import getpass
@@ -70,7 +71,24 @@ except ConfigParser.Error, e:
     _save_config()
 
 
+def set_option(section, option, value, batch=False):
+    try:
+        _CONFIG.add_section(section)
+    except ConfigParser.DuplicateSectionError:
+        pass
+
+    _CONFIG.set(section, option, value)
+    if not batch:
+        _save_config()
+
+
 def get_option(section, option, default_function=None):
+    """Retrieve the value for section/option.
+
+    If the value is not specified, run default_function to obtain the value and
+    save it.
+
+    """
     try:
         return _CONFIG.get(section, option)
     except ConfigParser.NoOptionError, e:
@@ -81,14 +99,7 @@ def get_option(section, option, default_function=None):
             raise e
 
     val = default_function()
-
-    try:
-        _CONFIG.add_section(section)
-    except ConfigParser.DuplicateSectionError:
-        pass
-    _CONFIG.set(section, option, val)
-
-    _save_config()
+    set_option(section, option, val)
     return val
 
 
