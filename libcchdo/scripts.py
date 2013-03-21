@@ -17,7 +17,7 @@ import os
 import os.path
 
 from libcchdo import LOG, get_library_abspath
-from libcchdo.fns import all_formats
+from libcchdo.fns import all_formats, get_editor
 from libcchdo.plot.etopo import colormaps as plot_colormaps
 from libcchdo.formats import woce
 from libcchdo.formats.netcdf_oceansites import (
@@ -1433,6 +1433,20 @@ with subcommand(plot_parsers, 'data_holdings_around',
 misc_parser = hydro_subparsers.add_parser(
     'misc', help='Miscellaneous')
 misc_parsers = misc_parser.add_subparsers(title='miscellaneous')
+
+
+def edit_cfg(args):
+    """Launch editor for the configuration file."""
+    from subprocess import call as subproc_call
+
+    from libcchdo.config import get_config_path
+    cfg_path = get_config_path()
+    subproc_call([get_editor(), cfg_path])
+
+
+# XXX HACK don't know why it doesn't work without the with statement
+with subcommand(misc_parsers, 'edit_cfg', edit_cfg) as p:
+    pass
 
 
 def regen_db_cache(args):
