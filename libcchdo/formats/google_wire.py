@@ -1,8 +1,8 @@
-import datetime
+from datetime import datetime, date
+from json import JSONEncoder, dump
 
 from .. import LOG
-from .. import fns
-from ..fns import Decimal
+from ..fns import Decimal, isnan
 from ..model.datafile import DataFileCollection
 
 
@@ -10,9 +10,9 @@ def _column_type(col, obj):
     if col == 'EXPOCODE' or col == 'SECT_ID':
         return 'string'
     elif col == '_DATETIME':
-        if type(obj) is datetime.datetime:
+        if type(obj) is datetime:
             return 'datetime'
-        elif type(obj) is datetime.date:
+        elif type(obj) is date:
             return 'date'
     else:
         return 'number'
@@ -43,8 +43,39 @@ def _json_row(self, i, global_values, column_headers):
     return {'c': row_values}
 
 
+class DefaultJSONSerializer(JSONEncoder):
+    def serialize_datetime(self, o):
+        nums = (','.join(['%d'] * 5)) % \
+               (o.year, o.month, o.day, o.hour, o.minute)
+        return 'Date(%s)' % nums
+
+    def serialize_date(self, o):
+        nums = (','.join(['%d'] * 3)) % (o.year, o.month, o.day)
+        return 'Date(%s)' % nums
+
+    def default(self, o):
+        if isinstance(o, datetime):
+            return self.serialize_datetime(o)
+        elif isinstance(o, date):
+            return self.serialize_date(o)
+        return JSONEncoder.default(self, o)
+
+
+class GoogleWireJSONSerializer(DefaultJSONSerializer):
+    def default(self, o):
+        if isinstance(o, datetime):
+            return self.serialize_datetime(o)
+        elif isinstance(o, date):
+            LOG.error(
+                u"Date was provided when datetime expected. Please report "
+                "this issue.")
+            return self.serialize_date(o)
+        elif isinstance(o, Decimal):
+            return float(o)
+        return JSONEncoder.default(self, o)
+
+
 def _json(self, handle, column_headers, columns, global_values):
-    import json
     json_columns = [{'id': col, 'label': col,
                      'type': _column_type(col, global_values[0])} \
                     for col in columns]
@@ -52,36 +83,20 @@ def _json(self, handle, column_headers, columns, global_values):
                  for i in range(len(self))]
     wire_obj = {'cols': json_columns, 'rows': json_rows}
 
-    class serializer(json.JSONEncoder):
-        def default(self, o):
-            if isinstance(o, datetime.datetime):
-                nums = (','.join(['%d'] * 5)) % \
-                       (o.year, o.month, o.day, o.hour, o.minute)
-                return 'Date(%s)' % nums
-            if isinstance(o, datetime.date):
-                LOG.error(
-                    u"Date was provided when datetime expected. Please report "
-                    "this issue.")
-                nums = (','.join(['%d'] * 3)) % (o.year, o.month, o.day)
-                return 'Date(%s)' % nums
-            if isinstance(o, Decimal):
-                return float(o)
-            return json.JSONEncoder.default(self, o)
-
-    json.dump(wire_obj, handle, allow_nan=False, separators=(',', ':'),
-              cls=serializer)
+    dump(wire_obj, handle, allow_nan=False, separators=(',', ':'),
+              cls=GoogleWireJSONSerializer)
 
 
 def _raw_to_str(raw, column):
     if raw is None:
         return None
     if isinstance(raw, float):
-        if fns.isnan(raw):
+        if isnan(raw):
             return '-Infinity'
         if column.parameter:
             return float(column.parameter.format % raw)
         return raw
-    if isinstance(raw, datetime.datetime):
+    if isinstance(raw, datetime):
         return 'new Date(%s)' % raw.strftime('%Y,%m,%d,%H,%M')
     else:
         return "'%s'" % str(raw)

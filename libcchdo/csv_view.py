@@ -1,45 +1,10 @@
 import os
 from csv import reader as csv_reader
-from contextlib import closing
-from gzip import GzipFile
-from webbrowser import open as webopen
-from urlparse import urlparse, parse_qsl
-from SimpleHTTPServer import SimpleHTTPRequestHandler
 
 from lxml.html import builder as E, tostring, fromstring
 
-from libcchdo import LOG, StringIO, get_library_abspath
-from libcchdo.serve import get_local_host, open_server_on_high_port
-
-
-class CSVViewerHTTPServer(SimpleHTTPRequestHandler):
-    def do_GET(self):
-        params = dict(parse_qsl(self.path[2:]))
-
-        try:
-            accept_encoding = self.headers['accept-encoding']
-            if 'gzip' in accept_encoding and 'deflate' in accept_encoding:
-                gz = True
-            else:
-                gz = False
-        except KeyError:
-            gz = False
-
-        if self.path == '/':
-            self.send_response(200, 'OK')
-            self.send_header('Content-type', 'text/html')
-            if gz:
-                self.send_header('Content-Encoding', 'gzip')
-            self.end_headers()
-            if gz:
-                self.wfile.write(self.server.view_html_gz)
-            else:
-                self.wfile.write(self.server.view_html)
-        elif self.path == '/csv_view.css':
-            self.send_response(200, 'OK')
-            self.send_header('Content-type', 'text/css')
-            self.end_headers()
-            self.wfile.write(self.server.view_css)
+from libcchdo import LOG, get_library_abspath
+from libcchdo.serve import SimpleHTTPServer
 
 
 def accordion_group(header, table, ingroup=False):
@@ -159,26 +124,10 @@ def view(path):
 '''.format(bootstrap_assets_root))
     )
 
-    host = get_local_host()
-    httpd, port = open_server_on_high_port(CSVViewerHTTPServer)
-    callback_uri = 'http://{host}:{port}'.format(host=host, port=port)
-
-    httpd.view_html = tostring(html)
-    with closing(StringIO()) as strio:
-        gz = GzipFile(mode='wb', compresslevel=9, fileobj=strio)
-        gz.write(httpd.view_html)
-        gz.flush()
-        gz.close()
-        httpd.view_html_gz = strio.getvalue()
-    httpd.view_css = open(
-        os.path.join(get_library_abspath(), 'resources', 'csv_view.css')).read()
-
-    print callback_uri
-    webopen(callback_uri)
-
-    try:
-        print 'Press Ctrl-C when finished.'
-        while True:
-            httpd.handle_request()
-    except KeyboardInterrupt:
-        pass
+    server = SimpleHTTPServer()
+    server.register('/', tostring(html))
+    server.register('/csv_view.css', open(
+        os.path.join(get_library_abspath(), 'resources', 'csv_view.css')).read(),
+        mime_type='text/css')
+    server.open_browser()
+    server.serve_forever()

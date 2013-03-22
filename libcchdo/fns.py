@@ -53,6 +53,15 @@ def strip_all(l):
     return [x.strip() for x in l]
 
 
+def get_editor():
+    """Return the command that is the local editor. Defaults to vi."""
+    return (
+        os.environ.get('LIBCCHDOEDITOR') or 
+        os.environ.get('VISUAL') or 
+        os.environ.get('EDITOR', 'vi')
+        )
+
+
 class file_type_dict(dict):
     def __getitem__(self, key):
         module = 'libcchdo.formats.' + super(file_type_dict, self).__getitem__(key)

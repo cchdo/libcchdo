@@ -15,6 +15,7 @@ from copy import copy
 import sys
 import os
 import os.path
+from json import load as json_load
 
 from libcchdo import LOG, get_library_abspath
 from libcchdo.fns import all_formats, get_editor
@@ -23,6 +24,7 @@ from libcchdo.formats import woce
 from libcchdo.formats.netcdf_oceansites import (
     OCEANSITES_VERSIONS, OCEANSITES_TIMESERIES,
     )
+from libcchdo.datadir.processing import README_FILENAME, UOW_CFG_FILENAME
 known_formats = all_formats.keys()
 
 
@@ -1033,41 +1035,7 @@ def datadir_ensure_navs(args):
 subcommand(datadir_parsers, 'ensure_navs', datadir_ensure_navs)
 
 
-def datadir_commit(args):
-    pass
-
-
-with subcommand(datadir_parsers, 'commit', datadir_commit) as p:
-    p.add_argument(
-        '--basepath', default=os.getcwd(),
-        help='Base path to put working directory in (default: current '
-             'directory)')
-    p.add_argument(
-        '--separator', default='_')
-    p.add_argument(
-        '--date', default=date.today().isoformat(),
-        help='The date for the work being done (default: today)')
-    p.add_argument(
-        '--title', default='working',
-        help='A title for the work being done. E.g. CTD, BOT, params '
-            '(default: working)')
-    p.add_argument(
-        '--person', default=os.getlogin(),
-        help='The person doing the work (default: {0})'.format(os.getlogin()))
-
-
-def datadir_mkdir_working(args):
-    """Create a working directory for data work.
-
-    """
-    from libcchdo.datadir.processing import mkdir_working
-    date = datetime.strptime(args.date, '%Y-%m-%d').date()
-    dirpath = mkdir_working(
-        args.basepath, args.person, args.title, date, args.separator)
-    print dirpath
-
-
-with subcommand(datadir_parsers, 'mkdir_working', datadir_mkdir_working) as p:
+def _args_mkdir_working(p):
     p.add_argument(
         '--basepath', default=os.getcwd(),
         help='Base path to put working directory in (default: current directory)')
@@ -1083,6 +1051,95 @@ with subcommand(datadir_parsers, 'mkdir_working', datadir_mkdir_working) as p:
     p.add_argument(
         '--person', default=os.getlogin(),
         help='The person doing the work (default: {0})'.format(os.getlogin()))
+
+
+def datadir_fetch(args):
+    """Create a CCHDO Unit Of Work directory.
+
+    """
+    from libcchdo.datadir.processing import (
+        mkdir_uow, as_received_unmerged_list, as_received_infos)
+    if not args.ids:
+        for f in as_received_unmerged_list():
+            print '\t'.join(map(str, 
+                [f['q_id'], f['data_type'], f['submitted_by'], f['filename']]))
+        return
+    if not args.title:
+        LOG.error(
+            u'Please provide a more descriptive title for your UOW.\n'
+            'hydro datadir fetch --title="descriptive_title"')
+        LOG.info(u'List of as-received files specified:')
+        for info in as_received_infos(*args.ids):
+            LOG.info(
+                u'{0}\t{1}'.format(info['data_type'], info['filename']))
+        return
+    print mkdir_uow(args.basepath, args.title, args.ids)
+
+
+with subcommand(datadir_parsers, 'fetch', datadir_fetch) as p:
+    p.add_argument(
+        '--basepath', default=os.getcwd(),
+        help='Base path to put working directory in (default: current directory)')
+    p.add_argument(
+        '--uow-dir', default='',
+        help='a directory to use as the UOW directory (default: automatically '
+            'generated)')
+    p.add_argument(
+        '--title', type=str, default='',
+        help='summary title for unit-of-work. This ends up being the short '
+            'working directory summary.')
+    p.add_argument(
+        'ids', type=int, nargs='*',
+        help='as-received file ids (default: show list of as-received files')
+
+
+def datadir_commit(args):
+    from libcchdo.datadir.processing import uow_commit
+    uow_commit(args.uow_dir, person=args.person)
+
+
+with subcommand(datadir_parsers, 'commit', datadir_commit) as p:
+    p.add_argument(
+        '--person', default=None,
+        help='The person doing the work (default: libcchdo merger initials)')
+    p.add_argument(
+        'uow_dir', default='.', nargs='?', help='unit-of-work directory')
+
+
+def datadir_add_processing_note(args):
+    """Record processing history note."""
+    from libcchdo.datadir.processing import (
+        add_processing_note, is_processing_readme_render_ok)
+    if is_processing_readme_render_ok(args.readme_path):
+        add_processing_note(args.readme_path, args.uow_cfg_path)
+    else:
+        LOG.error(u'README is not valid reST or merger rejected. Stop.')
+        return
+
+
+with subcommand(datadir_parsers, 'processing_note',
+                datadir_add_processing_note) as p:
+    p.add_argument(
+        'readme_path', default=README_FILENAME, nargs='?',
+        help='The path to the processing note file.')
+    p.add_argument(
+        'uow_cfg_path', default=UOW_CFG_FILENAME, nargs='?',
+        help='The path to the UOW configuration file.')
+
+
+def datadir_mkdir_working(args):
+    """Create a working directory for data work.
+
+    """
+    from libcchdo.datadir.processing import mkdir_working
+    date = datetime.strptime(args.date, '%Y-%m-%d').date()
+    dirpath = mkdir_working(
+        args.basepath, args.person, args.title, date, args.separator)
+    print dirpath
+
+
+with subcommand(datadir_parsers, 'mkdir_working', datadir_mkdir_working) as p:
+    _args_mkdir_working(p)
 
 
 def datadir_copy_replaced(args):
@@ -1177,7 +1234,6 @@ with subcommand(plot_parsers, 'etopo', plot_etopo) as p:
 
 def plot_cruise_json(args):
     """Plot using cruise.json to specify plotting parameters."""
-    from json import load as json_load
     with closing(args.cruise_json) as jf:
         cruise = json_load(jf)
     if not cruise:

@@ -13,7 +13,7 @@ def read(self, handle):
     l = handle.readline()
     split_on = 'space'
     coords = []
-    while len(coords) < 2 and split_on != 'failed':
+    while len(coords) < 2 and split_on is not None:
         if split_on == 'space':
             coords = l.split()
             if len(coords) < 2:

@@ -1,15 +1,23 @@
 import os
+import os.path
 from datetime import datetime, date
-from shutil import copy2
-from contextlib import closing
-from re import search
+from shutil import copy2, copytree, rmtree
+from contextlib import closing, contextmanager
+from re import search, sub as re_sub
 from urllib2 import (
     urlopen,
     HTTPPasswordMgrWithDefaultRealm, HTTPBasicAuthHandler, build_opener,
     Request, HTTPError,
     )
-from tempfile import NamedTemporaryFile
+from os import seteuid, setegid
+from pwd import getpwnam
+from tempfile import NamedTemporaryFile, mkdtemp, mkstemp
 from webbrowser import open as webopen
+from json import load as json_load, dump as json_dump, loads
+from subprocess import call as subproc_call
+from smtplib import SMTP
+
+from paramiko import SSHClient, SSHException
 
 from email import Encoders
 from email.mime.multipart import MIMEMultipart
@@ -20,47 +28,55 @@ from docutils.utils import SystemMessage
 from docutils.core import publish_string
 
 from libcchdo import LOG
-from libcchdo.fns import file_extensions, guess_file_type
+from libcchdo.serve import SimpleHTTPServer
+from libcchdo.bb import BB
+from libcchdo.fns import file_extensions, guess_file_type, uniquify, get_editor
 from libcchdo.datadir.util import mkdir_ensure, make_subdirs
 from libcchdo.db.model import legacy
+from libcchdo.db.model.legacy import QueueFile
+from libcchdo.datadir.dl import AFTP, SFTP
+from libcchdo.config import (
+    get_merger_initials, get_merger_name_first, get_merger_name_last,
+    get_merger_name, get_merger_email)
+from libcchdo.formats.google_wire import DefaultJSONSerializer
 
 
 EXPOCODE_FILENAME = 'ExpoCode'
 README_FILENAME = '00_README.txt'
+UOW_CFG_FILENAME = 'uow.json'
+FILE_MANIFEST_FILENAME = 'file_manifest.txt'
 
 
-def mkdir_working(basepath, person, title='working', dt=None, separator='_',
-                  processing_subdirs=True):
-    """Create a working directory for data work.
+def str_to_fs_slug(sss):
+    """Convert a possibly evil string into a filesystem safe slug."""
+    return re_sub('(/|\s)', '-', sss)
 
-    processing_subdirs - (optional) whether to generate subdirectories in the
-        processing directory.
 
-        TODO 2013-02-22 these subdirectories are becoming obsolete. Should they
-        be removed as an option altogether?
+class DirName(object):
+    online = 'online'
+    submission = 'submission'
+    processing = 'processing'
+    tgo = 'to_go_online'
 
-    """
+
+class UOWDirName(DirName):
+    online = '1.online'
+    original = '2.original'
+    submission = '3.submission'
+    processing = '4.processing'
+    tgo = '5.to_go_online'
+
+
+def working_dir_path(basepath, person, title='working', dt=None, separator='_'):
     if not dt:
         dt = date.today()
     dirname = separator.join(
-        [dt.strftime('%Y.%m.%d'), title, person])
-    dirpath = os.path.join(basepath, dirname)
+        [dt.strftime('%Y.%m.%d'), str_to_fs_slug(title), person])
+    return os.path.join(basepath, dirname)
 
-    dir_perms = 0770
-    file_perms = 0660
 
-    mkdir_ensure(dirpath, dir_perms)
-
-    files = [README_FILENAME]
-    subdirs = [
-        'submission',
-        'to_go_online',
-    ]
-    if processing_subdirs:
-        subdirs.append(['processing', ['exchange', 'woce', 'netcdf']])
-    else:
-        subdirs.append('processing')
-
+def populate_dir(dirpath, files, subdirs, dir_perms=0700, file_perms=0600):
+    """Create subdirectories and files in directory."""
     for fname in files:
         fpath = os.path.join(dirpath, fname)
         try:
@@ -71,7 +87,293 @@ def mkdir_working(basepath, person, title='working', dt=None, separator='_',
             os.utime(fpath, None)
             os.chmod(fpath, file_perms)
     make_subdirs(dirpath, subdirs, dir_perms)
+
+
+def processing_subdir(name, processing_subdirs=False):
+    """Generate subdirectory entry for populating."""
+    if processing_subdirs:
+        return [name, ['exchange', 'woce', 'netcdf']]
+    else:
+        return name
+
+
+def populate_working_dir(dirpath, dir_perms=0770, file_perms=0660,
+                         processing_subdirs=False):
+    files = [README_FILENAME]
+    subdirs = [
+        'submission',
+        'to_go_online',
+        'originals',
+    ]
+    subdirs.append(processing_subdir('processing', processing_subdirs))
+    populate_dir(dirpath, files, subdirs, dir_prems, file_perms)
+
+
+def mkdir_working(basepath, person, title='working', dt=None, separator='_',
+                  processing_subdirs=False):
+    """Create a working directory for data versioning.
+
+    processing_subdirs - (optional) whether to generate subdirectories in the
+        processing directory.
+
+    """
+    dirpath = working_dir_path(basepath, person, title, dt, separator)
+    dir_perms = 0770
+    mkdir_ensure(dirpath, dir_perms)
+    populate_working_dir(dirpath, dir_perms)
     return dirpath
+
+
+def mkdir_uow(basepath, title, ids, separator='_', processing_subdirs=False):
+    """Create a Unit of Work directory for data work.
+
+    This directory includes the currently online files, submission files, and
+    places to put processing, and final files.
+
+    processing_subdirs - (optional) whether to generate subdirectories in the
+        processing directory.
+
+    """
+    # Check that all files referenced have the same cruise.
+    qfis = _legacy_as_received_infos(*ids)
+    expocodes = uniquify([qf['expocode'] for qf in qfis])
+    if len(expocodes) > 1:
+        LOG.warn(
+            u'As-received files do not have the same cruise.\n{0}'.format(
+            ', '.join(expocodes)))
+        expocode = expocodes[0]
+        LOG.info(u'Picked the first cruise as the UOW cruise: {0}'.format(
+            expocode))
+    elif len(expocodes) == 1:
+        expocode = expocodes[0]
+    else:
+        LOG.error(
+            u'None of the as-received files are attached to a cruise. This '
+            'must be corrected in the database.')
+        return
+
+    dirname = separator.join(
+        ['uow', expocode, str_to_fs_slug(title), '-'.join(map(str, ids))])
+    dirpath = os.path.join(basepath, dirname)
+
+    dir_perms = 0770
+    file_perms = 0660
+
+    mkdir_ensure(dirpath, dir_perms)
+
+    files = [README_FILENAME]
+    subdirs = [
+        UOWDirName.online,
+        UOWDirName.original,
+        UOWDirName.submission,
+        UOWDirName.tgo,
+    ]
+    subdirs.append(processing_subdir(UOWDirName.processing, processing_subdirs))
+    populate_dir(dirpath, files, subdirs, dir_perms, file_perms)
+
+    qfis = fetch_as_received(os.path.join(dirpath, UOWDirName.submission), *ids)
+    fetch_online(os.path.join(dirpath, UOWDirName.online), expocode)
+    fetch_originals(os.path.join(dirpath, UOWDirName.original), expocode)
+
+    template = get_email_template()
+    with open(os.path.join(dirpath, README_FILENAME), 'w') as fff:
+        fff.write(template.encode('utf8'))
+
+    # Write uow.json
+    uow_cfg = {
+        'expocode': expocode,
+        'title': title,
+        'q_infos': qfis,
+    }
+    try:
+        with open(os.path.join(dirpath, UOW_CFG_FILENAME), 'w') as fff:
+            json_dump(uow_cfg, fff, cls=DefaultJSONSerializer, indent=2)
+    except IOError, e:
+        LOG.error(u'Unable to write {0}'.format(UOW_CFG_FILENAME))
+        LOG.info(
+            u'You can write your own using this dict {0!r}'.format(uow_cfg))
+    return dirpath
+
+
+def write_file_manifest(uow_dir, online_files, tgo_files):
+    manifest_path = os.path.join(uow_dir, FILE_MANIFEST_FILENAME)
+    with open(manifest_path, 'w') as fff:
+        fff.write('# online\n')
+        fff.write('\n'.join(online_files) + '\n')
+        fff.write('# to go online\n')
+        fff.write('\n'.join(tgo_files) + '\n')
+        fff.write(MANIFEST_INSTRUCTIONS)
+    return manifest_path
+
+
+def read_file_manifest(uow_dir):
+    file_manifest = []
+    with open(os.path.join(uow_dir, FILE_MANIFEST_FILENAME)) as fff:
+        for line in fff:
+            if line.startswith('#'):
+                continue
+            file_manifest.append(line.strip())
+    return file_manifest
+
+
+def uow_copy(uow_dir, uow_subdir, work_dir, work_subdir, filename=None):
+    """Copy from UOW sub-directory to work sub-directory.
+
+    If filename is specified, copy only that file, otherwise copy the entire
+    tree.
+
+    """
+    if filename is None:
+        copytree(os.path.join(uow_dir, uow_subdir),
+                 os.path.join(work_dir, work_subdir))
+    else:
+        copy2(os.path.join(uow_dir, uow_subdir, filename),
+              os.path.join(work_dir, work_subdir))
+
+
+MANIFEST_INSTRUCTIONS = """\
+# File manifest for commit
+#
+# online = files currently online
+# to go online = new files that were added
+#
+# Please delete the file names that do not belong.
+#
+# If you remove everything, the commit will be aborted.
+# To start over, delete this file and re-run commit.
+"""
+
+
+def regenerate_file_manifest(uow_dir, online_files, tgo_files):
+    manifest_path = write_file_manifest(
+        uow_dir, online_files, tgo_files)
+    subproc_call([get_editor(), manifest_path])
+    return read_file_manifest(uow_dir)
+
+
+def uow_commit(uow_dir, person=None, confirm_html=True, hostname='sui.ucsd.edu'):
+    """
+
+    write 00_README.txt header, submissions, parameter list, conversion,
+    directories, and updated manifest
+
+    """
+    # pre-flight checklist
+    readme_path = os.path.join(uow_dir, README_FILENAME)
+    if not is_processing_readme_render_ok(
+            readme_path, confirm_html=confirm_html):
+        LOG.error(u'README is not valid reST or merger rejected. Stop.')
+        return
+
+    try:
+        with open(os.path.join(uow_dir, UOW_CFG_FILENAME)) as fff:
+            uow_cfg = json_load(fff)
+    except IOError:
+        LOG.error(
+            u'Cannot continue without {0}. (Are you sure {1} is a UOW '
+            'directory?)'.format(UOW_CFG_FILENAME, uow_dir))
+        return
+
+    # move files around
+    if person is None:
+        initials = get_merger_initials()
+    try:
+        title = uow_cfg['title']
+    except KeyError:
+        LOG.error(u'UOW configuration is missing "title"')
+        return
+
+    temp_dir = mkdtemp(dir='/tmp')
+    try:
+        work_dir = working_dir_path(
+            temp_dir, get_merger_initials(), title=title)
+        dir_perms = 0770
+        mkdir_ensure(work_dir, dir_perms)
+
+        uow_copy(uow_dir, UOWDirName.processing, work_dir, DirName.processing)
+        uow_copy(uow_dir, UOWDirName.submission, work_dir, DirName.submission)
+        uow_copy(uow_dir, UOWDirName.tgo, work_dir, DirName.tgo)
+
+        mkdir_ensure(os.path.join(work_dir, 'originals'), dir_perms)
+        mkdir_ensure(os.path.join(work_dir, 'online'), dir_perms)
+
+        online_files = os.listdir(os.path.join(uow_dir, UOWDirName.online))
+        tgo_files = os.listdir(os.path.join(work_dir, DirName.tgo))
+
+        try:
+            file_manifest = read_file_manifest(uow_dir)
+            if not file_manifest:
+                file_manifest = regenerate_file_manifest(
+                    uow_dir, online_files, tgo_files)
+        except (IOError, OSError):
+            file_manifest = regenerate_file_manifest(
+                uow_dir, online_files, tgo_files)
+        if not file_manifest:
+            LOG.error(u'Empty file manifest. Abort commit.')
+        file_manifest_set = set(file_manifest)
+
+        online_files_set = set(online_files)
+        tgo_files_set = set(tgo_files)
+
+        new_files = tgo_files_set & file_manifest_set
+
+        removed_files = online_files_set - file_manifest_set
+        overwritten_files = online_files_set & new_files
+
+        still_online_files = online_files_set - removed_files
+
+        missing_tgo_files = new_files ^ tgo_files_set
+        if missing_tgo_files:
+            msg = (u'Some files to go online were deleted from the file '
+                'manifest:\n{0}\nContinue? (y/[n]) ').format(
+                '\n'.join(missing_tgo_files))
+            cont = None
+            while cont not in ('y', 'n'):
+                cont = raw_input(msg).lower()
+            if cont != 'y':
+                LOG.info(u'Aborted due to missing to go online files.')
+                return
+
+        for fname in removed_files | overwritten_files:
+            uow_copy(uow_dir, UOWDirName.online, work_dir, 'originals', fname)
+
+        for fname in new_files:
+            uow_copy(uow_dir, UOWDirName.tgo, work_dir, 'online', fname)
+        for fname in still_online_files:
+            uow_copy(uow_dir, UOWDirName.online, work_dir, 'online', fname)
+
+        sftp = SFTP()
+        sftp.connect(hostname)
+        aftp = AFTP(sftp)
+
+        expocode = uow_cfg['expocode']
+        with _legacy_cruise_directory(expocode) as doc:
+            cruise_dir = doc.FileName
+        
+        cruise_original_dir = os.path.join(cruise_dir, 'original')
+
+        if os.path.basename(work_dir) in aftp.listdir(cruise_original_dir):
+            LOG.error(u'Work directory {work_dir} already exists in '
+                      '{host}{path}'.format(
+                work_dir=work_dir, host=hostname, path=cruise_original_dir))
+            return
+
+        LOG.debug(cruise_original_dir)
+        LOG.debug(aftp.listdir(cruise_original_dir))
+
+        # TODO copy work_dir to original_dir
+        # TODO copy work_dir/online to cruise directory
+        # TODO WHAT IF THE FILES HAVE CHANGED SINCE THE UOW WAS FETCHED?!?!?!?!
+
+        for path, names, fnames in os.walk(work_dir):
+            LOG.debug(path)
+            for fname in fnames:
+                LOG.debug('\t{0}'.format(fname))
+    finally:
+        rmtree(temp_dir)
+    
+    # XXX
+    #add_processing_history(os.path.join(uow_dir, README_FILENAME))
 
 
 def copy_replaced(filename, date, separator='_'):
@@ -164,139 +466,191 @@ def working_dir_expocode(working_dir):
     return read_cruise_dir_expocode(cwd)
 
 
-def _legacy_fetch_into(ids, submission_dir, hostname='cchdo.ucsd.edu'):
-    """Download the as-received files into submission_dir.
+def _queuefile_info(qf):
+    return {
+        'filename': qf.unprocessed_input,
+        'submitted_by': qf.contact,
+        'date': qf.date_received,
+        'data_type': qf.parameters,
+        'q_id': qf.id,
+        'submission_id': qf.submission_id,
+        'expocode': qf.expocode,
+    }
+
+
+def _legacy_as_received_unmerged():
+    with closing(legacy.session()) as sesh:
+        unmerged_qfs = sesh.query(QueueFile).\
+            filter(QueueFile.merged == 0).all()
+        qfis = []
+        for qf in unmerged_qfs:
+            qfi = _queuefile_info(qf)
+            del qfi['date']
+            qfi['filename'] = os.path.basename(qfi['filename'])
+            qfis.append(qfi)
+        return qfis
+
+
+def _legacy_as_received(*ids):
+    with closing(legacy.session()) as sesh:
+        qfs = sesh.query(QueueFile).filter(QueueFile.id.in_(ids)).all()
+        for qf in qfs:
+            yield qf
+    
+
+def _legacy_as_received_infos(*ids):
+    qfis = []
+    for qf in _legacy_as_received(*ids):
+        qfis.append(_queuefile_info(qf))
+    return qfis
+
+
+def as_received_infos(*ids):
+    return _legacy_as_received_infos(*ids)
+
+
+def as_received_unmerged_list():
+    """Return a list of dictionaries representing files that are not merged.
+
+    """
+    return _legacy_as_received_unmerged()
+
+
+def copy_chunked(iii, ooo, chunk=2 ** 10):
+    data = iii.read(chunk)
+    while data:
+        ooo.write(data)
+        data = iii.read(chunk)
+
+
+def download_url(url, path):
+    with open(path, 'w') as ooo:
+        with closing(urlopen(url)) as fff:
+            copy_chunked(fff, ooo)
+    LOG.info(u'downloaded {0}'.format(url))
+
+
+def _legacy_fetch_as_received(path, ids, hostname='cchdo.ucsd.edu'):
+    """Download the as-received files into path.
 
     """
     qf_info = []
-    with closing(legacy.session()) as sesh:
-        qfs = sesh.query(legacy.QueueFile).\
-            filter(legacy.QueueFile.id.in_(ids)).all()
-        for qf in qfs:
-            if qf.is_merged():
-                LOG.info(
-                    u'QueueFile {0} is marked already merged'.format(qf.id))
-            if qf.is_hidden():
-                LOG.info(
-                    u'QueueFile {0} is marked hidden'.format(qf.id))
-            url = 'http://{host}{path}'.format(
-                host=hostname, path=qf.unprocessed_input)
-            filename = os.path.basename(url)
-            submission_subdir = os.path.join(submission_dir, str(qf.id))
-            mkdir_ensure(submission_subdir, 0775)
-            submission_path = os.path.join(submission_subdir, filename)
-            with open(submission_path, 'w') as ooo:
-                with closing(urlopen(url)) as fff:
-                    chunk = 2 ** 10
-                    data = fff.read(chunk)
-                    while data:
-                        ooo.write(data)
-                        data = fff.read(chunk)
-            LOG.info(u'downloaded {0}'.format(url))
-            qf_info.append({
-                'filename': filename,
-                'submitted_by': qf.contact,
-                'date': qf.date_received,
-                'data_type': qf.parameters,
-                'id': qf.submission_id,
-            })
+    for qf in _legacy_as_received(*ids):
+        if qf.is_merged():
+            LOG.info(
+                u'QueueFile {0} is marked already merged'.format(qf.id))
+        if qf.is_hidden():
+            LOG.info(
+                u'QueueFile {0} is marked hidden'.format(qf.id))
+        url = 'http://{host}{path}'.format(
+            host=hostname, path=qf.unprocessed_input)
+        filename = os.path.basename(url)
+        submission_subdir = os.path.join(path, str(qf.id))
+        mkdir_ensure(submission_subdir, 0775)
+        submission_path = os.path.join(submission_subdir, filename)
+        download_url(url, submission_path)
+        qfi = _queuefile_info(qf)
+        qfi['id'] = qfi['submission_id']
+        qfi['filename'] = filename
+        qf_info.append(qfi)
     return qf_info
 
 
 def _check_working_dir(working_dir):
     if not is_working_dir(working_dir):
         raise ValueError(
-            u'Refusing to fetch into non-working directory {0!r}'.format(
+            u'Not a working directory {0!r}'.format(
             working_dir))
 
 
-def fetch_as_received(working_dir, *ids):
-    """Copy the referenced as-received files into the working directory.
+def fetch_as_received(path, *ids):
+    """Copy the referenced as-received files into the directory.
 
     """
-    _check_working_dir(working_dir)
+    return _legacy_fetch_as_received(path, ids)
 
-    submission_dir = os.path.join(working_dir, 'submission')
-    qf_info = _legacy_fetch_into(ids, submission_dir)
-    print qf_info
-    # TODO tamper with 00_README.txt table?
+
+IGNORED_FILES = ['Queue', 'original']
+
+
+@contextmanager
+def _legacy_cruise_directory(expocode):
+    with closing(legacy.session()) as sesh:
+        q_docs = sesh.query(legacy.Document).\
+            filter(legacy.Document.ExpoCode == expocode).\
+            filter(legacy.Document.FileType == 'Directory')
+        num_docs = q_docs.count()
+        if num_docs < 1:
+            LOG.error(u'{0} does not have a directory entry.'.format(expocode))
+            raise ValueError()
+        elif num_docs > 1:
+            LOG.error(
+                u'{0} has more than one directory entry.'.format(expocode))
+            raise ValueError()
+        yield q_docs.first()
+            
+
+def _legacy_fetch_online(path, expocode, hostname='cchdo.ucsd.edu'):
+    """Download the cruise's online files into path.
+
+    """
+    try:
+        with _legacy_cruise_directory(expocode) as doc:
+            cruise_dir = doc.FileName
+            for fff in doc.files():
+                url = 'http://{host}{path}'.format(
+                    host=hostname, path=os.path.join(cruise_dir, fff))
+                online_path = os.path.join(path, fff)
+                try:
+                    download_url(url, online_path)
+                except HTTPError, e:
+                    os.unlink(online_path)
+                    if fff in IGNORED_FILES:
+                        continue
+                    LOG.error(u'Could not download {0}:\n{1!r}'.format(url, e))
+    except ValueError:
+        pass
+
+
+def fetch_online(path, expocode):
+    """Copy the referenced cruise's current datafiles into the directory.
+
+    """
+    return _legacy_fetch_online(path, expocode)
+
+
+def _legacy_fetch_originals(path, expocode, hostname='ghdc.ucsd.edu'):
+    """Download the cruise's original files into path."""
+    try:
+        with _legacy_cruise_directory(expocode) as doc:
+            cruise_dir = doc.FileName
+    except ValueError:
+        return
+    originals_dir = os.path.join(cruise_dir, 'original')
+    LOG.info(u'Downloading {0}'.format(originals_dir))
+
+    sftp = SFTP()
+    sftp.connect(hostname)
+    aftp = AFTP(sftp)
+    aftp.dl_dir(originals_dir, path)
+
+
+def fetch_originals(path, expocode):
+    """Copy the referenced cruise's original datafiles into the directory.
+
+    """
+    return _legacy_fetch_originals(path, expocode)
 
 
 def get_email_template():
-    import oauth2 as oauth
-    import urlparse
-
-    consumer_key = 'gWRCWSpSQAJNTfXR5d'
-    consumer_secret = 'nLLKZe8dkRnJTd4qf4YpDWvsT9JFZtge'
-
-    request_token_url = 'https://bitbucket.org/!api/1.0/oauth/request_token?oauth_callback='
-    access_token_url = 'https://bitbucket.org/!api/1.0/oauth/access_token'
-    authorize_url = 'https://bitbucket.org/!api/1.0/oauth/authenticate'
-
-    consumer = oauth.Consumer(consumer_key, consumer_secret)
-    client = oauth.Client(consumer)
-
-    resp, content = client.request(request_token_url, 'POST')
-    if resp['status'] != '200':
-        print resp
-        raise Exception('Invalid response {0}.'.format(resp['status']))
-
-    request_token = dict(urlparse.parse_qsl(content))
-
-    print "Request Token:"
-    print "    - oauth_token        = %s" % request_token['oauth_token']
-    print "    - oauth_token_secret = %s" % request_token['oauth_token_secret']
-    print request_token
-    print 
-
-    # Step 2: Redirect to the provider. Since this is a CLI script we do not 
-    # redirect. In a web application you would redirect the user to the URL
-    # below.
-
-    authorize_url = "%s?oauth_token=%s" % (authorize_url, request_token['oauth_token'])
-
-    print "Go to the following link in your browser:"
-    print authorize_url
-    print 
-
-    import webbrowser
-    webbrowser.open(authorize_url)
-
-    # After the user has granted access to you, the consumer, the provider will
-    # redirect you to whatever URL you have told them to redirect to. You can 
-    # usually define this in the oauth_callback argument as well.
-    accepted = 'n'
-    while accepted.lower() == 'n':
-        accepted = raw_input('Have you authorized me? (y/n) ')
-
-    # Step 3: Once the consumer has redirected the user back to the
-    # oauth_callback URL you can request the access token the user has approved.
-    # You use the request token to sign this request. After this is done you
-    # throw away the request token and use the access token returned. You should
-    # store this access token somewhere safe, like a database, for future use.
-
-    # FIXME this is broken b/c BB doesn't return an oauth_verifier
-
-    access_token_url += '?oauth_token=' + request_token['oauth_token'] + '&oauth_verifier='
-    resp, content = client.request(access_token_url, "POST")
-    print resp
-    print content
-    access_token = dict(urlparse.parse_qsl(content))
-    
-    print "Access Token:"
-    print "    - oauth_token        = %s" % access_token['oauth_token']
-    print "    - oauth_token_secret = %s" % access_token['oauth_token_secret']
-    print
-    print "You may now access protected resources using the access tokens above." 
-    print
+    resp, content = BB.api('GET',
+                '/repositories/ghdc/cchdo/wiki/data_curation_email_templates')
+    wiki = loads(content)['data']
+    # TODO cut out the template from all the rest
+    return wiki
 
 
-    api_base = 'https://api.bitbucket.org/1.0'
-    api_uri = api_base + ('/repositories/ghdc/cchdo/wiki/'
-                          'data_curation_email_templates')
-
-
-def is_processing_readme_render_ok(working_dir, confirm_html=False):
+def is_processing_readme_render_ok(readme_path, confirm_html=True):
     """Ensure that the readme file passes the reST compiler and inspection.
 
     Arguments:
@@ -304,10 +658,6 @@ def is_processing_readme_render_ok(working_dir, confirm_html=False):
         to the user and ask for go ahead.
 
     """
-    _check_working_dir(working_dir)
-
-    readme_path = os.path.join(working_dir, README_FILENAME)
-
     with open(readme_path) as fff:
         readme = fff.read()
 
@@ -318,31 +668,45 @@ def is_processing_readme_render_ok(working_dir, confirm_html=False):
         return False
 
     if confirm_html:
-        with NamedTemporaryFile() as fff:
-            fff.write(output)
-            fff.flush()
-            fff.seek(0)
-            webopen('file://{0}'.format(fff.name))
+        server = SimpleHTTPServer()
+        server.register('/', output)
+        server.open_browser()
+        accepted = None
+        while accepted not in ('y', 'n'):
+            server.httpd.handle_request()
             accepted = raw_input('Was the HTML output acceptable? (y/n) ')
-            return accepted == 'y'
+            accepted = accepted.lower()
+        return accepted == 'y'
     return True
 
 
-def processing_email(working_dir):
-    """Send processing email.
+PROCESSING_EMAIL_TEMPLATE = """\
+Dear CCHDO,
 
-    """
-    recipients = ['cchdo@googlegroups.com']
-    # XXX 
-    recipients = ['synmantics+test@gmail.com']
+This is an automated message.
 
-    _check_working_dir(working_dir)
+The cruise page for http://cchdo.ucsd.edu/cruise/{expo} was updated by {merger}.
 
-    readme_path = os.path.join(working_dir, README_FILENAME)
+This update includes:
 
-    with open(readme_path) as fff:
-        readme = fff.read()
+{sub_plural}
+{submission_summary}
 
+{q_plural} {q_ids} have been marked as merged.
+
+A history note (#{note_id}) has been made for the attached processing notes.
+
+"""
+
+
+def summarize_submission(q_info):
+    return '{0} {1} {2} {3} {4}'.format(
+        q_info['filename'], q_info['submitted_by'], q_info['date'],
+        q_info['data_type'], q_info['submission_id'])
+
+
+def parse_readme(readme):
+    """Parse out salient information from readme file for processing email."""
     title = None
     merger = None
     for line in readme.split('\n'):
@@ -359,17 +723,41 @@ def processing_email(working_dir):
     if matches:
         expocode = matches.group(1)
 
-    body = """\
-Dear CCHDO,
+    if expocode == 'unknown':
+        expocode = uow_cfg.get('expocode', 'unknown')
 
-This is an automated message.
+    if merger == 'unknown':
+        merger = get_merger_name()
+    return title, merger, subject, expocode
 
-The cruise history has been updated by {merger} for http://cchdo.ucsd.edu/cruise/{expo}.
 
-""".format(expo=expocode, merger=merger)
+def processing_email(readme, uow_cfg, note_id, q_ids):
+    """Send processing email."""
+    recipients = ['cchdo@googlegroups.com']
+    # XXX 
+    recipients = ['synmantics+test@gmail.com']
+
+    title, merger, subject, expocode = parse_readme(readme)
+
+    q_infos = uow_cfg['q_infos']
+    sub_ids = uniquify([x['submission_id'] for x in q_infos])
+    sub_plural = 'Submissions'
+    q_plural = 'Queue entries'
+
+    if len(sub_ids) == 1:
+        sub_plural = 'Submission'
+    if len(q_ids) == 1:
+        q_plural = 'Queue entry'
+
+    submission_summary = '\n'.join(map(summarize_submission, q_infos))
+
+    body = PROCESSING_EMAIL_TEMPLATE.format(
+        expo=expocode, merger=merger, sub_plural=sub_plural,
+        submission_summary=submission_summary, q_plural=q_plural,
+        q_ids=', '.join(map(str, q_ids)), note_id=note_id)
 
     email = MIMEMultipart()
-    email['From'] = 'cchdo@ucsd.edu'
+    email['From'] = get_merger_email()
     email['To'] = ', '.join(recipients)
     email['Subject'] = subject
 
@@ -383,47 +771,85 @@ The cruise history has been updated by {merger} for http://cchdo.ucsd.edu/cruise
         'attachment; filename="{0}"'.format(README_FILENAME))
     email.attach(attachment)
 
-    print email.as_string()
-    #import smtplib
-    #s = smtplib.SMTP('localhost')
-    #s.sendmail(email['From'], email['To'], email.as_string())
-    #s.quit()
+    email_str = email.as_string()
+    s = SMTP('localhost')
+    s.sendmail(email['From'], email['To'], email_str)
+    s.quit()
 
 
-def processing_history(working_dir):
-    """Add history note for processing directory.
+def processing_history(session, readme, uow_cfg):
+    """Add history note for the given processing notes."""
+    expocode = uow_cfg['expocode']
+    cruise = session.query(legacy.Cruise).\
+        filter(legacy.Cruise.ExpoCode == expocode).first()
+    if not cruise:
+        LOG.error(
+            u'{0} does not refer to a cruise that exists.'.format(expocode))
+        return
+
+    event = legacy.Event()
+    event.ExpoCode = cruise.ExpoCode
+    event.First_Name = get_merger_name_first()
+    event.LastName = get_merger_name_last()
+    event.Data_Type = uow_cfg['title']
+    event.Action = 'Website Update'
+    event.Date_Entered = datetime.now().date()
+    try:
+        event.Summary = uow_cfg['summary']
+    except KeyError:
+        LOG.error(u'Please add a summary key to the UOW configuration.')
+        LOG.info(u'Typical entries contain file formats updated e.g.\n'
+            'Exchange, NetCDF, WOCE files online\n'
+            'Exchange & NetCDF files updated\n'
+        )
+        raise ValueError(u'Missing summary in UOW configuration')
+    event.Note = readme
+
+    session.add(event)
+    session.flush()
+    return event.ID
+
+
+def mark_merged(session, uow_cfg):
+    q_infos = uow_cfg['q_infos']
+    q_ids = uniquify([x['q_id'] for x in q_infos])
+    for qid in q_ids:
+        qf = session.query(legacy.QueueFile).\
+            filter(legacy.QueueFile.id == qid).first()
+        if qf.is_merged():
+            raise ValueError(
+                u'QueueFile {0} is already merged. Abort.'.format(qf.id))
+        qf.set_merged()
+    return q_ids
+
+
+def add_processing_note(readme_path, uow_cfg_path):
+    """Record processing history note.
+
+    The current way to do this is to save a history note with the 00_README.txt
+    contents, as well as email the CCHDO community.
 
     """
-    _check_working_dir(working_dir)
+    try:
+        with open(readme_path) as fff:
+            readme = fff.read()
+    except IOError:
+        LOG.error(u'Cannot continue without {0}'.format(README_FILENAME))
+        return
+    try:
+        with open(uow_cfg_path) as fff:
+            uow_cfg = json_load(fff)
+    except IOError:
+        LOG.error(
+            u'Cannot continue without {0}.'.format(UOW_CFG_FILENAME, uow_dir))
+        return
 
-    readme_path = os.path.join(working_dir, README_FILENAME)
-
-    with open(readme_path) as fff:
-        readme = fff.read()
-
-    expocode = working_dir_expocode(working_dir)
-
-    with closing(legacy.session()) as sesh:
-        cruise = sesh.query(legacy.Cruise).\
-            filter(legacy.Cruise.ExpoCode == expocode).first()
-        if not cruise:
-            LOG.error(
-                u'{0} does not refer to a cruise that exists.'.format(expocode))
+    with closing(legacy.session()) as session:
+        try:
+            note_id = processing_history(session, readme, uow_cfg)
+            q_ids = mark_merged(session, uow_cfg)
+            session.commit()
+        except ValueError, e:
+            LOG.error(e)
             return
-
-        event = legacy.Event()
-        event.ExpoCode = cruise.ExpoCode
-        event.First_Name = ''
-        event.LastName = ''
-        event.Data_Type = ''
-        event.Action = ''
-        event.Date_Entered = datetime.now().date()
-        event.Summary = ''
-        event.Note = readme
-        print cruise
-
-
-def processing_note(working_dir):
-    """
-    """
-    pass
+    processing_email(readme, uow_cfg, note_id, q_ids)

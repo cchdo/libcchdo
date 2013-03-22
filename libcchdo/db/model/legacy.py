@@ -384,6 +384,9 @@ class Document(Base):
     Stamp = S.Column(S.String)
     Preliminary = S.Column(S.Integer)
 
+    def files(self):
+        return filter(lambda x: x, self.Files.split('\n'))
+
 
 class Collection(Base):
     __tablename__ = 'collections'
@@ -477,6 +480,15 @@ class QueueFile(Base):
 
         """
         return self.merged == 1
+
+    def set_merged(self):
+        self.merged = 1
+
+    def set_hidden(self):
+        self.merged = 2
+
+    def set_unmerged(self):
+        self.merged = 0
 
 
 class Submission(Base):
