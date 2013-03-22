@@ -69,8 +69,6 @@ if __name__ == "__main__":
         entry_points={
             'console_scripts': [
                 'hydro = libcchdo.scripts:main',
-                'reorder_surface_to_bottom = libcchdo.scripts:'
-                    'deprecated_reorder_surface_to_bottom',
             ],
         },
         cmdclass={
