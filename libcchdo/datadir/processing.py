@@ -106,7 +106,7 @@ def populate_working_dir(dirpath, dir_perms=0770, file_perms=0660,
         'originals',
     ]
     subdirs.append(processing_subdir('processing', processing_subdirs))
-    populate_dir(dirpath, files, subdirs, dir_prems, file_perms)
+    populate_dir(dirpath, files, subdirs, dir_perms, file_perms)
 
 
 def mkdir_working(basepath, person, title='working', dt=None, separator='_',
