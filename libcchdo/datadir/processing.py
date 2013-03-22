@@ -124,6 +124,13 @@ def mkdir_working(basepath, person, title='working', dt=None, separator='_',
     return dirpath
 
 
+def write_readme_template(template_path):
+    """Write the readme template to the given path."""
+    template = get_email_template()
+    with open(template_path, 'w') as fff:
+        fff.write(template.encode('utf8'))
+
+
 def mkdir_uow(basepath, title, ids, separator='_', processing_subdirs=False):
     """Create a Unit of Work directory for data work.
 
@@ -175,9 +182,7 @@ def mkdir_uow(basepath, title, ids, separator='_', processing_subdirs=False):
     fetch_online(os.path.join(dirpath, UOWDirName.online), expocode)
     fetch_originals(os.path.join(dirpath, UOWDirName.original), expocode)
 
-    template = get_email_template()
-    with open(os.path.join(dirpath, README_FILENAME), 'w') as fff:
-        fff.write(template.encode('utf8'))
+    write_readme_template(os.path.join(dirpath, README_FILENAME))
 
     # Write uow.json
     uow_cfg = {

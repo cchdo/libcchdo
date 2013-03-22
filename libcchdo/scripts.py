@@ -1053,6 +1053,19 @@ def _args_mkdir_working(p):
         help='The person doing the work (default: {0})'.format(os.getlogin()))
 
 
+def datadir_get_processing_template(args):
+    """Fetch the processing note template from the wiki."""
+    from libcchdo.datadir.processing import write_readme_template
+    write_readme_template(args.readme_path)
+
+
+with subcommand(datadir_parsers, 'get_processing_template',
+                datadir_get_processing_template) as p:
+    p.add_argument(
+        'readme_path', default=README_FILENAME, nargs='?',
+        help='the path to the file to put the template in')
+
+
 def datadir_fetch(args):
     """Create a CCHDO Unit Of Work directory.
 
