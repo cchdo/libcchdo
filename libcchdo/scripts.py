@@ -3,7 +3,7 @@
 This module is the entry point for the hydro utility. To see a list of all
 available sub entry points, run 
 
-$ hydro --help
+$ hydro commands
 
 """
 
@@ -18,6 +18,7 @@ import os.path
 from json import load as json_load
 
 from libcchdo import LOG, get_library_abspath
+from libcchdo.ui import termcolor
 from libcchdo.fns import all_formats, get_editor
 from libcchdo.plot.etopo import colormaps as plot_colormaps
 from libcchdo.formats import woce
@@ -61,7 +62,7 @@ hydro_subparsers = hydro_parser.add_subparsers(
 
 @contextmanager
 def subcommand(superparser, name, func):
-    parser = superparser.add_parser(name, help=func.__doc__)
+    parser = superparser.add_parser(name, description=func.__doc__)
     parser.set_defaults(main=func)
     yield parser
 
@@ -786,7 +787,9 @@ def db_track_lines_to_kml(args):
     db_track_lines_to_kml_parser()
 
 
-subcommand(to_kml_converter_parsers, 'db_track_lines', db_track_lines_to_kml)
+with subcommand(
+        to_kml_converter_parsers, 'db_track_lines', db_track_lines_to_kml) as p:
+    pass
 
 
 misc_converter_parser = converter_parsers.add_parser(
@@ -893,7 +896,8 @@ def convert_hly0301(args):
         ctdzipex.write(dfc, out_file)
 
 
-subcommand(misc_converter_parsers, 'hly0301', convert_hly0301)
+with subcommand(misc_converter_parsers, 'hly0301', convert_hly0301) as p:
+    pass
 
 
 def convert_bonus_goodhope(args):
@@ -1032,7 +1036,8 @@ def datadir_ensure_navs(args):
     do_for_cruise_directories(ensure_navs)
 
 
-subcommand(datadir_parsers, 'ensure_navs', datadir_ensure_navs)
+with subcommand(datadir_parsers, 'ensure_navs', datadir_ensure_navs) as p:
+    pass
 
 
 def _args_mkdir_working(p):
@@ -1107,6 +1112,7 @@ with subcommand(datadir_parsers, 'fetch', datadir_fetch) as p:
 
 
 def datadir_commit(args):
+    """Commit a CCHDO Unit of Work."""
     from libcchdo.datadir.processing import uow_commit
     uow_commit(args.uow_dir, person=args.person)
 
@@ -1526,10 +1532,12 @@ def regen_db_cache(args):
     std_session.commit()
 
 
-subcommand(misc_parsers, 'regen_db_cache', regen_db_cache)
+with subcommand(misc_parsers, 'regen_db_cache', regen_db_cache) as p:
+    pass
 
 
 def csv_view(args):
+    """Quick view a CSV exchange file."""
     from libcchdo.csv_view import view
     view(args.csv_file)
 
@@ -1617,7 +1625,9 @@ def collect_into_archive(args):
     collect_into_archive()
 
 
-subcommand(misc_parsers, 'collect_into_archive', collect_into_archive)
+with subcommand(
+        misc_parsers, 'collect_into_archive', collect_into_archive) as p:
+    pass
 
 
 def rebuild_hot_bats_oceansites(args):
@@ -1742,39 +1752,52 @@ with subcommand(report_parsers, 'submission_and_queue',
         help='output file')
 
 
-def deprecated_reorder_surface_to_bottom():
-    call_deprecated('misc', 'reorder_surface_to_bottom')
-
-
 def _subparsers(parser):
+    """Get the subparsers for an ArgumentParser."""
     try:
-        return parser._subparsers._group_actions[0]._name_parser_map.values()
+        group_actions = parser._subparsers._group_actions
+        subparsers = []
+        for ga in group_actions:
+            subparsers.extend(ga.choices.values())
+        return subparsers
     except AttributeError:
         return []
 
 
-def _rewrite_subparser_prog(parser, full_prog):
+def _print_parser_tree(parser, level=0):
+    """Recursively print the parser tree with descriptions."""
     subparsers = _subparsers(parser)
-    for subparser in subparsers:
-        subparser.prog = full_prog
-        _rewrite_subparser_prog(subparser, full_prog)
+    try:
+        prog_name = parser.prog.split()[-1]
+    except IndexError:
+        prog_name = parser.prog
+    try:
+        description = parser.description.split('\n')[0]
+    except AttributeError:
+        description = ''
+
+    if subparsers:
+        color = termcolor('white', True)
+    else:
+        color = termcolor('green')
+
+    lead_str = ''.join(['  ' * level, color, prog_name, termcolor('reset')])
+    if description:
+        spacing = ' ' * abs(len(lead_str) - 40)
+        print ''.join([lead_str, spacing, description])
+    else:
+        print lead_str
+    for sp in subparsers:
+        _print_parser_tree(sp, level + 1)
+
+
+def print_command_tree(args):
+    """Show all possible commands in tree."""
+    _print_parser_tree(hydro_parser)
     
 
-def call_deprecated(*subcmds):
-    """Notify that executable is deprecated and to use the main program."""
-    prog = 'hydro'
-    subcmds = list(subcmds)
-    full_prog = u' '.join([prog] + subcmds)
-    hydro_parser.prog = prog
-    hydro_parser._prog = prog
-
-    # Rewrite subparser prog so usage print is correct
-    _rewrite_subparser_prog(hydro_parser, full_prog)
-
-    LOG.error(
-        u'DEPRECATED: Please use {0}.'.format(full_prog))
-    sys.argv = [prog] + subcmds + sys.argv[1:]
-    main()
+with subcommand(hydro_subparsers, 'commands', print_command_tree) as p:
+    pass
     
 
 def main():

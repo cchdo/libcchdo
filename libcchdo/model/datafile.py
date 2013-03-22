@@ -1,6 +1,6 @@
 from operator import itemgetter
 
-from .. import LOG, COLORS, memoize, fns
+from .. import LOG, TERMCOLOR, memoize, fns
 from ..db.model import std
 
 
@@ -124,8 +124,8 @@ class Column(object):
         return True
 
     def __str__(self):
-        return '%sColumn(%s): %s%s' % (COLORS['YELLOW'], self.parameter,
-                                       COLORS['CLEAR'], self.values)
+        return '%sColumn(%s): %s%s' % (TERMCOLOR['YELLOW'], self.parameter,
+                                       TERMCOLOR['CLEAR'], self.values)
 
     def __cmp__(self, other):
         try:
@@ -306,19 +306,19 @@ class SummaryFile(File):
 
     def __str__(self):
         s = u''
-        s += '%sGlobals: %s\n' % (COLORS['RED'], COLORS['CLEAR'])
+        s += '%sGlobals: %s\n' % (TERMCOLOR['RED'], TERMCOLOR['CLEAR'])
         for gv in self.globals.items():
             s += '%s: %s\n' % gv
 
-        s += '%sData: %s\n' % (COLORS['RED'], COLORS['CLEAR'])
+        s += '%sData: %s\n' % (TERMCOLOR['RED'], TERMCOLOR['CLEAR'])
         for column in self.sorted_columns():
             s += '%s\n' % column
             if column.is_flagged_woce():
-                s += '\t%s%s%s\n' % (COLORS['CYAN'], column.flags_woce,
-                                     COLORS['CLEAR'])
+                s += '\t%s%s%s\n' % (TERMCOLOR['CYAN'], column.flags_woce,
+                                     TERMCOLOR['CLEAR'])
             if column.is_flagged_igoss():
-                s += '\t%s%s%s\n' % (COLORS['CYAN'], column.flags_igoss,
-                                     COLORS['CLEAR'])
+                s += '\t%s%s%s\n' % (TERMCOLOR['CYAN'], column.flags_igoss,
+                                     TERMCOLOR['CLEAR'])
         return s.encode('ascii', 'replace')
 
 
@@ -364,19 +364,19 @@ class DataFile(File):
 
     def __unicode__(self):
         strs = []
-        strs.append(u'%sGlobals: %s\n' % (COLORS['RED'], COLORS['CLEAR']))
+        strs.append(u'%sGlobals: %s\n' % (TERMCOLOR['RED'], TERMCOLOR['CLEAR']))
         for gv in self.globals.items():
             strs.append(u'%s: %s\n' % gv)
 
-        strs.append(u'%sData: %s\n' % (COLORS['RED'], COLORS['CLEAR']))
+        strs.append(u'%sData: %s\n' % (TERMCOLOR['RED'], TERMCOLOR['CLEAR']))
         for column in self.sorted_columns():
             strs.append(u'%s\n' % column)
             if column.is_flagged_woce():
                 strs.append(u'\t%s%s%s\n' % (
-                    COLORS['CYAN'], column.flags_woce, COLORS['CLEAR']))
+                    TERMCOLOR['CYAN'], column.flags_woce, TERMCOLOR['CLEAR']))
             if column.is_flagged_igoss():
                 strs.append(u'\t%s%s%s\n' % (
-                    COLORS['CYAN'], column.flags_igoss, COLORS['CLEAR']))
+                    TERMCOLOR['CYAN'], column.flags_igoss, TERMCOLOR['CLEAR']))
         return u''.join(strs)
 
     def to_dict(self):
@@ -597,7 +597,7 @@ class DataFileCollection(object):
     def __str__(self):
         s = u''
         for i, file in enumerate(self.files):
-            s += '%sFILE %d %s\n' % (COLORS['RED'], i, COLORS['CLEAR'])
+            s += '%sFILE %d %s\n' % (TERMCOLOR['RED'], i, TERMCOLOR['CLEAR'])
             s += str(file)
         return s.encode('ascii', 'replace')
 

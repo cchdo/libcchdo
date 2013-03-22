@@ -24,7 +24,7 @@ MAX_PRESSURE with a '_', the library will not retrive the parameter definition
 from the database (there is none anyway).
 """
 
-import datetime
+from datetime import datetime
 import logging
 import os
 import __builtin__
@@ -35,6 +35,8 @@ try:
     from cStringIO import StringIO
 except ImportError:
     StringIO = pyStringIO
+
+from libcchdo.ui import TERMCOLOR
 
 
 __version__ = "0.7.1"
@@ -95,22 +97,6 @@ import formats
 RADIUS_EARTH = 6371.01 #km
 
 
-COLOR_ESCAPE = '\x1b\x5b'
-
-
-COLORS = {
-    'WHITE': COLOR_ESCAPE + '1;39m',
-    'BOLDRED': COLOR_ESCAPE + '1;31m',
-    'BOLDYELLOW': COLOR_ESCAPE + '1;33m',
-    'RED': COLOR_ESCAPE + '0;31m',
-    'GREEN': COLOR_ESCAPE + '1;32m',
-    'YELLOW': COLOR_ESCAPE + '0;33m',
-    'BLUE': COLOR_ESCAPE + '1;34m',
-    'CYAN': COLOR_ESCAPE + '0;36m',
-    'CLEAR': COLOR_ESCAPE + '0m',
-}
-
-
 # Logging
 
 
@@ -138,8 +124,8 @@ class _LibLogFormatter(logging.Formatter):
         d = record.__dict__
         d['asctime'] = self.formatTime(record, self.datefmt)
         d['message'] = record.getMessage()
-        d['color_path'] = COLORS['BLUE']
-        d['color_level'] = COLORS[self._get_color(record.levelno)]
+        d['color_path'] = TERMCOLOR['BLUE']
+        d['color_level'] = TERMCOLOR[self._get_color(record.levelno)]
         d['levelname'] = record.levelname[0]
         path = d['pathname']
         path = path.replace(self.library_abspath + '/', '')
@@ -149,7 +135,7 @@ class _LibLogFormatter(logging.Formatter):
     def formatTime(self, record, fmt):
         if not fmt:
         	fmt = self.datefmt
-        now = datetime.datetime.utcnow()
+        now = datetime.utcnow()
         return '%s,%d' % (now.strftime(fmt), now.microsecond / 1000.0)
 
 
@@ -157,8 +143,8 @@ _LIBLOG_HANDLER = logging.StreamHandler()
 _LIBLOG_HANDLER.setFormatter(_LibLogFormatter(
     ''.join((
         '%(asctime)-11s %(color_level)s%(levelname)s ',
-        '%(color_path)s%(pathname)s:%(lineno)d', COLORS['CLEAR'],
-        '\t%(message)s', COLORS['CLEAR'])), "%H%M:%S"))
+        '%(color_path)s%(pathname)s:%(lineno)d', TERMCOLOR['CLEAR'],
+        '\t%(message)s', TERMCOLOR['CLEAR'])), "%H%M:%S"))
 
 LOG = logging.getLogger(__name__)
 LOG.setLevel(logging.DEBUG)
