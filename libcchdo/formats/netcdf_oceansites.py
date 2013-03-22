@@ -12,7 +12,7 @@ from math import cos
 from contextlib import closing 
 from zipfile import ZipInfo, ZIP_DEFLATED
 
-from libcchdo import LOG, fns, StringIO
+from libcchdo import LOG, fns, StringIO, memoize
 from libcchdo.formats import netcdf as nc, zip as Zip
 from libcchdo.algorithms import depth
 
@@ -244,32 +244,6 @@ class ParamToOS(dict):
                 u'OceanSITES name {0!r} has no definition.'.format(os_name))
 
 
-param_to_os = ParamToOS()
-
-param_to_os.register_osvars(
-    OSVar(u'TEMP', 'sea water temperature', 'sea_water_temperature',
-          'degree_Celsius', 0.002),
-    OSVar(u'DOXY', 'dissolved oxygen',
-          'mass_concentration_of_oxygen_in_sea_water', 'micromole/kg'),
-    OSVar(u'DOXY1', 'oxygen',
-          'mole_concentration_of_dissolved_molecular_oxygen_in_sea_water',
-          'micromole/kg'),
-    OSVar(u'DOXY_TEMP', 'oxygen fix temperature',
-          'temperature_of_sensor_for_oxygen_in_sea_water', 'degree_Celsius'),
-    OSVar(u'PSAL', 'sea water salinity', 'sea_water_salinity', 'psu', 0.005),
-    OSVar(u'PSAL1', 'ctd salinity', 'sea_water_practical_salinity', 'pss-78',
-          0.005),
-    # valid_min 0.0, valid_max 12000.0, QC_indicator =7,
-    # QC_procedure = 5, uncertainty 2.0
-    OSVar(u'PRES', 'sea water pressure', 'sea_water_pressure', 'decibars'),
-    # TODO find out what the units for Fluorescense should be.
-    # Not Real Fluoresence Units. Supposedly is unitless but you know how that
-    # story goes.
-    OSVar(u'FLU2', 'fluorescense', 'fluorescense', 'rfu'),
-    OSVar(u'DEPTH', 'depth', 'depth', 'meters'),
-)
-
-
 PRESSURE_VARIABLES = ['CTDPRS', 'CTDRAW', 'REVPRS', 'DWNPRS']
 
 
@@ -285,53 +259,89 @@ OXYGEN_VARIABLES = ['CTDOXY', 'DWNOXY', 'OXYGEN', ]
 TEMPERATURE_VARIABLES = ['CTDTMP', 'REVTMP', 'SBE35', ]
 
 
-param_to_os_registrants = {
-    'CTDSAL': u'PSAL1',
+@memoize
+def get_param_to_os():
+    param_to_os = ParamToOS()
+    param_to_os.register_osvars(
+        OSVar(u'TEMP', 'sea water temperature', 'sea_water_temperature',
+              'degree_Celsius', 0.002),
+        OSVar(u'DOXY', 'dissolved oxygen',
+              'mass_concentration_of_oxygen_in_sea_water', 'micromole/kg'),
+        OSVar(u'DOXY1', 'oxygen',
+              'mole_concentration_of_dissolved_molecular_oxygen_in_sea_water',
+              'micromole/kg'),
+        OSVar(u'DOXY_TEMP', 'oxygen fix temperature',
+              'temperature_of_sensor_for_oxygen_in_sea_water',
+              'degree_Celsius'),
+        OSVar(
+            u'PSAL', 'sea water salinity', 'sea_water_salinity', 'psu', 0.005),
+        OSVar(u'PSAL1', 'ctd salinity', 'sea_water_practical_salinity',
+              'pss-78', 0.005),
+        # valid_min 0.0, valid_max 12000.0, QC_indicator =7,
+        # QC_procedure = 5, uncertainty 2.0
+        OSVar(u'PRES', 'sea water pressure', 'sea_water_pressure', 'decibars'),
+        # TODO find out what the units for Fluorescense should be.
+        # Not Real Fluoresence Units. Supposedly is unitless but you know how
+        # that story goes.
+        OSVar(u'FLU2', 'fluorescense', 'fluorescense', 'rfu'),
+        OSVar(u'DEPTH', 'depth', 'depth', 'meters'),
+    )
 
-    'FLUOR': u'FLU2',
+    param_to_os_registrants = {
+        'CTDSAL': u'PSAL1',
 
-    'DEPTH': u'DEPTH',
-    'SIG0': OSVar(u'SIGTH', 'sigma theta', 'sea_water_sigma_theta', 'kg/m^3'),
-    'ALKALI': OSVar(
-        u'ALK', 'alkalinity',
-        'sea_water_alkalinity_expressed_as_mole_equivalent', 'uequiv'),
-    'NO2+NO3': OSVar(
-        u'NO31', 'nitrate + nitrite',
-        'mole_concentration_of_nitrate_and_nitrite_in_sea_water', 'umol/kg'),
-    'NITRIT': OSVar(
-        u'NO21', 'nitrite', 'mole_concentration_of_nitrite_in_sea_water',
-        'umol/kg'),
-    'PHSPHT': OSVar(
-        u'PO41', 'phosphate', 'mole_concentration_of_phosphate_in_sea_water',
-        'umol/kg'),
-    'SILCAT': OSVar(
-        u'SILC1', 'silicate', 'mole_concentration_of_silicate_in_sea_water',
-        'umol/kg'),
-    # SeaDataNet CORG
-    'POC': OSVar(u'CORG', 'particulate organic carbon', 'WC_POC', 'ug/kg'),
-    # SeaDataNet NTOT
-    'PON': OSVar(u'NTOT', 'particulate organic nitrogen', 'WC_PON', 'ug/kg'),
-    # TODO find standard_name
-    'TOC': OSVar(u'TOC', 'total organic carbon', None, 'umol/kg'),
-    # SeaDataNet TDNT
-    'DON': OSVar(
-        u'TDNT1', 'dissolved organic nitrogen', 'WC_DissNitrogen', 'umol/kg'),
-    # TODO verify that using the standard_name for inorganic nitrogen is ok
-    'TON': OSVar(
-        u'TDNT', 'total organic nitrogen', 'WC_DissNitrogen', 'umol/kg'),
-    # SeaDataNet BATX
-    'BACT': OSVar(
-        u'BATX', 'bacteria enumeration', 'BactTaxaAbundWater', 'cells*10^8/kg'),
-}
-for v in PRESSURE_VARIABLES:
-    param_to_os_registrants[v] = u'PRES'
-for v in BTL_SALINITY_VARIABLES:
-    param_to_os_registrants[v] = u'PSAL'
-for v in OXYGEN_VARIABLES:
-    param_to_os_registrants[v] = u'DOXY1'
-for v in TEMPERATURE_VARIABLES:
-    param_to_os_registrants[v] = u'TEMP'
-param_to_os.register(param_to_os_registrants)
+        'FLUOR': u'FLU2',
+
+        'DEPTH': u'DEPTH',
+        'SIG0': OSVar(
+            u'SIGTH', 'sigma theta', 'sea_water_sigma_theta', 'kg/m^3'),
+        'ALKALI': OSVar(
+            u'ALK', 'alkalinity',
+            'sea_water_alkalinity_expressed_as_mole_equivalent', 'uequiv'),
+        'NO2+NO3': OSVar(
+            u'NO31', 'nitrate + nitrite',
+            'mole_concentration_of_nitrate_and_nitrite_in_sea_water',
+            'umol/kg'),
+        'NITRIT': OSVar(
+            u'NO21', 'nitrite', 'mole_concentration_of_nitrite_in_sea_water',
+            'umol/kg'),
+        'PHSPHT': OSVar(
+            u'PO41', 'phosphate',
+            'mole_concentration_of_phosphate_in_sea_water', 'umol/kg'),
+        'SILCAT': OSVar(
+            u'SILC1', 'silicate', 'mole_concentration_of_silicate_in_sea_water',
+            'umol/kg'),
+        # SeaDataNet CORG
+        'POC': OSVar(u'CORG', 'particulate organic carbon', 'WC_POC', 'ug/kg'),
+        # SeaDataNet NTOT
+        'PON': OSVar(
+            u'NTOT', 'particulate organic nitrogen', 'WC_PON', 'ug/kg'),
+        # TODO find standard_name
+        'TOC': OSVar(u'TOC', 'total organic carbon', None, 'umol/kg'),
+        # SeaDataNet TDNT
+        'DON': OSVar(
+            u'TDNT1', 'dissolved organic nitrogen', 'WC_DissNitrogen',
+            'umol/kg'),
+        # TODO verify that using the standard_name for inorganic nitrogen is ok
+        'TON': OSVar(
+            u'TDNT', 'total organic nitrogen', 'WC_DissNitrogen', 'umol/kg'),
+        # SeaDataNet BATX
+        'BACT': OSVar(
+            u'BATX', 'bacteria enumeration', 'BactTaxaAbundWater',
+            'cells*10^8/kg'),
+    }
+    for v in PRESSURE_VARIABLES:
+        param_to_os_registrants[v] = u'PRES'
+    for v in BTL_SALINITY_VARIABLES:
+        param_to_os_registrants[v] = u'PSAL'
+    for v in OXYGEN_VARIABLES:
+        param_to_os_registrants[v] = u'DOXY1'
+    for v in TEMPERATURE_VARIABLES:
+        param_to_os_registrants[v] = u'TEMP'
+    param_to_os.register(param_to_os_registrants)
+
+    print param_to_os
+    return param_to_os
 
 
 OS_TEXT = {
@@ -551,7 +561,7 @@ def write_columns(self, nc_file):
         # Determine the parameter's OceanSITES name and CF name
         pname = column.parameter.name
         try:
-            name, variable = param_to_os.convert(pname)
+            name, variable = get_param_to_os().convert(pname)
         except KeyError:
             LOG.warn(
                 u'Parameter name {0!r} is not mapped to an OceanSITES '
