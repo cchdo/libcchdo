@@ -1058,6 +1058,20 @@ def _args_mkdir_working(p):
         help='The person doing the work (default: {0})'.format(os.getlogin()))
 
 
+def datadir_get_cruise_dir(args):
+    """Determine the cruise directory given an Expocode."""
+    from libcchdo.datadir.processing import _legacy_cruise_directory
+    with _legacy_cruise_directory(args.expocode) as doc:
+        print doc.FileName
+
+
+with subcommand(datadir_parsers, 'get_cruise_dir',
+                datadir_get_cruise_dir) as p:
+    p.add_argument(
+        'expocode',
+        help='the Expocode of the cruise to find the directory of')
+
+
 def datadir_get_processing_template(args):
     """Fetch the processing note template from the wiki."""
     from libcchdo.datadir.processing import write_readme_template

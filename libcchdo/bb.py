@@ -6,7 +6,7 @@ from webbrowser import open as webopen
 import oauth2 as oauth
 
 from libcchdo.serve import get_local_host, open_server_on_high_port
-from libcchdo.config import get_option, set_option, Error as ConfigError
+from libcchdo.config import get_option, set_option, ConfigError
 
 
 class AuthenticatorHTTPServer(SimpleHTTPRequestHandler):
