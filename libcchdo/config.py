@@ -204,6 +204,21 @@ def get_db_credentials_cchdo():
         except EOFError:
             password = None
     return (username, password, db_host, db_name)
+
+
+def get_website_domain():
+    def input_website_domain():
+        return raw_input(
+            u'What is the website domain? {0} '.format(_storage_notice()))
+    return get_option('website', 'domain', input_website_domain)
+
+
+def get_legacy_datadir_host():
+    def input_hostname():
+        return raw_input(
+            u'What host does the datadir live on? {0} '.format(
+            _storage_notice()))
+    return get_option('datadir', 'hostname', input_hostname)
     
 
 def get_merger_division():

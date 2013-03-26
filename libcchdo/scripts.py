@@ -1298,6 +1298,8 @@ def datadir_commit(args):
 
 with subcommand(datadir_parsers, 'commit', datadir_commit) as p:
     p.add_argument(
+        '-n', '--dry-run', action='store_true')
+    p.add_argument(
         '--person', default=None,
         help='The person doing the work (default: libcchdo merger initials)')
     p.add_argument(
@@ -1317,6 +1319,8 @@ def datadir_add_processing_note(args):
 
 with subcommand(datadir_parsers, 'processing_note',
                 datadir_add_processing_note) as p:
+    p.add_argument(
+        '-n', '--dry-run', action='store_true')
     p.add_argument(
         'readme_path', default=README_FILENAME, nargs='?',
         help='The path to the processing note file.')
