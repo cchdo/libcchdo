@@ -10,6 +10,7 @@ from ..fns import Decimal, _decimal, in_band_or_none
 
 
 # Where no data is known
+# TODO this isn't actually WOCE. This is Exchange. WOCE is -9.
 FILL_VALUE = -999.0
 
 

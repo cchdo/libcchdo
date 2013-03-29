@@ -7,7 +7,7 @@ from libcchdo.fns import Decimal, equal_with_epsilon
 from libcchdo.model.datafile import DataFile, DataFileCollection
 from libcchdo.db.model.nodc_ship import ship_code
 from libcchdo.datadir import create_expocode
-from libcchdo.formats.netcdf_oceansites import param_to_os, OSVar
+from libcchdo.formats.netcdf_oceansites import get_param_to_os, OSVar
 from libcchdo.formats.bermuda_atlantic_time_series_study import (
     bats_time_to_dt, BATS_SECT_ID, correct_longitude, collapse_globals)
 
@@ -194,6 +194,9 @@ bats_to_param = {
     'Si1': 'SILCAT',
     'Bact': 'BACT',
 }
+
+
+param_to_os = get_param_to_os()
 
 param_to_os.register({
     'OxFixT': u'DOXY_TEMP',

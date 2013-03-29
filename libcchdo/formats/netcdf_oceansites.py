@@ -147,6 +147,7 @@ class OSVar(object):
         self._standard_name = standard_name
         self._units = units
         self._uncertainty = uncertainty
+        self._fill_value = None
 
     @property
     def long_name(self):
@@ -163,6 +164,11 @@ class OSVar(object):
     @property
     def uncertainty(self):
         return self._uncertainty or float('inf')
+
+    @property
+    def fill_value(self):
+        # Defaulting to 99999 based on Argo format reference table 3.
+        return self._fill_value or float(99999)
 
     def __unicode__(self):
         return u'OSVar({0})'.format(self.short_name)
@@ -340,7 +346,6 @@ def get_param_to_os():
         param_to_os_registrants[v] = u'TEMP'
     param_to_os.register(param_to_os_registrants)
 
-    print param_to_os
     return param_to_os
 
 
@@ -580,7 +585,7 @@ def write_columns(self, nc_file):
         # TODO ref table 3 for fill_value
         try:
             var = nc_file.createVariable(
-                name, 'f8', ('DEPTH',), fill_value=float('nan'))
+                name, 'f8', ('DEPTH',), fill_value=variable.fill_value)
         except RuntimeError:
             LOG.warn(
                 u'{0!r} already present in netCDF file. Skipping.'.format(name))
@@ -606,7 +611,8 @@ def write_columns(self, nc_file):
         var.uncertainty = variable.uncertainty
         var.cell_methods = OS_TEXT['CELL_METHODS']
         var.DM_indicator = 'D'
-        var[:] = column.values
+        var[:] = [
+            variable.fill_value if x is None else x for x in column.values]
         # Write QC variable
         if column.is_flagged_woce():
             qc_var_name = name + nc.QC_SUFFIX
