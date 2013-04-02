@@ -6,8 +6,6 @@ available sub entry points, run
 $ hydro commands
 
 """
-
-
 from argparse import ArgumentParser, RawTextHelpFormatter, FileType
 from datetime import datetime, date, timedelta
 from contextlib import closing, contextmanager
@@ -18,6 +16,7 @@ import os.path
 from json import load as json_load
 
 from libcchdo import LOG, get_library_abspath
+from libcchdo.db.model import ignore_sa_warnings
 from libcchdo.ui import termcolor
 from libcchdo.fns import all_formats, get_editor
 from libcchdo.plot.etopo import colormaps as plot_colormaps
@@ -1817,4 +1816,5 @@ with subcommand(hydro_subparsers, 'commands', print_command_tree) as p:
 def main():
     """The main program that wraps all subcommands."""
     args = hydro_parser.parse_args()
-    hydro_parser.exit(args.main(args))
+    with ignore_sa_warnings():
+        hydro_parser.exit(args.main(args))

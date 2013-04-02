@@ -6,10 +6,10 @@ import sqlalchemy.ext.declarative
 from sqlalchemy.orm import relationship
 from geoalchemy import GeometryColumn, LineString
 
-from ... import memoize
 from ... import LOG
 from ...db import connect
 from ...db import Enum
+
 
 Base = S.ext.declarative.declarative_base()
 metadata = Base.metadata
