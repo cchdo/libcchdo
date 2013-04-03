@@ -2,12 +2,12 @@
 
 
 from __future__ import with_statement
-from decimal import localcontext, Decimal
+from decimal import localcontext
 
-from libcchdo import LOG
+from libcchdo.log import LOG
 from libcchdo.fns import _decimal
-from ..algorithms import volume
-from ..db.model import std
+from libcchdo.algorithms import volume
+from libcchdo.db.model import std
 
 
 APPROXIMATION_SALINITY = 34.8
@@ -132,7 +132,7 @@ def ctdoxy_micromole_per_liter_to_micromole_per_kilogram(file, column):
     	    min(-sigtheta[i].as_tuple().exponent,
     	        -column[i].as_tuple().exponent)
         with localcontext() as ctx:
-            factor = sigtheta[i].fma(Decimal('1.0e-3'), 1)
+            factor = sigtheta[i].fma(_decimal('1.0e-3'), 1)
             ctx.prec = precision
             column[i] /= factor
     return column

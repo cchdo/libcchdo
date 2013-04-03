@@ -12,7 +12,9 @@ from math import cos
 from contextlib import closing 
 from zipfile import ZipInfo, ZIP_DEFLATED
 
-from libcchdo import LOG, fns, StringIO, memoize
+from libcchdo.log import LOG
+from libcchdo.fns import strftime_iso
+from libcchdo.util import StringIO, memoize
 from libcchdo.formats import netcdf as nc, zip as Zip
 from libcchdo.algorithms import depth
 
@@ -433,7 +435,7 @@ def create_oceansites_nc(df, filename, data_type, version=None):
     if version == '1.2':
         nc_file.platform_code = ''
     now = datetime.utcnow()
-    nc_file.date_update = fns.strftime_iso(now)
+    nc_file.date_update = strftime_iso(now)
     nc_file.source = 'Shipborne observation'
     nc_file.history = ''.join([
         info['date_start'].isoformat(), "Z data collected\n", now.isoformat(),
@@ -463,8 +465,8 @@ def create_oceansites_nc(df, filename, data_type, version=None):
     nc_file.citation = OS_TEXT['CITATION']
     nc_file.update_interval = 'void'
     nc_file.qc_manual = qc_manual(version)
-    nc_file.time_coverage_start = fns.strftime_iso(info['date_start'])
-    nc_file.time_coverage_end = fns.strftime_iso(info['date_start'])
+    nc_file.time_coverage_start = strftime_iso(info['date_start'])
+    nc_file.time_coverage_end = strftime_iso(info['date_start'])
 
     nc_file.createDimension('TIME')
     try:

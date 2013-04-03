@@ -2,10 +2,10 @@
 
 '''
 
-import datetime
+from datetime import datetime
 import decimal
 
-from .. import LOG
+from libcchdo.log import LOG
 
 
 def convert_value(name, value, ):
@@ -76,7 +76,7 @@ def convert_value(name, value, ):
     elif type(value) in (int, float):
         return value
 
-    elif type(value) is datetime.datetime:
+    elif type(value) is datetime:
         return value
 
     else:

@@ -6,9 +6,8 @@ import sqlalchemy.ext.declarative
 from sqlalchemy.orm import relationship
 from geoalchemy import GeometryColumn, LineString
 
-from ... import LOG
-from ...db import connect
-from ...db import Enum
+from libcchdo.log import LOG
+from libcchdo.db import connect, Enum
 
 
 Base = S.ext.declarative.declarative_base()

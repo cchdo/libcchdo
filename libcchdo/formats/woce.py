@@ -1,12 +1,11 @@
-import datetime
+from datetime import datetime, date
 import re
 import struct
 
-
-from .. import LOG
-from .. import fns
-from ..model import datafile
-from ..fns import Decimal, _decimal, in_band_or_none
+from libcchdo.log import LOG
+from libcchdo.model.datafile import Column
+from libcchdo.fns import (
+    Decimal, _decimal, in_band_or_none, IncreasedPrecision, strip_all, uniquify)
 
 
 # Where no data is known
@@ -90,7 +89,7 @@ WATER_SAMPLE_FLAG_DESCRIPTION = ':'.join([':'] + \
 def woce_lat_to_dec_lat(lattoks):
     '''Convert a latitude in WOCE format to decimal.'''
     precision = 3 + len(lattoks)
-    with fns.IncreasedPrecision(precision):
+    with IncreasedPrecision(precision):
         lat = int(lattoks[0]) + Decimal(lattoks[1]) / Decimal('60.0')
         if lattoks[2] != 'N':
             lat *= -1
@@ -100,7 +99,7 @@ def woce_lat_to_dec_lat(lattoks):
 def woce_lng_to_dec_lng(lngtoks):
     '''Convert a longitude in WOCE format to decimal.'''
     precision = 4 + len(lngtoks)
-    with fns.IncreasedPrecision(precision):
+    with IncreasedPrecision(precision):
         lng = int(lngtoks[0]) + Decimal(lngtoks[1]) / Decimal('60.0')
         if lngtoks[2] != 'E':
             lng *= -1
@@ -132,7 +131,7 @@ def dec_lng_to_woce_lng(lng):
 def strftime_woce_date_time(dt):
     if dt is None:
         return (None, None)
-    if type(dt) is datetime.date:
+    if type(dt) is date:
     	return (dt.strftime('%Y%m%d'), None)
     return (dt.strftime('%Y%m%d'), dt.strftime('%H%M'))
 
@@ -145,7 +144,7 @@ def strptime_woce_date(woce_date):
         woce_date = str(woce_date).translate(None, '-')
     try:
         i_woce_date = int(woce_date)
-        return datetime.datetime.strptime('%08d' % i_woce_date, '%Y%m%d').date()
+        return datetime.strptime('%08d' % i_woce_date, '%Y%m%d').date()
     except (TypeError, ValueError):
         LOG.warn(u"Malformed date {0!r}. Omitting.".format(woce_date))
         return None
@@ -159,10 +158,10 @@ def strptime_woce_time(woce_time):
                 u"Illegal time {0:04d} >= 2400. Setting to 0.".format(
                     i_woce_time))
             i_woce_time = 0
-        return datetime.datetime.strptime('%04d' % i_woce_time, '%H%M').time()
+        return datetime.strptime('%04d' % i_woce_time, '%H%M').time()
     except (TypeError, ValueError):
         LOG.warn(u"Illegal time {0}. Setting to 0.".format(woce_time))
-        return datetime.datetime.strptime('0000', '%H%M').time()
+        return datetime.strptime('0000', '%H%M').time()
 
 
 def strptime_woce_date_time(woce_date, woce_time):
@@ -173,17 +172,17 @@ def strptime_woce_date_time(woce_date, woce_time):
         Returns:
             There are three non-trivial cases:
             1. DATE and TIME both exist
-                datetime.datetime object representing the combination of the
+                datetime object representing the combination of the
                 two objects.
             2. DATE exists and TIME does not
-                datetime.date object representing the date.
+                date object representing the date.
             3. DATE does not exist but TIME does
                 None
     """
     date = strptime_woce_date(woce_date)
     time = strptime_woce_time(woce_time)
     try:
-        return datetime.datetime.combine(date, time)
+        return datetime.combine(date, time)
     except TypeError:
         return date
 
@@ -218,7 +217,7 @@ def _warn_broke_character_column_rule(headername, headers):
 
 
 def _unpack_parameters(unpack_str, parameters_line, num_param_columns):
-    parameters = fns.strip_all(
+    parameters = strip_all(
         struct.unpack(unpack_str, parameters_line[:num_param_columns * 8]))
     return (parameters, _bad_column_alignment(parameters))
 
@@ -255,9 +254,9 @@ def read_data(self, handle, parameters_line, units_line, asterisk_line):
         parameters, start_bad = _unpack_parameters(
             unpack_str, parameters_line, num_param_columns)
 
-    units = fns.strip_all(
+    units = strip_all(
         struct.unpack(unpack_str, units_line[:num_param_columns * 8]))
-    asterisks = fns.strip_all(
+    asterisks = strip_all(
         struct.unpack(unpack_str, asterisk_line[:num_param_columns * 8]))
 
     # Warn if the header lines break 8 character column rules
@@ -266,7 +265,7 @@ def read_data(self, handle, parameters_line, units_line, asterisk_line):
     _warn_broke_character_column_rule("Asterisks", asterisks)
 
     # Die if parameters are not unique
-    if not parameters == fns.uniquify(parameters):
+    if not parameters == uniquify(parameters):
         raise ValueError(('There were duplicate parameters in the file; '
                           'cannot continue without data corruption.'))
 
@@ -419,10 +418,10 @@ def fuse_datetime_globals(file):
 
     There are three cases:
     1. DATE and TIME both exist
-        A datetime.datetime object is inserted representing the combination
+        A datetime object is inserted representing the combination
         of the two objects.
     2. DATE exists and TIME does not
-        A datetime.date object is inserted only representing the date.
+        A date object is inserted only representing the date.
     3. DATE does not exist but TIME does
         None is inserted because date is required.
 
@@ -441,10 +440,10 @@ def fuse_datetime_columns(file):
     """ Fuses a file's "DATE" and "TIME" columns into a "_DATETIME" column.
         There are three cases:
         1. DATE and TIME both exist
-            A datetime.datetime object is inserted representing the combination
+            A datetime object is inserted representing the combination
             of the two objects.
         2. DATE exists and TIME does not
-            A datetime.date object is inserted only representing the date.
+            A date object is inserted only representing the date.
         3. DATE does not exist but TIME does
             None is inserted because date is required.
 
@@ -462,7 +461,7 @@ def fuse_datetime_columns(file):
     except KeyError:
         LOG.warn(u'No TIME column is present.')
 
-    file['_DATETIME'] = datafile.Column('_DATETIME')
+    file['_DATETIME'] = Column('_DATETIME')
     file['_DATETIME'].values = [strptime_woce_date_time(*x) for x in zip(
         dates, times)]
     del file['DATE']
@@ -510,12 +509,12 @@ def split_datetime_columns(file):
         Arg:
             file - a DataFile object
     """
-    date = file['DATE'] = datafile.Column('DATE')
-    time = file['TIME'] = datafile.Column('TIME')
+    date = file['DATE'] = Column('DATE')
+    time = file['TIME'] = Column('TIME')
     for dtime in file['_DATETIME'].values:
         if dtime:
             date.append(dtime.strftime('%Y%m%d'))
-            if type(dtime) is datetime.datetime:
+            if type(dtime) is datetime:
                 time.append(dtime.strftime('%H%M'))
         else:
             date.append(None)

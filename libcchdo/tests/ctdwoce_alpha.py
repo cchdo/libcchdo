@@ -1,9 +1,8 @@
-import StringIO
+from StringIO import StringIO
 import unittest
-import sys
 
-from ..model import datafile
-from ..formats.ctd import woce as ctdwoce
+from libcchdo.model.datafile import DataFile
+from libcchdo.formats.ctd import woce as ctdwoce
 
 
 class TestCTDWoceAlpha (unittest.TestCase):
@@ -63,17 +62,17 @@ INSTRUMENT NO. 0     SAMPLING RATE 42.00  HZ
 """
 
     def test_read(self):
-        self.file = datafile.DataFile()
-        self.bufr = StringIO.StringIO(self.input)
+        self.file = DataFile()
+        self.bufr = StringIO(self.input)
         ctdwoce.read(self.file, self.bufr)
         self.bufr.close()
 
 #    def test_read_write(self):
-#        self.file = datafile.DataFile()
-#        self.bufr = StringIO.StringIO(self.input)
+#        self.file = DataFile()
+#        self.bufr = StringIO(self.input)
 #        ctdwoce.read(self.file, self.bufr)
 #        self.bufr.close()
-#        self.bufr = StringIO.StringIO()
+#        self.bufr = StringIO()
 #        ctdwoce.write(self.file, self.bufr)
 #        self.assertEqual(self.expected_output, self.bufr.getvalue())
 #        self.bufr.close()

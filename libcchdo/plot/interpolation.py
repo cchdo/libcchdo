@@ -1,6 +1,7 @@
 import numpy as np
 
-from libcchdo import memoize, LOG
+from libcchdo.log import LOG
+from libcchdo.util import memoize
 from libcchdo.recipes.lru import lru_cache
 
 

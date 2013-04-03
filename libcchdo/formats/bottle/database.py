@@ -10,7 +10,7 @@ data_bottles: bottle_id, parameter_id, value, flag_woce, flag_igoss
 data_ctds: ctd_id, parameter_id, value, flag_woce, flag_igoss
 """
 
-from ...db import connect # cchdo_data()
+from libcchdo.db import connect # cchdo_data()
 
 #def read(self):
 def write(self):

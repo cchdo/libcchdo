@@ -16,7 +16,9 @@ import numpy as np
 
 from sqlalchemy.sql import or_, distinct
 
-from libcchdo import LOG, config, StringIO
+from libcchdo import config
+from libcchdo.util import StringIO
+from libcchdo.log import LOG
 from libcchdo.db import connect
 from libcchdo.db.model import legacy
 from libcchdo.db.model import std

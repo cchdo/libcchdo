@@ -1,7 +1,7 @@
-from libcchdo import StringIO
-from libcchdo.formats import zip as Zip
+from libcchdo.util import StringIO
 from libcchdo.model.datafile import DataFile
-from ..oden import oden
+from libcchdo.formats import zip as Zip
+from libcchdo.formats.ctd import oden
 
 
 def read(self, handle):

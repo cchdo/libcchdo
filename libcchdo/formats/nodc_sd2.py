@@ -170,10 +170,10 @@ http://www.nodc.noaa.gov/General/NODC-Archive/numcode.txt
 """
 
 
-import datetime
-import collections
+from datetime import datetime
+from collections import defaultdict
 
-from ..fns import Decimal, int_or_none
+from libcchdo.fns import Decimal, int_or_none
 
 
 _MAX_GRATICULE_PRECISION = 4
@@ -186,7 +186,7 @@ _DATA_TYPE_CODES = {
 }
 
 
-_NODC_0608_TO_WOCE_FLAGS = collections.defaultdict(lambda: 2, {
+_NODC_0608_TO_WOCE_FLAGS = defaultdict(lambda: 2, {
         # Depth measured by uncorrected wire-out (possible error)
         6: 3,
         7: 3,
@@ -316,7 +316,7 @@ def read(self, handle):
             hours = int(raw_line['station_time_gmt_hours_to_tenths'][:2])
             minutes = int(raw_line['station_time_gmt_hours_to_tenths'][2]) * 6
 
-            station['_DATETIME'] = datetime.datetime(
+            station['_DATETIME'] = datetime(
                 *(1900 + raw_line['year_gmt'], raw_line['month_of_year_gmt'],
                   raw_line['day_of_month_gmt']), hour=hours, minute=minutes)
 

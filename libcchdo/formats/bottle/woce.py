@@ -1,9 +1,8 @@
-import datetime
-import re
+from re import compile as re_compile
 
-from ... import fns
-from ...model import datafile
-from .. import woce
+from libcchdo.fns import strip_all
+from libcchdo.model.datafile import Column
+from libcchdo.formats import woce
 
 
 def read(self, handle):
@@ -19,11 +18,11 @@ def read(self, handle):
     except Exception, e:
         raise ValueError('Malformed WOCE header in WOCE Bottle file: %s' % e)
     # Get stamp
-    stamp = re.compile('EXPOCODE\s*([\w/]+)\s*WHP.?ID\s*([\w/-]+(,[\w/-]+)*)\s*CRUISE DATES\s*(\d{6}) TO (\d{6})\s*(\d{8}\w+)?')
+    stamp = re_compile('EXPOCODE\s*([\w/]+)\s*WHP.?ID\s*([\w/-]+(,[\w/-]+)*)\s*CRUISE DATES\s*(\d{6}) TO (\d{6})\s*(\d{8}\w+)?')
     m = stamp.match(stamp_line)
     if m:
         self.globals['EXPOCODE'] = m.group(1)
-        self.globals['SECT_ID'] = fns.strip_all(m.group(2).split(','))
+        self.globals['SECT_ID'] = strip_all(m.group(2).split(','))
         self.globals['_BEGIN_DATE'] = m.group(4)
         self.globals['_END_DATE'] = m.group(5)
         if len(m.groups()) > 6:
@@ -41,12 +40,12 @@ def read(self, handle):
     try:
         self.columns['DATE']
     except KeyError:
-        self.columns['DATE'] = datafile.Column('DATE')
+        self.columns['DATE'] = Column('DATE')
         self.columns['DATE'].values = [None] * len(self) # XXX
     try:
         self.columns['TIME']
     except KeyError:
-        self.columns['TIME'] = datafile.Column('TIME')
+        self.columns['TIME'] = Column('TIME')
         self.columns['TIME'].values = [None] * len(self)
 
     woce.fuse_datetime(self)

@@ -2,11 +2,9 @@ import os
 import tempfile
 import zipfile
 
-from .... import StringIO
-from ....model.datafile import DataFile
-from ... import netcdf as nc
-from ... import zip as Zip
-from .. import netcdf as botnc
+from libcchdo.util import StringIO
+from libcchdo.model.datafile import DataFile
+from libcchdo.formats import netcdf as nc, zip as Zip, netcdf as botnc
 
 
 def read(self, handle):

@@ -1,8 +1,8 @@
 import re
-import datetime
+from datetime import datetime
 
-from ...fns import int_or_none
-from .. import woce
+from libcchdo.fns import int_or_none
+from libcchdo.formats import woce
 
 
 def read(self, handle):
@@ -27,7 +27,7 @@ def read(self, handle):
           self.columns['STNNBR'].append(tokens[2])
           self.columns['CASTNO'].append(int_or_none(tokens[3]))
           self.columns['_CAST_TYPE'].append(tokens[4])
-          date = datetime.datetime.strptime(tokens[5], '%m%d%y')
+          date = datetime.strptime(tokens[5], '%m%d%y')
           self.columns['DATE'].append(
               "%4d%02d%02d" % (date.year, date.month, date.day))
           self.columns['TIME'].append(int_or_none(tokens[6]))

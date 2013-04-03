@@ -1,12 +1,10 @@
-import re
-import datetime
+from re import compile as re_compile
 
-from ... import LOG
-from ... import fns
-from ... import config
-from ...fns import Decimal
-from .. import pre_write
-from .. import woce
+from libcchdo import config
+from libcchdo.log import LOG
+from libcchdo.fns import Decimal, out_of_band
+from libcchdo.formats import pre_write
+from libcchdo.formats import woce
 
 
 REQUIRED_HEADERS = ('EXPOCODE', 'SECT_ID', 'STNNBR', 'CASTNO', 'DATE',
@@ -16,7 +14,7 @@ REQUIRED_HEADERS = ('EXPOCODE', 'SECT_ID', 'STNNBR', 'CASTNO', 'DATE',
 def read(self, handle, retain_order=False):
     """ How to read a CTD Exchange file. """
     # Read identifier and stamp
-    stamp = re.compile('CTD,(\d{8}\w+)')
+    stamp = re_compile('CTD,(\d{8}\w+)')
     stampline = handle.readline()
     m = stamp.match(stampline)
     if m:
@@ -35,7 +33,7 @@ def read(self, handle, retain_order=False):
     self.globals['header'] = u''.join(headers)
 
     # Read NUMBER_HEADERS
-    num_headers = re.compile('NUMBER_HEADERS\s*=\s*(\d+)')
+    num_headers = re_compile('NUMBER_HEADERS\s*=\s*(\d+)')
     m = num_headers.match(l)
     if m:
          # NUMBER_HEADERS counts itself as a header
@@ -43,7 +41,7 @@ def read(self, handle, retain_order=False):
     else:
         raise ValueError(('Expected NUMBER_HEADERS as the second line in '
                           'the file.'))
-    header = re.compile('(\w+)\s*=\s*(-?[\w\.]*)')
+    header = re_compile('(\w+)\s*=\s*(-?[\w\.]*)')
     for i in range(0, num_headers):
         m = header.match(handle.readline())
         if m:
@@ -74,7 +72,7 @@ def read(self, handle, retain_order=False):
     self.create_columns(columns, units, retain_order)
 
     # Read data
-    numberlike = re.compile('-?\d+(.\d+)?([eE]-?\d+)?')
+    numberlike = re_compile('-?\d+(.\d+)?([eE]-?\d+)?')
     l = handle.readline().strip()
     while l:
         if l == 'END_DATA':
@@ -96,7 +94,7 @@ def read(self, handle, retain_order=False):
             elif column.endswith('_FLAG_I'):
                 self.columns[column[:-7]].flags_igoss.append(int(value))
                 continue
-            if fns.out_of_band(float(value)):
+            if out_of_band(float(value)):
                 self.columns[column].append(None)
                 continue
 

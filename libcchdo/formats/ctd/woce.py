@@ -1,8 +1,8 @@
 import re
-import datetime
+from datetime import datetime
 
-from ... import fns
-from .. import woce
+from libcchdo.fns import uniquify
+from libcchdo.formats import woce
 
 
 def read(self, handle):
@@ -21,7 +21,7 @@ def read(self, handle):
     if m:
         self.globals['EXPOCODE'] = m.group(1)
         self.globals['SECT_ID'] = m.group(2)
-        self.globals['_DATETIME'] = datetime.datetime.strptime(
+        self.globals['_DATETIME'] = datetime.strptime(
             m.group(len(m.groups())), '%m%d%y')
         self.globals['DATE'], self.globals['TIME'] = \
             woce.strftime_woce_date_time(self.globals['_DATETIME'])
@@ -32,7 +32,7 @@ def read(self, handle):
         m = re_record1.match(line)
         if m:
             self.globals['EXPOCODE'] = m.group(1)
-            self.globals['_DATETIME'] = datetime.datetime.strptime(
+            self.globals['_DATETIME'] = datetime.strptime(
                 m.group(len(m.groups())), '%m%d%y')
             self.globals['DATE'], self.globals['TIME'] = \
                 woce.strftime_woce_date_time(self.globals['_DATETIME'])
@@ -77,9 +77,9 @@ def write(self, handle):
     # We can only write the CTD file if there is a unique
     # EXPOCODE, STNNBR, and CASTNO in the file.
     expocodes = self.globals["EXPOCODE"] #self.expocodes()
-    sections = self.globals["SECT_ID"] #fns.uniquify(self.columns['SECT_ID'].values)
-    stations = self.globals["STNNBR"] #fns.uniquify(self.columns['STNNBR'].values)
-    casts = self.globals["CASTNO"] #fns.uniquify(self.columns['CASTNO'].values)
+    sections = self.globals["SECT_ID"] #uniquify(self.columns['SECT_ID'].values)
+    stations = self.globals["STNNBR"] #uniquify(self.columns['STNNBR'].values)
+    casts = self.globals["CASTNO"] #uniquify(self.columns['CASTNO'].values)
 
     #def has_multiple_values(a):
     #    return len(a) is not 1

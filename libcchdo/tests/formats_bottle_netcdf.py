@@ -1,10 +1,9 @@
 import unittest
-import datetime
-import tempfile
-import os
+from datetime import datetime
+from tempfile import NamedTemporaryFile
 
-from ..model import datafile
-from ..formats.bottle import netcdf as botnc
+from libcchdo.model import datafile import DataFile, Column
+from libcchdo.formats.bottle import netcdf as botnc
 from libcchdo.tests import sample_file
 
 
@@ -24,7 +23,7 @@ class TestBottleNetCDF(unittest.TestCase):
             self.assertAlmostEqual(x, y)
   
     def test_read(self):
-        self.file = datafile.DataFile()
+        self.file = DataFile()
         botnc.read(self.file, self.infile)
   
         nitrite_values = (0.11, None, 0.08, 0.08, 0.08, 0.08, 0.06, 0.03, 0.06,
@@ -46,7 +45,7 @@ class TestBottleNetCDF(unittest.TestCase):
         self.assertEqual(expocodes, self.file.columns['EXPOCODE'].values)
   
     def test_read_multiple(self):
-        self.file = datafile.DataFile()
+        self.file = DataFile()
         botnc.read(self.file, self.infile)
   
         nitrite_values = (0.11, None, 0.08, 0.08, 0.08, 0.08, 0.06, 0.03, 0.06,
@@ -101,38 +100,38 @@ class TestBottleNetCDF(unittest.TestCase):
         infile2.close()
   
     def test_write(self):
-        self.file = datafile.DataFile()
+        self.file = DataFile()
   
         g = self.file.globals
 
-        self.file['EXPOCODE'] = datafile.Column('EXPOCODE')
+        self.file['EXPOCODE'] = Column('EXPOCODE')
         self.file['EXPOCODE'].append('TESTEXPO')
 
-        self.file['SECT_ID'] = datafile.Column('SECT_ID')
+        self.file['SECT_ID'] = Column('SECT_ID')
         self.file['SECT_ID'].append('TEST')
 
-        self.file['STNNBR'] = datafile.Column('CASTNO')
+        self.file['STNNBR'] = Column('CASTNO')
         self.file['STNNBR'].append(5)
 
-        self.file['CASTNO'] = datafile.Column('STNNBR')
+        self.file['CASTNO'] = Column('STNNBR')
         self.file['CASTNO'].append(20)
 
-        self.file['DEPTH'] = datafile.Column('DEPTH')
+        self.file['DEPTH'] = Column('DEPTH')
         self.file['DEPTH'].append(-1)
 
-        self.file['LATITUDE'] = datafile.Column('LATITUDE')
+        self.file['LATITUDE'] = Column('LATITUDE')
         self.file['LATITUDE'].append(90)
 
-        self.file['LONGITUDE'] = datafile.Column('LONGITUDE')
+        self.file['LONGITUDE'] = Column('LONGITUDE')
         self.file['LONGITUDE'].append(180)
 
-        self.file['_DATETIME'] = datafile.Column('_DATETIME')
-        self.file['_DATETIME'].append(datetime.datetime.utcnow())
+        self.file['_DATETIME'] = Column('_DATETIME')
+        self.file['_DATETIME'].append(datetime.utcnow())
 
-        self.file['BTLNBR'] = datafile.Column('BTLNBR')
+        self.file['BTLNBR'] = Column('BTLNBR')
         self.file['BTLNBR'].append(5, 9)
 
-        self.file['CTDOXY'] = datafile.Column('CTDOXY')
+        self.file['CTDOXY'] = Column('CTDOXY')
         self.file['CTDOXY'].append(1, 2)
         self.file.check_and_replace_parameters()
         p = self.file['CTDOXY'].parameter
@@ -140,4 +139,4 @@ class TestBottleNetCDF(unittest.TestCase):
         p.bound_lower = 0
         p.bound_upper = 200
   
-        botnc.write(self.file, tempfile.NamedTemporaryFile())
+        botnc.write(self.file, NamedTemporaryFile())

@@ -5,7 +5,7 @@ from socket import socket, AF_INET, SOCK_DGRAM, error as sockerr
 from SimpleHTTPServer import SimpleHTTPRequestHandler
 from webbrowser import open as webopen
 
-from libcchdo import StringIO
+from libcchdo.util import StringIO
 
 
 def get_local_host(remote=None):

@@ -9,9 +9,10 @@ import sqlalchemy.ext.declarative
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.sql.expression import exists
 
-from ... import LOG, memoize, config, check_cache
-from ...fns import _decimal
-from ...db import connect
+from libcchdo import config, check_cache
+from libcchdo.log import LOG
+from libcchdo.fns import _decimal
+from libcchdo.db import connect
 from legacy import session as LegacySession
 
 
@@ -39,8 +40,8 @@ def _populate_library_database_parameters(std_session):
     # available
 
     with closing(LegacySession()) as legacy_session:
-        from ...db.model import convert
-        return convert.all_parameters(legacy_session, std_session)
+        from libcchdo.db.model.convert import all_parameters as cvt_all_params
+        return cvt_all_params(legacy_session, std_session)
 
 
 def _regenerate_database_cache(std_session):

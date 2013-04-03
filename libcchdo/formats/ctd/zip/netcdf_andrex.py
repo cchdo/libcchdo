@@ -1,11 +1,9 @@
 from __future__ import with_statement
-import datetime
-import tempfile
+from tempfile import NamedTemporaryFile
 import tarfile
 
-from .... import LOG
-from ....model import datafile
-from ...ctd import netcdf_andrex as nca
+from libcchdo.model import datafile
+from libcchdo.formats.ctd import netcdf_andrex as nca
 
 
 def read(self, handle):
@@ -14,7 +12,7 @@ def read(self, handle):
     for file in tar.getmembers():
         if not file.name.endswith('.nc'):
         	continue
-        tmpfile = tempfile.NamedTemporaryFile(prefix=file.name)
+        tmpfile = NamedTemporaryFile(prefix=file.name)
         tmpfile.write(tar.extractfile(file).read())
         tmpfile.flush()
         ctdfile = datafile.DataFile()

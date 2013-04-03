@@ -1,11 +1,11 @@
 import math
-import tempfile
-import os
-import datetime
-import zipfile
+from tempfile import mkstemp, NamedTemporaryFile
+from os import fdopen
+from datetime import datetime
+from zipfile import BadZipfile
 import unittest
 
-from .. import fns
+from libcchdo import fns
 
 
 class TestFunctions(unittest.TestCase):
@@ -34,10 +34,10 @@ class TestFunctions(unittest.TestCase):
         self.assertEqual(['a', 'b', 'c', 'd'], fns.strip_all(xs))
 
     def test_read_arbitrary(self):
-        td = tempfile.mkstemp('notacchdofile.txt')
-        self.assertRaises(ValueError, fns.read_arbitrary, os.fdopen(td[0]))
-        td = tempfile.mkstemp('test_functions.py')
-        self.assertRaises(ValueError, fns.read_arbitrary, os.fdopen(td[0]))
+        td = mkstemp('notacchdofile.txt')
+        self.assertRaises(ValueError, fns.read_arbitrary, fdopen(td[0]))
+        td = mkstemp('test_functions.py')
+        self.assertRaises(ValueError, fns.read_arbitrary, fdopen(td[0]))
         # TODO check more
 
     def test_great_circle_distance(self):
@@ -47,7 +47,7 @@ class TestFunctions(unittest.TestCase):
     def test_strftime_iso(self):
         self.assertEqual(
             '2010-05-04T13:42:39Z',
-            fns.strftime_iso(datetime.datetime(2010, 5, 4, 13, 42, 39)))
+            fns.strftime_iso(datetime(2010, 5, 4, 13, 42, 39)))
 
     def test_equal_with_epsilon(self):
         self.assertTrue(fns.equal_with_epsilon(1, 1 + 1e-7))
@@ -93,35 +93,35 @@ class TestFunctions(unittest.TestCase):
 
     def test_read_arbitrary(self):
         # TODO
-        t = tempfile.NamedTemporaryFile(suffix='su.txt')
+        t = NamedTemporaryFile(suffix='su.txt')
         fns.read_arbitrary(t)
 
-        t = tempfile.NamedTemporaryFile(suffix='.hot.su.txt')
+        t = NamedTemporaryFile(suffix='.hot.su.txt')
         fns.read_arbitrary(t)
 
-        t = tempfile.NamedTemporaryFile(suffix='hy.txt')
+        t = NamedTemporaryFile(suffix='hy.txt')
         self.assertRaises(ValueError, fns.read_arbitrary, t)
 
-        t = tempfile.NamedTemporaryFile(suffix='hy1.csv')
+        t = NamedTemporaryFile(suffix='hy1.csv')
         self.assertRaises(ValueError, fns.read_arbitrary, t)
 
-        t = tempfile.NamedTemporaryFile(suffix='hy1.nc')
+        t = NamedTemporaryFile(suffix='hy1.nc')
         self.assertRaises(RuntimeError, fns.read_arbitrary, t)
 
-        t = tempfile.NamedTemporaryFile(suffix='nc_hyd.zip')
-        self.assertRaises(zipfile.BadZipfile, fns.read_arbitrary, t)
+        t = NamedTemporaryFile(suffix='nc_hyd.zip')
+        self.assertRaises(BadZipfile, fns.read_arbitrary, t)
 
-        t = tempfile.NamedTemporaryFile(suffix='ct1.csv')
+        t = NamedTemporaryFile(suffix='ct1.csv')
         self.assertRaises(ValueError, fns.read_arbitrary, t)
 
-        t = tempfile.NamedTemporaryFile(suffix='ct1.zip')
-        self.assertRaises(zipfile.BadZipfile, fns.read_arbitrary, t)
+        t = NamedTemporaryFile(suffix='ct1.zip')
+        self.assertRaises(BadZipfile, fns.read_arbitrary, t)
 
-        t = tempfile.NamedTemporaryFile(suffix='ctd.nc')
+        t = NamedTemporaryFile(suffix='ctd.nc')
         self.assertRaises(RuntimeError, fns.read_arbitrary, t)
 
-        t = tempfile.NamedTemporaryFile(suffix='nc_ctd.zip')
-        self.assertRaises(zipfile.BadZipfile, fns.read_arbitrary, t)
+        t = NamedTemporaryFile(suffix='nc_ctd.zip')
+        self.assertRaises(BadZipfile, fns.read_arbitrary, t)
 
-        t = tempfile.NamedTemporaryFile(suffix='unk.unk')
+        t = NamedTemporaryFile(suffix='unk.unk')
         self.assertRaises(ValueError, fns.read_arbitrary, t)

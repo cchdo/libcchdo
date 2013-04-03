@@ -89,8 +89,8 @@ ans =
 import numpy
 import scipy.io
 
-from ..matlab import convert_value
-from ... import LOG
+from libcchdo.formats.matlab import convert_value
+from libcchdo.log import LOG
 
 
 def write(self, handle, ):

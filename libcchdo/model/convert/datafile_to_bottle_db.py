@@ -1,8 +1,8 @@
 import sqlalchemy as S
 import sys
 
-from ... import memoize
-from ...db.model import std
+from libcchdo.util import memoize
+from libcchdo.db.model import std
 
 @memoize
 def find_or_create_project(session, project):

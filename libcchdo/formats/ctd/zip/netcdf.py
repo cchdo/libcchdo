@@ -3,7 +3,7 @@ import datetime
 import tempfile
 import zipfile
 
-from libcchdo import StringIO
+from libcchdo.util import StringIO
 from libcchdo.model.datafile import DataFile
 from libcchdo.formats.ctd import netcdf
 from libcchdo.formats import netcdf as nc

@@ -1,18 +1,18 @@
-import copy
+from copy import copy
 
 
-from .. import datafile
+from libcchdo.model.datafile import DataFileCollection
 
 
 def split_bottle(file):
     """ Split apart the bottle exchange file into a data file collection based
         on station cast. Each cast is a new 'file'.
     """
-    coll = datafile.DataFileCollection()
+    coll = DataFileCollection()
 
     file_parameters = file.parameter_mnemonics_woce()
 
-    current_file = copy.copy(file)
+    current_file = copy(file)
 
     expocodes = file['EXPOCODE']
     stations = file['STNNBR']
@@ -28,7 +28,7 @@ def split_bottle(file):
            casts[i] != cast:
             current_file.check_and_replace_parameters()
             coll.append(current_file)
-            current_file = copy.copy(file)
+            current_file = copy(file)
         expocode = expocodes[i]
         station = stations[i]
         cast = casts[i]

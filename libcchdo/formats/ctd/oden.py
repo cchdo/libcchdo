@@ -1,4 +1,4 @@
-from ...model import datafile
+from libcchdo.model.datafile import Column
 
 
 def read(self, handle):
@@ -31,11 +31,11 @@ def read(self, handle):
             self.globals['DEPTH'] = line[45:50] # PDR Bottom Depth
             #self.globals['remarks'] = line[50:-1]
 
-            self.columns['CTDPRS'] = datafile.Column('CTDPRS')
-            self.columns['CTDTMP'] = datafile.Column('CTDTMP')
-            self.columns['CTDCND'] = datafile.Column('CTDCND')
-            self.columns['CTDSAL'] = datafile.Column('CTDSAL')
-            self.columns['POTTMP'] = datafile.Column('POTTMP')
+            self.columns['CTDPRS'] = Column('CTDPRS')
+            self.columns['CTDTMP'] = Column('CTDTMP')
+            self.columns['CTDCND'] = Column('CTDCND')
+            self.columns['CTDSAL'] = Column('CTDSAL')
+            self.columns['POTTMP'] = Column('POTTMP')
         else:
             data = line.split()
             row = lineno-2

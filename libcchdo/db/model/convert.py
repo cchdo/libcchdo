@@ -1,9 +1,8 @@
 import sys
 import re
 
-from ... import LOG
-from ...db.model import legacy
-from ...db.model import std
+from libcchdo.log import LOG
+from libcchdo.db.model import legacy, std
 
 
 def _get_parameter_alias(session, name):

@@ -5,11 +5,10 @@ import os
 import sys
 import tempfile
 
-from ... import LOG
-from ... import fns
-from ...model import datafile
-from .. import woce
-from .. import netcdf as nc
+from libcchdo.log import LOG
+from libcchdo.model.datafile import Column
+from libcchdo.formats import woce
+from libcchdo.formats import netcdf as nc
 
 
 IGNORED_VARIABLES = [
@@ -86,7 +85,7 @@ def read(self, handle):
             unit = ANDREX_UNIT_TO_WOCE_UNIT[unit]
         except KeyError:
             LOG.warn("Unable to convert Andrex unit %s" % unit)
-        self.columns[name] = datafile.Column(name, unit)
+        self.columns[name] = Column(name, unit)
         self.columns[name].values = variable[:].tolist()[0]
 
     def comment(x):

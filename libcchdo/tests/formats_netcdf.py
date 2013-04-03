@@ -1,8 +1,9 @@
-import datetime
+from datetime import timedelta
 import sys
 import unittest
 
-from ..formats import netcdf as fnc
+from libcchdo.formats import netcdf as fnc
+
 
 class TestFormatsNetCDF(unittest.TestCase):
 
@@ -42,10 +43,10 @@ class TestFormatsNetCDF(unittest.TestCase):
                          fnc.get_filename('TESTEXPO', 1.2, 2))
 
     def test_minutes_since_epoch(self):
-        dtime = fnc.EPOCH + datetime.timedelta(minutes=1234)
+        dtime = fnc.EPOCH + timedelta(minutes=1234)
         self.assertEqual(1234, fnc.minutes_since_epoch(dtime))
 
-        dtime = fnc.EPOCH - datetime.timedelta(minutes=10)
+        dtime = fnc.EPOCH - timedelta(minutes=10)
         self.assertEqual(-10, fnc.minutes_since_epoch(dtime))
 
         dtime = None

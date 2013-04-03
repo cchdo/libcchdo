@@ -1,20 +1,20 @@
 import unittest
 
-from ..algorithms import depth as X
-from ..fns import Decimal
+from libcchdo.algorithms import depth as X
+from libcchdo.fns import Decimal
 
 
 class TestColumn(unittest.TestCase):
 
-#  def test_specific_volume(self):
-#    self.assertEqual(1.000033251, X.specific_volume(0, 5, 0))
-#    self.assertEqual(0.957736964, X.specific_volume(0, 5, 10000))
-#    self.assertEqual(1.00296078,  X.specific_volume(0, 25, 0))
-#    self.assertEqual(0.963482064, X.specific_volume(0, 25, 10000))
-#    self.assertEqual(0.973069835, X.specific_volume(35, 5, 0))
-#    self.assertEqual(0.935025857, X.specific_volume(35, 5, 10000))
-#    self.assertEqual(0.977189409, X.specific_volume(35, 25, 0))
-#    self.assertEqual(0.941142660, X.specific_volume(35, 25, 10000))
+#    def test_specific_volume(self):
+#        self.assertEqual(1.000033251, X.specific_volume(0, 5, 0))
+#        self.assertEqual(0.957736964, X.specific_volume(0, 5, 10000))
+#        self.assertEqual(1.00296078,  X.specific_volume(0, 25, 0))
+#        self.assertEqual(0.963482064, X.specific_volume(0, 25, 10000))
+#        self.assertEqual(0.973069835, X.specific_volume(35, 5, 0))
+#        self.assertEqual(0.935025857, X.specific_volume(35, 5, 10000))
+#        self.assertEqual(0.977189409, X.specific_volume(35, 25, 0))
+#        self.assertEqual(0.941142660, X.specific_volume(35, 25, 10000))
 
     def test_density(self):
         """ Test values from UNESCO 44 pg -19- """

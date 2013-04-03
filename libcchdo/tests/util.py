@@ -1,10 +1,9 @@
 import unittest
 
-from .. import get_library_abspath
-from .. import memoize
-from .. import LOG
+from libcchdo.util import get_library_abspath, memoize
+from libcchdo.log import LOG
 
-class TestInit(unittest.TestCase):
+class TestUtil(unittest.TestCase):
 
     def test_memoize(self):
         @memoize

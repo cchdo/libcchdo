@@ -2,7 +2,7 @@ import unittest
 
 from decimal import Decimal
 
-from ..db.model import std
+from libcchdo.db.model import std
 
 
 class TestDbModelStd(unittest.TestCase):

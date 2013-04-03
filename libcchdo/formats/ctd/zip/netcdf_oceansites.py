@@ -1,4 +1,4 @@
-from .. import netcdf_oceansites as ncos
+from libcchdo.formats.ctd import netcdf_oceansites as ncos
 from libcchdo.formats.netcdf_oceansites import write_zip_factory
 
 

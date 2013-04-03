@@ -1,6 +1,6 @@
-from ... import fns
+from libcchdo.fns import _decimal
+from libcchdo.log import LOG
 from libcchdo.model.navcoord import TabbedNavCoords, iter_coords
-from libcchdo import LOG
 
 
 def read(self, handle):
@@ -32,7 +32,7 @@ def read(self, handle):
         coords = l.split()
     elif split_on == 'comma':
         coords = l.split(',')
-    lon, lat = map(fns._decimal, coords[:2])
+    lon, lat = map(_decimal, coords[:2])
     lons.append(lon)
     lats.append(lat)
 
@@ -41,7 +41,7 @@ def read(self, handle):
             coords = l.split()
         elif split_on == 'comma':
             coords = l.split(',')
-        lon, lat = map(fns._decimal, coords[:2])
+        lon, lat = map(_decimal, coords[:2])
         lons.append(lon)
         lats.append(lat)
 

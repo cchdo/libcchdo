@@ -1,9 +1,9 @@
-import datetime
+from datetime import datetime
 import re
 
-from ... import LOG
-from ... import fns
-from ...fns import ddm_to_dd, Decimal
+from libcchdo.log import LOG
+from libcchdo.fns import ddm_to_dd
+
 
 def read(self, handle, salt='first', temp='first'):
     """How to read an SBE 9 ASCII CTD File"""
@@ -74,20 +74,20 @@ def read(self, handle, salt='first', temp='first'):
            s = l.split('=')
            if 'Latitude' in s[0]:
                lat = s[1].split()
-               lat = fns.ddm_to_dd(lat)
+               lat = ddm_to_dd(lat)
                self.globals['LATITUDE'] = lat
                l = handle.readline()
                continue
 
            elif 'Longitude' in s[0]:
                lon = s[1].split()
-               lon = fns.ddm_to_dd(lon)
+               lon = ddm_to_dd(lon)
                self.globals['LONGITUDE'] = lon
                l = handle.readline()
                continue
            
            elif 'UTC' in s[0]:
-               dt = datetime.datetime.strptime(s[1].strip(), '%b %d %Y %H:%M:%S')
+               dt = datetime.strptime(s[1].strip(), '%b %d %Y %H:%M:%S')
                self.globals['DATE'] = dt.strftime('%Y%m%d')
                self.globals['TIME'] = dt.strftime('%H%M')
                l = handle.readline()

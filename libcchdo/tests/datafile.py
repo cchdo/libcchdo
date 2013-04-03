@@ -1,13 +1,13 @@
 import unittest
 
-from ..model import datafile
+from libcchdo.model.datafile import DataFile, Column
 
 
 class TestDataFile(unittest.TestCase):
 
     def setUp(self):
-        self.file = datafile.DataFile()
-        self.c = self.file.columns['EXPOCODE'] = datafile.Column('EXPOCODE')
+        self.file = DataFile()
+        self.c = self.file.columns['EXPOCODE'] = Column('EXPOCODE')
   
     def tearDown(self):
         self.file = None
@@ -37,8 +37,8 @@ class TestDataFile(unittest.TestCase):
         self.assertEqual(len(self.file), 2)
   
     def test_sorted_columns(self):
-        self.file.columns['CASTNO'] = datafile.Column('CASTNO')
-        self.file.columns['STNNBR'] = datafile.Column('STNNBR')
+        self.file.columns['CASTNO'] = Column('CASTNO')
+        self.file.columns['STNNBR'] = Column('STNNBR')
         expected = ['EXPOCODE', 'STNNBR', 'CASTNO']
         received = map(lambda c: c.parameter.mnemonic_woce(), self.file.sorted_columns())
         # If lengths are equal and all expected in received, then assume equal
@@ -50,7 +50,7 @@ class TestDataFile(unittest.TestCase):
   
     def test_column_headers(self):
         self.assertEqual(['EXPOCODE'], self.file.column_headers())
-        self.file.columns['STNNBR'] = datafile.Column('STNNBR')
+        self.file.columns['STNNBR'] = Column('STNNBR')
         expected = ['EXPOCODE', 'STNNBR']
         received = self.file.column_headers()
         # If lengths are equal and all expected in received, then assume equal
@@ -58,7 +58,7 @@ class TestDataFile(unittest.TestCase):
         self.assertTrue(all( [x in received for x in expected] ))
   
     def test_formats(self):
-        self.file.columns['CTDOXY'] = datafile.Column('CTDOXY')
+        self.file.columns['CTDOXY'] = Column('CTDOXY')
         self.file.check_and_replace_parameters()
         # Order of columns may be wrong
         self.assertEqual(['%11s', '%9.4f'], self.file.formats())
@@ -86,5 +86,5 @@ class TestDataFile(unittest.TestCase):
 
     def test_check_and_replace_parameter_contrived(self):
         """Contrived parameters are not checked."""
-        col = datafile.Column('_DATETIME')
+        col = Column('_DATETIME')
         col.check_and_replace_parameter(self.file, convert=False)

@@ -1,8 +1,7 @@
-import re
-import datetime
+from datetime import datetime
 import os
 
-from .. import bermuda_atlantic_time_series_study as bats
+from libcchdo.formats import bermuda_atlantic_time_series_study as bats
 
 
 def read(self, handle):
@@ -36,8 +35,8 @@ def read(self, handle):
         self['CASTNO'].append(int(tokens[3]))
         self['_CAST_TYPE'].append('CTD')
 
-        self['DATE'].append(datetime.datetime.strptime(tokens[0], '%Y%m%d').date())
-        self['TIME'].append(datetime.datetime.strptime('%04d' % int(tokens[1]), '%H%M').time())
+        self['DATE'].append(datetime.strptime(tokens[0], '%Y%m%d').date())
+        self['TIME'].append(datetime.strptime('%04d' % int(tokens[1]), '%H%M').time())
 
         self['_CODE'].append('BE')
 

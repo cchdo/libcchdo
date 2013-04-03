@@ -1,9 +1,9 @@
 import unittest
-import StringIO
+from StringIO import StringIO
 
-from .. import config
-from ..model import datafile
-from ..formats.bottle import exchange as botex
+from libcchdo import config
+from libcchdo.model.datafile import DataFile
+from libcchdo.formats.bottle import exchange as botex
 
 
 class TestBottleExchange(unittest.TestCase):
@@ -34,10 +34,10 @@ END_DATA
 '''
 
     def setUp(self):
-        self.file = datafile.DataFile()
+        self.file = DataFile()
 
     def test_read(self):
-        self.buff = StringIO.StringIO(TestBottleExchange.sample)
+        self.buff = StringIO(TestBottleExchange.sample)
         botex.read(self.file, self.buff)
 
         # Ensure flags are ints
@@ -52,11 +52,11 @@ END_DATA
         self.buff.close()
   
     def test_write(self):
-        self.buff = StringIO.StringIO(TestBottleExchange.sample)
+        self.buff = StringIO(TestBottleExchange.sample)
         botex.read(self.file, self.buff)
         self.buff.close()
 
-        self.buff = StringIO.StringIO()
+        self.buff = StringIO()
         botex.write(self.file, self.buff)
         # TODO
         #print self.buff.getvalue()
@@ -65,13 +65,13 @@ END_DATA
 
     def test_no_stamp_uses_users(self):
         """If the writer is not given a stamp, it will use the config stamp."""
-        self.buff = StringIO.StringIO(TestBottleExchange.sample)
+        self.buff = StringIO(TestBottleExchange.sample)
         botex.read(self.file, self.buff)
         self.buff.close()
 
         self.file.globals['stamp'] = ''
 
-        self.buff = StringIO.StringIO()
+        self.buff = StringIO()
         botex.write(self.file, self.buff)
 
         expected_stamp = config.stamp()

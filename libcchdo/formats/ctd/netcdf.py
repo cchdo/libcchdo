@@ -1,14 +1,12 @@
 """Handler for CTD NetCDF files"""
 
-import datetime
-import tempfile
-import sys
+from tempfile import NamedTemporaryFile
 
-from ... import LOG
-from ... import fns
-from ...model import datafile
-from .. import woce
-from .. import netcdf as nc
+from libcchdo.log import LOG
+from libcchdo.fns import equal_with_epsilon
+from libcchdo.model.datafile import Column
+from libcchdo.formats import woce
+from libcchdo.formats import netcdf as nc
 
 
 NC_CTD_VAR_TO_WOCE_PARAM = {
@@ -63,7 +61,7 @@ def read(self, handle):
             if name == 'drop':
                 continue
 
-            self.columns[name] = datafile.Column(name)
+            self.columns[name] = Column(name)
             self.columns[name].values = variable[:].tolist()
 
             # Do some transformations from NetCDF pecularities to standard data format
@@ -78,7 +76,7 @@ def read(self, handle):
                     (string[0:4], string[4:6], string[6:8])
             if name == 'CTDSAL':
                 self.columns[name].values = map(
-                    lambda x: None if fns.equal_with_epsilon(-9.99, x) \
+                    lambda x: None if equal_with_epsilon(-9.99, x) \
                               else x,
                     self.columns[name].values)
 
@@ -131,7 +129,7 @@ def write(self, handle):
     '''How to write a CTD NetCDF file.'''
     woce_datetime = self.globals['_DATETIME']
 
-    tmp = tempfile.NamedTemporaryFile()
+    tmp = NamedTemporaryFile()
     nc_file = nc.Dataset(tmp.name, 'w', format='NETCDF3_CLASSIC')
 
     nc.define_dimensions(nc_file, len(self))

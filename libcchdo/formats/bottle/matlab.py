@@ -19,13 +19,10 @@ required struct {
 
 '''
 
-import datetime
-import decimal
-import numpy
+from datetime import datetime
 import scipy.io
 
-from ..matlab import convert_value
-from ... import LOG
+from libcchdo.formats.matlab import convert_value
 
 
 def write(self, handle, ):
@@ -80,7 +77,7 @@ def write(self, handle, ):
                 # Empty parameter. Mark it for deletion.
                 empty_parameters.append(parameter)
                 continue
-            if type(values[0]) is datetime.datetime:
+            if type(values[0]) is datetime:
                 # Format as ISO 8601 date-time string.
                 all_profiles[identifier][parameter] = map(
                         lambda dt: dt.strftime('%Y-%m-%dT%H:%M'),

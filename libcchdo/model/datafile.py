@@ -1,7 +1,10 @@
 from operator import itemgetter
 
-from .. import LOG, TERMCOLOR, memoize, fns
-from ..db.model import std
+from libcchdo.fns import set_list, uniquify
+from libcchdo.log import LOG
+from libcchdo.ui import TERMCOLOR
+from libcchdo.util import memoize
+from libcchdo.db.model import std
 
 
 class Column(object):
@@ -27,19 +30,19 @@ class Column(object):
         return self.values[index]
 
     def set(self, index, value, flag_woce=None, flag_igoss=None):
-        fns.set_list(self.values, index, value)
+        set_list(self.values, index, value)
         if flag_woce is not None:
-            fns.set_list(self.flags_woce, index, flag_woce)
+            set_list(self.flags_woce, index, flag_woce)
         if flag_igoss is not None:
-            fns.set_list(self.flags_igoss, index, flag_igoss)
+            set_list(self.flags_igoss, index, flag_igoss)
 
     def append(self, value=None, flag_woce=None, flag_igoss=None):
         self.values.append(value)
         i = len(self.values) - 1
         if flag_woce is not None:
-            fns.set_list(self.flags_woce, i, flag_woce)
+            set_list(self.flags_woce, i, flag_woce)
         if flag_igoss is not None:
-            fns.set_list(self.flags_igoss, i, flag_igoss)
+            set_list(self.flags_igoss, i, flag_igoss)
 
     def _check_range(self, value, flag_woce=None):
         """
@@ -335,7 +338,7 @@ class DataFile(File):
         self.allow_contrived = allow_contrived
 
     def expocodes(self):
-        return fns.uniquify(self['EXPOCODE'].values)
+        return uniquify(self['EXPOCODE'].values)
 
     def formats(self):
         return self.get_property_for_columns(

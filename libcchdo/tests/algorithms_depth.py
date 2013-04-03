@@ -1,16 +1,14 @@
 """Test cases for ..algorithms.depth """
 
 from unittest import TestCase
-import datetime
-import sys
 
-from ..algorithms import depth
-from ..fns import Decimal
+from libcchdo.algorithms import depth
+from libcchdo.fns import _decimal
 
 class TestAlgorithmsDepth(TestCase):
 
     def test_grav_ocean_surface_wrt_latitude(self):
-        self.assertAlmostEqual(Decimal('9.780318'), depth.grav_ocean_surface_wrt_latitude(0))
+        self.assertAlmostEqual(_decimal('9.780318'), depth.grav_ocean_surface_wrt_latitude(0))
 
     def test_depth(self):
         print depth.depth(9.8, [1], [1])

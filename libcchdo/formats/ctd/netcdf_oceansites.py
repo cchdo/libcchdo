@@ -1,6 +1,6 @@
 from tempfile import NamedTemporaryFile
 
-from ..netcdf_oceansites import *
+from libcchdo.formats.netcdf_oceansites import *
 
 
 #def read(self, handle): TODO

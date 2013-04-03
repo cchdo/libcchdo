@@ -5,11 +5,11 @@ import tempfile
 
 import numpy as np
 
-from ... import LOG
-from ... import fns
-from ...db.model import std
-from .. import netcdf as nc
-from .. import woce
+from libcchdo import fns
+from libcchdo.log import LOG
+from libcchdo.db.model import std
+from libcchdo.formats import netcdf as nc
+from libcchdo.formats import woce
 
 
 NC_BOTTLE_VAR_TO_WOCE_PARAM = dict(std.session().query(

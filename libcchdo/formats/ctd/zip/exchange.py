@@ -2,7 +2,7 @@ import zipfile
 import datetime
 import re
 
-from libcchdo import LOG, pyStringIO
+from libcchdo import LOG
 from libcchdo.model.datafile import DataFile
 from libcchdo.formats import zip as Zip
 from libcchdo.formats.ctd import exchange as ctdex

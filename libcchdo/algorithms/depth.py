@@ -1,5 +1,5 @@
-from .. import LOG, fns
-from libcchdo.fns import _decimal
+from libcchdo.log import LOG
+from libcchdo.fns import _decimal, polynomial as polyn, sin
 
 try:
     from cdecimal import InvalidOperation
@@ -7,13 +7,10 @@ except ImportError:
     from decimal import InvalidOperation
 
 
-polyn = fns.polynomial
-
-
 def grav_ocean_surface_wrt_latitude(latitude):
     return _decimal('9.780318') * (_decimal(1) + \
-        _decimal('5.2788e-3') * (fns.sin(latitude) ** _decimal(2)) + \
-        _decimal('2.35e-5') * (fns.sin(latitude) ** _decimal(4)))
+        _decimal('5.2788e-3') * (sin(latitude) ** _decimal(2)) + \
+        _decimal('2.35e-5') * (sin(latitude) ** _decimal(4)))
 
 
 # Following two functions ports of
@@ -47,7 +44,7 @@ def depth(grav, p, rho):
     assert num_intervals == len(rho), \
            "The number of series intervals must be the same."
 
-    grav = fns._decimal(grav)
+    grav = _decimal(grav)
     p = _decimal(p)
     rho = _decimal(rho)
 
@@ -188,7 +185,7 @@ def depth_unesco(pres, lat):
     """
     if not pres or not lat:
         return None
-    x = fns.sin(lat / _decimal('57.29578')) ** _decimal(2)
+    x = sin(lat / _decimal('57.29578')) ** _decimal(2)
     gr = _decimal('9.780318') * \
         (_decimal(1) + (_decimal('5.2788e-3') + _decimal('2.36e-5') * x) * x) + \
         _decimal('1.092e-6') * pres

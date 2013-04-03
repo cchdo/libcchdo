@@ -3,14 +3,14 @@
 
 from unittest import TestCase
 
-from ..model import datafile
-from ..db.model import std
+from libcchdo.model.datafile import Column
+from libcchdo.db.model import std
 
 
 class TestColumn(TestCase):
 
     def setUp(self):
-        self.column = datafile.Column('EXPOCODE')
+        self.column = Column('EXPOCODE')
   
     def test_initialization(self):
         parameter = std.find_by_mnemonic('EXPOCODE')
@@ -32,7 +32,7 @@ class TestColumn(TestCase):
            that column's parameter object.
         """
         param = std.make_contrived_parameter('testparameter')
-        column = datafile.Column(param)
+        column = Column(param)
         self.assertEqual(column.parameter, param)
     
     def test_get(self):

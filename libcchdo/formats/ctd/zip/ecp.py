@@ -1,7 +1,7 @@
 import tarfile
 from contextlib import closing
 
-from libcchdo import LOG, pyStringIO
+from libcchdo.log import LOG
 from libcchdo.model.datafile import DataFile
 from libcchdo.formats.ctd import bonusgoodhope as bgh
 

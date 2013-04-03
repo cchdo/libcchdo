@@ -1,9 +1,10 @@
 from traceback import print_exc
 
-from libcchdo import LOG, StringIO
-from libcchdo.formats import zip as Zip
+from libcchdo.log import LOG
+from libcchdo.util import StringIO
 from libcchdo.model.datafile import DataFile
-from .. import woce
+from libcchdo.formats import zip as Zip
+from libcchdo.formats.ctd import woce
 
 
 def read(self, handle):

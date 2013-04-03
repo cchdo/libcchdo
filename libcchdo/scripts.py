@@ -15,7 +15,9 @@ import os
 import os.path
 from json import load as json_load
 
-from libcchdo import LOG, get_library_abspath
+from libcchdo.log import LOG
+from libcchdo.util import get_library_abspath
+from libcchdo.config import stamp
 from libcchdo.db.model import ignore_sa_warnings
 from libcchdo.ui import termcolor
 from libcchdo.fns import all_formats, get_editor
@@ -1645,9 +1647,11 @@ with subcommand(
 
 def rebuild_hot_bats_oceansites(args):
     from libcchdo.datadir.util import do_for_cruise_directories
-    from libcchdo.tools import rebuild_hot_bats_oceansites
+    from libcchdo.tools import rebuild_hot_bats_oceansites as rebuilder
+    from libcchdo.log import RebuildOceanSITESFilter
 
-    do_for_cruise_directories(rebuild_hot_bats_oceansites)
+    LOG.addFilter(RebuildOceanSITESFilter())
+    do_for_cruise_directories(rebuilder)
 
 
 rebuild_hot_bats_oceansites_parser = misc_parsers.add_parser(

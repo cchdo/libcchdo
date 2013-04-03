@@ -9,8 +9,8 @@ from sqlalchemy.orm import sessionmaker
 from sqlalchemy.engine.url import URL
 
 
-from .. import config
-from .. import memoize
+from libcchdo import config
+from libcchdo.util import memoize
 
 
 _DRIVER = {

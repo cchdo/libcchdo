@@ -1,9 +1,10 @@
 import re
-import datetime
+from datetime import datetime
 
-from ... import fns, LOG
-from ... import config
-from .. import woce
+from libcchdo import config
+from libcchdo.log import LOG
+from libcchdo.fns import int_or_none, uniquify
+from libcchdo.formats import woce
 
 
 cast_type_codes = {
@@ -90,27 +91,27 @@ def read(self, handle):
             self['EXPOCODE'].append(tokens[0].replace('/', '_'))
             self['SECT_ID'].append(tokens[1])
             self['STNNBR'].append(tokens[2])
-            self['CASTNO'].append(fns.int_or_none(tokens[3]))
+            self['CASTNO'].append(int_or_none(tokens[3]))
             self['_CAST_TYPE'].append(tokens[4])
             try:
-                date = datetime.datetime.strptime(tokens[5], '%m%d%y')
+                date = datetime.strptime(tokens[5], '%m%d%y')
             except ValueError, e:
                 LOG.error(u'Expected date format %m%d%y. Got {0!r}.'.format(
                     tokens[5]))
                 raise e
             self['DATE'].append(date.strftime('%Y%m%d'))
-            self['TIME'].append(fns.int_or_none(tokens[6]))
+            self['TIME'].append(int_or_none(tokens[6]))
             self['_CODE'].append(tokens[7])
             lat = woce.woce_lat_to_dec_lat(tokens[8].split())
             self['LATITUDE'].append(lat)
             lng = woce.woce_lng_to_dec_lng(tokens[9].split())
             self['LONGITUDE'].append(lng)
             self['_NAV'].append(tokens[10])
-            self['DEPTH'].append(fns.int_or_none(tokens[11]))
-            self['_ABOVE_BOTTOM'].append(fns.int_or_none(tokens[12]))
-            self['_WIRE_OUT'].append(fns.int_or_none(tokens[13]))
-            self['_MAX_PRESSURE'].append(fns.int_or_none(tokens[14]))
-            self['_NUM_BOTTLES'].append(fns.int_or_none(tokens[15]))
+            self['DEPTH'].append(int_or_none(tokens[11]))
+            self['_ABOVE_BOTTOM'].append(int_or_none(tokens[12]))
+            self['_WIRE_OUT'].append(int_or_none(tokens[13]))
+            self['_MAX_PRESSURE'].append(int_or_none(tokens[14]))
+            self['_NUM_BOTTLES'].append(int_or_none(tokens[15]))
             self['_PARAMETERS'].append(identity_or_none(tokens[16]))
             self['_COMMENTS'].append(identity_or_none(tokens[17]))
 
@@ -123,7 +124,7 @@ def write(self, handle):
     woce.split_datetime(self)
     ship = self.globals.get('_SHIP', None) or '__SHIP__'
     leg = self.globals.get('_LEG', None) or '__LEG__'
-    uniq_sects = fns.uniquify(self['SECT_ID'].values)
+    uniq_sects = uniquify(self['SECT_ID'].values)
     handle.write('%s LEG %s WHP-ID %s %s\n' % (ship, leg, ','.join(uniq_sects), config.stamp()))
     header_one = 'SHIP/CRS       WOCE               CAST         UTC           POSITION                UNC   COR ABOVE  WIRE   MAX  NO. OF\n'
     header_two = 'EXPOCODE       SECT STNNBR CASTNO TYPE DATE   TIME CODE LATITUDE   LONGITUDE   NAV DEPTH DEPTH BOTTOM  OUT PRESS BOTTLES PARAMETERS      COMMENTS            \n'

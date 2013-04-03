@@ -1,6 +1,6 @@
 import unittest
 
-from ..db import connect
+from libcchdo.db import connect
 
 
 class TestDbConnect(unittest.TestCase):

@@ -12,7 +12,9 @@ import math
 import os.path
 import sys
 
-from . import LOG, RADIUS_EARTH
+from libcchdo import RADIUS_EARTH
+from libcchdo.log import LOG
+
 
 # Define isnan for python <2.6
 try:

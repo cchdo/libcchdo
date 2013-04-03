@@ -1,12 +1,11 @@
 import re
 import datetime
 
-from ... import fns
-from ...fns import _decimal
-from ... import LOG
-from ... import config
-from ...model import datafile
-from .. import woce
+from libcchdo import config
+from libcchdo.fns import _decimal, out_of_band
+from libcchdo.log import LOG
+from libcchdo.model.datafile import Column
+from libcchdo.formats import woce
 
 
 def read(self, handle):
@@ -124,12 +123,12 @@ def read(self, handle):
     try:
         self['DATE']
     except KeyError:
-        self['DATE'] = datafile.Column('DATE')
+        self['DATE'] = Column('DATE')
         self['DATE'].values = [None] * len(self)
     try:
         self['TIME']
     except KeyError:
-        self['TIME'] = datafile.Column('TIME')
+        self['TIME'] = Column('TIME')
         self['TIME'].values = [None] * len(self)
 
     woce.fuse_datetime(self)

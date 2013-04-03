@@ -1,9 +1,9 @@
 from datetime import datetime, date
 from json import JSONEncoder, dump
 
-from .. import LOG
-from ..fns import Decimal, isnan
-from ..model.datafile import DataFileCollection
+from libcchdo.log import LOG
+from libcchdo.fns import Decimal, isnan
+from libcchdo.model.datafile import DataFileCollection
 
 
 def _column_type(col, obj):

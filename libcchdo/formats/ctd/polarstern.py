@@ -6,9 +6,10 @@ Polarstern files. It will use better function abstraction to try to make things
 fit into the libcchdo.model.datafile.DataFile, and it will not be full of magic
 dictionaries.
 """
+from datetime import datetime
+import re
 
-from ...model import datafile as Ldatafile
-from .. import woce
+from libcchdo import LOG
 
 
 preamble = """\
@@ -257,7 +258,6 @@ def _parse_metadata(df, metadata, ):
         metadata (dict<str, ...>) - The return value of _read_data_description()
                 with the Polarstern CTD file that is to be loaded into df.
     """
-    import datetime
     globals_from_metadata = {}
 
     # EXPOCODE. Since there isn't really an EXPOCODE for Polarstern stuff by
