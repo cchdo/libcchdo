@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 """ A second attempt at making a Polarstern CTD reader, mostly because the
 first version did not make sense at all.
 
@@ -7,9 +8,11 @@ fit into the libcchdo.model.datafile.DataFile, and it will not be full of magic
 dictionaries.
 """
 from datetime import datetime
+from copy import copy
 import re
 
 from libcchdo import LOG
+from libcchdo.model.datafile import DataFileCollection
 
 
 preamble = """\
@@ -25,17 +28,29 @@ class PolarsternCTDParameter (object):
     FIXME this should end up in a database somewhere.
     """
     Equivalents = {
+            u"Event": {
+            "name": {"polarstern": "Event", "cchdo": "_EVENT", },
+            "units": {"polarstern": "", "cchdo": "", },
+            },
+            u"Date/Time": {
+            "name": {"polarstern": "Date/Time", "cchdo": "_DATETIME", },
+            "units": {"polarstern": "", "cchdo": "", },
+            },
             u"Depth water": {
-            "name": {"polarstern": "DEPTH, water", "cchdo": "DEPTH", },
-            "units": {"polarstern": "m", "cchdo": "METERS", },
+            "name": {"polarstern": "DEPTH, water", "cchdo": None, },
+            "units": {"polarstern": "m", "cchdo": None, },
             },
             u"Latitude": {
-            "name": {"polarstern": "LATITUDE", "cchdo": None, },
-            "units": {"polarstern": None, "cchdo": None, },
+            "name": {"polarstern": "LATITUDE", "cchdo": "LATITUDE", },
+            "units": {"polarstern": None, "cchdo": "", },
             },
             u"Longitude": {
-            "name": {"polarstern": "LONGITUDE", "cchdo": None, },
-            "units": {"polarstern": None, "cchdo": None, },
+            "name": {"polarstern": "LONGITUDE", "cchdo": "LONGITUDE", },
+            "units": {"polarstern": None, "cchdo": "", },
+            },
+            u"Elevation": {
+            "name": {"polarstern": "Elevation of event", "cchdo": None, },
+            "units": {"polarstern": "m", "cchdo": None, },
             },
             u"Press": {
             "name": {"polarstern": "Pressure, water", "cchdo": "CTDPRS", },
@@ -61,6 +76,18 @@ class PolarsternCTDParameter (object):
             "name": {"polarstern": "Density, sigma-theta", "cchdo": None, },
             "units": {"polarstern": "kg/m**3", "cchdo": None, },
             },
+            u"O2": {
+            "name": {"polarstern": "Oxygen", "cchdo": "CTDOXY", },
+            "units": {"polarstern": "µmol/l", "cchdo": "UMOL/L", },
+            },
+            u"O2 sat": {
+            "name": {"polarstern": "Oxygen, saturation", "cchdo": None, },
+            "units": {"polarstern": None, "cchdo": None, },
+            },
+            u"Attenuation": {
+            "name": {"polarstern": "Attenuation", "cchdo": None, },
+            "units": {"polarstern": "%", "cchdo": None, },
+            },
             u"Atten": {
             "name": {"polarstern": "Attenuation", "cchdo": None, },
             "units": {"polarstern": "%", "cchdo": None, },
@@ -68,6 +95,10 @@ class PolarsternCTDParameter (object):
             u"NOBS": {
             "name": {"polarstern": "Number of observations", "cchdo": "CTDNOBS", },
             "units": {"polarstern": "#", "cchdo": None, },
+            },
+            u"Fluorometer": {
+            "name": {"polarstern": "Fluorometer", "cchdo": "FLUOR", },
+            "units": {"polarstern": "arbitrary units", "cchdo": None, },
             },
             u"Chl fluores": {
             "name": {"polarstern": "Chlorophyll fluorescence raw data", "cchdo": "FLUOR", },
@@ -96,7 +127,7 @@ class PolarsternCTDParameter (object):
                 type(abbreviated_name) not in (str, unicode):
             raise TypeError, ("expected abbreviated Polarstern CTD "
                     "parameter name but got %r" % abbreviated_name)
-        n = unicode(abbreviated_name, 'raw_unicode_escape')
+        n = abbreviated_name
         if n not in PolarsternCTDParameter.Equivalents:
             raise KeyError, ("abbreviated Polarstern CTD parameter "
                     "name %r is not recognized" % abbreviated_name)
@@ -109,8 +140,8 @@ class InvalidFileFormatException (Exception):
     pass
 
 
-def _read_data_description(f):
-    """ Read the DATA DESCRIPTION from a Polarstern CTD file.
+def _parse_data_description(lines):
+    """Parse the DATA DESCRIPTION from a Polarstern CTD file.
 
     A valid DATA DESCRIPTION header follows this context-free grammar:
 
@@ -136,45 +167,17 @@ def _read_data_description(f):
     function only deals with splitting the category from the value.
 
     Parameters:
-        f (file-like) - an input stream containing a Polarstern CTD. The stream
-                MUST be positioned such that a valid DATA DESCRITPION header
-                (as defined above) is immediately available.
+        lines - lines containing a Data description block without the leading
+        and trailing comment delimiters.
 
     Returns:
         TODO describe!
 
-    Side effects:
-        (f) is advanced by as many lines as necessary to read 
     """
-    import re
-
-    # Enforce having a DATA DESCRIPTION at the top of the file.
-    line = f.readline().rstrip()
-    if not re.match(r'^/\* DATA DESCRIPTION:\s*$', line):
-        raise InvalidFileFormatException('Missing DATA DESCRIPTION header')
-
     metadata_name = None
     metadata = {}
-    original_header = ['#' + line, ]
 
-    # Parse the DATA DESCRIPTION header.
-    while True:
-
-        # Read the next line and find out what metadata it is.
-        line = f.readline().rstrip()
-        if not line:
-            # EOF was encountered, causing readline() to return an empty string.
-            # This means thte DATA DESCRIPTION header is malformed.
-            raise InvalidFileFormatException(('Unexpected end of file '
-                    'while reading DATA DESCRIPTION header'))
-
-        original_header.append('#' + unicode(line, 'raw_unicode_escape'))
-
-        # Reached a valid end of the DATA_DESCRIPTION header.
-        if r'*/' in line:
-            original_header.append('')
-            break
-
+    for line in lines:
         # Break the line into metadata category and value(s).
         tokens = line.split('\t', 1)
 
@@ -186,7 +189,13 @@ def _read_data_description(f):
                 metadata[metadata_name] = []
 
         # Escape the metadata value to protect from strange characters.
-        value_unicode = unicode(tokens[1], 'raw_unicode_escape')
+        try:
+            value_unicode = unicode(tokens[1], 'raw_unicode_escape')
+        except IndexError, err:
+            LOG.error(u'Not enough tokens: {0!r}'.format(tokens))
+            raise err
+        except TypeError, err:
+            value_unicode = unicode(tokens[1])
 
         # Multiple values for metadata are separated by asterisks. This is where
         # the syntax gets handled.
@@ -208,7 +217,7 @@ def _read_data_description(f):
                     parameter[u'METHOD'] = item
                 else:
                     # Labeled subvalue. Easy to parse.
-                    name, value = item.split(u': ')
+                    name, value = item.split(u': ', 1)
                     parameter[name] = value
             metadata[metadata_name].append(parameter)
 
@@ -217,35 +226,91 @@ def _read_data_description(f):
             # to split them up.
             tokens = value_unicode.split(u' * ')
 
-            # Make sure the single dict is available.
-            if not metadata[metadata_name]:
-                metadata[metadata_name].append({})
-
             # Split each item into subitem-value pairs.
             values = {}
             for item in tokens:
                 if u': ' not in item:
                     # Not labeled. Add it to the back.
-                    metadata[metadata_name].append(item)
+                    try:
+                        values[''].extend(item)
+                    except KeyError:
+                        values[''] = [item]
                 else:
                     # Labeled. Put it into the dictionary.
-                    name, value = item.split(u': ')
+                    name, value = item.split(u': ', 1)
                     values[name] = value
 
-            # Update the single dict with the values found on this line.
-            metadata[metadata_name][0].update(values)
+            # Append the values on this line
+            metadata[metadata_name].append(values)
 
-    # Enforce format for the end of the DATA DESCRIPTION.
-    if not re.match(r'^\*/\s*$', line):
-        raise InvalidFileFormatException('Malformed end of DATA DESCRIPTION')
+    # Merge dictionary for certain categories 
+    SINGLE_ITEM_CATEGORIES = ['Coverage']
+    for category in SINGLE_ITEM_CATEGORIES:
+        items = metadata[category] 
+        new_item = items[0]
+        for item in items[1:]:
+            new_item.update(item)
+        metadata[category] = new_item
 
     # Flatten out the single-item metadata categories.
     for item in metadata:
         if len(metadata[item]) == 1:
             metadata[item] = metadata[item][0]
+    return metadata
 
+
+def _read_data_description(f):
+    """Read the DATA DESCRIPTION from a Polarstern CTD file.
+
+    Paramters:
+        f (file-like) - an input stream containing a Polarstern CTD. The stream
+                MUST be positioned such that a valid DATA DESCRITPION header
+                (as defined above) is immediately available.
+    Side effects:
+        (f) is advanced by as many lines as necessary to read 
+
+    """
+    lines = []
+
+    # Enforce having a DATA DESCRIPTION at the top of the file.
+    line = f.readline().rstrip()
+    if not re.match(r'^/\* DATA DESCRIPTION:\s*$', line):
+        raise InvalidFileFormatException('Missing DATA DESCRIPTION header')
+
+    original_header = ['#' + line, ]
+
+    # Read the DATA DESCRIPTION header.
+    while True:
+
+        # Read the next line and find out what metadata it is.
+        line = f.readline().rstrip()
+        if not line:
+            # EOF was encountered, causing readline() to return an empty string.
+            # This means thte DATA DESCRIPTION header is malformed.
+            raise InvalidFileFormatException(('Unexpected end of file '
+                    'while reading DATA DESCRIPTION header'))
+
+        original_header.append('#' + unicode(line, 'raw_unicode_escape'))
+
+        # Reached a valid end of the DATA_DESCRIPTION header.
+        if r'*/' in line:
+            original_header.append('')
+            break
+
+        lines.append(line)
+
+    # Enforce format for the end of the DATA DESCRIPTION.
+    if not re.match(r'^\*/\s*$', line):
+        raise InvalidFileFormatException('Malformed end of DATA DESCRIPTION')
+
+    metadata = _parse_data_description(lines)
     metadata[u'_header'] = u'\n'.join(original_header)
     return metadata
+
+
+def _parse_datetime(dtstr):
+    """Parse Pangea DATE/TIME string that is ISO formatted."""
+    return datetime.strptime(dtstr, '%Y-%m-%dT%H:%M:%S')
 
 
 def _parse_metadata(df, metadata, ):
@@ -272,13 +337,11 @@ def _parse_metadata(df, metadata, ):
 
     # STNNBR and CASTNO.
     globals_from_metadata['STNNBR'], globals_from_metadata['CASTNO'] = \
-            metadata[u'Event(s)'][1].split(u'/')
+            metadata[u'Event(s)'][0][''][0].split(u'/')
 
     # DATE and TIME.
-    dt = datetime.datetime.strptime(
-            metadata['Event(s)'][0][u'DATE/TIME'], '%Y-%m-%dT%H:%M:%S')
-    globals_from_metadata['DATE'] = dt.strftime('%Y%m%d')
-    globals_from_metadata['TIME'] = dt.strftime('%H%M')
+    dt = _parse_datetime(metadata['Event(s)'][0][u'DATE/TIME'])
+    globals_from_metadata['_DATETIME'] = dt
 
     # LATITUDE and LONGITUDE.
     globals_from_metadata['LATITUDE'] = metadata[u'Event(s)'][0][u'LATITUDE']
@@ -297,7 +360,7 @@ def _parse_metadata(df, metadata, ):
     df.globals.update(globals_from_metadata)
 
 
-def _parse_parameters(df, parameters, metadata=None, ):
+def _parse_parameters(df, parameters, metadata=None):
     """ Convert the tab-separated list of abbreviated parameters used to head
     the data in a Polarstern CTD file into actual libcchdo.db.model.*.Parameter
     objects, and construct the libcchdo.model.datafile.Column objects for the
@@ -327,19 +390,18 @@ def _parse_parameters(df, parameters, metadata=None, ):
             a 2-tuple containing the CCHDO parameter name and units that are
                     equivalent to the parameter.
         """
-        import re
-
         # The regular expressions that will break down a Polarstern CTD
         # parameter listing into its formal (full) name, units, and abbreviated
         # name.
-        formalname_re = r'([0-9A-Za-z(),\- ]+)'
-        opt_units_re = r'(?: \[([0-9A-Za-z*/ ]+)\])?'
-        abbrname_re = r' \(([A-Za-z- ]+)\)'
+        formalname_re = r'([0-9A-Za-z(),\-\/ ]+)'
+        opt_units_re = r'(?:\[(.+)\])?'
+        abbrname_re = r'\((.+)\)'
 
         # Break the parameter listing into parts. If this cannot be done, either
         # the regular expressions are inadequate or the file is invalid.
         metaname = metaparameter[u'name']
-        match = re.match(formalname_re + opt_units_re + abbrname_re, metaname)
+        full_re = formalname_re + '\s+' + opt_units_re + '\s*' + abbrname_re
+        match = re.match(full_re, metaname)
         if not match:
             raise InvalidFileFormatException, ("%r not recognized by "
                     "_parse_meta_parameter() (check the regexes)" % metaname)
@@ -356,15 +418,17 @@ def _parse_parameters(df, parameters, metadata=None, ):
         # PolarsternCTDParameter will give either a 2-tuple containing useful
         # stuff or (None, None). Convert the latter (invalid) case into actual
         # None to indicate that no equivalent is available.
-        return param if all(param) else None
+        return param if any(param) else None
 
-    # LATITUDE (Latitude) and LONGITUDE (Longitude) are not actual parameters.
-    # They show up in the metadata list, but they are never in the data itself.
-    # So we'll remove them now.
-    actual_parameters = filter(lambda metaparam:
-            'Latitude' not in metaparam[u'name'] and
-            'Longitude' not in metaparam[u'name'],
-            metadata[u'Parameter(s)'])
+    # LATITUDE (Latitude) and LONGITUDE (Longitude) might or might not show up
+    # in the data. Remove them from the parameter metadata if they do not.
+    if 'Latitude' not in parameters and 'Longitude' not in parameters:
+        actual_parameters = filter(lambda metaparam:
+                'Latitude' not in metaparam[u'name'] and
+                'Longitude' not in metaparam[u'name'],
+                metadata[u'Parameter(s)'])
+    else:
+        actual_parameters = metadata[u'Parameter(s)']
 
     # Try to convert Polarstern CTD parameters into CCHDO parameters.
     # This produces a list containing Nones and tuples of canonical parameter
@@ -413,8 +477,90 @@ def _load_data(df, data, parameters, ):
             df.columns[param[0]].append(item)
 
 
-def read(df, f, toascii=False, ):
-    """ Read a Polarstern CTD file.
+def split(dfile, expocode):
+    """Split a Pangea DataFile into a DataFileCollection.
+
+    """
+    lines = [line[1:] for line in dfile.globals['header'].split('\n')[1:-2]]
+    metadata = _parse_data_description(lines)
+    event_metas = {}
+    for meta in metadata['Event(s)']:
+        event_metas[meta[''][0].split()[0]] = meta
+
+    dfc = DataFileCollection()
+    cur_event = None
+    cur_file = None
+    for rowi in range(len(dfile)):
+        event = dfile['_EVENT'][rowi]
+        if event != cur_event:
+            cur_event = event
+            cur_file = copy(dfile)
+
+            try:
+                event_meta = event_metas[event]
+            except KeyError:
+                LOG.error(
+                    u'Unable to get event metadata for event {0}'.format(event))
+
+            sect, stncast = event.split('/')
+            stn, cast = stncast.split('-')
+            cur_file.globals['SECT_ID'] = sect
+            cur_file.globals['STNNBR'] = stn
+            cur_file.globals['CASTNO'] = cast
+            try:
+                cur_file.globals['DEPTH'] = int(
+                    float(event_meta['ELEVATION'][1:-2]))
+            except KeyError:
+                pass
+            try:
+                cur_file.globals['LATITUDE'] = float(event_meta['LATITUDE'])
+            except KeyError:
+                pass
+            try:
+                cur_file.globals['LONGITUDE'] = float(event_meta['LONGITUDE'])
+            except KeyError:
+                pass
+            try:
+                cur_file.globals['_DATETIME'] = _parse_datetime(
+                    event_meta['DATE/TIME'])
+            except KeyError:
+                pass
+            cur_file.globals['EXPOCODE'] = expocode
+
+            del cur_file.columns['LATITUDE']
+            del cur_file.columns['LONGITUDE']
+            del cur_file.columns['_DATETIME']
+            del cur_file.columns['_EVENT']
+
+            dfc.append(cur_file)
+
+        for key, col in cur_file.columns.items():
+            try:
+                source_col = dfile[key]
+            except KeyError:
+                LOG.error(u'Missing column {0}'.format(key))
+                continue
+            try:
+                flag_woce = source_col.flags_woce[rowi]
+            except (KeyError, IndexError):
+                flag_woce = None
+            try:
+                flag_igoss = source_col.flags_igoss[rowi]
+            except (KeyError, IndexError):
+                flag_igoss = None
+            col.append(source_col.values[rowi], flag_woce, flag_igoss)
+    return dfc
+
+
+def _str_to_float(sss):
+    try:
+        return float(sss)
+    except ValueError:
+        return None
+
+
+def read(df, f, toascii=False, first_two_cols_event_dt=True):
+    """Read a Polarstern CTD file.
 
     Parameters:
         df (libcchdo.model.datafile.DataFile) - datafile object into which we
@@ -432,7 +578,13 @@ def read(df, f, toascii=False, ):
     # Read through the data and dump it into a list of lists of floats.
     data = [[] for param in parameters]
     for line in f:
-        tokens = map(float, line.split('\t'))
+        tokens = line.rstrip().split('\t')
+
+        if first_two_cols_event_dt:
+            first_two = tokens[:2]
+        else:
+            first_two = [_str_to_float(x) for x in tokens[:2]]
+        tokens = first_two + [_str_to_float(x) for x in tokens[2:]]
 
         if len(tokens) != len(data):
             # The number of parameters listed in the header is not the same as
@@ -478,14 +630,3 @@ def read(df, f, toascii=False, ):
     df.check_and_replace_parameters()
 
     return df
-
-
-def metadata(f):
-    """ Read the metadata of a Polarstern CTD file.
-
-    Parameters:
-        f (file-like) - input stream containing a Polarstern CTD.
-    """
-    meta = _read_data_description(f)
-    del meta[u'_header']
-    return meta

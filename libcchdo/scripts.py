@@ -487,6 +487,36 @@ with subcommand(ctd_converter_parsers, 'exchange_to_netcdf',
         help='output CTD NetCDF file')
 
 
+def ctd_pangea_to_ctdzipex(args):
+    """Convert CTD Pangea file to CTD ZIP Exchange."""
+    from libcchdo.formats.ctd import polarstern as ctdpangea
+    from libcchdo.formats.ctd.zip import exchange as ctdzipex
+    from libcchdo.model.datafile import DataFile
+
+    dfile = DataFile()
+    with closing(args.ctd_pangea) as in_file:
+        ctdpangea.read(dfile, in_file)
+
+    dfc = ctdpangea.split(dfile, args.expocode)
+
+    with closing(args.ctdzip_exchange) as ooo:
+        ctdzipex.write(dfc, ooo)
+
+
+with subcommand(ctd_converter_parsers, 'pangea_to_ctdzipex',
+                ctd_pangea_to_ctdzipex) as p:
+    p.add_argument(
+        'ctd_pangea', type=FileType('r'), 
+        help='input CTD in Pangea format')
+    p.add_argument(
+        'expocode', 
+        help='Expocode for CTD files')
+    p.add_argument(
+        'ctdzip_exchange', type=FileType('wb'), nargs='?',
+        default=sys.stdout,
+        help='output CTD ZIP Exchange file')
+
+
 def ctd_polarstern_to_ctd_exchange(args):
     import sqlite3
     from libcchdo.tools import ctd_polarstern_to_ctd_exchange
