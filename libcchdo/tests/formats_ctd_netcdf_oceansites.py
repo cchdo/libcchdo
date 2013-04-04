@@ -4,6 +4,7 @@ from tempfile import NamedTemporaryFile
 
 from libcchdo.model.datafile import DataFile, Column
 from libcchdo.formats.ctd import netcdf_oceansites as ctdncos
+from libcchdo.formats.woce import fuse_datetime
 
 
 class TestCTDNetCDFOceansites (unittest.TestCase):
@@ -24,11 +25,15 @@ class TestCTDNetCDFOceansites (unittest.TestCase):
         g['EXPOCODE'] = 'test'
         g['STNNBR'] = '20'
         g['CASTNO'] = '5'
+        g['_OS_ID'] = 'OS1'
+        fuse_datetime(self.datafile)
 
     def tearDown (self):
         self._infile.close()
 
     def _setupData(self):
+        self.datafile['CTDPRS'] = Column('CTDPRS')
+        self.datafile['CTDPRS'].append(1, 2)
         self.datafile['CTDOXY'] = Column('CTDOXY')
         self.datafile['CTDOXY'].append(1, 2)
         self.datafile.check_and_replace_parameters()

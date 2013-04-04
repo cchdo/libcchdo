@@ -1,4 +1,5 @@
 from StringIO import StringIO
+from datetime import datetime
 import unittest
 
 from libcchdo.fns import equal_with_epsilon, Decimal
@@ -42,8 +43,9 @@ EXPOCODE     SECT   STNNBR CASTNO TYPE DATE   TIME  CODE LATITUDE   LONGITUDE   
         self.assertEqual(['1', '1', '2'], cs['STNNBR'].values)
         self.assertEqual([1, 1, 1], cs['CASTNO'].values)
         self.assertEqual(['ROS'] * 3, cs['_CAST_TYPE'].values)
-        self.assertEqual(['20070215', '20070215', '20070215'], cs['DATE'].values)
-        self.assertEqual([1424, 1442, 1705], cs['TIME'].values)
+        self.assertEqual([
+            datetime(2007, 2, 15, 14, 24), datetime(2007, 2, 15, 14, 42),
+            datetime(2007, 2, 15, 17, 5)], cs['_DATETIME'].values)
         self.assertEqual(['BE', 'BO', 'BE'], cs['_CODE'].values)
     
         self.assertTrue(fp_eq(Decimal('-65.81083'), cs['LATITUDE'].values[0]))
@@ -72,8 +74,10 @@ EXPOCODE     SECT   STNNBR CASTNO TYPE DATE   TIME  CODE LATITUDE   LONGITUDE   
         self.assertEqual(['1', '2', '2'], cs['STNNBR'].values)
         self.assertEqual([1, 1, 15], cs['CASTNO'].values)
         self.assertEqual(['ROS'] * 3, cs['_CAST_TYPE'].values)
-        self.assertEqual(['20020114', '20020115', '20020117'], cs['DATE'].values)
-        self.assertEqual([2334, 1259, 856], cs['TIME'].values)
+        print cs['_DATETIME'].values
+        self.assertEqual([
+            datetime(2002, 1, 14, 23, 34), datetime(2002, 1, 15, 12, 59),
+            datetime(2002, 1, 17, 8, 56)], cs['_DATETIME'].values)
         self.assertEqual(['BE'] * 3, cs['_CODE'].values)
     
         self.assertTrue(fp_eq(Decimal('21.344333333'), cs['LATITUDE'].values[0]))

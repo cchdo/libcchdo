@@ -38,9 +38,9 @@ class TestFormatsNetCDF(unittest.TestCase):
 
     def test_get_filename(self):
         self.assertEqual('TESTEXPO_00001_00002_hy1.nc',
-                         fnc.get_filename('TESTEXPO', 1, 2))
+                         fnc.get_filename('TESTEXPO', 1, 2, 'hy1'))
         self.assertEqual('TESTEXPO_001.2_00002_hy1.nc',
-                         fnc.get_filename('TESTEXPO', 1.2, 2))
+                         fnc.get_filename('TESTEXPO', 1.2, 2, 'hy1'))
 
     def test_minutes_since_epoch(self):
         dtime = fnc.EPOCH + timedelta(minutes=1234)

@@ -76,7 +76,7 @@ def read(self, handle):
 
         for column, raw in zip(columns, values):
             value = raw.strip()
-            if fns.out_of_band(value):
+            if out_of_band(value):
                 value = None
             try:
                 value = _decimal(value)
@@ -146,7 +146,7 @@ def write(self, handle):
         handle.write('BOTTLE,%s\n' % stamp)
     if self.globals['header']:
         handle.write('# Original header:\n')
-        handle.write(self.globals['header'])
+        handle.write(self.globals['header'].encode('utf8'))
 
     woce.split_datetime(self)
 

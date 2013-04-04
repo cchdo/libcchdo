@@ -59,7 +59,8 @@ def _pad_station_cast(x):
     return simplest_str(x).rjust(5, '0')
 
 
-def get_filename(expocode, station, cast, extension='hy1'):
+def get_filename(expocode, station, cast, extension):
+    assert extension in ['hy1', 'ctd']
     station = _pad_station_cast(station)
     cast = _pad_station_cast(cast)
     return '%s.%s' % ('_'.join((expocode, station, cast, extension)),

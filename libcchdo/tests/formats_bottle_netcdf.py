@@ -2,7 +2,7 @@ import unittest
 from datetime import datetime
 from tempfile import NamedTemporaryFile
 
-from libcchdo.model import datafile import DataFile, Column
+from libcchdo.model.datafile import DataFile, Column
 from libcchdo.formats.bottle import netcdf as botnc
 from libcchdo.tests import sample_file
 

@@ -99,6 +99,8 @@ def read(self, handle):
     for g, param in GLOBALS_TO_RENAME_AS.items():
         self.globals[param] = str(global_attrs[g])
 
+    woce.fuse_datetime(self)
+
     self.globals['stamp'] = global_attrs['ORIGINAL_HEADER']
 
     # Clean up
@@ -127,8 +129,6 @@ def _create_common_variables(df, nc_file, woce_datetime):
 
 def write(self, handle):
     '''How to write a CTD NetCDF file.'''
-    woce_datetime = self.globals['_DATETIME']
-
     tmp = NamedTemporaryFile()
     nc_file = nc.Dataset(tmp.name, 'w', format='NETCDF3_CLASSIC')
 
@@ -163,7 +163,7 @@ def write(self, handle):
     except KeyError:
         pass
 
-    _create_common_variables(self, nc_file, woce_datetime)
+    _create_common_variables(self, nc_file, self.globals['_DATETIME'])
 
     nc_file.close()
     handle.write(tmp.read())

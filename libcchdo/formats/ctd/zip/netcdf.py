@@ -1,53 +1,13 @@
-from __future__ import with_statement
-import datetime
-import tempfile
-import zipfile
-
-from libcchdo.util import StringIO
-from libcchdo.model.datafile import DataFile
-from libcchdo.formats.ctd import netcdf
-from libcchdo.formats import netcdf as nc
-from libcchdo.formats import zip as Zip
+"""CCHDO format for COARDS compliant netCDF files for CTD."""
+from libcchdo.formats.ctd import netcdf as ctdnc
+from libcchdo.formats import zip_netcdf as zipnc
 
 
 def read(self, handle):
     """How to read CTD NetCDF files from a Zip."""
-    zip = Zip.ZeroCommentZipFile(handle, 'r')
-    for file in zip.namelist():
-        if '.nc' not in file: continue
-        tmpfile = tempfile.NamedTemporaryFile()
-        tmpfile.write(zip.read(file))
-        tmpfile.flush()
-        ctdfile = DataFile()
-        with open(tmpfile.name, 'r') as f:
-            netcdf.read(ctdfile, f)
-        self.files.append(ctdfile)
-        tmpfile.close()
-    zip.close()
+    zipnc.read(self, handle, ctdnc)
 
 
 def write(self, handle):
     """How to write CTD NetCDF files to a Zip."""
-    station_i = 0
-    cast_i = 0
-
-    zip = Zip.create(handle)
-    for file in self:
-        temp = StringIO()
-        netcdf.write(file, temp)
-
-        # Create a name for the file
-        expocode = file.globals.get('EXPOCODE', 'UNKNOWN')
-        station = file.globals.get('STNNBR')
-        cast = file.globals.get('CASTNO')
-        if station is None:
-            station = station_i
-            station_i += 1
-        if cast is None:
-            cast = cast_i
-            cast_i += 1
-        filename = nc.get_filename(expocode, station, cast, extension='ctd')
-
-        zip.writestr(filename, temp.getvalue())
-        temp.close()
-    zip.close()
+    zipnc.write(self, handle, 'ctd', ctdnc, zipnc.get_identifier_ctd)

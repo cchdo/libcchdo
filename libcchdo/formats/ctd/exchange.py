@@ -7,8 +7,9 @@ from libcchdo.formats import pre_write
 from libcchdo.formats import woce
 
 
-REQUIRED_HEADERS = ('EXPOCODE', 'SECT_ID', 'STNNBR', 'CASTNO', 'DATE',
-                    'TIME', 'LATITUDE', 'LONGITUDE', 'DEPTH', )
+REQUIRED_HEADERS = [
+    u'EXPOCODE', u'SECT_ID', u'STNNBR', u'CASTNO', u'DATE', u'TIME',
+    u'LATITUDE', u'LONGITUDE', u'DEPTH', ]
 
 
 def read(self, handle, retain_order=False):
@@ -112,8 +113,8 @@ def write(self, handle):
     """ How to write a CTD Exchange file. """
     pre_write(self)
 
-    handle.write('CTD,%s\n' % config.stamp())
-    handle.write('%s' % self.globals['header'])
+    handle.write(u'CTD,%s\n' % config.stamp())
+    handle.write(self.globals['header'].encode('utf8'))
 
     stamp = self.globals['stamp']
     header = self.globals['header']
@@ -121,7 +122,7 @@ def write(self, handle):
     del self.globals['header']
 
     woce.split_datetime(self)
-    handle.write('NUMBER_HEADERS = '+str(len(self.globals.keys())+1)+"\n")
+    handle.write(u'NUMBER_HEADERS = '+str(len(self.globals.keys())+1)+"\n")
     for header in REQUIRED_HEADERS:
         try:
             handle.write(header+' = '+str(self.globals[header])+"\n")
@@ -129,7 +130,7 @@ def write(self, handle):
             LOG.warn('Missing required header %s' % header)
 
     for key in set(self.globals.keys()) - set(REQUIRED_HEADERS):
-        handle.write('{key} = {val}\n'.format(key=key, val=self.globals[key]))
+        handle.write(u'{key} = {val}\n'.format(key=key, val=self.globals[key]))
     woce.fuse_datetime(self)
 
     self.globals['stamp'] = stamp
@@ -143,7 +144,7 @@ def write(self, handle):
             headers.append(param+'_FLAG_W')
         if c.is_flagged_igoss():
             headers.append(param+'_FLAG_I')
-    handle.write(','.join(headers)+"\n")
+    handle.write(u','.join(headers)+"\n")
 
     #XXX
     units = []
@@ -155,7 +156,7 @@ def write(self, handle):
             units.append('')
         if c.is_flagged():
             units.append('')
-    handle.write(",".join(units)+"\n")
+    handle.write(u",".join(units)+"\n")
     #XXX
 
     columns = [self.columns[header] for header in self.column_headers()]
@@ -188,5 +189,5 @@ def write(self, handle):
                 data.append(c.flags_woce[i])
             if c.is_flagged_igoss():
                 data.append(c.flags_igoss[i])
-        handle.write(','.join(map(str, data))+"\n")
-    handle.write(woce.END_DATA)
+        handle.write(u','.join(map(str, data))+"\n")
+    handle.write(unicode(woce.END_DATA))

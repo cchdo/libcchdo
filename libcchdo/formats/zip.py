@@ -1,5 +1,11 @@
-import zipfile
+"""Common operations for zip data formats.
 
+"""
+import zipfile
+from datetime import datetime
+from tempfile import SpooledTemporaryFile
+
+from libcchdo.log import LOG
 from libcchdo import StringIO
 
 
@@ -10,7 +16,7 @@ class MemZipFile(zipfile.ZipFile):
     def __init__(self, handle, *args, **kwargs):
         self._handle = handle
         self._mem = StringIO()
-        return zipfile.ZipFile.__init__(self, self._mem, *args, **kwargs)
+        zipfile.ZipFile.__init__(self, self._mem, *args, **kwargs)
 
     def close(self):
         return_value = zipfile.ZipFile.close(self)
@@ -105,5 +111,43 @@ def create(handle):
     try:
         return MemZipFile(handle, 'w', zipfile.ZIP_DEFLATED)
     except RuntimeError:
-        LOG.info('Unable to write deflated zip file. Using store algorithm instead.')
+        LOG.info(
+            u'Unable to write deflated zip file. Using store algorithm '
+            'instead.')
         return MemZipFile(handle, 'w')
+
+
+def createZipInfo(filename, dtime=None, permissions=0644):
+    """Create a ZipInfo for a filename.
+
+    Arguments::
+    dtime - date time to use for the file. (default: now)
+    permissions - permissions to use for the file (default: 0644)
+
+    """
+    if dtime is None:
+        dtime = datetime.now()
+
+    info = zipfile.ZipInfo(filename)
+    info.date_time = (dtime.year, dtime.month, dtime.day,
+                      dtime.hour, dtime.minute, dtime.second)
+    info.external_attr = permissions << 16L
+    info.compress_type = zipfile.ZIP_DEFLATED
+    return info
+
+
+def write(self, handle, writer, get_filename):
+    """Common write functionality for zip files."""
+    zfile = create(handle)
+    for dfile in self:
+        with SpooledTemporaryFile(max_size=2 ** 13) as tempfile:
+            writer.write(dfile, tempfile)
+            tempfile.flush()
+            tempfile.seek(0)
+
+            filename = get_filename(dfile)
+            try:
+                zfile.writestr(createZipInfo(filename), tempfile.read())
+            except Exception, err:
+                LOG.error(u'Unable to write {0}: {1!r}'.format(filename, err))
+    zfile.close()

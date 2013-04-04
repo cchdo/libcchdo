@@ -1,8 +1,7 @@
-import zipfile
-import datetime
 import re
+from tempfile import NamedTemporaryFile
 
-from libcchdo import LOG
+from libcchdo.log import LOG
 from libcchdo.model.datafile import DataFile
 from libcchdo.formats import zip as Zip
 from libcchdo.formats.ctd import exchange as ctdex
@@ -19,45 +18,42 @@ def read(self, handle, retain_order=False):
             raise ValueError('CTD Exchange Zip files should not contain '
                              'directories. Please ensure you gave a CTD '
                              'Exchange Zip file to be read.')
-        tempstream = pyStringIO(zip.read(filename))
-        tempstream.name = filename
-        ctdfile = DataFile()
-        ctdex.read(ctdfile, tempstream, retain_order)
-        self.files.append(ctdfile)
-        tempstream.close()
+        with NamedTemporaryFile(prefix=filename) as tempfile:
+            tempfile.write(zip.read(filename))
+            tempfile.flush()
+            tempfile.seek(0)
+            ctdfile = DataFile()
+            ctdex.read(ctdfile, tempfile, retain_order)
+            self.files.append(ctdfile)
     zip.close()
+
+
+def get_filename(expocode, station, cast):
+    """Filename for Exchange CTD files."""
+    station = station.strip()
+    try:
+        station = '%05d' % int(station)
+    except TypeError:
+        station = station[:5]
+
+    cast = cast.strip()
+    try:
+        cast = '%05d' % int(cast)
+    except TypeError:
+        cast = cast[:5]
+
+    filename = '%s_%5s_%5s_ct1.csv' % (expocode, station, cast)
+    filename = re.sub('\s', '_', filename)
+    return filename
+
+
+def get_datafile_filename(dfile):
+    expocode = dfile.globals['EXPOCODE']
+    station = dfile.globals['STNNBR'].strip()
+    cast = dfile.globals['CASTNO'].strip()
+    return get_filename(expocode, station, cast)
 
 
 def write(self, handle):
     """How to write CTD Exchange files to a Zip."""
-    zip = Zip.create(handle)
-    for file in self:
-        tempstream = pyStringIO()
-        ctdex.write(file, tempstream)
-
-        station = file.globals['STNNBR'].strip()
-        try:
-            station = '%05d' % int(station)
-        except:
-            station = station[:5]
-
-        cast = file.globals['CASTNO'].strip()
-        try:
-            cast = '%05d' % int(cast)
-        except:
-            cast = cast[:5]
-
-        filename = '%s_%5s_%5s_ct1.csv' % \
-            (file.globals['EXPOCODE'], station, cast)
-        filename = re.sub('\s', '_', filename)
-
-        info = zipfile.ZipInfo(filename)
-        dt = datetime.datetime.now()
-        info.date_time = (dt.year, dt.month, dt.day,
-                          dt.hour, dt.minute, dt.second)
-        info.external_attr = 0644 << 16L
-        info.compress_type = zipfile.ZIP_DEFLATED
-
-        zip.writestr(info, tempstream.getvalue())
-        tempstream.close()
-    zip.close()
+    Zip.write(self, handle, ctdex, get_datafile_filename)

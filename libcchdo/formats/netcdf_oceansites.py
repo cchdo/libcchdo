@@ -11,6 +11,7 @@ from collections import defaultdict
 from math import cos
 from contextlib import closing 
 from zipfile import ZipInfo, ZIP_DEFLATED
+from tempfile import SpooledTemporaryFile
 
 from libcchdo.log import LOG
 from libcchdo.fns import strftime_iso
@@ -645,17 +646,21 @@ def write_columns(self, nc_file):
 
         localgrav = \
             depth.grav_ocean_surface_wrt_latitude(self.globals['LATITUDE'])
-        sal_tmp_pres = zip(salt.values, temp.values, pres.values)
-        density_series = [depth.density(*args) for args in sal_tmp_pres]
         try: 
+            sal_tmp_pres = zip(salt.values, temp.values, pres.values)
+            density_series = [depth.density(*args) for args in sal_tmp_pres]
             if None in density_series:
                 # Can't perform integration with missing data points.
                 raise ValueError
             var_depth.comment = OS_TEXT['DEPTH_CALCULATED_SVERDRUP']
             depth_series = depth.depth(localgrav, pres.values, density_series)
-        except (IndexError, ValueError):
-            depth_series = fallback_depth_unesco(
-                self.globals['LATITUDE'], pres.values, var_depth)
+        except (AttributeError, IndexError, ValueError):
+            try:
+                depth_series = fallback_depth_unesco(
+                    self.globals['LATITUDE'], pres.values, var_depth)
+            except AttributeError:
+                raise ValueError(
+                    u'Cannot convert non-existant pressures to depths.')
         var_depth[:] = depth_series
 
 
@@ -773,13 +778,15 @@ def write_zip_factory(module):
         dt_tuple = (dt.year, dt.month, dt.day, dt.hour, dt.minute, dt.second)
         external_attr = 0644 << 16L
         for i, file in enumerate(self.files):
-            with closing(StringIO()) as tempstream:
-                module.write(file, tempstream, timeseries, timeseries_info)
+            with SpooledTemporaryFile(max_size=2 ** 13) as tempfile:
+                module.write(file, tempfile, timeseries, timeseries_info)
+                tempfile.flush()
+                tempfile.seek(0)
                 info = ZipInfo('{os_id}.nc'.format(os_id=file.globals['OS_id']))
                 info.date_time = dt_tuple
                 info.external_attr = external_attr
                 info.compress_type = ZIP_DEFLATED
-                zip.writestr(info, tempstream.getvalue())
+                zip.writestr(info, tempfile.read())
         zip.close()
     return write
 
