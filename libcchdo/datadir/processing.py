@@ -40,8 +40,8 @@ from libcchdo.config import (
 from libcchdo.formats.google_wire import DefaultJSONSerializer
 from libcchdo.datadir.dl import AFTP, SFTP
 from libcchdo.datadir.filenames import (
-    EXPOCODE_FILENAME, README_FILENAME, UOW_CFG_FILENAME,
-    FILE_MANIFEST_FILENAME)
+    EXPOCODE_FILENAME, README_FILENAME, PROCESSING_EMAIL_FILENAME,
+    UOW_CFG_FILENAME, FILE_MANIFEST_FILENAME)
 
 
 def str_to_fs_slug(sss):
@@ -129,7 +129,8 @@ def write_readme_template(template_path):
         fff.write(template.encode('utf8'))
 
 
-def mkdir_uow(basepath, title, ids, separator='_', processing_subdirs=False):
+def mkdir_uow(basepath, title, summary, ids, separator='_',
+              processing_subdirs=False):
     """Create a Unit of Work directory for data work.
 
     This directory includes the currently online files, submission files, and
@@ -193,6 +194,7 @@ def mkdir_uow(basepath, title, ids, separator='_', processing_subdirs=False):
         'expocode': expocode,
         'title': title,
         'q_infos': qfis,
+        'summary': summary,
     }
     write_uow_cfg(os.path.join(dirpath, UOW_CFG_FILENAME), uow_cfg)
     return dirpath
@@ -320,7 +322,6 @@ def _copy_uow_into_work_dir(uow_dir, work_dir, dir_perms):
     uow_copy(uow_dir, UOWDirName.tgo, work_dir, DirName.tgo)
 
     mkdir_ensure(os.path.join(work_dir, DirName.original), dir_perms)
-    mkdir_ensure(os.path.join(work_dir, DirName.online), dir_perms)
 
 
 def _get_file_manifest(uow_dir, work_dir):
@@ -379,14 +380,6 @@ def _copy_uow_online_into_work_dir(uow_dir, work_dir, file_manifest_set,
     for fname in removed_files | overwritten_files:
         uow_copy(
             uow_dir, UOWDirName.online, work_dir, DirName.original, fname)
-
-    # Produce a working directory subdir online that contains the goal state of
-    # the online files.
-    #for fname in new_files:
-    #    uow_copy(uow_dir, UOWDirName.tgo, work_dir, DirName.online, fname)
-    #for fname in unchanged_files:
-    #    uow_copy(
-    #        uow_dir, UOWDirName.online, work_dir, DirName.online, fname)
 
     return (new_files, removed_files, overwritten_files, unchanged_files,
             missing_tgo_files)
@@ -469,7 +462,10 @@ def uow_commit(uow_dir, person=None, confirm_html=True, dryrun=True):
             return
 
         try:
+            saved_dryrun = aftp.dryrun
+            aftp.dryrun = False
             check_online_checksums(aftp, uow_dir, expocode)
+            aftp.dryrun = saved_dryrun
         except ValueError, e:
             LOG.error(u'{0} Abort.'.format(e))
             return
@@ -478,20 +474,28 @@ def uow_commit(uow_dir, person=None, confirm_html=True, dryrun=True):
         LOG.info(u'Committing to {0}:{1}'.format(sftp_host, remote_path))
 
         aftp.up_dir(work_dir, remote_path)
-        # Now to update the online files
+        # Now to update the online files. It is ok to overwrite/delete at this
+        # point as those affected have already been written to originals.
         (new_files, removed_files, overwritten_files, unchanged_files,
          missing_tgo_files) = detailed_file_sets
         for fname in removed_files:
             aftp.remove(os.path.join(cruise_dir, fname))
-        for fname in new_files | overwritten_files:
+        for fname in new_files:
             aftp.up(
-                os.path.join(work_dir, DirName.online, fname),
+                os.path.join(uow_dir, UOWDirName.tgo, fname),
+                os.path.join(cruise_dir, fname))
+        for fname in unchanged_files:
+            aftp.up(
+                os.path.join(uow_dir, UOWDirName.online, fname),
                 os.path.join(cruise_dir, fname))
     LOG.info(
         u'Data file commit completed successfully. Writing history and '
         'notifications.')
 
-    add_processing_note(os.path.join(uow_dir, README_FILENAME), uow_cfg, dryrun)
+    add_processing_note(
+        os.path.join(uow_dir, README_FILENAME),
+        os.path.join(uow_dir, PROCESSING_EMAIL_FILENAME),
+        uow_cfg, dryrun)
     LOG.info(u'UOW commit completed successfully.')
 
 
@@ -727,6 +731,9 @@ def _legacy_fetch_online(aftp, path, expocode):
                 if aftp.isdir(online_path):
                     continue
                 with aftp.dl(online_path) as fff:
+                    if not fff:
+                        LOG.error(u'Could not download {0}'.format(online_path))
+			continue
                     with open(local_path, 'w') as ooo:
                         copy_chunked(fff, ooo)
             except HTTPError, e:
@@ -823,9 +830,9 @@ A history note ({note_id}) has been made for the attached processing notes.
 
 
 def summarize_submission(q_info):
-    return '{0} {1} {2} {3} {4}'.format(
-        q_info['filename'], q_info['submitted_by'], q_info['date'],
-        q_info['data_type'], q_info['submission_id'])
+    return '{0}: {1} {2} {3} {4}'.format(
+        q_info['submission_id'], q_info['filename'], q_info['submitted_by'],
+        q_info['date'], q_info['data_type'], )
 
 
 def parse_readme(readme, uow_cfg):
@@ -854,7 +861,7 @@ def parse_readme(readme, uow_cfg):
     return title, merger, subject, expocode
 
 
-def processing_email(readme, uow_cfg, note_id, q_ids, dryrun=True):
+def processing_email(readme, email_path, uow_cfg, note_id, q_ids, dryrun=True):
     """Send processing completed notification email."""
     if dryrun:
         recipients = [get_merger_email()]
@@ -900,11 +907,19 @@ def processing_email(readme, uow_cfg, note_id, q_ids, dryrun=True):
 
     email_str = email.as_string()
     s = SMTP_SSL('smtp.ucsd.edu')
-    smtp_pass = getpass(
-        u'Please enter your UCSD email password to send notification email to '
-        '{0}: '.format(email['To']))
-    s.login(get_merger_email(), smtp_pass)
-    s.sendmail(email['From'], email['To'], email_str)
+    smtp_pass = ''
+    while not smtp_pass:
+        smtp_pass = getpass(
+            u'Please enter your UCSD email password to send notification '
+            'email to {0}: '.format(email['To']))
+    try:
+        s.login(get_merger_email(), smtp_pass)
+        s.sendmail(email['From'], email['To'], email_str)
+    except Exception, err:
+        with open(email_path, 'w') as fff:
+            fff.write(email_str)
+        LOG.info(u'Wrote email to {0} to send later.'.format(email_path))
+        raise err
     s.quit()
 
 
@@ -949,11 +964,12 @@ def mark_merged(session, uow_cfg):
             filter(legacy.QueueFile.id == qid).first()
         if qf.is_merged():
             LOG.warn(u'QueueFile {0} is already merged.'.format(qf.id))
-        qf.set_merged()
+    qf.date_merged = date.today()
+    qf.set_merged()
     return q_ids
 
 
-def add_processing_note(readme_path, uow_cfg, dryrun=True):
+def add_processing_note(readme_path, email_path, uow_cfg, dryrun=True):
     """Record processing history note.
 
     The current way to do this is to save a history note with the 00_README.txt
@@ -970,9 +986,20 @@ def add_processing_note(readme_path, uow_cfg, dryrun=True):
     with closing(legacy.session()) as session:
         note_id = processing_history(session, readme, uow_cfg)
         q_ids = mark_merged(session, uow_cfg)
+
+        try:
+            processing_email(readme, email_path, uow_cfg, note_id, q_ids, dryrun)
+            LOG.info(u'Sent processing email.')
+            email_ok = True
+        except Exception, err:
+            LOG.error(u'Could not send email: {0!r}'.format(err))
+            email_ok = False
+
         if dryrun:
             LOG.info(u'dryrun rolled back history note and merged statuses')
             session.rollback()
+        elif not email_ok:
+            LOG.info(u'rolled back history note and merged statuses')
+            session.rollback()
         else:
             session.commit()
-    processing_email(readme, uow_cfg, note_id, q_ids, dryrun)

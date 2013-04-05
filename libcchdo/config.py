@@ -250,28 +250,28 @@ def get_merger_institution():
 def get_merger_email():
     def input_email():
         return raw_input('What is your email? %s ' % \
-                          _storage_notice()).upper()
+                          _storage_notice())
     return get_option('Merger', 'email', input_email)
 
 
 def get_merger_name_first():
     def input_name_first():
         return raw_input('What is your first name (or rough equivalent)? %s ' % \
-                          _storage_notice()).upper()
+                          _storage_notice())
     return get_option('Merger', 'name_first', input_name_first)
 
 
 def get_merger_name_last():
     def input_name_last():
         return raw_input('What is your last name (or rough equivalent)? %s ' % \
-                          _storage_notice()).upper()
+                          _storage_notice())
     return get_option('Merger', 'name_last', input_name_last)
 
 
 def get_merger_name():
     def input_name():
         return raw_input('What is your name? %s ' % \
-                          _storage_notice()).upper()
+                          _storage_notice())
     return get_option('Merger', 'name', input_name)
 
 

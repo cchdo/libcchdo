@@ -255,9 +255,9 @@ class AFTP(object):
                 LOG.info(u'uploading {0} {1}'.format(
                     local_file_path, filepath))
                 sftp.put(local_file_path, filepath)
-        except IOError, e:
+        except (OSError, IOError), err:
             LOG.warn(u'Unable to copy file to remote {0}:\n{1!r}'.format(
-                filepath, e))
+                filepath, err))
 
     def local_up(self, local_file_path, filepath):
         """Upload a filepath to the local filesystem.

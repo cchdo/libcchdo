@@ -17,7 +17,8 @@ import traceback
 
 from libcchdo.log import LOG
 from libcchdo.fns import all_formats, read_arbitrary, get_editor
-from libcchdo.datadir.filenames import README_FILENAME, UOW_CFG_FILENAME
+from libcchdo.datadir.filenames import (
+    README_FILENAME, PROCESSING_EMAIL_FILENAME, UOW_CFG_FILENAME)
 known_formats = all_formats.keys()
 
 
@@ -1256,21 +1257,23 @@ def datadir_fetch(args):
     """
     from libcchdo.datadir.processing import (
         mkdir_uow, as_received_unmerged_list, as_received_infos)
-    if not args.ids:
+    fetch_requirements = [args.title, args.summary, args.ids]
+    if not any(fetch_requirements):
         for f in as_received_unmerged_list():
             print '\t'.join(map(str, 
                 [f['q_id'], f['data_type'], f['submitted_by'], f['filename']]))
         return
-    if not args.title:
+    if not args.title or not args.summary:
         LOG.error(
-            u'Please provide a more descriptive title for your UOW.\n'
-            'hydro datadir fetch --title="descriptive_title"')
+            u'Please provide a title and summary for your UOW.\n'
+            'hydro datadir fetch "title" "summary"')
         LOG.info(u'List of as-received files specified:')
         for info in as_received_infos(*args.ids):
-            LOG.info(
-                u'{0}\t{1}'.format(info['data_type'], info['filename']))
+            LOG.info(u'{0}\t{1}'.format(info['data_type'], info['filename']))
         return
-    print mkdir_uow(args.basepath, args.title, args.ids)
+    if not args.ids:
+        LOG.info(u'Creating a UOW without queue files to work on.')
+    print mkdir_uow(args.basepath, args.title, args.summary, args.ids)
 
 
 with subcommand(datadir_parsers, 'fetch', datadir_fetch) as p:
@@ -1282,9 +1285,16 @@ with subcommand(datadir_parsers, 'fetch', datadir_fetch) as p:
         help='a directory to use as the UOW directory (default: automatically '
             'generated)')
     p.add_argument(
-        '--title', type=str, default='',
+        'title', type=str, default='', nargs='?',
         help='summary title for unit-of-work. This ends up being the short '
             'working directory summary.')
+    p.add_argument(
+        'summary', type=str, default='', nargs='?',
+        help='summary title for history note. This will be the summary for the '
+            'resulting cruise history note. Typical entries contain file '
+            'formats that were updated e.g.\n'
+            'Exchange, NetCDF, WOCE files online\n'
+            'Exchange & NetCDF files updated\n')
     p.add_argument(
         'ids', type=int, nargs='*',
         help='as-received file ids (default: show list of as-received files')
@@ -1293,12 +1303,16 @@ with subcommand(datadir_parsers, 'fetch', datadir_fetch) as p:
 def datadir_commit(args):
     """Commit a CCHDO Unit of Work."""
     from libcchdo.datadir.processing import uow_commit
-    uow_commit(args.uow_dir, person=args.person)
+    uow_commit(args.uow_dir, person=args.person,
+        confirm_html=(not args.readme_html_ok), dryrun=args.dry_run)
 
 
 with subcommand(datadir_parsers, 'commit', datadir_commit) as p:
     p.add_argument(
         '-n', '--dry-run', action='store_true')
+    p.add_argument(
+        '-r', '--readme-html-ok', action='store_true',
+        help='Set if the 00_README.txt output HTML has already been verified.')
     p.add_argument(
         '--person', default=None,
         help='The person doing the work (default: libcchdo merger initials)')
@@ -1309,9 +1323,12 @@ with subcommand(datadir_parsers, 'commit', datadir_commit) as p:
 def datadir_add_processing_note(args):
     """Record processing history note."""
     from libcchdo.datadir.processing import (
-        add_processing_note, is_processing_readme_render_ok)
-    if is_processing_readme_render_ok(args.readme_path):
-        add_processing_note(args.readme_path, args.uow_cfg_path)
+        add_processing_note, is_processing_readme_render_ok, read_uow_cfg)
+    if is_processing_readme_render_ok(
+            args.readme_path, confirm_html=(not args.readme_html_ok)):
+        uow_cfg = read_uow_cfg(args.uow_cfg_path)
+        add_processing_note(
+            args.readme_path, args.email_path, uow_cfg, args.dry_run)
     else:
         LOG.error(u'README is not valid reST or merger rejected. Stop.')
         return
@@ -1322,8 +1339,14 @@ with subcommand(datadir_parsers, 'processing_note',
     p.add_argument(
         '-n', '--dry-run', action='store_true')
     p.add_argument(
+        '-r', '--readme-html-ok', action='store_true',
+        help='Set if the 00_README.txt output HTML has already been verified.')
+    p.add_argument(
         'readme_path', default=README_FILENAME, nargs='?',
         help='The path to the processing note file.')
+    p.add_argument(
+        'email_path', default=PROCESSING_EMAIL_FILENAME, nargs='?',
+        help='The path to write the processing note email to if email fails.')
     p.add_argument(
         'uow_cfg_path', default=UOW_CFG_FILENAME, nargs='?',
         help='The path to the UOW configuration file.')
