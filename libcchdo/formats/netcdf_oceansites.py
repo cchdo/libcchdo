@@ -644,12 +644,12 @@ def write_columns(self, nc_file):
         try:
             var.valid_min = float(column.parameter.bound_lower)
         except TypeError:
-            LOG.error(
+            LOG.warn(
                 u'No lower bound defined for {0!r}.'.format(column.parameter))
         try:
             var.valid_max = float(column.parameter.bound_upper)
         except TypeError:
-            LOG.error(
+            LOG.warn(
                 u'No upper bound defined for {0!r}.'.format(column.parameter))
         # TODO nominal sensor depth in meters positive in direction of
         # DEPTH:positive
