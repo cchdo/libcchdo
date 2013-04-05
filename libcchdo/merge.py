@@ -1,9 +1,12 @@
 from pandas import *
 
+from libcchdo import LOG
 from libcchdo.formats import woce
+from libcchdo.fns import equal_with_epsilon
 
 
 class Merger(object):
+    GROUP_COLS = ['STNNBR', 'CASTNO', 'SAMPNO']
     DONT_MERGE = [
         "Fake", "STNNBR", "CASTNO", "BTLNBR", "BTLNBR_FLAG_W", "DATE", "DEPTH",
         "EXPOCODE", "CTDPRS", "CTDTMP", "SECT_ID", "LATITUDE", "LONGITUDE",
@@ -55,41 +58,52 @@ class Merger(object):
 
     def different_cols(self):
         different_cols = []
-        df1_grouped = self.dataframe1.groupby(['STNNBR', 'CASTNO', 'SAMPNO'],axis=0);
-        df2_grouped = self.dataframe2.groupby(['STNNBR', 'CASTNO', 'SAMPNO'],axis=0);
-        cols1, rows1 = self.dataframe1.shape 
-        cols2, rows2 = self.dataframe2.shape 
+        df1_grouped = self.dataframe1.groupby(self.GROUP_COLS, axis=0)
+        df2_grouped = self.dataframe2.groupby(self.GROUP_COLS, axis=0)
 
-        for key, group in df2_grouped:
-            if key in df1_grouped.groups.keys():
-                row1 = df1_grouped.groups[key]
-                row2 = df2_grouped.groups[key]
-                for col in self.dataframe2:
-                    if col in self.dataframe1.columns:
-                        x = self.dataframe1[col]
-                        y = self.dataframe2[col]
-                        if x[row1[0]] != y[row2[0]]:
-                            if col not in different_cols:
-                                different_cols.append(col)
-                            self.dataframe1[col][row1[0]] = self.dataframe2[col][row2[0]]
-                    elif col not in different_cols:
+        row_map = []
+        for cast_identifier, group in df2_grouped:
+            if cast_identifier not in df1_grouped.groups.keys():
+                continue
+            # Find the rows that correspond to the same data row
+            row1 = df1_grouped.groups[cast_identifier][0]
+            row2 = df2_grouped.groups[cast_identifier][0]
+            row_map.append([row1, row2])
+
+        for col in self.dataframe2:
+            if col not in self.dataframe1.columns:
+                if col not in different_cols:
+                    different_cols.append(col)
+                continue
+            LOG.debug('checking {0}'.format(col))
+
+            for row1, row2 in row_map:
+                # Make sure the values for both dataframes matches
+                df1col = self.dataframe1[col]
+                df2col = self.dataframe2[col]
+                val1 = df1col[row1]
+                val2 = df2col[row2]
+                if val1 != val2 and not equal_with_epsilon(val1, val2):
+                    LOG.info(u'{0} differs at {1}:\t{2!r} {3!r}'.format(col,
+                        cast_identifier, val1, val2))
+                    if col not in different_cols:
                         different_cols.append(col)
+                    # TODO why set equal?
+                    df1col[row1] = df2col[row2]
         return different_cols
         
     def mergeit(self,columns_to_merge):
-        df1_grouped = self.dataframe1.groupby(['STNNBR', 'CASTNO', 'SAMPNO'],axis=0);
-        df2_grouped = self.dataframe2.groupby(['STNNBR', 'CASTNO', 'SAMPNO'],axis=0);
-        cols1, rows1 = self.dataframe1.shape 
-        cols2, rows2 = self.dataframe2.shape 
+        df1_grouped = self.dataframe1.groupby(self.GROUP_COLS,axis=0)
+        df2_grouped = self.dataframe2.groupby(self.GROUP_COLS,axis=0)
 
         for col in columns_to_merge:
             if col not in self.dataframe1.columns:
                 temp_frame = []
                 temp_frame = self.dataframe2.copy(deep=True)
                 for col_check in self.dataframe2.columns:
-                    if col_check not in ['STNNBR', 'CASTNO', 'SAMPNO', col]:
+                    if col_check not in self.GROUP_COLS + [col]:
                         del temp_frame[col_check]
-                self.dataframe1 = merge(self.dataframe1, temp_frame ,how='outer', on=['STNNBR','CASTNO','SAMPNO'])
+                self.dataframe1 = merge(self.dataframe1, temp_frame ,how='outer', on=self.GROUP_COLS)
                 self.dataframe1 = self.dataframe1.fillna(-999.00)
        
         return self.dataframe1
@@ -97,7 +111,7 @@ class Merger(object):
 
 def convert_to_datafile(self, header, dataframe, units, stamp):
     self.globals['header'] = header
-    self.globals['stamp'] = stamp.rstrip()
+    self.globals['stamp'] = stamp
     columns = dataframe.columns
     self.create_columns(columns, units)
     for param in columns:

@@ -844,13 +844,23 @@ def explore_any(args):
     """Attempt to read any CCHDO file and drop into a REPL."""
     from libcchdo.tools import HistoryConsole
 
-    with closing(args.cchdo_file) as in_file:
-        file = read_arbitrary(in_file, args.input_type)
+    if len(args.cchdo_files) == 1:
+        cchdo_file = args.cchdo_files[0]
+        with closing(cchdo_file) as in_file:
+            dfile = read_arbitrary(in_file, args.input_type)
+        banner = (
+            'Exploring {0}. Your data file is available as the variable '
+            '"dfile".').format(cchdo_file.name)
+    else:
+        dfiles = []
+        for cfile in args.cchdo_files:
+            with closing(cfile) as in_file:
+                dfiles.append(read_arbitrary(in_file, args.input_type))
+        banner = (
+            'Exploring {0}. Your data files are available as the variable '
+            '"dfiles".').format([xxx.name for xxx in args.cchdo_files])
 
     console = HistoryConsole(locals=locals())
-    banner = (
-        'Exploring {0}. Your data file is available as the variable '
-        '"file".').format(args.cchdo_file.name)
     console.interact(banner)
 
 
@@ -858,7 +868,7 @@ with subcommand(misc_converter_parsers, 'explore_any', explore_any) as p:
     p.add_argument('-i', '--input-type', choices=known_formats,
         help='force the input file to be read as the specified type')
     p.add_argument(
-        'cchdo_file', type=FileType('r'),
+        'cchdo_files', type=FileType('r'), nargs='+',
          help='any recognized CCHDO file')
 
 
@@ -1006,59 +1016,74 @@ with subcommand(merge_parsers, 'ctd_bacp_xmiss_and_ctd_exchange',
 
 
 def merge_botex_and_botex(args):
-    """Merge two Bottle Exchange files together.
+    """Merge Bottle Exchange files by overwriting the first with the second.
 
     If no parameters to merge are given, show the parameters that have differing
     data.
 
     """
+    from libcchdo.config import stamp
     from libcchdo.model.datafile import DataFile
     from libcchdo.merge import Merger, convert_to_datafile
     import libcchdo.formats.bottle.exchange as botex
+
+    def do_merge(m, parameters):
+        columns_to_merge = []
+        units_to_merge = []
+        for parameter in parameters:
+            columns_to_merge.append(parameter)
+            unit_index = \
+                m.dataframe2.columns.values.tolist().index(parameter)
+            try:
+                units_to_merge.append(m.units2[unit_index])
+            except IndexError:
+                LOG.error(u'File does not have enough units')
+        df = DataFile()
+        result_units = m.units1 + (units_to_merge)
+        result = m.mergeit(columns_to_merge)
+        new_header = '# Merged parameters: {0}\n#{1}\n'.format(
+            ' '.join(columns_to_merge), m.stamp1) + m.header1
+        convert_to_datafile(
+            df, new_header, result, result_units, stamp())
+        with closing(args.output) as out_file:
+            botex.write(df, out_file)
 
     with closing(args.file1) as in_file1:
         with closing(args.file2) as in_file2:
             m = Merger(in_file1, in_file2)
             if args.parameters_to_merge:
-                columns_to_merge = []
-                units_to_merge = []
-                for parameter in args.parameters_to_merge:
-                    columns_to_merge.append(parameter)
-                    unit_index = \
-                        m.dataframe2.columns.values.tolist().index(parameter)
-                    try:
-                        units_to_merge.append(m.units2[unit_index])
-                    except IndexError:
-                        LOG.error(u'File does not have enough units')
-                df = DataFile()
-                result_units = m.units1 + (units_to_merge)
-                result = m.mergeit(columns_to_merge)
-                convert_to_datafile(
-                    df, m.header1, result, result_units, m.stamp1)
-                with closing(args.output) as out_file:
-                    botex.write(df, out_file)
+                do_merge(m, args.parameters_to_merge)
+            elif args.merge_different:
+                different_columns = m.different_cols()
+                LOG.info(
+                    u'The following parameters in {0} are different'.format(
+                    in_file2.name))
+                LOG.info(u' '.join(different_columns))
+                do_merge(m, different_columns)
             else:
                 # Show parameters with differing data
                 different_columns = m.different_cols()
                 LOG.info(
-                    u'The following parameters in {0} are different\n'
-                    '{1!r}'.format(in_file2.name, different_columns))
+                    u'The following parameters in {0} are different'.format(
+                    in_file2.name))
+                print u' '.join(different_columns)
 
 
 with subcommand(merge_parsers, 'botex_and_botex', merge_botex_and_botex) as p:
+    p.add_argument(
+        '--output', type=FileType('w'), nargs='+', default=sys.stdout,
+        help='output Bottle Exchange file')
+    p.add_argument(
+        '--merge-different', action='store_true',
+        help='Merge all different parameters')
     p.add_argument(
         'file1', type=FileType('r'),
         help='first file to merge')
     p.add_argument(
         'file2', type=FileType('r'),
         help='second file to merge')
-    merge_botex_and_botex_group_merge = \
-        p.add_argument_group(
-            title='Merge parameters')
-    merge_botex_and_botex_group_merge.add_argument(
-        '--output', type=FileType('w'), nargs='+', default=sys.stdout,
-        help='output Bottle Exchange file')
-    merge_botex_and_botex_group_merge.add_argument(
+    merge_group = p.add_argument_group(title='Merge parameters')
+    merge_group.add_argument(
         'parameters_to_merge', type=str, nargs='*', default=[],
         help='parameters to merge')
 

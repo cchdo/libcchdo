@@ -161,8 +161,13 @@ def write(self, handle):
     try:
         self['SAMPNO'].values = map(if_float_then_int, self['SAMPNO'].values)
     except KeyError:
+        LOG.warn(u'Missing SAMPNO')
         pass
-    self['BTLNBR'].values = map(if_float_then_int, self['BTLNBR'].values)
+    try:
+        self['BTLNBR'].values = map(if_float_then_int, self['BTLNBR'].values)
+    except KeyError:
+        LOG.warn(u'Missing BTLNBR')
+        pass
     self.check_and_replace_parameters()
 
     columns = self.sorted_columns()
