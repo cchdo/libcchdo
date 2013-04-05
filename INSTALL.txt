@@ -4,7 +4,10 @@ Install
 
 ::
 
-    pip install .
+    pip install numpy && pip install .
+
+It is of note that numpy must be installed before the rest of the packages.
+Some required packages will not install concurrently with numpy.
 
 Dependencies
 ============
@@ -34,7 +37,15 @@ All nodes are python packages except those marked as libraries.
 
   - cdecimal (optional but highly recommended) provides a HUGE speed boost
   - coverage (optional) only needed for test coverage
+  - lxml (optional) used to generate HTML for csv_view
+
+    + lxml (library)
+
+  - docutils (optional) used to check ReStructuredText format.
+  - oauth2 (optional) used for downloading Bitbucket wiki content
+  - paramiko (optional) used for data directory manipulation
   - scipy (optional) needed for interpolation and scientific math
+  - PIL (optional) needed for image processing plot thumbnails
   - matplotlib (optional) needed for plotting
   - basemap (optional) needed for plotting maps
   - pandas (optional) needed for merging
@@ -82,4 +93,7 @@ If you do want extras, you can find them under `extras_require`. Only
 
 ::
 
+    # Install all extras
+    pip install .[all]
+    # Install only extras that are specified
     pip install .[speed,netcdf,plot,merge]

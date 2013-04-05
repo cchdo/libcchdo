@@ -21,18 +21,19 @@ if __name__ == "__main__":
     # To install extras with pip as editable:
     # pip install -e .[db,speed,netcdf]
     extras_require = {
+        'csv_view': ['lxml', ],
         'db': ['MySQL-python', ],
-        'datadir': ['oauth2', 'paramiko', ],
+        'datadir': ['oauth2', 'paramiko', 'docutils', ],
         'speed': ['cdecimal', ],
         'coverage': ['coverage', ],
         'netcdf': ['numpy', 'netCDF4', ],
         'merge': ['pandas', 'numpy>=1.6'],
         'plot': ['numpy>=1.4', 'scipy', 'PIL', 'matplotlib', 'basemap', ],
     }
+    extras_require['all'] = extras_require.values()
 
     install_requires = [
         'geoalchemy',
-        'docutils',
     ]
     if sys.version_info[:3] < (2,5,0):
         install_requires.append('pysqlite')
