@@ -1902,7 +1902,7 @@ def report_old_style_expocodes(args):
 with subcommand(report_parsers, 'old_style_expocodes',
                 report_old_style_expocodes) as p:
     p.add_argument(
-        'output', type=argparse.FileType('w'), nargs='?', default=sys.stdout,
+        'output', type=FileType('w'), nargs='?', default=sys.stdout,
         help='output file')
 
 
