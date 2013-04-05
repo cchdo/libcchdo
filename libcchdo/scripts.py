@@ -13,21 +13,58 @@ from copy import copy
 import sys
 import os
 import os.path
-from json import load as json_load
 
 from libcchdo.log import LOG
-from libcchdo.util import get_library_abspath
-from libcchdo.config import stamp
-from libcchdo.db.model import ignore_sa_warnings
-from libcchdo.ui import termcolor
-from libcchdo.fns import all_formats, get_editor
-from libcchdo.plot.etopo import colormaps as plot_colormaps
-from libcchdo.formats import woce
-from libcchdo.formats.netcdf_oceansites import (
-    OCEANSITES_VERSIONS, OCEANSITES_TIMESERIES,
-    )
-from libcchdo.datadir.processing import README_FILENAME, UOW_CFG_FILENAME
+from libcchdo.fns import all_formats, read_arbitrary, get_editor
+from libcchdo.datadir.filenames import README_FILENAME, UOW_CFG_FILENAME
 known_formats = all_formats.keys()
+
+
+class LazyChoices(object):
+    """Lazy-load for better startup performance."""
+    def lazy(self):
+        try:
+            return self._lazy
+        except AttributeError:
+            self._lazy = self.load()
+            return self._lazy
+
+    def load(self):
+        return []
+
+    def __contains__(self, item):
+        return item in self.lazy()
+
+    def __getitem__(self, item):
+        return self.lazy()[item]
+
+
+class NoopFormatter(object):
+    """Argparse formatter that does nothing.
+
+    Used to prevent help string formatting error when adding lazy choices.
+
+    add_argument normally calls the formatter on the choices to check the help
+    string is formattable. Since the whole point is to lazily load the choices
+    when they're really needed, don't actually do the format on add.
+
+    """
+    def _format_args(self, *args, **kwargs):
+        """No-op for formatting lazy choices."""
+        pass
+
+
+@contextmanager
+def lazy_choices(parser):
+    """Lazily load choices.
+
+    Use NoopFormatter to prevent choices from being loaded prematurely.
+
+    """
+    saved_formatter = parser._get_formatter
+    parser._get_formatter = lambda: NoopFormatter()
+    yield
+    parser._get_formatter = saved_formatter
 
 
 def _qualify_oceansites_type(args):
@@ -40,16 +77,27 @@ def _qualify_oceansites_type(args):
 
 
 def _add_oceansites_arguments(parser, allow_ts_select=True):
-    parser.add_argument(
-        '--os-version', choices=OCEANSITES_VERSIONS,
-        default=OCEANSITES_VERSIONS[-1],
-        help='OceanSITES version number (default: {0})'.format(
-            OCEANSITES_VERSIONS[-1]))
-    if allow_ts_select:
+    from libcchdo.formats.netcdf_oceansites import (
+        OCEANSITES_VERSIONS, OCEANSITES_TIMESERIES)
+    with lazy_choices(parser):
+        default = OCEANSITES_VERSIONS[-1]
         parser.add_argument(
-            'timeseries', type=str, nargs='?', default=None,
-            choices=OCEANSITES_TIMESERIES,
-            help='timeseries location (default: None)')
+            '--os-version', choices=OCEANSITES_VERSIONS,
+            default=default,
+            help='OceanSITES version number (default: {0})'.format(default))
+        if allow_ts_select:
+            parser.add_argument(
+                'timeseries', type=str, nargs='?', default=None,
+                choices=OCEANSITES_TIMESERIES,
+                help='timeseries location (default: None)')
+
+
+@contextmanager
+def subcommand(superparser, name, func):
+    """Add a subcommand to the superparser and yield it."""
+    parser = superparser.add_parser(name, description=func.__doc__)
+    parser.set_defaults(main=func)
+    yield parser
 
 
 hydro_parser = ArgumentParser(
@@ -61,13 +109,6 @@ hydro_subparsers = hydro_parser.add_subparsers(
     title='subcommands')
 
 
-@contextmanager
-def subcommand(superparser, name, func):
-    parser = superparser.add_parser(name, description=func.__doc__)
-    parser.set_defaults(main=func)
-    yield parser
-
-
 check_parser = hydro_subparsers.add_parser(
     'check', help='Format checkers')
 check_parsers = check_parser.add_subparsers(
@@ -76,7 +117,7 @@ check_parsers = check_parser.add_subparsers(
 
 def check_any(args):
     """Check the format for any recognized CCHDO file."""
-    from libcchdo.fns import read_arbitrary, all_formats
+    from libcchdo.formats import woce
 
     with closing(args.cchdo_file) as in_file:
         try:
@@ -156,7 +197,6 @@ any_converter_parsers = any_converter_parser.add_subparsers(
 
 def any_to_type(args):
     """Convert any recognized CCHDO file to any valid output type."""
-    from libcchdo.fns import read_arbitrary, all_formats
     from libcchdo.formats.common import nav
     from libcchdo.formats import google_wire
 
@@ -201,7 +241,6 @@ with subcommand(any_converter_parsers, 'type', any_to_type) as p:
 
 
 def any_to_db_track_lines(args):
-    from libcchdo.fns import read_arbitrary
     from libcchdo.formats.common import track_lines
     from libcchdo.db.connect import cchdo
 
@@ -359,6 +398,7 @@ with subcommand(bot_converter_parsers, 'exchange_to_zip_netcdf',
 
 def bottle_woce_and_summary_woce_to_bottle_exchange(args):
     from libcchdo.model.datafile import DataFile, SummaryFile
+    from libcchdo.formats import woce
     import libcchdo.formats.summary.woce as sumwoce
     import libcchdo.formats.bottle.woce as botwoce
     import libcchdo.formats.bottle.exchange as botex
@@ -678,7 +718,7 @@ with subcommand(ctd_converter_parsers, 'zip_netcdf_to_zip_netcdf_oceansites',
 
 def ctdzip_woce_and_summary_woce_to_ctdzip_exchange(args):
     from libcchdo.model.datafile import DataFileCollection, SummaryFile
-    import libcchdo.formats.woce as woce
+    from libcchdo.formats import woce
     import libcchdo.formats.summary.woce as sumwoce
     import libcchdo.formats.ctd.zip.woce as ctdzipwoce
     import libcchdo.formats.ctd.zip.exchange as ctdzipex
@@ -802,7 +842,6 @@ misc_converter_parsers = misc_converter_parser.add_subparsers(
 
 def explore_any(args):
     """Attempt to read any CCHDO file and drop into a REPL."""
-    from libcchdo.fns import read_arbitrary, all_formats
     from libcchdo.tools import HistoryConsole
 
     with closing(args.cchdo_file) as in_file:
@@ -1204,7 +1243,6 @@ plot_parsers = plot_parser.add_subparsers(title='plotters')
 
 def plot_etopo(args):
     """Plot the world with ETOPO bathymetry."""
-    from libcchdo.fns import read_arbitrary
     from libcchdo.plot.etopo import plot, plot_line_dots
 
     bm = plot(args)
@@ -1214,6 +1252,14 @@ def plot_etopo(args):
             df['LONGITUDE'].values, df['LATITUDE'].values, bm)
 
     bm.savefig(args.output_filename)
+
+
+class LazyChoicesPlotColormaps(LazyChoices):
+    """Lazy-load plot etopo for better startup performance."""
+    def load(self):
+        """lazy load plot.etopo.plot_colormaps."""
+        from libcchdo.plot.etopo import colormaps as plot_colormaps
+        return plot_colormaps.keys()
 
 
 with subcommand(plot_parsers, 'etopo', plot_etopo) as p:
@@ -1236,10 +1282,11 @@ with subcommand(plot_parsers, 'etopo', plot_etopo) as p:
         '--projection', default='merc',
         choices=['merc', 'robin', 'npstere', 'spstere', 'tmerc', ],
         help='The projection of map to use (default: merc)')
-    p.add_argument(
-        '--cmap', default='cberys',
-        choices=plot_colormaps.keys(),
-        help='The colormap to use for the ETOPO data (default: cberys)')
+    with lazy_choices(p):
+        p.add_argument(
+            '--cmap', default='cberys',
+            choices=LazyChoicesPlotColormaps(),
+            help='The colormap to use for the ETOPO data (default: cberys)')
     p.add_argument(
         '--title', type=str, 
         help='A title for the plot')
@@ -1249,12 +1296,13 @@ with subcommand(plot_parsers, 'etopo', plot_etopo) as p:
     p.add_argument(
         '--output-filename', default='etopo.png',
         help='Name of the output file (default: etopo.png)')
-    _llcrnrlat = -89
+
+    llcrnrlat = -89
     # Chosen so that the date line will be centered
-    _llcrnrlon = 25
+    llcrnrlon = 25
     p.add_argument(
         '--bounds-cylindrical', type=float, nargs=4,
-        default=[_llcrnrlon, _llcrnrlat, 360 + _llcrnrlon, -_llcrnrlat],
+        default=[llcrnrlon, llcrnrlat, 360 + llcrnrlon, -llcrnrlat],
         help='The boundaries of the map as '
              '[llcrnrlon, llcrnrlat, urcrnrlon, urcrnrlat]')
     # TODO these options need to be matched with the projection
@@ -1268,8 +1316,10 @@ with subcommand(plot_parsers, 'etopo', plot_etopo) as p:
 
 def plot_cruise_json(args):
     """Plot using cruise.json to specify plotting parameters."""
-    with closing(args.cruise_json) as jf:
-        cruise = json_load(jf)
+    from json import load as json_load
+
+    with closing(args.cruise_json) as jfile:
+        cruise = json_load(jfile)
     if not cruise:
         return
 
@@ -1380,6 +1430,7 @@ def plot_ushydro(args):
     '''Rebuild all the ushydro maps with lines and years
     '''
     from libcchdo.plot.ushydro import genfrom_args
+    from libcchdo.util import get_library_abspath
     default = os.path.join(get_library_abspath(), 'resources', 'ushydro.json')
     if args.config:
         f = args.config
@@ -1584,7 +1635,6 @@ with subcommand(misc_parsers, 'db_dump_tracks', db_dump_tracks) as p:
 
 def any_to_legacy_parameter_statuses(args):
     """Show legacy parameter ids for the parameters in a data file."""
-    from libcchdo.fns import read_arbitrary
     from libcchdo.tools import df_to_legacy_parameter_statuses
 
     with closing(args.input_file) as in_file:
@@ -1783,6 +1833,8 @@ def _subparsers(parser):
 
 def _print_parser_tree(parser, level=0):
     """Recursively print the parser tree with descriptions."""
+    from libcchdo.ui import termcolor
+
     subparsers = _subparsers(parser)
     try:
         prog_name = parser.prog.split()[-1]
@@ -1819,6 +1871,8 @@ with subcommand(hydro_subparsers, 'commands', print_command_tree) as p:
 
 def main():
     """The main program that wraps all subcommands."""
+    from libcchdo.db.model import ignore_sa_warnings
+
     args = hydro_parser.parse_args()
     with ignore_sa_warnings():
         hydro_parser.exit(args.main(args))

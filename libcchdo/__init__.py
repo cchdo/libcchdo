@@ -35,7 +35,7 @@ __version__ = "0.7.1"
 check_cache = True
 
 
-import formats
+import libcchdo.formats
 
 
 # Nice constants

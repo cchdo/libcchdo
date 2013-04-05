@@ -34,17 +34,14 @@ from libcchdo.fns import file_extensions, guess_file_type, uniquify, get_editor
 from libcchdo.datadir.util import mkdir_ensure, make_subdirs
 from libcchdo.db.model import legacy
 from libcchdo.db.model.legacy import QueueFile
-from libcchdo.datadir.dl import AFTP, SFTP
 from libcchdo.config import (
     get_merger_initials, get_merger_name_first, get_merger_name_last,
     get_merger_name, get_merger_email)
 from libcchdo.formats.google_wire import DefaultJSONSerializer
-
-
-EXPOCODE_FILENAME = 'ExpoCode'
-README_FILENAME = '00_README.txt'
-UOW_CFG_FILENAME = 'uow.json'
-FILE_MANIFEST_FILENAME = 'file_manifest.txt'
+from libcchdo.datadir.dl import AFTP, SFTP
+from libcchdo.datadir.filenames import (
+    EXPOCODE_FILENAME, README_FILENAME, UOW_CFG_FILENAME,
+    FILE_MANIFEST_FILENAME)
 
 
 def str_to_fs_slug(sss):

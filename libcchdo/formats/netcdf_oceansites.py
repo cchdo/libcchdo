@@ -9,14 +9,10 @@ http://www.jcommops.org/FTPRoot/OceanSITES/documents/network_status/oceansites_s
 from datetime import datetime
 from collections import defaultdict
 from math import cos
-from contextlib import closing 
-from zipfile import ZipInfo, ZIP_DEFLATED
-from tempfile import SpooledTemporaryFile
 
 from libcchdo.log import LOG
 from libcchdo.fns import strftime_iso
-from libcchdo.util import StringIO, memoize
-from libcchdo.formats import netcdf as nc, zip as Zip
+from libcchdo.util import memoize
 from libcchdo.algorithms import depth
 
 
@@ -28,7 +24,7 @@ __all__ = [
 
 
 # List of OceanSITES versions in increasing order
-OCEANSITES_VERSIONS = ('1.1', '1.2', )
+OCEANSITES_VERSIONS = ['1.1', '1.2', ]
 
 
 OCEANSITES_PREFIX = 'OS'
@@ -383,6 +379,9 @@ and the national programs that contribute to it.""",
     'DEPTH_CALCULATED_SVERDRUP': (
         'Calculated using integration of insitu density. Sverdrup, et al. 1942'
     ),
+    'DEPTH_CALCULATED_UNESCO_1983': (
+        'Calculated using Unesco 1983 Saunders and Fofonoff method.'
+    ),
 }
 
 
@@ -418,6 +417,7 @@ def _sanitize_os_version(version):
 
 
 def create_oceansites_nc(df, filename, data_type, version=None):
+    from libcchdo.formats import netcdf as nc
     info = {
         'date_start': df.globals['_DATETIME'],
         'lat': df.globals['LATITUDE'],
@@ -559,7 +559,48 @@ def _find_first(df, parameters):
     return None
 
 
+def _calculate_depth(self, nc_file):
+    """Calculate a DEPTH column based on a series of methods."""
+    var_depth = nc_file.variables['DEPTH']
+    try:
+        depths = self['_ACTUAL_DEPTH']
+        var_depth[:] = depths.values
+        return
+    except KeyError:
+        pass
+
+    # If there is no _ACTUAL_DEPTH column, calculate it using pressure,
+    # salinity, and temperature. _ACTUAL_DEPTH is used because CCHDO's
+    # parameter list includes DEPTH which is actually Bottom Depth.
+
+    # Fun using Sverdrup's depth integration with density.
+    pres = _find_first(self, PRESSURE_VARIABLES)
+    salt = _find_first(self, SALINITY_VARIABLES)
+    temp = _find_first(self, TEMPERATURE_VARIABLES)
+    lat = self.globals['LATITUDE']
+
+    localgrav = depth.grav_ocean_surface_wrt_latitude(lat)
+    try: 
+        sal_tmp_pres = zip(salt.values, temp.values, pres.values)
+        density_series = [depth.density(*args) for args in sal_tmp_pres]
+        if None in density_series:
+            raise ValueError(
+                u'Cannot perform depth integration with missing data points')
+        var_depth.comment = OS_TEXT['DEPTH_CALCULATED_SVERDRUP']
+        var_depth[:] = depth.depth(localgrav, pres.values, density_series)
+        return
+    except (AttributeError, IndexError, ValueError):
+        pass
+    try:
+        LOG.info(u'Falling back from depth integration to Unesco method.')
+        var_depth.comment = OS_TEXT['DEPTH_CALCULATED_UNESCO_1983']
+        var_depth[:] = [depth.depth_unesco(pres, lat) for pres in pres.values]
+    except AttributeError:
+        raise ValueError(u'Cannot convert non-existant pressures to depths.')
+
+
 def write_columns(self, nc_file):
+    from libcchdo.formats import netcdf as nc
     LOG.debug(u'writing columns')
 
     # Because it is possible for multiple parameter names to be mapped to the
@@ -585,7 +626,9 @@ def write_columns(self, nc_file):
             u'{pname} mapped to {osname}'.format(pname=pname, osname=name))
 
         # Write variable
-        # TODO ref table 3 for fill_value
+        # documentation says to refer to ref table 3 for fill_value but that is
+        # likely a holdout from when the document was likely copied from Argo's
+        # manuals. See OSVar for the compromise.
         try:
             var = nc_file.createVariable(
                 name, 'f8', ('DEPTH',), fill_value=variable.fill_value)
@@ -629,44 +672,12 @@ def write_columns(self, nc_file):
             flag.flag_values = list(range(10))
             flag.flag_meanings = OS_TEXT['FLAG_MEANINGS']
             flag[:] = [WOCE_to_OceanSITES_flag[f] for f in column.flags_woce]
-
-    var_depth = nc_file.variables['DEPTH']
-    try:
-        depths = self['_ACTUAL_DEPTH']
-        var_depth[:] = depths.values
-    except KeyError:
-        # If there is no _ACTUAL_DEPTH column, calculate it using pressure,
-        # salinity, and temperature. _ACTUAL_DEPTH is used because CCHDO's
-        # parameter list includes DEPTH which is actually Bottom Depth.
-
-        # Fun using Sverdrup's depth integration with density.
-        pres = _find_first(self, PRESSURE_VARIABLES)
-        salt = _find_first(self, SALINITY_VARIABLES)
-        temp = _find_first(self, TEMPERATURE_VARIABLES)
-
-        localgrav = \
-            depth.grav_ocean_surface_wrt_latitude(self.globals['LATITUDE'])
-        try: 
-            sal_tmp_pres = zip(salt.values, temp.values, pres.values)
-            density_series = [depth.density(*args) for args in sal_tmp_pres]
-            if None in density_series:
-                # Can't perform integration with missing data points.
-                raise ValueError
-            var_depth.comment = OS_TEXT['DEPTH_CALCULATED_SVERDRUP']
-            depth_series = depth.depth(localgrav, pres.values, density_series)
-        except (AttributeError, IndexError, ValueError):
-            try:
-                depth_series = fallback_depth_unesco(
-                    self.globals['LATITUDE'], pres.values, var_depth)
-            except AttributeError:
-                raise ValueError(
-                    u'Cannot convert non-existant pressures to depths.')
-        var_depth[:] = depth_series
-
+    _calculate_depth(self, nc_file)
 
 
 def write_timeseries_info_title_and_id(
         self, nc_file, data_type, timeseries, timeseries_info, version=None):
+    from libcchdo.formats import netcdf as nc
     assert data_type in ['CTD', 'BTL']
     # Write timeseries information, if given
     timeseries_info = pick_timeseries_or_timeseries_info(
@@ -688,9 +699,9 @@ def write_timeseries_info_title_and_id(
             stn=self.globals['STNNBR'], cast=self.globals['CASTNO'])
 
     # Pass along OS_id to zip writing so it can be used in filename generation
-    self.globals['OS_id'] = file_and_timeseries_info_to_id(
+    self.globals['_OS_id'] = file_and_timeseries_info_to_id(
         self, timeseries_info, type=data_type, version=version)
-    nc_file.id = self.globals['OS_id']
+    nc_file.id = self.globals['_OS_id']
 
     nc.check_variable_ranges(nc_file)
 
@@ -761,32 +772,17 @@ def file_and_timeseries_info_to_id(
                              partx=type, version=version)
 
 
-def fallback_depth_unesco(lat, preses, var_depth):
-    LOG.info(u'Falling back from depth integration to Unesco method.')
-    var_depth.comment = \
-        'Calculated using Unesco 1983 Saunders and Fofonoff method.'
-    return map(lambda pres: depth.depth_unesco(pres, lat), preses)
-
-
 def write_zip_factory(module):
+    def get_filename(dfile):
+        """Return filename for OceanSITES cast datafile."""
+        return '{os_id}.nc'.format(os_id=dfile.globals['_OS_id'])
+
     def write(self, handle, timeseries=None, timeseries_info={}, version=None):
         """Write a ZIP file containing multiple OceanSITES cast files.
 
         """
-        zip = Zip.create(handle)
-        dt = datetime.now()
-        dt_tuple = (dt.year, dt.month, dt.day, dt.hour, dt.minute, dt.second)
-        external_attr = 0644 << 16L
-        for i, file in enumerate(self.files):
-            with SpooledTemporaryFile(max_size=2 ** 13) as tempfile:
-                module.write(file, tempfile, timeseries, timeseries_info)
-                tempfile.flush()
-                tempfile.seek(0)
-                info = ZipInfo('{os_id}.nc'.format(os_id=file.globals['OS_id']))
-                info.date_time = dt_tuple
-                info.external_attr = external_attr
-                info.compress_type = ZIP_DEFLATED
-                zip.writestr(info, tempfile.read())
-        zip.close()
+        from libcchdo.formats.zip import write
+        write(self, handle, module, get_filename, timeseries=timeseries,
+              timeseries_info=timeseries_info, version=version)
     return write
 

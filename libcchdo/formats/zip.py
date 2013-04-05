@@ -136,12 +136,12 @@ def createZipInfo(filename, dtime=None, permissions=0644):
     return info
 
 
-def write(self, handle, writer, get_filename):
+def write(self, handle, writer, get_filename, **kwargs):
     """Common write functionality for zip files."""
     zfile = create(handle)
     for dfile in self:
         with SpooledTemporaryFile(max_size=2 ** 13) as tempfile:
-            writer.write(dfile, tempfile)
+            writer.write(dfile, tempfile, **kwargs)
             tempfile.flush()
             tempfile.seek(0)
 

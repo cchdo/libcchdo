@@ -141,6 +141,8 @@ class Column(object):
 
         # A leading _ indicates a contrived parameter. Skip it.
         if parameter.name.startswith('_'):
+            if '_FLAG_' in parameter.name:
+                return
             LOG.info(
                 u'Parameter {0!r} will not be checked against known '
                 'parameters.'.format(parameter.name))
