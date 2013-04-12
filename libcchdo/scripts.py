@@ -242,6 +242,28 @@ with subcommand(any_converter_parsers, 'type', any_to_type) as p:
          help='output file (default: stdout)')
 
 
+def any_to_kml(args):
+    from libcchdo.fns import read_arbitrary
+    from libcchdo.kml import any_to_kml
+
+    with closing(args.cchdo_file) as in_file:
+        file = read_arbitrary(in_file, args.input_type)
+
+    with closing(args.output) as out_file:
+        any_to_kml(file, out_file)
+
+
+with subcommand(any_converter_parsers, 'kml', any_to_kml) as p:
+    p.add_argument(
+        'cchdo_file', type=FileType('r'),
+        help='any recognized CCHDO file')
+    p.add_argument('-i', '--input-type', choices=known_formats,
+        help='force the input file to be read as the specified type')
+    p.add_argument(
+        'output', type=FileType('w'), nargs='?', default=sys.stdout,
+        help='output file (default: stdout)')
+
+
 def any_to_db_track_lines(args):
     from libcchdo.formats.common import track_lines
     from libcchdo.db.connect import cchdo
