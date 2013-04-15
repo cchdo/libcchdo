@@ -5,6 +5,7 @@ from geoalchemy.utils import from_wkt
 
 from libcchdo import LOG
 from libcchdo.db.model import legacy
+from libcchdo.db.model.legacy import TrackLine, Cruise
 
 
 def _grouped_cruises_with_data_modifications(
@@ -87,24 +88,37 @@ def _tracks(bin_callback, track_callback,
             bins = _grouped_cruises_with_data_modifications(
                 lsesh, around_year=around_year)
         for range_bin in bins:
-            query = lsesh.query(legacy.TrackLine.Track, legacy.Cruise.ExpoCode,
-                                legacy.Cruise.Begin_Date).\
-                join(legacy.Cruise,
-                    legacy.Cruise.ExpoCode == legacy.TrackLine.ExpoCode)
+            query = lsesh.query(TrackLine.Track, Cruise.ExpoCode,
+                                Cruise.Begin_Date).\
+                join(Cruise, Cruise.ExpoCode == TrackLine.ExpoCode)
             if range_bin:
-                query = query.filter(legacy.TrackLine.ExpoCode.in_(range_bin))
+                query = query.filter(TrackLine.ExpoCode.in_(range_bin))
 
             if dt_from:
-                query = query.filter(legacy.Cruise.Begin_Date >= dt_from)
+                query = query.filter(Cruise.Begin_Date >= dt_from)
             if dt_to:
-                query = query.filter(legacy.Cruise.Begin_Date <= dt_to)
+                query = query.filter(Cruise.Begin_Date <= dt_to)
                 
             tracks = query.all()
             for track, expocode, date_start in tracks:
                 LOG.info(expocode)
-                track = from_wkt(lsesh.scalar(track.wkt))['coordinates']
+                track = wkt_to_track(lsesh, track)
                 track_callback(track, expocode, date_start)
             bin_callback()
+
+
+def wkt_to_track(lsesh, track):
+    """Convert WKT to a list of points."""
+    return from_wkt(lsesh.scalar(track.wkt))['coordinates']
+
+
+def tracks_for_cruises(*expocodes):
+    with closing(legacy.session()) as lsesh:
+        query = lsesh.query(TrackLine.Track, TrackLine.ExpoCode).\
+            filter(TrackLine.ExpoCode.in_(expocodes))
+        for track, expocode in query.all():
+            track = wkt_to_track(lsesh, track)
+            yield track, expocode
 
 
 def tracks(output, dt_from=None, dt_to=None, around=None):

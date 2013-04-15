@@ -632,3 +632,115 @@ def sbe_asc_to_ctd_exchange(args):
             output = output + '_ct1.zip'
 
         _multi_file(asc, args.files, output, expo=expo)
+
+
+def australian_navy_ctd(args):
+    """Download and convert Australian Navy CTD data."""
+    from pydap.client import open_url
+    from libcchdo.model.datafile import DataFile, DataFileCollection, Column
+    from libcchdo.thredds import crawl
+    from libcchdo.formats.ctd.zip import exchange as ctdzipex
+    from libcchdo.fns import equal_with_epsilon
+    from libcchdo.formats.zip import write as zwrite
+
+    dfcs = []
+
+    cf_param_to_cchdo_param = {
+        'sea_water_pressure': 'CTDPRS',
+        'sea_water_temperature': 'CTDTMP',
+        'sea_water_practical_salinity': 'CTDSAL',
+    }
+    ignored_qc_flags = [
+        'time_qc_flag', 'position_qc_flag',
+    ]
+    qc_conventions = {
+        'Proposed IODE qc scheme March 2012': {
+            1: 2, # good
+            2: 5, # not_evaluated_or_unknown
+            3: 3, # suspect
+            4: 4, # bad
+            9: 9, # missing
+        },
+    }
+
+    dfc = DataFileCollection()
+    catalog = "http://www.metoc.gov.au/thredds/catalog/RAN_CTD_DATA/catalog.xml"
+    for url in crawl(catalog):
+        df = DataFile()
+
+        LOG.info(u'Reading %s', url)
+        dset = open_url(url)
+        vars = dset.keys()
+        for vname in vars:
+            var = dset[vname]
+            attrs = var.attributes
+            if 'standard_name' in attrs:
+                std_name = attrs['standard_name']
+                if std_name == 'time':
+                    df.globals['_DATETIME'] = \
+                        datetime(1950, 1, 1) + timedelta(var[:])
+                elif std_name == 'latitude':
+                    df.globals['LATITUDE'] = var[:]
+                elif std_name == 'longitude':
+                    df.globals['LONGITUDE'] = var[:]
+                elif std_name in cf_param_to_cchdo_param:
+                    cparam = cf_param_to_cchdo_param[std_name]
+                    if '_FillValue' in attrs:
+                        fill_value = attrs['_FillValue']
+                        values = []
+                        for x in var[:]:
+                            if equal_with_epsilon(x, fill_value):
+                                values.append(None)
+                            else:
+                                values.append(x)
+                    else:
+                        values = var[:]
+
+                    try:
+                        df[cparam].values = values
+                    except KeyError:
+                        df[cparam] = Column(cparam)
+                        df[cparam].values = values
+                elif 'status_flag' in std_name:
+                    flagged_param = std_name.replace('status_flag', '').strip()
+                    cparam = cf_param_to_cchdo_param[flagged_param]
+                    qc_convention = attrs['quality_control_convention']
+                    if qc_convention in qc_conventions:
+                        qc_map = qc_conventions[qc_convention]
+                        df[cparam].flags_woce = [qc_map[x] for x in var[:]]
+                else:
+                    LOG.debug('unhandled standard_name %s', std_name)
+            elif (
+                    'long_name' in attrs and
+                    attrs['long_name'] == 'profile identifier'):
+                profile_id = var[:]
+                cruise_id = profile_id / 10 ** 4
+                profile_id = profile_id - cruise_id * 10 ** 4
+                df.globals['EXPOCODE'] = str(cruise_id)
+                df.globals['STNNBR'] = str(profile_id)
+                df.globals['CASTNO'] = str(1)
+            elif vname in ignored_qc_flags:
+                df.globals['_' + vname] = var[:]
+            elif (
+                    vname.endswith('whole_profile_flag') or 
+                    vname.endswith('sd_test')):
+                pass
+            else:
+                LOG.debug('unhandled variable %s', vname)
+
+        # attach new file to appropriate collection
+        if dfc.files:
+            if dfc.files[0].globals['EXPOCODE'] != df.globals['EXPOCODE']:
+                dfcs.append(dfc)
+                dfc = DataFileCollection()
+        dfc.append(df)
+
+    with closing(args.output) as out_file:
+        next_id = 0
+        def get_filename(dfc):
+            try:
+                return '{0}_ct1.zip'.format(dfc.files[0].globals['EXPOCODE'])
+            except IndexError:
+                next_id += 1
+                return '{0}_ct1.zip'.format(next_id)
+        zwrite(dfcs, out_file, ctdzipex, get_filename)

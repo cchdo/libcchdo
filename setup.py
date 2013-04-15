@@ -20,6 +20,7 @@ if __name__ == "__main__":
 
     # To install extras with pip as editable:
     # pip install -e .[db,speed,netcdf]
+    # pip install -e.[all] will install all extras
     extras_require = {
         'csv_view': ['lxml', ],
         'db': ['MySQL-python', ],
@@ -29,6 +30,7 @@ if __name__ == "__main__":
         'netcdf': ['numpy', 'netCDF4', ],
         'merge': ['pandas', 'numpy>=1.6'],
         'plot': ['numpy>=1.4', 'scipy', 'PIL', 'matplotlib', 'basemap', ],
+        'dap_thredds': ['lxml', 'httplib2', 'pydap'],
     }
     extras_require['all'] = extras_require.values()
 

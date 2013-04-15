@@ -982,6 +982,25 @@ with subcommand(misc_converter_parsers, 'per_litre_to_per_kg',
         help='output Exchange file')
 
 
+def convert_australian_navy_ctd(args):
+    """Convert Australian Navy CTD files.
+
+    Australian Navy and Bureau of Meteorology has data available.
+    See Google Groups message [CCHDO:4467].
+
+    """
+    from libcchdo.tools import australian_navy_ctd
+    australian_navy_ctd(args)
+
+
+with subcommand(misc_converter_parsers, 'austr_navy',
+                convert_australian_navy_ctd) as p:
+    p.add_argument(
+        'output', type=FileType('w'), nargs='?',
+        default=sys.stdout,
+        help='output Zip of CTD Zip Exchange files')
+
+
 def convert_hly0301(args):
     """Make changes specific to HLY0301 by request from D. Muus."""
     from libcchdo.model.datafile import DataFileCollection
@@ -990,18 +1009,24 @@ def convert_hly0301(args):
 
     dfc = DataFileCollection()
 
-    with closing(args.input_ctdzipex) as in_file:
+    with closing(args.input_file) as in_file:
         ctdzipex.read(dfc, in_file, retain_order=True)
 
     for f in dfc.files:
         operate_healy_file(f)
 
-    with closing(args.out_ctdzipex) as out_file:
+    with closing(args.output) as out_file:
         ctdzipex.write(dfc, out_file)
 
 
 with subcommand(misc_converter_parsers, 'hly0301', convert_hly0301) as p:
-    pass
+    p.add_argument(
+        'input_file', type=FileType('r'),
+        help='input Exchange file')
+    p.add_argument(
+        'output', type=FileType('w'), nargs='?',
+        default=sys.stdout,
+        help='output CTD Zip Exchange file')
 
 
 def convert_bonus_goodhope(args):
