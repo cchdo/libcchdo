@@ -21,6 +21,16 @@ from libcchdo.datadir.filenames import README_FILENAME, UOW_CFG_FILENAME
 known_formats = all_formats.keys()
 
 
+class NiceUsageArgumentParser(ArgumentParser):
+    """Exactly the same as ArgumentParser except prints nicer usage."""
+
+    def format_usage(self):
+        formatter = self._get_formatter()
+        formatter.add_usage(self.usage, self._actions,
+                            self._mutually_exclusive_groups)
+        return formatter.format_help() + _format_parser_tree(self)
+
+
 class LazyChoices(object):
     """Lazy-load for better startup performance."""
     def lazy(self):
@@ -101,7 +111,7 @@ def subcommand(superparser, name, func):
     yield parser
 
 
-hydro_parser = ArgumentParser(
+hydro_parser = NiceUsageArgumentParser(
     description='libcchdo tools',
     formatter_class=RawTextHelpFormatter)
 
@@ -1966,7 +1976,7 @@ def _subparsers(parser):
         return []
 
 
-def _print_parser_tree(parser, level=0):
+def _format_parser_tree(parser, level=0):
     """Recursively print the parser tree with descriptions."""
     from libcchdo.ui import termcolor
 
@@ -1985,23 +1995,16 @@ def _print_parser_tree(parser, level=0):
     else:
         color = termcolor('green')
 
+    string = ''
     lead_str = ''.join(['  ' * level, color, prog_name, termcolor('reset')])
     if description:
         spacing = ' ' * abs(len(lead_str) - 40)
-        print ''.join([lead_str, spacing, description])
+        string += ''.join([lead_str, spacing, description]) + '\n'
     else:
-        print lead_str
+        string += lead_str + '\n'
     for sp in subparsers:
-        _print_parser_tree(sp, level + 1)
-
-
-def print_command_tree(args):
-    """Show all possible commands in tree."""
-    _print_parser_tree(hydro_parser)
-    
-
-with subcommand(hydro_subparsers, 'commands', print_command_tree) as p:
-    pass
+        string += _format_parser_tree(sp, level + 1)
+    return string
     
 
 def main():
