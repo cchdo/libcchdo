@@ -10,5 +10,6 @@ doc/coverage
 dev
 libcchdo/db/*.db
 libcchdo/db/*.db-journal
+libcchdo/resources/woce_repr.csv
 build
 dist

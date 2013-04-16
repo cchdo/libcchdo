@@ -1482,43 +1482,14 @@ def plot_goship(args):
     With CCHDO cruises overlaid.
 
     """
-    args.no_etopo = False
-    args.fill_continents = False
-
-    args.minutes = 1
-    args.projection = 'eck4'
-    args.cmap = 'goship'
-    args.title = ''
-    args.width = 8192
-    args.any_file = None
-    args.bounds_elliptical = 205
-
-    label_font_size = 85
-    title_font_size = 28
-    draw_graticules_kwargs = {
-        'line_width': 0.5,
-        'label_font_color': (0.404, 0.404, 0.404),
-    }
-    from libcchdo.plot.etopo import plt, ETOPOBasemap, plot
     from libcchdo.db.util import _tracks
+    from libcchdo.plot import presets_goship
 
-    if args.draft:
-        args.minutes = 5
-        args.width = 1024
-        label_font_size = 15
-        title_font_size = 15
+    color = gmt_color(0x7A, 0xCD, 0xE4)
+    color = gmt_color(*[(x - 0x40) for x in [0x7A, 0xCD, 0xE4]])
 
-    bm = plot(
-        args, label_font_size, title_font_size,
-        draw_graticules_kwargs=draw_graticules_kwargs)
-    bm.hide_axes_borders()
-
-    gmt_style = copy(ETOPOBasemap.GMT_STYLE_DOTS)
-    gmt_style['s'] = 80
-    gmt_style['linewidth'] = 0
-    color = tuple([x / 255. for x in [0x7A, 0xCD, 0xE4]])
-    color = tuple([(x - 0x40) / 255. for x in [0x7A, 0xCD, 0xE4]])
-    gmt_style['c'] = color
+    args, bm, gmt_style = presets_goship(
+        color, args, draft=False)
 
     def bin_end():
         pass
@@ -1690,6 +1661,30 @@ with subcommand(plot_parsers, 'data_holdings_around',
                 plot_data_holdings_around) as p:
     p.add_argument(
         'around', type=int, help='The year to bin around')
+
+
+def plot_woce_repr(args):
+    """Plot WOCE lines with each represented by one or two ideal cruise tracks.
+
+    """
+    from libcchdo.tools import plot_woce_representation
+    from libcchdo.util import get_library_abspath
+    default = os.path.join(
+        get_library_abspath(), 'resources', 'woce_repr.csv')
+    plot_woce_representation(args, default)
+
+
+with subcommand(plot_parsers, 'woce_repr',
+                plot_woce_repr) as p:
+    p.add_argument(
+        '--large-dots', action='store_true',
+        help='Whether or not to use large dots')
+    p.add_argument(
+        '--draft', action='store_true',
+        help='Draft form is a small version of the plot')
+    p.add_argument(
+        '--output-filename', default='woce.png',
+        help='Name of the output file (default: woce.png)')
 
 
 misc_parser = hydro_subparsers.add_parser(
