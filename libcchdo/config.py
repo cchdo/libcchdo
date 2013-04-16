@@ -1,3 +1,40 @@
+"""Configuration files.
+
+Editing
+=======
+A shortcut to edit the current most precedent configuration file is
+
+    $ hydro misc edit_cfg
+
+File order and precedence
+=========================
+When loading the library, the configuration files will be loaded to obtain
+credentials and file locations. The following files will be read, in order,
+for the configuration::
+
+/usr/local/etc/libcchdo/libcchdo.cfg
+current_working_directory/libcchdo.cfg
+~/libcchdo.cfg
+
+The contents of later files will overwrite the contents of earlier files.
+
+Environment
+===========
+The library can be put into different environments. This causes the
+configuration to load a different set of files. The naming convention for these
+files is ```environment_libcchdo.cfg```.
+
+In order to change the environment, set the environment variable
+```LIBCCHDO_ENV```. When the library is not using the default environment, it
+will preface each run with "Running in <your-environment> environment."
+
+A good use of this feature is to have a development environment.
+
+    $ export LIBCCHDO_ENV=dev
+    $ hydro
+    $ unset LIBCCHDO_ENV
+
+"""
 from ConfigParser import (
     SafeConfigParser, Error as ConfigError, NoSectionError,
     DuplicateSectionError, NoOptionError)
@@ -5,28 +42,47 @@ from datetime import date
 import os
 from getpass import getpass
 
-
-from libcchdo import LOG
+from libcchdo.log import LOG
+from libcchdo.util import memoize
 
 
 _CONFIG_DIR = '.%s' % __package__
 
 
-_CONFIG_FILE_NAME = '%s.cfg' % __package__
+@memoize
+def get_libenv():
+    """Return the current operating environment.
+
+    Order of precedence::
+    * Environment variable LIBCCHDO_ENV
+
+    Values::
+    1. prod - production
+    2. dev - development
+    3. test - test
+
+    """
+    env = os.environ.get('LIBCCHDO_ENV', 'prod')
+    if env != 'prod':
+        LOG.info('Running in {0} environment.'.format(env))
+    return env
 
 
-_LEGACY_CONFIG_FILE_NAME = '.%s.cfg' % __package__
+def _config_filename():
+    env = get_libenv()
+    if env == 'prod':
+        return '{0}.cfg'.format(__package__)
+    return '{0}_{1}.cfg'.format(env, __package__)
 
 
 _CONFIG_PATHS = [
-    os.path.join('/usr/local/etc', __package__, _CONFIG_FILE_NAME),
-    os.path.join(os.getcwd(), _CONFIG_DIR,  _CONFIG_FILE_NAME),
-    os.path.expanduser(os.path.join('~', _CONFIG_DIR, _CONFIG_FILE_NAME)),
-    os.path.expanduser(os.path.join('~', _CONFIG_DIR, _LEGACY_CONFIG_FILE_NAME)),
+    os.path.join('/usr/local/etc', __package__, _config_filename()),
+    os.path.join(os.getcwd(), _CONFIG_DIR,  _config_filename()),
+    os.path.expanduser(os.path.join('~', _CONFIG_DIR, _config_filename())),
 ]
 
 
-_DEFAULT_CONFIG_PATH_INDEX = -2
+_DEFAULT_CONFIG_PATH_INDEX = -1
 
 
 _CONFIG = SafeConfigParser()

@@ -1488,13 +1488,13 @@ def plot_battery(args):
         for cmap in cmaps:
             iargs.cmap = cmap
             iargs.output_filename = os.path.join(
-                root, '{0}_{1}.png'.format(proj, cmap[0])
+                root, '{0}_{1}.png'.format(proj, cmap[0]))
             plot_etopo(iargs)
             plt.clf()
 
     iargs = copy(args)
     iargs.projection = 'merc'
-    iargs.output_filename = os.path.join(root, 'merc_c_small.png'
+    iargs.output_filename = os.path.join(root, 'merc_c_small.png')
     iargs.cmap = 'cberys'
     iargs.width = 480
     iargs.bounds_cylindrical = [110, -10, 160, 40]
@@ -1774,7 +1774,7 @@ misc_parsers = misc_parser.add_subparsers(title='miscellaneous')
 
 
 def edit_cfg(args):
-    """Launch editor for the configuration file."""
+    """Edit the most precedent configuration file."""
     from subprocess import call as subproc_call
 
     from libcchdo.config import get_config_path
