@@ -1404,7 +1404,7 @@ class LazyChoicesPlotColormaps(LazyChoices):
         return plot_colormaps.keys()
 
 
-with subcommand(plot_parsers, 'etopo', plot_etopo) as p:
+def _add_plot_etopo_arguments(p):
     p.add_argument(
         '--no-etopo', action='store_const', const=True,
         help='Do not draw ETOPO')
@@ -1453,7 +1453,67 @@ with subcommand(plot_parsers, 'etopo', plot_etopo) as p:
         default=180,
         help='The center meridian of the map lon_0 (default: 180 centers the '
             'Pacific Ocean)')
+
+
+with subcommand(plot_parsers, 'etopo', plot_etopo) as p:
+    _add_plot_etopo_arguments(p)
     plot_etopo_parser = p
+
+
+def plot_battery(args):
+    """Plot a full battery of projections and colormaps.
+
+    Used when matching style to GMT.
+
+    """
+    from libcchdo.plot.etopo import plt
+    root = 'etopo_battery'
+    try:
+        os.mkdir(root)
+    except OSError:
+        pass
+    projections = ['merc', 'robin', 'spstere', 'npstere']
+    cmaps = ['gray', 'cberys']
+
+    for proj in projections:
+        iargs = copy(args)
+        iargs.projection = proj
+        if proj == 'merc':
+            iargs.bounds_cylindrical = [25, -80, 385, 80]
+        elif proj == 'spstere':
+            iargs.minutes = 5
+        elif proj == 'npstere':
+            iargs.minutes = 2
+
+        for cmap in cmaps:
+            iargs.cmap = cmap
+            iargs.output_filename = os.path.join(
+                root, '{0}_{1}.png'.format(proj, cmap[0])
+            plot_etopo(iargs)
+            plt.clf()
+
+    iargs = copy(args)
+    iargs.projection = 'merc'
+    iargs.output_filename = os.path.join(root, 'merc_c_small.png'
+    iargs.cmap = 'cberys'
+    iargs.width = 480
+    iargs.bounds_cylindrical = [110, -10, 160, 40]
+    iargs.minutes = 2
+    plot_etopo(iargs)
+    plt.clf()
+
+    iargs = copy(args)
+    iargs.projection = 'merc'
+    iargs.output_filename = os.path.join(root, 'plot.png')
+    iargs.any_file = open('49MR0502_hy1.csv')
+    iargs.width = 720
+    iargs.bounds_cylindrical = [130, 30, 150, 45]
+    iargs.minutes = 2
+    plot_etopo(iargs)
+
+
+with subcommand(plot_parsers, 'battery', plot_battery) as p:
+    _add_plot_etopo_arguments(p)
 
 
 def plot_cruise_json(args):
