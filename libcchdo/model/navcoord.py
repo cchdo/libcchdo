@@ -100,39 +100,37 @@ def iter_coords(self, navcoordcls, callback):
     """
     expocode_coords = {}
     if (isinstance(self, DataFile) or isinstance(self, SummaryFile)):
-        # TODO it is possible for a datafile to have a global expocode...
         expocodes = self.expocodes()
 
         lons = self['LONGITUDE'].values
         lats = self['LATITUDE'].values
-        stnnbrs = self['STNNBR'].values
-        dates = self['_DATETIME'].values
+        try:
+            stnnbrs = self['STNNBR'].values
+        except KeyError:
+            stnnbrs = [None] * len(lons)
+        try:
+            dates = self['_DATETIME'].values
+        except KeyError:
+            dates = [None] * len(lons)
         try:
             codes = self['_CODE'].values
         except KeyError:
             codes = [None] * len(lons)
 
         for expocode in expocodes:
-            elons = []
-            elats = []
-            estnnbrs = []
-            edates = []
-            ecodes = []
-
-            for i, x in enumerate(self['EXPOCODE'].values):
-                if x != expocode:
-                    continue
-                elons.append(lons[i])
-                elats.append(lats[i])
-                estnnbrs.append(stnnbrs[i])
-                edates.append(dates[i])
-                ecodes.append(codes[i])
-
-            items = zip(elons, elats, estnnbrs, edates, ecodes)
             try:
-                expocode_coords[expocode].extend(items)
+                expo_col = self['EXPOCODE'].values
+                check_expocode = True
             except KeyError:
-                expocode_coords[expocode] = items
+                expo_col = self.columns.values()[0].values
+                check_expocode = False
+
+            coords = expocode_coords[expocode] = []
+            for i, x in enumerate(expo_col):
+                if check_expocode and x != expocode:
+                    continue
+                coords.append(
+                    [lons[i], lats[i], stnnbrs[i], dates[i], codes[i]])
     elif isinstance(self, DataFileCollection):
         coords = [
             [file.globals['LONGITUDE'],

@@ -275,6 +275,7 @@ with subcommand(any_converter_parsers, 'kml', any_to_kml) as p:
 
 
 def any_to_db_track_lines(args):
+    """Take any readable file and put the tracks in the database."""
     from libcchdo.formats.common import track_lines
     from libcchdo.db.connect import cchdo
 
@@ -282,6 +283,13 @@ def any_to_db_track_lines(args):
     with closing(dbcchdo.connect()) as conn:
         with closing(args.input_file) as in_file:
             data = read_arbitrary(in_file, args.input_type)
+        if args.expocode:
+            data.globals['EXPOCODE'] = args.expocode
+        try:
+            data.expocodes()
+        except KeyError:
+            LOG.error(u'Please supply an ExpoCode using the --expocode flag.')
+            return
         track_lines.write(data, conn)
 
 
@@ -290,6 +298,9 @@ with subcommand(any_converter_parsers, 'db_track_lines',
     p.add_argument('-i', '--input-type',
         choices=known_formats,
         help='force the input file to be read as the specified type')
+    p.add_argument(
+        '--expocode', 
+        help='ExpoCode to attach the track to.')
     p.add_argument(
         'input_file', type=FileType('r'),
         help='any recognized CCHDO file')

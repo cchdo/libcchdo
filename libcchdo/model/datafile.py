@@ -340,7 +340,10 @@ class DataFile(File):
         self.allow_contrived = allow_contrived
 
     def expocodes(self):
-        return uniquify(self['EXPOCODE'].values)
+        try:
+            return [self.globals['EXPOCODE']]
+        except (AttributeError, KeyError):
+            return uniquify(self['EXPOCODE'].values)
 
     def formats(self):
         return self.get_property_for_columns(
