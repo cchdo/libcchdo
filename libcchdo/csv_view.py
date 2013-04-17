@@ -39,7 +39,7 @@ def accordion_group(header, table, ingroup=False):
 def view(path):
     filename = os.path.basename(path)
 
-    bootstrap_assets_root = '//twitter.github.com/bootstrap/assets'
+    bootstrap_assets_root = '//twitter.github.io/bootstrap/assets'
 
     html = E.HTML(
         E.HEAD(
@@ -47,6 +47,7 @@ def view(path):
             E.TITLE(filename),
             E.LINK(href='{0}/css/bootstrap.css'.format(bootstrap_assets_root),
                    rel='stylesheet'),
+            E.LINK(href='//mottie.github.io/tablesorter/css/theme.blue.css', rel='stylesheet'),
             E.LINK(href='/csv_view.css', rel='stylesheet'),
         ),
         lang='en',
@@ -66,6 +67,8 @@ def view(path):
     with open(filename, 'rb') as csvf:
         reader = csv_reader(csvf)
         table_type = None
+        first_data_row = False
+        parameters = []
         for row in reader:
             if row[0] == 'BOTTLE' or row[0] == 'CTD':
                 row = (','.join(row), )
@@ -88,8 +91,10 @@ def view(path):
             else:
                 if table_type != 'data':
                     table_type = 'data'
+                    first_data_row = True
                     table = E.TABLE(E.CLASS(
-                        'data table table-striped table-hover table-condensed'))
+                        'data table table-striped table-hover table-condensed'),
+                        id='data-table')
                     #df.append(accordion_group('data', table, ingroup=True))
                     df.append(table)
 
@@ -103,24 +108,49 @@ def view(path):
                             row[i][:-len(flag_ending)] + '<br>' + 
                             flag_ending[1:])
 
-            tr = E.TR()
-            for i, e in enumerate(row):
+            if first_data_row:
+                tr = E.TR(E.CLASS('tablesorter-stickyHeader'))
+            else:
+                tr = E.TR()
+            for i, elem in enumerate(row):
                 if table_type == 'data' and flag_indices:
-                    if i in flag_indices:
-                        tr.append(
-                            E.TD(E.CLASS('flag flag' + str(e).strip()), e))
+                    if first_data_row:
+                        cell = E.TH
+                        try:
+                            param = elem.text
+                        except AttributeError:
+                            param = elem
+                        parameters.append(param)
                     else:
-                        tr.append(E.TD(e))
-                else:
-                    tr.append(E.TD(e))
-            table.append(tr)
+                        cell = E.TD
+                        param = parameters[i]
 
+                    if i in flag_indices:
+                        if first_data_row:
+                            classname = E.CLASS('flag flag' + param)
+                        else:
+                            classname = E.CLASS('flag flag' + param + ' flag' + elem)
+                        tr.append(cell(classname, elem))
+                    else:
+                        tr.append(cell(elem))
+                else:
+                    tr.append(E.TD(elem))
+            if first_data_row:
+                table.append(E.THEAD(tr))
+                first_data_row = False
+            else:
+                table.append(tr)
+
+    # Yes, hotlinking. Sorry!
     body.append(
         fromstring('''\
 <script src="//platform.twitter.com/widgets.js"></script>
-<script src="{0}/js/jquery.js"></script>
+<script src="//ajax.googleapis.com/ajax/libs/jquery/1.9.1/jquery.min.js"></script>
 <script src="{0}/js/bootstrap-transition.js"></script>
 <script src="{0}/js/bootstrap-collapse.js"></script>
+<script src="//mottie.github.io/tablesorter/js/jquery.tablesorter.min.js"></script>
+<script src="//mottie.github.io/tablesorter/js/jquery.tablesorter.widgets.min.js"></script>
+<script src="/csv_view.js"></script>
 '''.format(bootstrap_assets_root))
     )
 
@@ -129,5 +159,8 @@ def view(path):
     server.register('/csv_view.css', open(
         os.path.join(get_library_abspath(), 'resources', 'csv_view.css')).read(),
         mime_type='text/css')
+    server.register('/csv_view.js', open(
+        os.path.join(get_library_abspath(), 'resources', 'csv_view.js')).read(),
+        mime_type='text/javascript')
     server.open_browser()
     server.serve_forever()

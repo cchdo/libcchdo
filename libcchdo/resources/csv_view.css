@@ -9,39 +9,46 @@ table.stamp {
 table.comments {
   background-color: #D4F5A9;
 }
-table.data {
-}
 .accordion-toggle.enddata,
 table.enddata {
   background-color: #A9AEF5;
 }
 
-.flag {
+table.data thead th {
+  vertical-align: top;
+  border-bottom: 1px solid #dddddd;
 }
-table.table-striped td.flag.flag1 {
+table.data tr.tablesorter-stickyHeader {
+  background-color: #ffffff;
+}
+table.data tr.selected td {
+  background-color: #ffffcc;
+}
+
+table.data td.flag.flag1 {
   background-color: #ffcccc;
 }
-table.table-striped td.flag.flag2 {
+table.data td.flag.flag2 {
   background-color: #aaffaa;
 }
-table.table-striped td.flag.flag3 {
+table.data td.flag.flag3 {
   background-color: #ffffaa;
 }
-table.table-striped td.flag.flag4 {
+table.data td.flag.flag4 {
   background-color: #dddddd;
 }
-table.table-striped td.flag.flag5 {
+table.data td.flag.flag5 {
   background-color: #dddddd;
 }
-table.table-striped td.flag.flag6 {
+table.data td.flag.flag6 {
   background-color: #ddffaa;
 }
-table.table-striped td.flag.flag7 {
+table.data td.flag.flag7 {
   background-color: #dddddd;
 }
-table.table-striped td.flag.flag8 {
+table.data td.flag.flag8 {
   background-color: #dddddd;
 }
-table.table-striped td.flag.flag9 {
+table.data td.flag.flag9 {
   background-color: #ffaaaa;
 }
