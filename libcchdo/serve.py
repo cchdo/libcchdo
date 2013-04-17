@@ -50,13 +50,24 @@ class FileHTTPRequestHandler(SimpleHTTPRequestHandler):
         except KeyError:
             return False
 
-    def gzip_file(self, fff):
+    def gzip_file(self, fff, compresslevel=6):
         with closing(StringIO()) as strio:
-            gz = GzipFile(mode='wb', compresslevel=9, fileobj=strio)
+            gz = GzipFile(mode='wb', compresslevel=compresslevel, fileobj=strio)
             gz.write(fff)
             gz.flush()
             gz.close()
             return strio.getvalue()
+
+    def flushing_write_str(self, resp, chunk_size=2 ** 9):
+        """Speed up large resource loading by flushing chunks to the browser.
+
+        Adapted from http://stackoverflow.com/questions/312443
+
+        """
+        wfile = self.wfile
+        for i in xrange(0, len(resp), chunk_size):
+            wfile.write(resp[i:i + chunk_size])
+            wfile.flush()
 
     def do_GET(self):
         try:
@@ -77,8 +88,9 @@ class FileHTTPRequestHandler(SimpleHTTPRequestHandler):
                 resp = response[0]
             for k, v in response[3]:
                 self.send_header(k, v)
+            self.send_header('Content-Length', len(resp))
             self.end_headers()
-            self.wfile.write(resp)
+            self.flushing_write_str(resp)
         except KeyError:
             self.send_response(404, 'Not Found')
             self.end_headers()
