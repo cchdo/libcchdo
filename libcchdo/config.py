@@ -267,6 +267,18 @@ def get_merger_initials():
     return get_option('Merger', 'initials', input_initials)
 
 
+def get_datadir_hostname():
+    def input_datadir_hostname():
+        return raw_input('What is the host of the data directory? %s ' % _storage_notice())
+    return get_option('datadir', 'hostname', input_datadir_hostname)
+
+
+def get_datadir_root():
+    def input_datadir_root():
+        return raw_input('Where is the root of the data directory? %s ' % _storage_notice())
+    return get_option('datadir', 'root', input_datadir_root)
+
+
 def stamp():
     return '%(date)8s%(institution)3s%(division)3s%(initials)3s' % \
         {'date': date.today().strftime('%Y%m%d'),

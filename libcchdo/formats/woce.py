@@ -5,7 +5,8 @@ import struct
 from libcchdo.log import LOG
 from libcchdo.model.datafile import Column
 from libcchdo.fns import (
-    Decimal, _decimal, in_band_or_none, IncreasedPrecision, strip_all, uniquify)
+    Decimal, InvalidOperation, _decimal, in_band_or_none, IncreasedPrecision,
+    strip_all, uniquify)
 
 
 # Where no data is known
@@ -86,13 +87,46 @@ WATER_SAMPLE_FLAG_DESCRIPTION = ':'.join([':'] + \
     ["\n"])
 
 
+def hemisphere_to_coeff(hemisphere):
+    """Convert a hemisphere to a multiplier."""
+    if hemisphere == 'N' or hemisphere == 'E':
+        return 1
+    return -1
+
+
+def woce_dec_lat_to_dec_lat(lattoks):
+    """Convert a latitude in decimal + hemisphere to decimal."""
+    precision = 3 + len(lattoks)
+    with IncreasedPrecision(precision):
+        try:
+            lat = Decimal(lattoks[0])
+        except InvalidOperation:
+            return None
+        lat *= hemisphere_to_coeff(lattoks[1])
+        return lat.quantize(Decimal(10) ** -precision)
+
+
+def woce_dec_lng_to_dec_lng(lngtoks):
+    """Convert a longitude in decimal + hemisphere to decimal."""
+    precision = 3 + len(lngtoks)
+    with IncreasedPrecision(precision):
+        try:
+            lng = Decimal(lngtoks[0])
+        except InvalidOperation:
+            return None
+        lng *= hemisphere_to_coeff(lngtoks[1])
+        return lng.quantize(Decimal(10) ** -precision)
+
+
 def woce_lat_to_dec_lat(lattoks):
     '''Convert a latitude in WOCE format to decimal.'''
     precision = 3 + len(lattoks)
     with IncreasedPrecision(precision):
-        lat = int(lattoks[0]) + Decimal(lattoks[1]) / Decimal('60.0')
-        if lattoks[2] != 'N':
-            lat *= -1
+        try:
+            lat = int(lattoks[0]) + Decimal(lattoks[1]) / Decimal('60.0')
+        except InvalidOperation:
+            return None
+        lat *= hemisphere_to_coeff(lattoks[2])
         return lat.quantize(Decimal(10) ** -precision)
 
 
@@ -100,9 +134,11 @@ def woce_lng_to_dec_lng(lngtoks):
     '''Convert a longitude in WOCE format to decimal.'''
     precision = 4 + len(lngtoks)
     with IncreasedPrecision(precision):
-        lng = int(lngtoks[0]) + Decimal(lngtoks[1]) / Decimal('60.0')
-        if lngtoks[2] != 'E':
-            lng *= -1
+        try:
+            lng = int(lngtoks[0]) + Decimal(lngtoks[1]) / Decimal('60.0')
+        except InvalidOperation:
+            return None
+        lng *= hemisphere_to_coeff(lngtoks[2])
         return lng.quantize(Decimal(10) ** -precision)
 
 

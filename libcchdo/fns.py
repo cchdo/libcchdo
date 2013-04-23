@@ -4,9 +4,9 @@
 
 
 try:
-    from cdecimal import Decimal, getcontext
+    from cdecimal import Decimal, getcontext, InvalidOperation
 except ImportError:
-    from decimal import Decimal, getcontext
+    from decimal import Decimal, getcontext, InvalidOperation
 from collections import OrderedDict
 import math
 import os.path

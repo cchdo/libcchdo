@@ -12,8 +12,12 @@ REQUIRED_HEADERS = [
     u'LATITUDE', u'LONGITUDE', u'DEPTH', ]
 
 
-def read(self, handle, retain_order=False):
-    """ How to read a CTD Exchange file. """
+def read(self, handle, retain_order=False, header_only=False):
+    """How to read a CTD Exchange file.
+
+    header_only - only read the CTD headers, not the data
+
+    """
     # Read identifier and stamp
     stamp = re_compile('CTD,(\d{8}\w+)')
     stampline = handle.readline()
@@ -54,6 +58,11 @@ def read(self, handle, retain_order=False):
         else:
             raise ValueError(('Expected %d continuous headers '
                               'but only saw %d') % (num_headers, i))
+    woce.fuse_datetime(self)
+
+    if header_only:
+        return
+
     # Read parameters and units
     columns = handle.readline().strip().split(',')
     units = handle.readline().strip().split(',')
@@ -105,7 +114,6 @@ def read(self, handle, retain_order=False):
             col.append(value)
         l = handle.readline().strip()
 
-    woce.fuse_datetime(self)
     self.check_and_replace_parameters()
 
 

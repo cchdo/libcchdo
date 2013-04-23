@@ -139,10 +139,19 @@ class SFTP(SSH):
         
 
 class AFTP(object):
-    """Encapsulate the mechanics of downloading."""
+    """Encapsulate the mechanics of downloading.
+
+    """
 
     def __init__(self, ssh_sftp, dryrun=False, dl_gid=None, local_rewriter=None,
                  su_lock=None):
+        """Create an abstract FTP interface.
+
+        sftp = SFTP()
+        sftp.connect('host')
+        aftp = AFTP(sftp)
+        
+        """
         self.set_ssh_sftp(ssh_sftp)
         self.dryrun = dryrun
         self.dl_gid = dl_gid

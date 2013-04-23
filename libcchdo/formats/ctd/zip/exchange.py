@@ -7,8 +7,13 @@ from libcchdo.formats import zip as Zip
 from libcchdo.formats.ctd import exchange as ctdex
 
 
-def read(self, handle, retain_order=False):
-    """How to read CTD Exchange files from a Zip."""
+def read(self, handle, retain_order=False, header_only=False):
+    """How to read CTD Exchange files from a Zip.
+
+    The original filenames for each CTD file are included as the global
+    _FILENAME on each individual CTD file.
+
+    """
     zip = Zip.ZeroCommentZipFile(handle, 'r')
     for filename in zip.namelist():
         if '.csv' not in filename: continue
@@ -23,8 +28,9 @@ def read(self, handle, retain_order=False):
             tempfile.flush()
             tempfile.seek(0)
             ctdfile = DataFile()
-            ctdex.read(ctdfile, tempfile, retain_order)
-            self.files.append(ctdfile)
+            ctdex.read(ctdfile, tempfile, retain_order, header_only)
+            ctdfile.globals['_FILENAME'] = filename
+            self.append(ctdfile)
     zip.close()
 
 

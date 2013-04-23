@@ -1,13 +1,20 @@
 import re
 from datetime import datetime, timedelta
 from contextlib import closing
+import os.path
 
 from sqlalchemy.sql import not_, between
 
-from libcchdo import LOG
+from libcchdo.log import LOG, DEBUG, ERROR
 from libcchdo.db.model.legacy import (
     session as lsession, Document, Cruise, Submission, QueueFile,
     )
+from libcchdo.fns import InvalidOperation
+from libcchdo.config import get_datadir_hostname, get_datadir_root
+from libcchdo.datadir.dl import AFTP, SFTP
+from libcchdo.model.datafile import DataFileCollection, SummaryFile
+from libcchdo.formats.summary import woce as wocesum
+from libcchdo.formats.ctd.zip import exchange as ctdzipex
 
 
 types_to_ignore = [
@@ -206,3 +213,188 @@ def report_old_style_expocodes(args):
         print >> args.output, 'New-style ExpoCodes'
         print >> args.output, 'good:\t\t', len(expos_new_style)
         print >> args.output, 'bad date:\t', len(expos_new_style_bad_date)
+
+
+def _pick_precedent_ctd_format(formats):
+    if 'exchange' in formats:
+        return 'exchange'
+    if 'netcdf' in formats:
+        return 'netcdf'
+    if 'woce' in formats:
+        if 'wocesum' in formats:
+            return 'wocesum'
+    if 'wocesum' in formats:
+        return 'wocesum'
+    raise ValueError(
+        u'Could not pick most precedent CTD format from {0!r}'.format(formats))
+
+
+class ArgoIndexProfile(object):
+    def __init__(self, fname, date, lat, lon, ocean, profiler_type, inst, mtime):
+        self.fname = fname
+        self.date = date
+        self.lat = lat
+        self.lon = lon
+        self.ocean = ocean
+        self.profiler_type = profiler_type
+        self.inst = inst
+        self.mtime = mtime
+
+
+    def __unicode__(self):
+        return ','.join([unicode(x) for x in [
+            self.fname, self.date, self.lat, self.lon, self.ocean,
+            self.profiler_type, self.inst, self.mtime]])
+        
+
+class ArgoIndexFile(object):
+    title = 'Profile directory file of the CLIVAR and Carbon Hydrographic Data Office'
+    description = 'The directory file describes all individual profile files of the CCHDO.'
+    project = 'CCHDO'
+    format_version = '2.0'
+
+    profiles = []
+
+    def header(self):
+        headers = [
+            'Title', 'Description', 'Project', 'Format version',
+            'Date of update']
+        header_comments = [
+            '# {0} : {{{1}}}'.format(x, i) for i, x in enumerate(headers)]
+        formatstr = '\n'.join(header_comments)
+        return formatstr.format(
+            self.title, self.description, self.project, self.format_version,
+            datetime.utcnow().strftime('%Y%m%d%H%M%S'))
+
+    def column_header(self):
+        return ArgoIndexProfile(
+            'file', 'date', 'latitude', 'longitude', 'ocean', 'profiler_type',
+            'institution', 'date_update')
+
+    def append(self, profile):
+        self.profiles.append(profile)
+
+    def __unicode__(self):
+        return unicode(self.header()) + unicode(self.column_header) + \
+            '\n'.join([unicode(x) for x in self.profiles])
+
+    def __str__(self):
+        return unicode(self)
+
+
+def report_argo_ctd_index(args):
+    """Generates an Argo style index file of all CTD profiles.
+
+    http://www.usgodae.org/pub/outgoing/argo/ar_index_global_prof.txt
+    file,date,latitude,longitude,ocean,profiler_type,institution,date_update
+    aoml/13857/profiles/R13857_001.nc,19970729200300,0.267,-16.032,A,845,AO,20080918131927
+
+    """
+    directories = []
+    with closing(lsession()) as session:
+        dirs = session.query(Document).filter(Document.FileType == 'Directory').all()
+        for directory in dirs:
+            if 'Queue' in directory.FileName:
+                continue
+            if 'ExpoCode' not in directory.Files:
+                continue
+            directories.append(directory)
+
+    sftp = SFTP()
+    sftp.connect(get_datadir_hostname())
+    aftp = AFTP(sftp)
+
+    argo_index = ArgoIndexFile()
+    for directory in directories:
+        ctd_files = {}
+        files = directory.Files.split('\n')
+        for fname in files:
+            if fname.endswith('ct1.zip'):
+                ctd_files['exchange'] = fname
+            elif fname.endswith('nc_ctd.zip'):
+                ctd_files['netcdf'] = fname
+            elif fname.endswith('ct.zip'):
+                ctd_files['woce'] = fname
+            elif fname.endswith('su.txt'):
+                ctd_files['wocesum'] = fname
+
+        if not ctd_files:
+            continue
+        
+        try:
+            precedent_format = _pick_precedent_ctd_format(ctd_files.keys())
+        except ValueError:
+            continue
+
+        cruise_dir = directory.FileName
+        ctd_file = ctd_files[precedent_format]
+        path = os.path.join(cruise_dir, ctd_file)
+
+        LOG.debug(path)
+        try:
+            mtime = aftp.mtime(path)
+            mtime = mtime.strftime('%Y%m%d%H%M%S')
+        except IOError:
+            LOG.error(u'Could not open file {0}'.format(path))
+        if precedent_format == 'exchange':
+            files = DataFileCollection()
+            with aftp.dl(path) as fff:
+                if fff is None:
+                    LOG.error(u'Could not find file {0}'.format(path))
+                    continue
+                LOG.setLevel(ERROR)
+                try:
+                    ctdzipex.read(files, fff, header_only=True)
+                except (ValueError, InvalidOperation):
+                    LOG.error(u'Unable to read {0}'.format(path))
+                LOG.setLevel(DEBUG)
+
+            for ctdfile in files:
+                fpath = path + '#' + ctdfile.globals['_FILENAME']
+                date = ctdfile.globals['_DATETIME']
+                if date is None:
+                    date = ''
+                else:
+                    date = date.strftime('%Y%m%d%H%M%S')
+                lat = ctdfile.globals['LATITUDE']
+                lon = ctdfile.globals['LONGITUDE']
+                ocean = ''
+                profiler_type = ''
+                inst = ''
+                argo_index.append(ArgoIndexProfile(
+                    fpath, date, lat, lon, ocean, profiler_type, inst, mtime
+                ))
+        elif precedent_format == 'netcdf':
+            # TODO currently there aren't any files that have netcdf precedent
+            args.output.write('netcdf!!!' + path + '\n')
+        elif precedent_format == 'wocesum':
+            sumfile = SummaryFile()
+            path = os.path.join(get_datadir_root(), path)
+            with aftp.dl(path) as fff:
+                if fff is None:
+                    LOG.error(u'Could not find file {0}'.format(path))
+                    continue
+                LOG.setLevel(ERROR)
+                wocesum.read(sumfile, fff)
+                LOG.setLevel(DEBUG)
+
+            for iii in range(len(sumfile)):
+                fpath = path + '#' + str(iii)
+                date = sumfile['_DATETIME'][iii]
+                if date is None:
+                    date = ''
+                else:
+                    date = date.strftime('%Y%m%d%H%M%S')
+                lat = sumfile['LATITUDE'][iii]
+                lon = sumfile['LONGITUDE'][iii]
+                ocean = ''
+                profiler_type = ''
+                inst = ''
+                argo_index.append(ArgoIndexProfile(
+                    fpath, date, lat, lon, ocean, profiler_type, inst, mtime
+                ))
+        else:
+            raise ValueError(u'Unknown format {0}'.format(precedent_format))
+
+    args.output.write(str(argo_index))
+

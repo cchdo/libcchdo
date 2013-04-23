@@ -2031,6 +2031,21 @@ with subcommand(report_parsers, 'old_style_expocodes',
         help='output file')
 
 
+def report_argo_ctd_index(args):
+    """Generate report of number of expocodes that are not new-style.
+
+    """
+    from libcchdo.reports import report_argo_ctd_index
+    report_argo_ctd_index(args)
+
+
+with subcommand(report_parsers, 'argo_ctd_index',
+                report_argo_ctd_index) as p:
+    p.add_argument(
+        'output', type=FileType('w'), nargs='?', default=sys.stdout,
+        help='output file')
+
+
 def deprecated_reorder_surface_to_bottom():
     call_deprecated('misc', 'reorder_surface_to_bottom')
 

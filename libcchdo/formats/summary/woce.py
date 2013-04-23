@@ -95,25 +95,39 @@ def read(self, handle):
             self['_CAST_TYPE'].append(tokens[4])
             try:
                 date = datetime.strptime(tokens[5], '%m%d%y')
+                date = date.strftime('%Y%m%d')
             except ValueError, e:
                 LOG.error(u'Expected date format %m%d%y. Got {0!r}.'.format(
                     tokens[5]))
-                raise e
-            self['DATE'].append(date.strftime('%Y%m%d'))
+                date = None
+            self['DATE'].append(date)
             self['TIME'].append(int_or_none(tokens[6]))
             self['_CODE'].append(tokens[7])
-            lat = woce.woce_lat_to_dec_lat(tokens[8].split())
+            try:
+                lat = woce.woce_lat_to_dec_lat(tokens[8].split())
+            except ValueError:
+                lat = woce.woce_dec_lat_to_dec_lat(tokens[8].split())
+            except IndexError:
+                lat = None
             self['LATITUDE'].append(lat)
-            lng = woce.woce_lng_to_dec_lng(tokens[9].split())
+            try:
+                lng = woce.woce_lng_to_dec_lng(tokens[9].split())
+            except ValueError:
+                lng = woce.woce_dec_lng_to_dec_lng(tokens[9].split())
+            except IndexError:
+                lng = None
             self['LONGITUDE'].append(lng)
-            self['_NAV'].append(tokens[10])
-            self['DEPTH'].append(int_or_none(tokens[11]))
-            self['_ABOVE_BOTTOM'].append(int_or_none(tokens[12]))
-            self['_WIRE_OUT'].append(int_or_none(tokens[13]))
-            self['_MAX_PRESSURE'].append(int_or_none(tokens[14]))
-            self['_NUM_BOTTLES'].append(int_or_none(tokens[15]))
-            self['_PARAMETERS'].append(identity_or_none(tokens[16]))
-            self['_COMMENTS'].append(identity_or_none(tokens[17]))
+            try:
+                self['_NAV'].append(tokens[10])
+                self['DEPTH'].append(int_or_none(tokens[11]))
+                self['_ABOVE_BOTTOM'].append(int_or_none(tokens[12]))
+                self['_WIRE_OUT'].append(int_or_none(tokens[13]))
+                self['_MAX_PRESSURE'].append(int_or_none(tokens[14]))
+                self['_NUM_BOTTLES'].append(int_or_none(tokens[15]))
+                self['_PARAMETERS'].append(identity_or_none(tokens[16]))
+                self['_COMMENTS'].append(identity_or_none(tokens[17]))
+            except IndexError:
+                pass
 
     woce.fuse_datetime(self)
     self.check_and_replace_parameters()
