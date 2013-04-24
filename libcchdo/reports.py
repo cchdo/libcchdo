@@ -275,8 +275,8 @@ class ArgoIndexFile(object):
         self.profiles.append(profile)
 
     def __unicode__(self):
-        return unicode(self.header()) + unicode(self.column_header) + \
-            '\n'.join([unicode(x) for x in self.profiles])
+        profiles = [self.header(), self.column_header()] + self.profiles
+        return '\n'.join([unicode(x) for x in profiles])
 
     def __str__(self):
         return unicode(self)
