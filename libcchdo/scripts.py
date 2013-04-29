@@ -1226,9 +1226,10 @@ def _args_mkdir_working(p):
 
 def datadir_get_cruise_dir(args):
     """Determine the cruise directory given an Expocode."""
+    from libcchdo.config import get_legacy_datadir_host
     from libcchdo.datadir.processing import _legacy_cruise_directory
     with _legacy_cruise_directory(args.expocode) as doc:
-        print doc.FileName
+        print '{0}:{1}'.format(get_legacy_datadir_host(), doc.FileName)
 
 
 with subcommand(datadir_parsers, 'get_cruise_dir',

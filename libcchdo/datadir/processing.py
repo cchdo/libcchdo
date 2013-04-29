@@ -237,6 +237,26 @@ def read_file_manifest(uow_dir):
     return file_manifest
 
 
+MANIFEST_INSTRUCTIONS = """\
+# File manifest for commit
+#
+# This should be a list of the files that belong in the cruise directory after
+# the commit. Please delete any file names that should be removed.
+#
+# online = files currently online
+# to go online = new files that were added
+#
+# If you remove everything, the commit will be aborted.
+# To start over, delete this file and re-run commit.
+"""
+
+
+def regenerate_file_manifest(uow_dir, online_files, tgo_files):
+    manifest_path = write_file_manifest(uow_dir, online_files, tgo_files)
+    subproc_call([get_editor(), manifest_path])
+    return read_file_manifest(uow_dir)
+
+
 def uow_copy(uow_dir, uow_subdir, work_dir, work_subdir, filename=None):
     """Copy from UOW sub-directory to work sub-directory.
 
@@ -252,41 +272,60 @@ def uow_copy(uow_dir, uow_subdir, work_dir, work_subdir, filename=None):
               os.path.join(work_dir, work_subdir))
 
 
-MANIFEST_INSTRUCTIONS = """\
-# File manifest for commit
-#
-# online = files currently online
-# to go online = new files that were added
-#
-# Please delete the file names that do not belong.
-#
-# If you remove everything, the commit will be aborted.
-# To start over, delete this file and re-run commit.
-"""
-
-
-def regenerate_file_manifest(uow_dir, online_files, tgo_files):
-    manifest_path = write_file_manifest(
-        uow_dir, online_files, tgo_files)
-    subproc_call([get_editor(), manifest_path])
-    return read_file_manifest(uow_dir)
+IGNORED_FILES_CHECKSUM = ['.DS_Store']
 
 
 def checksum_dir(dir_path, recurse=True):
+    """Return a tuple of the checksums.
+
+    The first checksum is of the entire directory.
+    The second is a dictionary mapping each file to its own checksum.
+
+    Each file is added to the checksum as well.
+
+    """
     checksum = sha256()
+    file_sums = {}
     for path, names, fnames in os.walk(dir_path):
         if not recurse:
             del names[:]
         for fname in fnames:
+            if fname in IGNORED_FILES_CHECKSUM:
+                continue
             fpath = os.path.join(path, fname)
             sumpath = fpath.replace(dir_path, '')
             checksum.update(sumpath)
             if os.path.isdir(fpath):
                 continue
+            fsum = sha256()
             with open(fpath) as fff:
                 for lll in fff:
                     checksum.update(lll)
-    return checksum.hexdigest()
+                    fsum.update(lll)
+            file_sums[fname] = fsum.digest()
+    return (checksum.digest(), file_sums)
+
+
+def checksum_diff_summary(sumsa, sumsb):
+    """Log a summary of what is different using given file checksums."""
+    filesa = set(sumsa.keys())
+    filesb = set(sumsb.keys())
+
+    if len(filesa) < len(filesb):
+        LOG.info(u'Files were added after last fetch:\n{0}'.format(
+            list(filesb - filesa)))
+    elif len(filesa) > len(filesb):
+        LOG.info(u'Files were removed after last fetch:\n{0}'.format(
+            list(filesa - filesb)))
+    else:
+        files_changed = []
+        for fname in sorted(list(filesa)):
+            if sumsa[fname] != sumsb[fname]:
+                files_changed.append(fname)
+        LOG.info(u'File contents were changed for:\n{0}'.format(files_changed))
+    LOG.info(u'If the changes do not affect data, you may choose to delete '
+        '{0} and re-fetch the UOW before trying to commit again.'.format(
+        UOWDirName.online))
 
 
 @contextmanager
@@ -306,13 +345,15 @@ def check_online_checksums(aftp, uow_dir, expocode):
     on the same cruise.
 
     """
-    fetch_checksum = checksum_dir(os.path.join(uow_dir, UOWDirName.online))
+    fetch_dir = os.path.join(uow_dir, UOWDirName.online)
+    fetch_checksum, fetch_file_checksums = checksum_dir(fetch_dir)
     with tempdir() as temp_dir:
         fetch_online(aftp, temp_dir, expocode)
-        current_checksum = checksum_dir(temp_dir)
-    if fetch_checksum != current_checksum:
-        raise ValueError(
-            u'Cruise online files have changed since the last UOW fetch!')
+        current_checksum, current_file_checksums = checksum_dir(temp_dir)
+        if fetch_checksum != current_checksum:
+            checksum_diff_summary(fetch_file_checksums, current_file_checksums)
+            raise ValueError(
+                u'Cruise online files have changed since the last UOW fetch!')
 
 
 def _copy_uow_into_work_dir(uow_dir, work_dir, dir_perms):
@@ -364,7 +405,7 @@ def _copy_uow_online_into_work_dir(uow_dir, work_dir, file_manifest_set,
     removed_files = online_files_set - file_manifest_set
     overwritten_files = online_files_set & new_files
 
-    unchanged_files = online_files_set - removed_files
+    unchanged_files = online_files_set - removed_files - overwritten_files
 
     missing_tgo_files = new_files ^ tgo_files_set
     if missing_tgo_files:
@@ -385,6 +426,14 @@ def _copy_uow_online_into_work_dir(uow_dir, work_dir, file_manifest_set,
             missing_tgo_files)
 
 
+def dryrun_log_info(msg, dryrun=True):
+    """Log info message with dryrun in front if this is a dryrun."""
+    if dryrun:
+        LOG.info(u'{0} {1}'.format(DRYRUN_PREFACE, msg))
+    else:
+        LOG.info(msg)
+
+
 def uow_commit(uow_dir, person=None, confirm_html=True, dryrun=True):
     """Commit a UOW directory to the cruise data history.
 
@@ -392,10 +441,7 @@ def uow_commit(uow_dir, person=None, confirm_html=True, dryrun=True):
     directories, and updated manifest
 
     """
-    if dryrun:
-        LOG.info(u'dryrun Comitting UOW directory {0}'.format(uow_dir))
-    else:
-        LOG.info(u'Comitting UOW directory {0}'.format(uow_dir))
+    dryrun_log_info(u'Comitting UOW directory {0}'.format(uow_dir), dryrun)
 
     # pre-flight checklist
     readme_path = os.path.join(uow_dir, README_FILENAME)
@@ -474,29 +520,33 @@ def uow_commit(uow_dir, person=None, confirm_html=True, dryrun=True):
         LOG.info(u'Committing to {0}:{1}'.format(sftp_host, remote_path))
 
         aftp.up_dir(work_dir, remote_path)
-        # Now to update the online files. It is ok to overwrite/delete at this
-        # point as those affected have already been written to originals.
+        # Update the online files. It is ok to overwrite/delete at this point as
+        # those affected have already been written to originals.
         (new_files, removed_files, overwritten_files, unchanged_files,
          missing_tgo_files) = detailed_file_sets
         for fname in removed_files:
             aftp.remove(os.path.join(cruise_dir, fname))
-        for fname in new_files:
-            aftp.up(
-                os.path.join(uow_dir, UOWDirName.tgo, fname),
-                os.path.join(cruise_dir, fname))
+        LOG.info('unchanged')
         for fname in unchanged_files:
             aftp.up(
                 os.path.join(uow_dir, UOWDirName.online, fname),
                 os.path.join(cruise_dir, fname))
-    LOG.info(
+        LOG.info('new')
+        for fname in new_files | overwritten_files:
+            aftp.up(
+                os.path.join(uow_dir, UOWDirName.tgo, fname),
+                os.path.join(cruise_dir, fname))
+
+    dryrun_log_info(
         u'Data file commit completed successfully. Writing history and '
-        'notifications.')
+       'notifications.', dryrun)
 
     add_processing_note(
         os.path.join(uow_dir, README_FILENAME),
         os.path.join(uow_dir, PROCESSING_EMAIL_FILENAME),
         uow_cfg, dryrun)
-    LOG.info(u'UOW commit completed successfully.')
+
+    dryrun_log_info(u'UOW commit completed successfully.', dryrun)
 
 
 def copy_replaced(filename, curr_date, separator='_'):
@@ -829,6 +879,9 @@ A history note ({note_id}) has been made for the attached processing notes.
 """
 
 
+DRYRUN_PREFACE = 'DRYRUN'
+
+
 def summarize_submission(q_info):
     return '{0}: {1} {2} {3} {4}'.format(
         q_info['submission_id'], q_info['filename'], q_info['submitted_by'],
@@ -891,7 +944,7 @@ def processing_email(readme, email_path, uow_cfg, note_id, q_ids, dryrun=True):
     email['From'] = get_merger_email()
     email['To'] = ', '.join(recipients)
     if dryrun:
-        email['Subject'] = 'dryrun {0}'.format(subject)
+        email['Subject'] = '{0} {1}'.format(DRYRUN_PREFACE, subject)
     else:
         email['Subject'] = subject
 
@@ -996,7 +1049,9 @@ def add_processing_note(readme_path, email_path, uow_cfg, dryrun=True):
             email_ok = False
 
         if dryrun:
-            LOG.info(u'dryrun rolled back history note and merged statuses')
+            LOG.info(
+                u'{0} rolled back history note and merged statuses'.format(
+                DRYRUN_PREFACE))
             session.rollback()
         elif not email_ok:
             LOG.info(u'rolled back history note and merged statuses')
