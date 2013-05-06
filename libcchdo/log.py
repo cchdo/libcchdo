@@ -1,5 +1,6 @@
 """Logging."""
 from datetime import datetime
+from contextlib import contextmanager
 from re import compile as re_compile
 from logging import (
     Formatter, StreamHandler, Filter, getLogger,
@@ -77,3 +78,13 @@ LIBLOG_HANDLER.setFormatter(LibLogFormatter(
 LOG = getLogger(__name__)
 LOG.setLevel(DEBUG)
 LOG.addHandler(LIBLOG_HANDLER)
+
+
+@contextmanager
+def log_above(level=ERROR, log=LOG):
+    current_level = log.getEffectiveLevel()
+    log.setLevel(level)
+    try:
+        yield
+    finally:
+        log.setLevel(current_level)

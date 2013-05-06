@@ -1274,13 +1274,17 @@ def datadir_fetch(args):
         return
     if not args.ids:
         LOG.info(u'Creating a UOW without queue files to work on.')
-    print mkdir_uow(args.basepath, args.title, args.summary, args.ids)
+    print mkdir_uow(args.basepath, args.title, args.summary, args.ids,
+                    dl_originals=(not args.skip_dl_original))
 
 
 with subcommand(datadir_parsers, 'fetch', datadir_fetch) as p:
     p.add_argument(
         '--basepath', default=os.getcwd(),
         help='Base path to put working directory in (default: current directory)')
+    p.add_argument(
+        '--skip-dl-original', action='store_true',
+        help='whether to skip downloading the original directory')
     p.add_argument(
         '--uow-dir', default='',
         help='a directory to use as the UOW directory (default: automatically '

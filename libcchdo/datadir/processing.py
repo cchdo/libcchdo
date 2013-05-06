@@ -17,6 +17,7 @@ from subprocess import call as subproc_call
 from smtplib import SMTP_SSL
 from hashlib import sha256
 from getpass import getpass
+from collections import OrderedDict
 
 from email.encoders import encode_base64
 from email.mime.multipart import MIMEMultipart
@@ -41,7 +42,7 @@ from libcchdo.formats.google_wire import DefaultJSONSerializer
 from libcchdo.datadir.dl import AFTP, SFTP
 from libcchdo.datadir.filenames import (
     EXPOCODE_FILENAME, README_FILENAME, PROCESSING_EMAIL_FILENAME,
-    UOW_CFG_FILENAME, FILE_MANIFEST_FILENAME)
+    UOW_CFG_FILENAME, FILE_MANIFEST_FILENAME, README_TEMPLATE_FILENAME)
 
 
 def str_to_fs_slug(sss):
@@ -130,7 +131,7 @@ def write_readme_template(template_path):
 
 
 def mkdir_uow(basepath, title, summary, ids, separator='_',
-              processing_subdirs=False):
+              processing_subdirs=False, dl_originals=True):
     """Create a Unit of Work directory for data work.
 
     This directory includes the currently online files, submission files, and
@@ -138,8 +139,11 @@ def mkdir_uow(basepath, title, summary, ids, separator='_',
 
     processing_subdirs - (optional) whether to generate subdirectories in the
         processing directory.
+    dl_originals - (optional) whether to download the originals directory.
 
     """
+    from libcchdo.datadir.readme import ProcessingReadme
+
     # Check that all files referenced have the same cruise.
     qfis = _legacy_as_received_infos(*ids)
     expocodes = uniquify([qf['expocode'] for qf in qfis])
@@ -185,18 +189,31 @@ def mkdir_uow(basepath, title, summary, ids, separator='_',
     qfis = fetch_as_received(
         aftp, os.path.join(dirpath, UOWDirName.submission), *ids)
     fetch_online(aftp, os.path.join(dirpath, UOWDirName.online), expocode)
-    fetch_originals(aftp, os.path.join(dirpath, UOWDirName.original), expocode)
-
-    write_readme_template(os.path.join(dirpath, README_FILENAME))
+    if dl_originals:
+        fetch_originals(
+            aftp, os.path.join(dirpath, UOWDirName.original), expocode)
 
     # Write UOW configuration
-    uow_cfg = {
-        'expocode': expocode,
-        'title': title,
-        'q_infos': qfis,
-        'summary': summary,
-    }
+    uow_cfg = OrderedDict([
+        ['alias', ''],
+        ['expocode', expocode],
+        ['data_types_summary', ''],
+        ['params', ''],
+        ['title', title],
+        ['q_infos', qfis],
+        ['summary', summary],
+        ['conversions', []],
+        ['conversions_checked', False],
+    ])
     write_uow_cfg(os.path.join(dirpath, UOW_CFG_FILENAME), uow_cfg)
+
+    write_readme_template(os.path.join(dirpath, README_TEMPLATE_FILENAME))
+
+    # Generate a preliminary readme file using the UOW configuration.
+    readme = ProcessingReadme(dirpath)
+    with open(os.path.join(dirpath, README_FILENAME), 'w') as fff:
+        fff.write(unicode(readme))
+
     return dirpath
 
 
@@ -356,13 +373,15 @@ def check_online_checksums(aftp, uow_dir, expocode):
                 u'Cruise online files have changed since the last UOW fetch!')
 
 
-def _copy_uow_into_work_dir(uow_dir, work_dir, dir_perms):
-    """Copy a UOW's processing contents into a working directory."""
+def _copy_uow_dirs_into_work_dir(uow_dir, work_dir, dir_perms):
+    """Copy a UOW's processing contents into a working directory.
+
+    This only handles the subdirectories and leaves the readme file for later.
+
+    """
     uow_copy(uow_dir, UOWDirName.processing, work_dir, DirName.processing)
     uow_copy(uow_dir, UOWDirName.submission, work_dir, DirName.submission)
     uow_copy(uow_dir, UOWDirName.tgo, work_dir, DirName.tgo)
-
-    mkdir_ensure(os.path.join(work_dir, DirName.original), dir_perms)
 
 
 def _get_file_manifest(uow_dir, work_dir):
@@ -418,7 +437,11 @@ def _copy_uow_online_into_work_dir(uow_dir, work_dir, file_manifest_set,
         if cont != 'y':
             raise ValueError(u'Missing to go online files. Abort.')
 
-    for fname in removed_files | overwritten_files:
+    # Retain deleted/overwritten copies in originals directory.
+    originals_files = removed_files | overwritten_files
+    if originals_files:
+        mkdir_ensure(os.path.join(work_dir, DirName.original), dir_perms)
+    for fname in originals_files:
         uow_copy(
             uow_dir, UOWDirName.online, work_dir, DirName.original, fname)
 
@@ -441,106 +464,151 @@ def uow_commit(uow_dir, person=None, confirm_html=True, dryrun=True):
     directories, and updated manifest
 
     """
+    from libcchdo.datadir.readme import ProcessingReadme
     dryrun_log_info(u'Comitting UOW directory {0}'.format(uow_dir), dryrun)
 
-    # pre-flight checklist
+    dir_perms = 0775
+
+    # pre-flight checks
+    # Make sure merger likes readme rendering
     readme_path = os.path.join(uow_dir, README_FILENAME)
     if not is_processing_readme_render_ok(
             readme_path, confirm_html=confirm_html):
         LOG.error(u'README is not valid reST or merger rejected. Stop.')
         return
 
+    # Make sure there is a configuration
     try:
-        uow_cfg = read_uow_cfg(os.path.join(uow_dir, UOW_CFG_FILENAME))
+        readme = ProcessingReadme(uow_dir)
+        uow_cfg = readme.uow_cfg
     except IOError:
         LOG.error(
             u'Cannot continue without {0}. (Are you sure {1} is a UOW '
             'directory?)'.format(UOW_CFG_FILENAME, uow_dir))
         return
-    except ValueError, e:
+    except ValueError, err:
         LOG.error(
             u'Unable to read {0}. The JSON is invalid. Abort.\n{1!r}'.format(
-            UOW_CFG_FILENAME, e))
+            UOW_CFG_FILENAME, err))
         return
-    expocode = uow_cfg['expocode']
+    try:
+        expocode = uow_cfg['expocode']
+    except KeyError:
+        LOG.error(u'UOW configuration is missing "expocode". Abort.')
+        return
+    try:
+        title = uow_cfg['title']
+    except KeyError:
+        LOG.error(u'UOW configuration is missing "title". Abort.')
+        return
 
-    dir_perms = 0775
+    # Get remote directory
+    sftp_host = get_legacy_datadir_host()
+    sftp = SFTP()
+    sftp.connect(sftp_host)
+    aftp = AFTP(sftp, dryrun=dryrun)
+
+    with _legacy_cruise_directory(expocode) as doc:
+        cruise_dir = doc.FileName
+    cruise_original_dir = os.path.join(cruise_dir, 'original')
+
+    # Ensure cruise original directory exists...
+    try:
+        aftp.mkdir(cruise_original_dir, dir_perms)
+    except (IOError, OSError), e:
+        pass
+
+    # Abort if online files are different from fetched online files
+    try:
+        saved_dryrun = aftp.dryrun
+        aftp.dryrun = False
+        check_online_checksums(aftp, uow_dir, expocode)
+        aftp.dryrun = saved_dryrun
+    except ValueError, e:
+        LOG.error(u'{0} Abort.'.format(e))
+        return
+
+    # Create the working directory locally in prep to be uploaded
     with tempdir(dir='/tmp') as temp_dir:
         if person is None:
             initials = get_merger_initials()
-        try:
-            title = uow_cfg['title']
-        except KeyError:
-            LOG.error(u'UOW configuration is missing "title"')
-            return
+        else:
+            initials = person
         work_dir = working_dir_path(temp_dir, initials, title=title)
         working_dir_name = os.path.basename(work_dir)
-        mkdir_ensure(work_dir, dir_perms)
-
-        _copy_uow_into_work_dir(uow_dir, work_dir, dir_perms)
-        try:
-            file_sets = _get_file_manifest(uow_dir, work_dir)
-            detailed_file_sets = _copy_uow_online_into_work_dir(
-                uow_dir, work_dir, *file_sets)
-        except ValueError, e:
-            LOG.error(e)
-            return
-
-        sftp_host = get_legacy_datadir_host()
-        sftp = SFTP()
-        sftp.connect(sftp_host)
-        aftp = AFTP(sftp, dryrun=dryrun)
-
-        with _legacy_cruise_directory(expocode) as doc:
-            cruise_dir = doc.FileName
-        cruise_original_dir = os.path.join(cruise_dir, 'original')
-
-        try:
-            aftp.mkdir(cruise_original_dir, dir_perms)
-        # Just making sure original exists...
-        except (IOError, OSError), e:
-            pass
-
+        # Abort if work directory already exists
         if working_dir_name in aftp.listdir(cruise_original_dir):
             LOG.error(u'Work directory {work_dir} already exists in '
                       '{host}{path}. Abort.'.format(
                 work_dir=work_dir, host=sftp_host, path=cruise_original_dir))
             return
+        mkdir_ensure(work_dir, dir_perms)
 
+        # Copy UOW contents into the local working directory
+        _copy_uow_dirs_into_work_dir(uow_dir, work_dir, dir_perms)
         try:
-            saved_dryrun = aftp.dryrun
-            aftp.dryrun = False
-            check_online_checksums(aftp, uow_dir, expocode)
-            aftp.dryrun = saved_dryrun
+            file_sets = _get_file_manifest(uow_dir, work_dir)
+            (new_files, removed_files, overwritten_files, unchanged_files,
+             missing_tgo_files) = _copy_uow_online_into_work_dir(
+                uow_dir, work_dir, *file_sets)
+            updated_files = new_files | overwritten_files
         except ValueError, e:
-            LOG.error(u'{0} Abort.'.format(e))
+            LOG.error(e)
             return
 
+        # Calculate remote path
         remote_path = os.path.join(cruise_original_dir, working_dir_name)
+
+        # Finalize the readme file. This means adding the conversion,
+        # directories, and updated manifests
+        uow_readme_path = os.path.join(uow_dir, README_FILENAME)
+        work_readme_path = os.path.join(work_dir, README_FILENAME)
+
+        try:
+            finalize_sections = u'\n'.join(
+                readme.finalize_sections(
+                    remote_path, cruise_dir, list(updated_files)))
+        except ValueError, err:
+            LOG.error(u'{0} Abort.'.format(err))
+            return
+        LOG.debug(u'{0} final sections:\n{1}'.format(
+            README_FILENAME, finalize_sections))
+
+        with open(uow_readme_path) as iii:
+            with open(work_readme_path, 'w') as ooo:
+                for line in iii:
+                    if line.startswith('.. -UOW-'):
+                        continue
+                    ooo.write(line)
+                ooo.write(finalize_sections)
+
+        # All green. Go!
         LOG.info(u'Committing to {0}:{1}'.format(sftp_host, remote_path))
 
+        # upload the working directory
         aftp.up_dir(work_dir, remote_path)
-        # Update the online files. It is ok to overwrite/delete at this point as
-        # those affected have already been written to originals.
-        (new_files, removed_files, overwritten_files, unchanged_files,
-         missing_tgo_files) = detailed_file_sets
-        for fname in removed_files:
-            aftp.remove(os.path.join(cruise_dir, fname))
-        LOG.info('unchanged')
-        for fname in unchanged_files:
-            aftp.up(
-                os.path.join(uow_dir, UOWDirName.online, fname),
-                os.path.join(cruise_dir, fname))
-        LOG.info('new')
-        for fname in new_files | overwritten_files:
-            aftp.up(
-                os.path.join(uow_dir, UOWDirName.tgo, fname),
-                os.path.join(cruise_dir, fname))
 
+    # Update the online files. It is ok to overwrite/delete at this point as
+    # those affected have already been written to originals.
+    for fname in removed_files:
+        aftp.remove(os.path.join(cruise_dir, fname))
+    LOG.info('unchanged:')
+    for fname in unchanged_files:
+        aftp.up(
+            os.path.join(uow_dir, UOWDirName.online, fname),
+            os.path.join(cruise_dir, fname))
+    LOG.info('new:')
+    for fname in updated_files:
+        aftp.up(
+            os.path.join(uow_dir, UOWDirName.tgo, fname),
+            os.path.join(cruise_dir, fname))
+
+    # Flight complete
     dryrun_log_info(
         u'Data file commit completed successfully. Writing history and '
        'notifications.', dryrun)
 
+    # Post-flight
     add_processing_note(
         os.path.join(uow_dir, README_FILENAME),
         os.path.join(uow_dir, PROCESSING_EMAIL_FILENAME),
@@ -722,6 +790,9 @@ def _legacy_fetch_as_received(aftp, local_path, ids):
         submission_path = os.path.join(submission_subdir, filename)
 
         with aftp.dl(path) as fff:
+            if fff is None:
+                LOG.error(u'Unable to download {0}'.format(path))
+                continue
             with open(submission_path, 'w') as ooo:
                 copy_chunked(fff, ooo)
 
@@ -791,6 +862,8 @@ def _legacy_fetch_online(aftp, path, expocode):
                 if fname in IGNORED_FILES:
                     continue
                 LOG.error(u'Could not download {0}:\n{1!r}'.format(fname, e))
+    except IOError, err:
+        LOG.error(u'Unable to list cruise directory {0}'.format(cruise_dir))
     except ValueError:
         pass
 
@@ -812,7 +885,10 @@ def _legacy_fetch_originals(aftp, path, expocode):
     originals_dir = os.path.join(cruise_dir, 'original')
     LOG.info(u'Downloading {0}'.format(originals_dir))
 
-    aftp.dl_dir(originals_dir, path)
+    try:
+        aftp.dl_dir(originals_dir, path)
+    except IOError:
+        LOG.error(u'Unable to download originals directory {0}'.format(path))
 
 
 def fetch_originals(aftp, path, expocode):

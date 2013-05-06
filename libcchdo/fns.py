@@ -77,7 +77,7 @@ file_extensions = OrderedDict([
     ['botwoce', ['hy.txt']],
     ['lvbotex', ['lv_hy1.csv']],
     ['tmbotex', ['tm_hy1.csv']],
-    ['botex', ['hy1.csv']],
+    ['botex', ['hy1.csv', '.exc.csv']],
     ['botnc', ['hy1.nc']],
     ['botzipnc', ['nc_hyd.zip']],
     ['ctdex', ['ct1.csv']],
@@ -135,6 +135,10 @@ def read_arbitrary(handle, file_type=None, file_name=None):
        Returns:
            a DataFile(Collection) or *SummaryFile that matches the file type.
     '''
+    try:
+        handle.read
+    except AttributeError:
+        raise ValueError(u'read_arbitrary must be called with a file object')
     import model.datafile
 
     if not file_name:
