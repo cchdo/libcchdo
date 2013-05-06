@@ -1305,6 +1305,28 @@ with subcommand(datadir_parsers, 'fetch', datadir_fetch) as p:
         help='as-received file ids (default: show list of as-received files')
 
 
+def datadir_parameter_listing(args):
+    """Generate a list of parameters with footnotes regarding disposition.
+
+    """
+    from libcchdo.datadir.readme import ProcessingReadme
+    print u'\n'.join(ProcessingReadme.parameter_list(
+        args.filepath, args.footnote_id_flagged, args.footnote_id_empty))
+
+
+with subcommand(datadir_parsers, 'param_list', datadir_parameter_listing) as p:
+    p.add_argument(
+        '--footnote-id-flagged', default=1,
+        help='the footnote id to use for whether the parameter has WOCE flags'
+            '(default: 1)')
+    p.add_argument(
+        '--footnote-id-empty', default=2,
+        help='the footnote id to use for whether the parameter only has fill '
+            'values or has no reported measured data (default: 2)')
+    p.add_argument(
+        'filepath', help='the path to a file to list the parameters for')
+
+
 def datadir_commit(args):
     """Commit a CCHDO Unit of Work."""
     from libcchdo.datadir.processing import uow_commit

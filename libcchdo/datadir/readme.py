@@ -185,6 +185,32 @@ class ProcessingReadme(object):
             )),
             ]
 
+    @classmethod
+    def parameter_list(cls, path, qf_footnote_id, fill_footnote_id):
+        """Return a parameter listing for the given file path.
+
+        """
+        with open(path) as fff:
+            with log_above():
+                dfile = read_arbitrary(fff)
+
+        IGNORED_PARAMETERS = [
+            'EXPOCODE', 'SECT_ID', 'STNNBR', 'CASTNO', 'BTLNBR', 'SAMPNO',
+            'DEPTH', 'LATITUDE', 'LONGITUDE', '_DATETIME']
+
+        parameter_list = []
+        for column in dfile.sorted_columns():
+            if column.parameter.mnemonic_woce() in IGNORED_PARAMETERS:
+                continue
+            param = column.parameter.mnemonic_woce()
+            if column.is_flagged_woce():
+                param += ' ' + ReST.footnote_note(qf_footnote_id)
+            if (    equal_with_epsilon(column.values[0], FILL_VALUE) and
+                    column.is_global()):
+                param += ' ' + ReST.footnote_note(fill_footnote_id)
+            parameter_list.append(param)
+        return parameter_list
+
     def parameters(self):
         """Parameters listing."""
         file_summaries = []
@@ -195,10 +221,6 @@ class ProcessingReadme(object):
             'parameter only has fill values/no reported measured data')
         fill_footnote_id = ReST.next_footnote_id - 1
 
-        IGNORED_PARAMETERS = [
-            'EXPOCODE', 'SECT_ID', 'STNNBR', 'CASTNO', 'BTLNBR', 'SAMPNO',
-            'DEPTH', 'LATITUDE', 'LONGITUDE', '_DATETIME']
-
         for qinfo in self.submission:
             fname = qinfo['filename']
             file_summaries.append(ReST.title(fname, '~'))
@@ -206,30 +228,15 @@ class ProcessingReadme(object):
             path = os.path.join(
                 self.uow_dir, UOWDirName.submission, str(qinfo['q_id']), fname)
             try:
-                with open(path) as fff:
-                    with log_above():
-                        dfile = read_arbitrary(fff)
-
-                parameter_list = []
-                for column in dfile.sorted_columns():
-                    if column.parameter.mnemonic_woce() in IGNORED_PARAMETERS:
-                        continue
-                    param = column.parameter.mnemonic_woce()
-                    if column.is_flagged_woce():
-                        param += ' ' + ReST.footnote_note(qf_footnote_id)
-                    if (
-                            equal_with_epsilon(column.values[0], FILL_VALUE) and
-                            column.is_global()):
-                        param += ' ' + ReST.footnote_note(fill_footnote_id)
-                    parameter_list.append(param)
-                file_summaries.append(ReST.list(parameter_list))
+                file_summaries.append(
+                    ReST.list(ProcessingReadme.parameter_list(path)))
             except Exception, err:
                 LOG.error(
                     u'Unable to read parameters for {0}:\n{1!r}'.format(
                     path, err))
                 file_summaries.append(
                     ReST.comment(
-                        u'-UOW- Unable to read file. Please fill in manually.')
+                        u'-UOW- Unable to read file. Please fill in manually.'))
         return [ReST.title('Parameters', '-'), u''] + file_summaries + [
             u'',
             qf_footnote,
@@ -271,6 +278,8 @@ class ProcessingReadme(object):
             u'',
             ReST.table(Table(
                 ['file', 'converted from', 'software'], *rows)),
+            u'All converted files opened in JOA with no apparent problems.',
+            u'',
             ]
 
     def directories(self, workdir, cruisedir):
