@@ -14,15 +14,8 @@ from urllib2 import urlopen, HTTPError
 from tempfile import mkdtemp
 from json import load as json_load, dump as json_dump, loads
 from subprocess import call as subproc_call
-from smtplib import SMTP_SSL
 from hashlib import sha256
-from getpass import getpass
 from collections import OrderedDict
-
-from email.encoders import encode_base64
-from email.mime.multipart import MIMEMultipart
-from email.mime.base import MIMEBase
-from email.mime.text import MIMEText
 
 from docutils.utils import SystemMessage
 from docutils.core import publish_string
@@ -37,9 +30,10 @@ from libcchdo.db.model.legacy import QueueFile
 from libcchdo.config import (
     get_legacy_datadir_host, 
     get_merger_initials, get_merger_name_first, get_merger_name_last,
-    get_merger_name, get_merger_email)
+    get_merger_name)
 from libcchdo.formats.google_wire import DefaultJSONSerializer
 from libcchdo.datadir.dl import AFTP, SFTP
+from libcchdo.datadir.util import ReadmeEmail, DRYRUN_PREFACE
 from libcchdo.datadir.filenames import (
     EXPOCODE_FILENAME, README_FILENAME, PROCESSING_EMAIL_FILENAME,
     UOW_CFG_FILENAME, FILE_MANIFEST_FILENAME, README_TEMPLATE_FILENAME)
@@ -941,6 +935,32 @@ def is_processing_readme_render_ok(readme_path, confirm_html=True):
     return True
 
 
+def summarize_submission(q_info):
+    return '{0}: {1} {2} {3} {4}'.format(
+        q_info['submission_id'], q_info['filename'], q_info['submitted_by'],
+        q_info['date'], q_info['data_type'], )
+
+
+def parse_readme(readme):
+    """Parse out salient information from readme file for processing email."""
+    title = None
+    merger = None
+    for line in readme.split('\n'):
+        if not title and search('processing', line):
+            title = line
+        elif not merger and search('^\w\s\w+$', line):
+            merger = line
+
+    subject = title
+    if not merger:
+        merger = 'unknown'
+    matches = search('([A-Za-z0-9_\/]+)\s+processing', title)
+
+    if merger == 'unknown':
+        merger = get_merger_name()
+    return title, merger, subject
+
+
 PROCESSING_EMAIL_TEMPLATE = """\
 Dear CCHDO,
 
@@ -960,106 +980,37 @@ A history note ({note_id}) has been made for the attached processing notes.
 """
 
 
-DRYRUN_PREFACE = 'DRYRUN'
+class ProcessingEmail(ReadmeEmail):
+    def generate_body(self, merger, expocode, q_infos, note_id, q_ids):
+        sub_ids = uniquify([x['submission_id'] for x in q_infos])
+        sub_plural = 'Submissions'
+        if len(sub_ids) == 1:
+            sub_plural = 'Submission'
+        q_plural = 'Queue entries'
+        if len(q_ids) == 1:
+            q_plural = 'Queue entry'
+        submission_summary = '\n'.join(map(summarize_submission, q_infos))
+        return PROCESSING_EMAIL_TEMPLATE.format(
+            expo=expocode, merger=merger, sub_plural=sub_plural,
+            submission_summary=submission_summary, q_plural=q_plural,
+            q_ids=', '.join(map(str, q_ids)), note_id=note_id)
 
 
-def summarize_submission(q_info):
-    return '{0}: {1} {2} {3} {4}'.format(
-        q_info['submission_id'], q_info['filename'], q_info['submitted_by'],
-        q_info['date'], q_info['data_type'], )
-
-
-def parse_readme(readme, uow_cfg):
-    """Parse out salient information from readme file for processing email."""
-    title = None
-    merger = None
-    for line in readme.split('\n'):
-        if not title and search('processing', line):
-            title = line
-        elif not merger and search('^\w\s\w+$', line):
-            merger = line
-
-    subject = title
-    if not merger:
-        merger = 'unknown'
-    matches = search('([A-Za-z0-9_\/]+)\s+processing', title)
-    expocode = 'unknown'
-    if matches:
-        expocode = matches.group(1)
-
-    if expocode == 'unknown':
-        expocode = uow_cfg.get('expocode', 'unknown')
-
-    if merger == 'unknown':
-        merger = get_merger_name()
-    return title, merger, subject, expocode
-
-
-def processing_email(readme, email_path, uow_cfg, note_id, q_ids, dryrun=True):
+def processing_email(readme, email_path, expocode, q_infos, note_id, q_ids,
+                     dryrun=True):
     """Send processing completed notification email."""
-    if dryrun:
-        recipients = [get_merger_email()]
-    else:
-        recipients = ['cchdo@googlegroups.com']
-
-    title, merger, subject, expocode = parse_readme(readme, uow_cfg)
-
-    q_infos = uow_cfg['q_infos']
-    sub_ids = uniquify([x['submission_id'] for x in q_infos])
-    sub_plural = 'Submissions'
-    q_plural = 'Queue entries'
-
-    if len(sub_ids) == 1:
-        sub_plural = 'Submission'
-    if len(q_ids) == 1:
-        q_plural = 'Queue entry'
-
-    submission_summary = '\n'.join(map(summarize_submission, q_infos))
-
-    body = PROCESSING_EMAIL_TEMPLATE.format(
-        expo=expocode, merger=merger, sub_plural=sub_plural,
-        submission_summary=submission_summary, q_plural=q_plural,
-        q_ids=', '.join(map(str, q_ids)), note_id=note_id)
-
-    email = MIMEMultipart()
-    email['From'] = get_merger_email()
-    email['To'] = ', '.join(recipients)
-    if dryrun:
-        email['Subject'] = '{0} {1}'.format(DRYRUN_PREFACE, subject)
-    else:
-        email['Subject'] = subject
-
-    email.attach(MIMEText(body))
-
-    attachment = MIMEBase('text', 'plain')
-    attachment.set_payload(readme)
-    encode_base64(attachment)
-    attachment.add_header(
-        'Content-Disposition',
-        'attachment; filename="{0}"'.format(README_FILENAME))
-    email.attach(attachment)
-
-    email_str = email.as_string()
-    s = SMTP_SSL('smtp.ucsd.edu')
-    smtp_pass = ''
-    while not smtp_pass:
-        smtp_pass = getpass(
-            u'Please enter your UCSD email password to send notification '
-            'email to {0}: '.format(email['To']))
-    try:
-        s.login(get_merger_email(), smtp_pass)
-        s.sendmail(email['From'], email['To'], email_str)
-    except Exception, err:
-        with open(email_path, 'w') as fff:
-            fff.write(email_str)
-        LOG.info(u'Wrote email to {0} to send later.'.format(email_path))
-        raise err
-    s.quit()
+    pemail = ProcessingEmail(dryrun=dryrun)
+    title, merger, subject = parse_readme(readme)
+    pemail.set_subject(subject)
+    pemail.set_body(pemail.generate_body(
+        merger, expocode, q_infos, note_id, q_ids))
+    pemail.attach_readme(readme)
+    pemail.send(email_path)
 
 
-def processing_history(session, readme, uow_cfg):
-    """Add history note for the given processing notes."""
-    expocode = uow_cfg['expocode']
+def add_readme_history_note(session, readme, expocode, title, summary,
+                            action='Website Update'):
+    """Add history note for the given readme notes."""
     cruise = session.query(legacy.Cruise).\
         filter(legacy.Cruise.ExpoCode == expocode).first()
     if not cruise:
@@ -1071,18 +1022,10 @@ def processing_history(session, readme, uow_cfg):
     event.ExpoCode = cruise.ExpoCode
     event.First_Name = get_merger_name_first()
     event.LastName = get_merger_name_last()
-    event.Data_Type = uow_cfg['title']
-    event.Action = 'Website Update'
+    event.Data_Type = title
+    event.Action = action
     event.Date_Entered = datetime.now().date()
-    try:
-        event.Summary = uow_cfg['summary']
-    except KeyError:
-        LOG.error(u'Please add a summary key to the UOW configuration.')
-        LOG.info(u'Typical entries contain file formats updated e.g.\n'
-            'Exchange, NetCDF, WOCE files online\n'
-            'Exchange & NetCDF files updated\n'
-        )
-        raise ValueError(u'Missing summary in UOW configuration')
+    event.Summary = summary
     event.Note = readme
 
     session.add(event)
@@ -1090,17 +1033,13 @@ def processing_history(session, readme, uow_cfg):
     return event.ID
 
 
-def mark_merged(session, uow_cfg):
-    q_infos = uow_cfg['q_infos']
-    q_ids = uniquify([x['q_id'] for x in q_infos])
+def mark_merged(session, q_ids):
     for qid in q_ids:
-        qf = session.query(legacy.QueueFile).\
-            filter(legacy.QueueFile.id == qid).first()
+        qf = session.query(QueueFile).filter(QueueFile.id == qid).first()
         if qf.is_merged():
             LOG.warn(u'QueueFile {0} is already merged.'.format(qf.id))
     qf.date_merged = date.today()
     qf.set_merged()
-    return q_ids
 
 
 def add_processing_note(readme_path, email_path, uow_cfg, dryrun=True):
@@ -1108,6 +1047,9 @@ def add_processing_note(readme_path, email_path, uow_cfg, dryrun=True):
 
     The current way to do this is to save a history note with the 00_README.txt
     contents, as well as email the CCHDO community.
+
+    readme_path - the path to read 00_README.txt from
+    email_path - a path to write the email to when unable to send
 
     """
     try:
@@ -1117,12 +1059,28 @@ def add_processing_note(readme_path, email_path, uow_cfg, dryrun=True):
         LOG.error(u'Cannot continue without {0}'.format(README_FILENAME))
         return
 
+    expocode = uow_cfg['expocode']
+    title = uow_cfg['title']
+    try:
+        summary = uow_cfg['summary']
+    except KeyError:
+        LOG.error(u'Please add a summary key to the UOW configuration.')
+        LOG.info(u'Typical entries contain file formats updated e.g.\n'
+            'Exchange, NetCDF, WOCE files online\n'
+            'Exchange & NetCDF files updated\n'
+        )
+        return
+
     with closing(legacy.session()) as session:
-        note_id = processing_history(session, readme, uow_cfg)
-        q_ids = mark_merged(session, uow_cfg)
+        note_id = add_readme_history_note(
+            session, readme, expocode, title, summary)
+        q_infos = uow_cfg['q_infos']
+        q_ids = uniquify([x['q_id'] for x in q_infos])
+        mark_merged(session, q_ids)
 
         try:
-            processing_email(readme, email_path, uow_cfg, note_id, q_ids, dryrun)
+            processing_email(
+                readme, email_path, expocode, q_infos, note_id, q_ids, dryrun)
             LOG.info(u'Sent processing email.')
             email_ok = True
         except Exception, err:

@@ -1,9 +1,13 @@
 import sys
 
 import sqlalchemy as S
+from sqlalchemy import (
+    Column, Integer, String, Boolean, Unicode, DateTime, Date, ForeignKey
+    )
 import sqlalchemy.orm
+from sqlalchemy.orm import relationship, relation, column_property
+from sqlalchemy.types import BINARY
 import sqlalchemy.ext.declarative
-from sqlalchemy.orm import relationship
 from geoalchemy import GeometryColumn, LineString
 
 from libcchdo.log import LOG
@@ -16,6 +20,14 @@ metadata = Base.metadata
 
 def session():
     return connect.session(connect.cchdo())
+
+
+def str_list_add(str_list, item, separator=','):
+    """Add item to a string representing a list."""
+    list = str_list.split(separator)
+    if item not in list:
+        return separator.join(list + [item])
+    return str_list
 
 
 OVERRIDE_PARAMETERS = {
@@ -87,25 +99,58 @@ OVERRIDE_PARAMETERS = {
 MYSQL_PARAMETER_DISPLAY_ORDERS = None
 
 
+class ArcticAssignment(Base):
+    __tablename__ = 'arctic_assignments'
+
+    id = Column(Integer(11), primary_key=True)
+    expocode = Column('ExpoCode', String(30))
+    ExpoCode = column_property(expocode)
+    project = Column(String)
+    current_status = Column(String)
+    cchdo_contact = Column(String)
+    data_contact = Column(String)
+    action = Column(String)
+    parameter = Column(String)
+    history = Column(String)
+    last_changed = Column('LastChanged', Date)
+    notes = Column(String)
+    priority = Column(Integer)
+    deadline = Column(Date)
+    manager = Column(String(255))
+    complete = Column(Integer(50))
+    task_group = Column(String(255))
+    visible = Column(Integer(50))
+
+
 class BottleDB(Base):
     __tablename__ = 'bottle_dbs'
 
-    id = S.Column(S.Integer, autoincrement=True, primary_key=True, nullable=False)
-    ExpoCode = S.Column(S.String)
-    Parameters = S.Column(S.String)
-    Parameter_Persistance = S.Column(S.String)
-    Bottle_Code = S.Column(S.String)
-    Location = S.Column(S.String)
-    Entries = S.Column(S.Integer)
-    Stations = S.Column(S.Integer)
+    id = Column(Integer, autoincrement=True, primary_key=True, nullable=False)
+    ExpoCode = Column(String)
+    Parameters = Column(String)
+    Parameter_Persistance = Column(String)
+    Bottle_Code = Column(String)
+    Location = Column(String)
+    Entries = Column(Integer)
+    Stations = Column(Integer)
 
 
 class Codes(Base):
     """ Codes used by CruiseParameterInfos """
     __tablename__ = 'codes'
 
-    Code = S.Column(S.Integer, primary_key=True)
-    Status = S.Column(S.String, primary_key=True)
+    Code = Column(Integer, primary_key=True)
+    Status = Column(String, primary_key=True)
+
+
+class CruiseGroup(Base):
+    __tablename__ = 'cruise_groups'
+    id = Column(Integer, primary_key=True)
+    #name = Column('Group', String)
+    spatial = Column('Spatial', String)
+    cruises = Column('Cruises', String)
+    group = Column('Group', String)
+    subgroups = Column('SubGroups', String)
 
 
 # Initialize parameter display orders
@@ -114,9 +159,9 @@ class Codes(Base):
 class ParameterGroup(Base):
     __tablename__ = 'parameter_groups'
 
-    id = S.Column(S.Integer, autoincrement=True, primary_key=True, nullable=False)
-    group = S.Column(S.Unicode)
-    parameters = S.Column(S.Unicode)
+    id = Column(Integer, autoincrement=True, primary_key=True, nullable=False)
+    group = Column(Unicode)
+    parameters = Column(Unicode)
 
     @property
     def ordered_parameters(self):
@@ -167,21 +212,21 @@ def _to_unicode(x):
 class Parameter(Base):
     __tablename__ = 'parameter_descriptions'
 
-    id = S.Column(S.Integer, autoincrement=True, primary_key=True)
-    name = S.Column('Parameter', S.Unicode)
-    full_name_ = S.Column('FullName', S.String(255))
-    description_ = S.Column('Description', S.String(255))
-    units_ = S.Column('Units', S.String(255))
-    range = S.Column('Range', S.Unicode)
-    alias = S.Column('Alias', S.Unicode)
-    group = S.Column('Group', S.Unicode)
-    unit_mnemonic = S.Column('Unit_Mnemonic', S.Unicode)
-    precision = S.Column('Precision', S.Unicode, default=u'')
-    ruby_precision = S.Column('RubyPrecision', S.Unicode, default=None)
-    private = S.Column('Private', S.Integer(11), default=0)
-    unit_mnemonic_woce = S.Column('WoceUnitMnemonic', S.String, nullable=False)
-    added_by = S.Column('AddedBy', S.String)
-    notes = S.Column('Notes', S.String)
+    id = Column(Integer, autoincrement=True, primary_key=True)
+    name = Column('Parameter', Unicode)
+    full_name_ = Column('FullName', String(255))
+    description_ = Column('Description', String(255))
+    units_ = Column('Units', String(255))
+    range = Column('Range', Unicode)
+    alias = Column('Alias', Unicode)
+    group = Column('Group', Unicode)
+    unit_mnemonic = Column('Unit_Mnemonic', Unicode)
+    precision = Column('Precision', Unicode, default=u'')
+    ruby_precision = Column('RubyPrecision', Unicode, default=None)
+    private = Column('Private', Integer(11), default=0)
+    unit_mnemonic_woce = Column('WoceUnitMnemonic', String, nullable=False)
+    added_by = Column('AddedBy', String)
+    notes = Column('Notes', String)
 
     def __init__(self, name):
         self.name = name
@@ -260,128 +305,146 @@ class Parameter(Base):
 class User(Base):
     __tablename__ = 'users'
 
-    id = S.Column(S.Integer, primary_key=True)
-    username = S.Column(S.String)
-    password_salt = S.Column(S.String)
-    password_hash = S.Column(S.String)
+    id = Column(Integer, primary_key=True)
+    username = Column(String)
+    password_salt = Column(String)
+    password_hash = Column(String)
 
 
 class ArgoFile(Base):
     __tablename__ = 'argo_files'
 
-    id = S.Column(S.Integer(11), primary_key=True)
-    user_id = S.Column(S.ForeignKey('users.id'))
-    expocode = S.Column('ExpoCode', S.String)
-    description = S.Column(S.String)
-    display = S.Column(S.Boolean)
-    size = S.Column(S.Integer)
-    filename = S.Column(S.String)
-    content_type = S.Column(S.Integer)
-    created_at = S.Column(S.DateTime)
+    id = Column(Integer(11), primary_key=True)
+    user_id = Column(ForeignKey('users.id'))
+    expocode = Column('ExpoCode', String)
+    ExpoCode = column_property(expocode)
+    description = Column(String)
+    display = Column(Boolean)
+    size = Column(Integer)
+    filename = Column(String)
+    content_type = Column(Integer)
+    created_at = Column(DateTime)
 
-    user = S.orm.relation(User)
+    user = relation(User)
+
+
+class ArgoSubmission(Base):
+    __tablename__ = 'argo_submissions'
+
+    id = Column(Integer(11), primary_key=True)
+    user_id = Column('user', ForeignKey('users.id'))
+    expocode = Column('ExpoCode', String(30))
+    ExpoCode = column_property(expocode)
+    filename = Column(String)
+    location = Column(String)
+    display = Column(Integer(3))
+    link = Column(Integer(4))
+    datetime_added = Column(DateTime)
+    note = Column(String)
+
+    user = relation(User)
 
 
 class ArgoDownload(Base):
     __tablename__ = 'argo_downloads'
 
-    file_id = S.Column(S.ForeignKey('argo_files.id'), primary_key=True)
-    created_at = S.Column(S.TIMESTAMP, primary_key=True)
-    ip = S.Column(S.String, primary_key=True)
+    file_id = Column(ForeignKey('argo_files.id'), primary_key=True)
+    created_at = Column(S.TIMESTAMP, primary_key=True)
+    ip = Column(String, primary_key=True)
 
-    file = S.orm.relation(ArgoFile, backref='downloads')
+    file = relation(ArgoFile, backref='downloads')
 
 
 class ContactsCruise(Base):
     __tablename__ = 'contacts_cruises'
 
-    cruise_id = S.Column(S.Integer, S.ForeignKey('cruises.id'), primary_key=True)
-    contact_id = S.Column(S.Integer, S.ForeignKey('contacts.id'), primary_key=True)
-    function = S.Column(S.String)
+    cruise_id = Column(Integer, ForeignKey('cruises.id'), primary_key=True)
+    contact_id = Column(Integer, ForeignKey('contacts.id'), primary_key=True)
+    function = Column(String)
 
-    contact = S.orm.relationship('Contact', backref='contacts_cruises')
+    contact = relationship('Contact', backref='contacts_cruises')
 
 
 class CollectionsCruise(Base):
     __tablename__ = 'collections_cruises'
 
-    cruise_id = S.Column(S.Integer, S.ForeignKey('cruises.id'), primary_key=True)
-    collection_id = S.Column(S.Integer, S.ForeignKey('collections.id'), primary_key=True)
+    cruise_id = Column(Integer, ForeignKey('cruises.id'), primary_key=True)
+    collection_id = Column(Integer, ForeignKey('collections.id'), primary_key=True)
 
-    collection = S.orm.relationship('Collection', backref='collections_cruises')
+    collection = relationship('Collection', backref='collections_cruises')
 
 
 
 class TrackLine(Base):
     __tablename__ = 'track_lines'
 
-    id = S.Column(S.Integer(11), primary_key=True)
-    ExpoCode = S.Column(S.String)
+    id = Column(Integer(11), primary_key=True)
+    ExpoCode = Column(String)
     Track = GeometryColumn(LineString(2))
-    Basins = S.Column(S.String)
+    Basins = Column(String)
 
 
 class Cruise(Base):
     __tablename__ = 'cruises'
 
-    id = S.Column(S.Integer(11), primary_key=True)
-    ExpoCode = S.Column(S.String)
-    Line = S.Column(S.String)
-    Country = S.Column(S.String)
-    Chief_Scientist = S.Column(S.String)
-    Begin_Date = S.Column(S.Date)
-    EndDate = S.Column(S.Date)
-    Ship_Name = S.Column(S.String)
-    Alias = S.Column(S.String)
-    Group = S.Column(S.String)
-    Program = S.Column(S.String)
-    link = S.Column(S.String)
+    id = Column(Integer(11), primary_key=True)
+    ExpoCode = Column(String)
+    Line = Column(String)
+    Country = Column(String)
+    Chief_Scientist = Column(String)
+    Begin_Date = Column(Date)
+    EndDate = Column(Date)
+    Ship_Name = Column(String)
+    Alias = Column(String)
+    Group = Column(String)
+    Program = Column(String)
+    link = Column(String)
 
-    contacts_cruises = S.orm.relationship('ContactsCruise', backref='cruise')
-    collections_cruises = S.orm.relationship('CollectionsCruise', backref='cruise')
+    contacts_cruises = relationship('ContactsCruise', backref='cruise')
+    collections_cruises = relationship('CollectionsCruise', backref='cruise')
 
 
 class Contact(Base):
     __tablename__ = 'contacts'
 
-    id = S.Column(S.Integer(11), primary_key=True)
-    LastName = S.Column(S.String)
-    FirstName = S.Column(S.String)
-    Institute = S.Column(S.String)
-    Address = S.Column(S.String)
-    telephone = S.Column(S.String)
-    fax = S.Column(S.String)
-    email = S.Column(S.String)
-    title = S.Column(S.String)
+    id = Column(Integer(11), primary_key=True)
+    LastName = Column(String)
+    FirstName = Column(String)
+    Institute = Column(String)
+    Address = Column(String)
+    telephone = Column(String)
+    fax = Column(String)
+    email = Column(String)
+    title = Column(String)
 
 
 class Event(Base):
     __tablename__ = 'events'
 
-    ID = S.Column(S.Integer(255), primary_key=True)
-    ExpoCode = S.Column(S.String)
-    First_Name = S.Column(S.String)
-    LastName = S.Column(S.String)
-    Data_Type = S.Column(S.String)
-    Action = S.Column(S.String)
-    Date_Entered = S.Column(S.Date)
-    Summary = S.Column(S.String)
-    Note = S.Column(S.String)
+    ID = Column(Integer(255), primary_key=True)
+    ExpoCode = Column(String)
+    First_Name = Column(String)
+    LastName = Column(String)
+    Data_Type = Column(String)
+    Action = Column(String)
+    Date_Entered = Column(Date)
+    Summary = Column(String)
+    Note = Column(String)
 
 
 class Document(Base):
     __tablename__ = 'documents'
 
-    id = S.Column(S.Integer, primary_key=True)
-    Size = S.Column(S.String)
-    FileType = S.Column(S.String)
-    FileName = S.Column(S.String)
-    ExpoCode = S.Column(S.String)
-    Files = S.Column(S.String)
-    LastModified = S.Column(S.DateTime)
-    Modified = S.Column(S.String)
-    Stamp = S.Column(S.String)
-    Preliminary = S.Column(S.Integer)
+    id = Column(Integer, primary_key=True)
+    Size = Column(String)
+    FileType = Column(String)
+    FileName = Column(String)
+    ExpoCode = Column(String)
+    Files = Column(String)
+    LastModified = Column(DateTime)
+    Modified = Column(String)
+    Stamp = Column(String)
+    Preliminary = Column(Integer)
 
     def files(self):
         return filter(lambda x: x, self.Files.split('\n'))
@@ -390,22 +453,23 @@ class Document(Base):
 class Collection(Base):
     __tablename__ = 'collections'
 
-    id = S.Column(S.Integer(11), primary_key=True)
-    Name = S.Column(S.String)
+    id = Column(Integer(11), primary_key=True)
+    Name = Column(String)
 
 
 class ParameterStatus(Base):
     __tablename__ = 'parameter_status'
 
-    expocode = S.Column('ExpoCode', S.Integer(11), primary_key=True)
-    parameter_id = S.Column(S.ForeignKey('parameter_descriptions.id'),
+    expocode = Column('ExpoCode', Integer(11), primary_key=True)
+    ExpoCode = column_property(expocode)
+    parameter_id = Column(ForeignKey('parameter_descriptions.id'),
                             primary_key=True)
-    pi_id = S.Column(S.ForeignKey('contacts.id'), nullable=True)
-    status = S.Column(Enum([u'PRELIMINARY', u'NON-PRELIMINARY']),
+    pi_id = Column(ForeignKey('contacts.id'), nullable=True)
+    status = Column(Enum([u'PRELIMINARY', u'NON-PRELIMINARY']),
                       default=u'PRELIMINARY')
 
-    parameter = S.orm.relation(Parameter)
-    pi = S.orm.relation(Contact)
+    parameter = relation(Parameter)
+    pi = relation(Contact)
 
     def __init__(self, expocode, parameter, status, pi=None):
         self.expocode = expocode
@@ -430,36 +494,37 @@ class CruiseParameterInfo(Base):
     'BARIUM', 'DON', 'SF6', 'NI', 'CU', 'CALCIUM', 'PHSPER', 'NTRIER', 'NTRAER',
     'DELHE4', 'N2O', 'DMS', 'TRITUM', 'PHTEMP', ]
 
-    id = S.Column(S.Integer(11), primary_key=True)
-    ExpoCode = S.Column(S.String)
+    id = Column(Integer(11), primary_key=True)
+    ExpoCode = Column(String)
 
 
 for cpi in CruiseParameterInfo._PARAMETERS:
-    setattr(CruiseParameterInfo, cpi, S.Column(S.String))
-    setattr(CruiseParameterInfo, cpi + '_PI', S.Column(S.String))
-    setattr(CruiseParameterInfo, cpi + '_Date', S.Column(S.String))
+    setattr(CruiseParameterInfo, cpi, Column(String))
+    setattr(CruiseParameterInfo, cpi + '_PI', Column(String))
+    setattr(CruiseParameterInfo, cpi + '_Date', Column(String))
 
 
 class QueueFile(Base):
     __tablename__ = 'queue_files'
 
-    id = S.Column(S.Integer(11), primary_key=True)
-    Name = S.Column(S.String)
-    date_received = S.Column('DateRecieved', S.Date)
-    date_merged = S.Column('DateMerged', S.Date)
-    expocode = S.Column('ExpoCode', S.String)
-    merged = S.Column('Merged', S.Integer)
-    contact = S.Column('Contact', S.String)
-    processed_input = S.Column('ProcessedInput', S.String)
-    notes = S.Column('Notes', S.String)
-    unprocessed_input = S.Column('UnprocessedInput', S.String)
-    parameters = S.Column('Parameters', S.String)
-    action = S.Column('Action', S.String)
-    cchdo_contact = S.Column('CCHDOContact', S.String)
-    merge_notes = S.Column(S.String)
-    hidden = S.Column(S.Integer)
-    documentation = S.Column(S.Integer)
-    submission_id = S.Column(S.Integer, S.ForeignKey('submissions.id'))
+    id = Column(Integer(11), primary_key=True)
+    Name = Column(String)
+    date_received = Column('DateRecieved', Date)
+    date_merged = Column('DateMerged', Date)
+    expocode = Column('ExpoCode', String)
+    ExpoCode = column_property(expocode)
+    merged = Column('Merged', Integer)
+    contact = Column('Contact', String)
+    processed_input = Column('ProcessedInput', String)
+    notes = Column('Notes', String)
+    unprocessed_input = Column('UnprocessedInput', String)
+    parameters = Column('Parameters', String)
+    action = Column('Action', String)
+    cchdo_contact = Column('CCHDOContact', String)
+    merge_notes = Column(String)
+    hidden = Column(Integer)
+    documentation = Column(Integer)
+    submission_id = Column(Integer, ForeignKey('submissions.id'))
     submission = relationship('Submission')
     
     def is_unmerged(self):
@@ -493,73 +558,108 @@ class QueueFile(Base):
 class Submission(Base):
     __tablename__ = 'submissions'
 
-    id = S.Column(S.Integer(11), primary_key=True)
-    name = S.Column(S.String)
-    institute = S.Column(S.String)
-    country = S.Column('Country', S.String)
-    email = S.Column(S.String)
-    public = S.Column(S.String)
-    expocode = S.Column('ExpoCode', S.String)
-    ship_name = S.Column('Ship_Name', S.String)
-    line = S.Column('Line', S.String)
-    cruise_date = S.Column(S.Date)
-    action = S.Column(S.String)
-    notes = S.Column(S.String)
-    file = S.Column(S.String)
-    assigned = S.Column(S.Integer)
-    assimilated = S.Column(S.Integer)
-    submission_date = S.Column(S.Date)
-    ip = S.Column(S.String)
-    user_agent = S.Column(S.String)
+    id = Column(Integer(11), primary_key=True)
+    name = Column(String)
+    institute = Column(String)
+    country = Column('Country', String)
+    email = Column(String)
+    public = Column(String)
+    expocode = Column('ExpoCode', String)
+    ExpoCode = column_property(expocode)
+    ship_name = Column('Ship_Name', String)
+    line = Column('Line', String)
+    cruise_date = Column(Date)
+    action = Column(String)
+    notes = Column(String)
+    file = Column(String)
+    assigned = Column(Integer)
+    assimilated = Column(Integer)
+    submission_date = Column(Date)
+    ip = Column(String)
+    user_agent = Column(String)
 
 
 class OldSubmission(Base):
     __tablename__ = 'old_submissions'
 
-    id = S.Column(S.Integer(11), primary_key=True)
-    Date = S.Column(S.Date)
-    Stamp = S.Column(S.String)
-    Name = S.Column(S.String)
-    Line = S.Column(S.String)
-    Filename = S.Column(S.String)
-    Filetype = S.Column(S.String)
-    Location = S.Column(S.String)
-    Folder = S.Column(S.String)
-    created_at = S.Column(S.DateTime)
-    updated_at = S.Column(S.DateTime)
+    id = Column(Integer(11), primary_key=True)
+    Date = Column(Date)
+    Stamp = Column(String)
+    Name = Column(String)
+    Line = Column(String)
+    Filename = Column(String)
+    Filetype = Column(String)
+    Location = Column(String)
+    Folder = Column(String)
+    created_at = Column(DateTime)
+    updated_at = Column(DateTime)
 
 
 class SpatialGroup(Base):
     __tablename__ = 'spatial_groups'
 
-    id = S.Column(S.Integer, primary_key=True)
-    area = S.Column(S.String)
-    expocode = S.Column('ExpoCode', S.String)
+    id = Column(Integer, primary_key=True)
+    area = Column(String)
+    expocode = Column('ExpoCode', String)
+    ExpoCode = column_property(expocode)
 
-    atlantic = S.Column(S.types.BINARY)
-    arctic = S.Column(S.types.BINARY)
-    pacific = S.Column(S.types.BINARY)
-    indian = S.Column(S.types.BINARY)
-    southern = S.Column(S.types.BINARY)
+    atlantic = Column(BINARY)
+    arctic = Column(BINARY)
+    pacific = Column(BINARY)
+    indian = Column(BINARY)
+    southern = Column(BINARY)
 
 
 class Internal(Base):
     __tablename__ = 'internal'
 
-    Line = S.Column(S.String, primary_key=True)
-    File = S.Column(S.String, primary_key=True)
-    expocode = S.Column('ExpoCode', S.String, primary_key=True)
-    Basin = S.Column(S.String, primary_key=True)
+    Line = Column(String, primary_key=True)
+    File = Column(String, primary_key=True)
+    expocode = Column('ExpoCode', String, primary_key=True)
+    ExpoCode = column_property(expocode)
+    Basin = Column(String, primary_key=True)
+
+
+class NewTrack(Base):
+    __tablename__ = 'new_tracks'
+
+    id = Column(Integer(11), primary_key=True)
+    expocode = Column('ExpoCode', String)
+    ExpoCode = column_property(expocode)
+    filename = Column('FileName', String)
+    basin = Column('Basin', String)
+    track = Column('Track', String)
+
+
+class SupportFile(Base):
+    __tablename__ = 'support_files'
+
+    name = Column('Name', String)
+    date_received = Column('DateRecieved', String)
+    date_merged = Column('DateMerged', String)
+    expocode = Column('ExpoCode', String)
+    ExpoCode = column_property(expocode)
+    merged = Column('Merged', String)
+    contact = Column('Contact', String)
+    processed_input = Column('ProcessedInput', String)
+    notes = Column('Notes', String)
+    unprocessed_input = Column('UnprocessedInput', String)
+    contact = Column('Contact', String)
+    id = Column(Integer(11), primary_key=True)
+    parameters = Column('Parameters', String)
+    action = Column('Action', String)
+    description = Column('Description', String)
 
 
 class UnusedTrack(Base):
     __tablename__ = 'unused_tracks'
 
-    id = S.Column(S.Integer(11), primary_key=True)
-    expocode = S.Column('ExpoCode', S.String)
-    filename = S.Column('FileName', S.String)
-    Basin = S.Column(S.String)
-    Track = S.Column(S.String)
+    id = Column(Integer(11), primary_key=True)
+    expocode = Column('ExpoCode', String)
+    ExpoCode = column_property(expocode)
+    filename = Column('FileName', String)
+    Basin = Column(String)
+    Track = Column(String)
 
 
 def find_parameter(session, name):

@@ -3,8 +3,16 @@
 import re
 import os
 from shutil import copy2
+from email.encoders import encode_base64
+from email.mime.multipart import MIMEMultipart
+from email.mime.base import MIMEBase
+from email.mime.text import MIMEText
+from smtplib import SMTP_SSL
+from getpass import getpass
 
 from libcchdo import LOG
+from libcchdo.config import get_merger_email, is_env_production
+from libcchdo.datadir.filenames import README_FILENAME
 
 
 def intersection(self, o):
@@ -147,3 +155,74 @@ def make_subdirs(root, subdirs, perms):
             make_subdirs(os.path.join(root, subdir), subdirs, perms)
         else:
             _make_subdir(root, subdir, perms)
+
+
+def full_datadir_path(cruisedir):
+    """Expand a relative cruise directory into the full path leading with /data.
+
+    """
+    cruisedir = os.path.abspath(cruisedir)
+    return cruisedir[cruisedir.find('/data'):]
+
+
+DRYRUN_PREFACE = 'DRYRUN'
+
+
+class ReadmeEmail(object):
+    """"Readme email."""
+    def __init__(self, dryrun=True):
+        self._email = MIMEMultipart()
+        self._email['From'] = get_merger_email()
+        self.dryrun = dryrun
+        if self.dryrun:
+            recipients = [get_merger_email()]
+        else:
+            if not is_env_production():
+                LOG.warn(u'Environment is not production environment! '
+                         'Switched email recipients to merger.')
+                recipients = [get_merger_email()]
+            else:
+                recipients = ['cchdo@googlegroups.com']
+        self._email['To'] = ', '.join(recipients)
+
+    def set_subject(self, subject):
+        if self.dryrun:
+            self._email['Subject'] = '{0} {1}'.format(DRYRUN_PREFACE, subject)
+        else:
+            self._email['Subject'] = subject
+
+    def generate_body(self):
+        return ''
+
+    def set_body(self, body):
+        self._email.attach(MIMEText(body))
+
+    def attach_readme(self, readme_text):
+        """Attach readme text as attachment."""
+        attachment = MIMEBase('text', 'plain')
+        attachment.set_payload(readme_text)
+        encode_base64(attachment)
+        attachment.add_header(
+            'Content-Disposition',
+            'attachment; filename="{0}"'.format(README_FILENAME))
+        self._email.attach(attachment)
+
+    def send(self, email_path):
+        """Send the email."""
+        email_str = self._email.as_string()
+
+        smtp = SMTP_SSL('smtp.ucsd.edu')
+        try:
+            smtp_pass = ''
+            while not smtp_pass:
+                smtp_pass = getpass(
+                    u'Please enter your UCSD email password to send notification '
+                    'email to {0}: '.format(self._email['To']))
+            smtp.login(get_merger_email(), smtp_pass)
+            smtp.sendmail(self._email['From'], self._email['To'], email_str)
+        except Exception, err:
+            with open(email_path, 'w') as fff:
+                fff.write(email_str)
+            LOG.info(u'Wrote email to {0} to send later.'.format(email_path))
+            raise err
+        smtp.quit()

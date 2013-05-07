@@ -1415,6 +1415,55 @@ with subcommand(datadir_parsers, 'copy_replaced',
         help='The file that is replaced and needs to be moved.')
 
 
+def datadir_correct_expocode_alias(args):
+    """Correct an ExpoCode/Alias for a cruise directory.
+
+    """
+    from json import load as json_load
+    from libcchdo.datadir.corrector import ExpoCodeAliasCorrector
+    try:
+        with open(args.alias_map) as fff:
+            alias_map = json_load(fff)
+        LOG.info(u'Using alias map: {0!r}'.format(alias_map))
+    except (OSError, IOError), err:
+        if args.alias_map == 'alias_map.json':
+            alias_map = {}
+        else:
+            raise err
+    
+    corrector = ExpoCodeAliasCorrector(
+        [args.old_expocode, args.new_expocode],
+        alias_map
+    )
+    corrector.correct(
+        args.cruise_dir, args.email_path, dryrun=args.dry_run, debug=args.debug)
+
+
+with subcommand(datadir_parsers, 'correct_expocode',
+                datadir_correct_expocode_alias) as p:
+    p.add_argument(
+        'old_expocode', help="The incorrect expocode")
+    p.add_argument(
+        'new_expocode', help="The correct expocode")
+    p.add_argument(
+        'cruise_dir', default='.', nargs='?',
+        help="The cruise directory to correct (default: '.')")
+    p.add_argument(
+        'email_path',
+        default='{0}.{1}'.format(
+            date.today().strftime('%F'), PROCESSING_EMAIL_FILENAME),
+        nargs='?',
+        help='The path to write the processing note email to if email fails.')
+    p.add_argument(
+        '--alias_map', default='alias_map.json',
+        help='A file with a json object mapping of incorrect to correct '
+            'aliases. E.g. {"AO95": "A095"} (default: alias_map.json)')
+    p.add_argument(
+        '--dry-run', action='store_true')
+    p.add_argument(
+        '--debug', action='store_true')
+
+
 plot_parser = hydro_subparsers.add_parser(
     'plot', help='Plotters')
 plot_parsers = plot_parser.add_subparsers(title='plotters')
@@ -2098,6 +2147,24 @@ with subcommand(report_parsers, 'argo_ctd_index',
     p.add_argument(
         'output', type=FileType('w'), nargs='?', default=sys.stdout,
         help='output file')
+
+
+def env(args):
+    """Get or change libcchdo environment.
+
+    """
+    from libcchdo.config import ENVIRONMENT_ENV_VARIABLE, get_libenv
+    if args.environment:
+        print 'export {0}={1}'.format(
+            ENVIRONMENT_ENV_VARIABLE, args.environment)
+    else:
+        print get_libenv()
+
+
+with subcommand(hydro_subparsers, 'env', env) as p:
+    p.add_argument(
+        'environment', nargs='?', 
+        help='the environment to set')
 
 
 def deprecated_reorder_surface_to_bottom():

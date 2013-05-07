@@ -49,6 +49,11 @@ from libcchdo.util import memoize
 _CONFIG_DIR = '.%s' % __package__
 
 
+# This environment name is the *actual* production environment.
+ENVIRONMENT_ENV_VARIABLE = 'LIBCCHDO_ENV'
+PRODUCTION_ENVIRONMENT = 'prod'
+
+
 @memoize
 def get_libenv():
     """Return the current operating environment.
@@ -62,16 +67,28 @@ def get_libenv():
     3. test - test
 
     """
-    env = os.environ.get('LIBCCHDO_ENV', 'prod')
-    if env != 'prod':
+    env = os.environ.get(ENVIRONMENT_ENV_VARIABLE, PRODUCTION_ENVIRONMENT)
+    if env != PRODUCTION_ENVIRONMENT:
         LOG.info('Running in {0} environment.'.format(env))
     return env
 
 
+def is_env_production():
+    """Return whether the current env is the *actual* production env."""
+    return get_libenv() == PRODUCTION_ENVIRONMENT
+
+
 def _config_filename():
-    env = get_libenv()
-    if env == 'prod':
+    """Return the configuration file name to be used.
+
+    This changes with the environment name. If the environment name is the 
+    *actual* production environment, the name is libcchdo.cfg, otherwise it is
+    envname_libcchdo.cfg.
+
+    """
+    if is_env_production():
         return '{0}.cfg'.format(__package__)
+    env = get_libenv()
     return '{0}_{1}.cfg'.format(env, __package__)
 
 

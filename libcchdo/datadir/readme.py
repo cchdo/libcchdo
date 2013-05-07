@@ -129,30 +129,21 @@ class ReST(object):
             [u''])
 
 
-class ProcessingReadme(object):
-    """Generate the boilerplate of a processing 00_README.txt.
+class Readme(object):
+    """Generate the boilerplate of a simple 00_README.txt.
+
+    This one is used for fixing Expocodes.
 
     """
-    def __init__(self, uow_dir):
-        """Initialize the readme document with the UOW configuration."""
-        self.uow_dir = uow_dir
-        self.uow_cfg = read_uow_cfg(
-            os.path.join(self.uow_dir, UOW_CFG_FILENAME))
-        self.submission = self.uow_cfg['q_infos']
-        self._title = self._title()
+    def __init__(self, expocode, process_text):
+        """Initialize the readme document with just an ExpoCode."""
+        self.expocode = expocode
+        self.process_text = process_text
+        self._title = self._gen_title()
 
-    def _title(self):
+    def _gen_title(self):
         """Generate title."""
-        alias = self.uow_cfg['alias']
-        expo = self.uow_cfg['expocode']
-        data_types_summary = self.uow_cfg['data_types_summary']
-        params = self.uow_cfg['params']
-
-        is_empty = lambda x: x
-
-        identifier = u' '.join(filter(is_empty, [alias, expo])) + ' processing'
-        return u' - '.join(
-            filter(is_empty, [identifier, data_types_summary, params]))
+        return u'{0} processing'.format(self.expocode)
 
     def title(self):
         """Readme title."""
@@ -167,9 +158,76 @@ class ProcessingReadme(object):
                 get_merger_name_first()[0], get_merger_name_last()),
             ReST.toc(),
             ]
+
+    def process(self):
+        """Process."""
+        parts = [
+            ReST.title('Process', '='),
+            u'',
+            self.process_text
+            ]
+        return parts
+
+    def directories(self, workdir, cruisedir):
+        """Directories."""
+        return [
+            ReST.title('Directories', '='),
+            ReST.definition_list([
+                ['working directory', workdir],
+                ['cruise directory', cruisedir],
+            ]),
+            ]
+
+    def updated_files_manifest(self, files):
+        """Updated files manifest."""
+        return [
+            ReST.title('Updated Files Manifest', '='),
+            ReST.list(files),
+            ]
+
+    def finalize_sections(self, workdir, cruisedir, updated_files):
+        """Generate the Directories, and Manifest sections."""
+        return self.directories(workdir, cruisedir) + \
+            self.updated_files_manifest(updated_files)
+
+    def __unicode__(self):
+        parts = []
+        parts += self.title()
+        parts += self.header()
+        parts += self.process()
+        return u'\n'.join(parts)
+
+
+class ProcessingReadme(Readme):
+    """Generate the boilerplate of a processing 00_README.txt.
+
+    """
+    def __init__(self, uow_dir):
+        """Initialize the readme document with the UOW configuration."""
+        self.uow_dir = uow_dir
+        self.uow_cfg = read_uow_cfg(
+            os.path.join(self.uow_dir, UOW_CFG_FILENAME))
+        self.submission = self.uow_cfg['q_infos']
+        self._title = self._gen_title()
+
+    def _gen_title(self):
+        """Generate title."""
+        alias = self.uow_cfg['alias']
+        expo = self.uow_cfg['expocode']
+        data_types_summary = self.uow_cfg['data_types_summary']
+        params = self.uow_cfg['params']
+
+        is_empty = lambda x: x
+
+        identifier = u' '.join(filter(is_empty, [alias, expo])) + ' processing'
+        return u' - '.join(
+            filter(is_empty, [identifier, data_types_summary, params]))
         
     def submissions(self):
         """Submissions table."""
+        if not self.submission:
+            return []
+
         rows = []
         for qinfo in self.submission:
             rows.append([
@@ -213,6 +271,8 @@ class ProcessingReadme(object):
 
     def parameters(self):
         """Parameters listing."""
+        if not self.submission:
+            return []
         file_summaries = []
 
         qf_footnote = ReST.footnote('parameter has quality flag column')
@@ -245,6 +305,41 @@ class ProcessingReadme(object):
             ReST.footnote('merged, see merge_'),
             u'',
             ]
+
+    def process(self):
+        """Process."""
+        parts = [
+            ReST.title('Process', '='),
+            u'',
+            ReST.comment(u'-UOW- Please fill in the Process section and '
+                'delete this comment. Refer to {0} in the UOW as a '
+                'guide.'.format(README_TEMPLATE_FILENAME)
+            )]
+        parts += self.changes()
+        parts += self.merge()
+        parts += [
+            ReST.comment(
+                u'-UOW- Conversions, directories and manifest will be '
+                'automatically generated on commit.')]
+        return parts
+
+    def changes(self):
+        """Process changes."""
+        return [ReST.title('Changes', '-'), u''] + self.list_files()
+
+    def merge(self):
+        """Process merge."""
+        return [ReST.label('merge'), ReST.title('Merge', '-'), u''] + \
+            self.list_files()
+
+    def list_files(self):
+        """Generate a list of file names as section headers."""
+        list_files = []
+        for qinfo in self.submission:
+            fname = qinfo['filename']
+            list_files.append(ReST.title(fname, '~'))
+        list_files.append(u'')
+        return list_files
 
     def conversions(self):
         """Conversions.
@@ -282,55 +377,17 @@ class ProcessingReadme(object):
             u'',
             ]
 
-    def directories(self, workdir, cruisedir):
-        """Directories."""
-        return [
-            ReST.title('Directories', '='),
-            ReST.definition_list([
-                ['working directory', workdir],
-                ['cruise directory', cruisedir],
-            ]),
-            ]
-
-    def updated_files_manifest(self, files):
-        """Updated files manifest."""
-        return [
-            ReST.title('Updated Files Manifest', '='),
-            ReST.list(files),
-            ]
-
-    def list_files(self):
-        """Generate a list of file names as section headers."""
-        list_files = []
-        for qinfo in self.submission:
-            fname = qinfo['filename']
-            list_files.append(ReST.title(fname, '~'))
-        list_files.append(u'')
-        return list_files
-
     def finalize_sections(self, workdir, cruisedir, updated_files):
         """Generate the Conversion, Directories, and Manifest sections."""
         return self.conversions() + \
-            self.directories(workdir, cruisedir) + \
-            self.updated_files_manifest(updated_files)
+             super(ProcessingReadme, self).finalize_sections(
+                workdir, cruisedir, updated_files)
 
     def __unicode__(self):
-        return u'\n'.join(self.title() + self.header() + self.submissions() + \
-            self.parameters() + [
-                ReST.title('Process', '='),
-                u'',
-                ReST.comment(u'-UOW- Please fill in the Process section and '
-                    'delete this comment. Refer to {0} in the UOW as a '
-                    'guide.'.format(README_TEMPLATE_FILENAME)
-                ),
-                ReST.title('Changes', '-'),
-                u'',
-            ] + self.list_files() + [
-                ReST.label('merge'),
-                ReST.title('Merge', '-'),
-                u'',
-            ] + self.list_files() + [
-                ReST.comment(
-                    u'-UOW- Conversions, directories and manifest will be '
-                    'automatically generated on commit.')
-            ])
+        parts = []
+        parts += self.title()
+        parts += self.header()
+        parts += self.submissions()
+        parts += self.parameters()
+        parts += self.process()
+        return u'\n'.join(parts)
