@@ -412,8 +412,9 @@ def _get_file_manifest(uow_dir, work_dir):
     return set(file_manifest), set(online_files), set(tgo_files)
 
 
-def _copy_uow_online_into_work_dir(uow_dir, work_dir, file_manifest_set,
-                                   online_files_set, tgo_files_set):
+def _copy_uow_online_into_work_dir(uow_dir, work_dir, dir_perms,
+                                   file_manifest_set, online_files_set,
+                                   tgo_files_set):
     """Copy UOW files to go online into working dir.
     
     Accounts for having to move originally online files into originals.
@@ -528,6 +529,9 @@ def uow_commit(uow_dir, person=None, confirm_html=True, dryrun=True):
         LOG.error(u'{0} Abort.'.format(e))
         return
 
+    uow_readme_path = os.path.join(uow_dir, README_FILENAME)
+    finalized_readme_path = uow_readme_path
+
     # Create the working directory locally in prep to be uploaded
     with tempdir(dir='/tmp') as temp_dir:
         if person is None:
@@ -550,7 +554,7 @@ def uow_commit(uow_dir, person=None, confirm_html=True, dryrun=True):
             file_sets = _get_file_manifest(uow_dir, work_dir)
             (new_files, removed_files, overwritten_files, unchanged_files,
              missing_tgo_files) = _copy_uow_online_into_work_dir(
-                uow_dir, work_dir, *file_sets)
+                uow_dir, work_dir, dir_perms, *file_sets)
             updated_files = new_files | overwritten_files
         except ValueError, e:
             LOG.error(e)
@@ -561,7 +565,6 @@ def uow_commit(uow_dir, person=None, confirm_html=True, dryrun=True):
 
         # Finalize the readme file. This means adding the conversion,
         # directories, and updated manifests
-        uow_readme_path = os.path.join(uow_dir, README_FILENAME)
         work_readme_path = os.path.join(work_dir, README_FILENAME)
 
         try:
@@ -573,6 +576,7 @@ def uow_commit(uow_dir, person=None, confirm_html=True, dryrun=True):
             return
         LOG.debug(u'{0} final sections:\n{1}'.format(
             README_FILENAME, finalize_sections))
+        finalized_readme_path = os.path.join(uow_dir, '00_README.finalized.txt')
 
         with open(uow_readme_path) as iii:
             with open(work_readme_path, 'w') as ooo:
@@ -581,6 +585,7 @@ def uow_commit(uow_dir, person=None, confirm_html=True, dryrun=True):
                         continue
                     ooo.write(line)
                 ooo.write(finalize_sections)
+        copy2(work_readme_path, finalized_readme_path)
 
         # All green. Go!
         LOG.info(u'Committing to {0}:{1}'.format(sftp_host, remote_path))
@@ -610,7 +615,7 @@ def uow_commit(uow_dir, person=None, confirm_html=True, dryrun=True):
 
     # Post-flight
     add_processing_note(
-        os.path.join(uow_dir, README_FILENAME),
+        finalized_readme_path,
         os.path.join(uow_dir, PROCESSING_EMAIL_FILENAME),
         uow_cfg, dryrun)
 
