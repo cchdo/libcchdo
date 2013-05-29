@@ -14,12 +14,15 @@ from os import (getcwd, chdir, geteuid, getegid, seteuid, setegid)
 import os.path
 from contextlib import contextmanager
 from threading import current_thread
-import shutil
+from shutil import copy2, copytree
 import stat
+from stat import S_ISDIR
+from errno import ENOENT
 
 from paramiko import SSHException, SSHClient, AutoAddPolicy
 
 from libcchdo import LOG
+from libcchdo.datadir.util import mkdir_ensure
 
 
 @contextmanager
@@ -160,12 +163,14 @@ class AFTP(object):
 
     def __copy__(self):
         return AFTP(
-            not self.dryrun, (self.ssh, self.sftp), self.dl_gid,
-            self.local_rewriter, self.su_lock)
+            self.ssh_sftp, self.dryrun, self.dl_gid, self.local_rewriter,
+            self.su_lock)
 
     def set_ssh_sftp(self, ssh_sftp):
-        self.ssh = ssh_sftp.ssh
-        self.sftp = ssh_sftp.sftp
+        self.ssh_sftp = ssh_sftp
+        if ssh_sftp is not None:
+            self.ssh = ssh_sftp.ssh
+            self.sftp = ssh_sftp.sftp
 
     @contextmanager
     def sftp_dl(self, filepath):
@@ -174,14 +179,16 @@ class AFTP(object):
         temp = NamedTemporaryFile(delete=False)
         downloaded = temp
         try:
-            LOG.info('downloading %s' % filepath)
             if self.dryrun:
-                LOG.info('Skipped.')
+                LOG.info('dryrun downloading %s' % filepath)
                 downloaded = None
             else:
+                LOG.info('downloading %s' % filepath)
                 sftp.get(filepath, temp.name)
         except IOError, e:
-            LOG.warn("Unable to locate file on remote %s: %s" % (filepath, e))
+            LOG.warn(
+                u'Unable to locate file on remote {0}\n{1!r}'.format(
+                filepath, e))
             downloaded = None
 
         try:
@@ -237,6 +244,136 @@ class AFTP(object):
             with self.sftp_dl(file_path) as x:
                 yield x
 
+    def sftp_up(self, local_file_path, filepath):
+        """Upload a filepath to the remote server."""
+        sftp = self.sftp
+        try:
+            if self.dryrun:
+                LOG.info(u'dryrun uploading {0} to {1}'.format(
+                    local_file_path, filepath))
+            else:
+                LOG.info(u'uploading {0} {1}'.format(
+                    local_file_path, filepath))
+                sftp.put(local_file_path, filepath)
+        except (OSError, IOError), err:
+            LOG.warn(u'Unable to copy file to remote {0}:\n{1!r}'.format(
+                filepath, err))
+
+    def local_up(self, local_file_path, filepath):
+        """Upload a filepath to the local filesystem.
+
+        Arguments:
+        hardlink - whether to hard link the file instead of copying
+
+        """
+        rewritten_path = self.local_rewriter(filepath)
+        LOG.debug(u'rewrite {0} to {1}'.format(filepath, rewritten_path))
+        filepath = rewritten_path
+
+        if self.dryrun:
+            LOG.info('dryrun uploading {0}'.format(filepath))
+            return
+        else:
+            LOG.info('uploading {0}'.format(filepath))
+            try:
+                with su(su_lock=self.su_lock):
+                    copy2(local_file_path, filepath)
+            except IOError, e:
+                LOG.warn(u"Unable to copy to file on local {0}:\n{1!r}".format(
+                    filepath, e))
+    
+    def up(self, local_file_path, file_path):
+        if self.local_rewriter:
+            self.local_up(local_file_path, file_path)
+        else:
+            self.sftp_up(local_file_path, file_path)
+
+    def local_up_dir(self, local_dir_path, dir_path):
+        """Upload the local_dir_path tree contents into dir_path.
+
+        dir_path should not already exist.
+
+        """
+        if self.dryrun:
+            LOG.info(u'dryrun upload dir {0} to {1}'.format(
+                local_dir_path, dir_path))
+        else:
+            LOG.info(u'upload dir {0} to {1}'.format(
+                local_dir_path, dir_path))
+            copytree(local_dir_path, dir_path)
+
+    def sftp_up_dir(self, local_dir_path, dir_path):
+        """Upload the local_dir_path contents into the remote dir_path.
+
+        dir_path should not already exist.
+
+        """
+        if self.dryrun:
+            LOG.info(u'dryrun upload dir {0} to {1}'.format(
+                local_dir_path, dir_path))
+        else:
+            LOG.info(u'upload dir {0} to {1}'.format(
+                local_dir_path, dir_path))
+            self.sftp.mkdir(dir_path)
+            dir_lstat = os.lstat(local_dir_path)
+            self.sftp.chmod(dir_path, dir_lstat.st_mode)
+            for path, names, fnames in os.walk(local_dir_path):
+                for name in names:
+                    fpath = os.path.join(path, name)
+                    rfpath = fpath.replace(local_dir_path, dir_path)
+                    self.sftp.mkdir(rfpath)
+                    dir_lstat = os.lstat(fpath)
+                    self.sftp.chmod(rfpath, dir_lstat.st_mode)
+                for fname in fnames:
+                    fpath = os.path.join(path, fname)
+                    rfpath = fpath.replace(local_dir_path, dir_path)
+                    if os.path.isdir(fpath):
+                        continue
+                    else:
+                        LOG.debug(u'uploading {0} to {1}'.format(fpath, rfpath))
+                        self.sftp.put(fpath, rfpath)
+
+    def up_dir(self, local_dir_path, dir_path):
+        """Upload directory."""
+        if self.local_rewriter:
+            self.local_up_dir(local_dir_path, dir_path)
+        else:
+            self.sftp_up_dir(local_dir_path, dir_path)
+
+    def local_remove(self, path):
+        if self.dryrun:
+            LOG.info(u'dryrun remove {0}'.format(path))
+        else:
+            LOG.info(u'remove {0}'.format(path))
+            os.unlink(path)
+
+    def sftp_remove(self, path):
+        if self.dryrun:
+            LOG.info(u'dryrun remove {0}'.format(path))
+        else:
+            LOG.info(u'remove {0}'.format(path))
+            self.sftp.remove(path)
+
+    def remove(self, path):
+        """Delete the file at the remote path."""
+        if self.local_rewriter:
+            self.local_remove(path)
+        else:
+            self.sftp_remove(path)
+
+    def local_mkdir(self, remote_path, mode=0777):
+        mkdir(remote_path, mode)
+
+    def sftp_mkdir(self, remote_path, mode=0777):
+        LOG.debug('making directory {0}'.format(remote_path))
+        self.sftp.mkdir(remote_path, mode)
+
+    def mkdir(self, remote_path, mode=0777):
+        if self.local_rewriter:
+            self.local_mkdir(remote_path, mode)
+        else:
+            self.sftp_mkdir(remote_path, mode)
+        
     def set_stat(self, stat, path):
         try:
             chmod(path, stat.st_mode)
@@ -305,7 +442,7 @@ class AFTP(object):
             if hardlink:
                 link(remote_path, local_path)
             else:
-                shutil.copy2(remote_path, local_path)
+                copy2(remote_path, local_path)
 
     def local_dl_dir(self, remotedir, localdir, hardlink=False):
         """Download a directory from the local filesystem
@@ -329,6 +466,12 @@ class AFTP(object):
                 self.local_rewriter(remote_dir_path), local_dir_path)
         else:
             self.sftp_dl_dir(self.sftp, remote_dir_path, local_dir_path)
+
+    def isdir(self, path):
+        if self.local_rewriter:
+            return os.isdir(self.local_rewriter(path))
+        else:
+            return S_ISDIR(self.sftp.lstat(path).st_mode)
 
     def lstat(self, path):
         if self.local_rewriter:

@@ -17,7 +17,8 @@ import traceback
 
 from libcchdo.log import LOG
 from libcchdo.fns import all_formats, read_arbitrary, get_editor
-from libcchdo.datadir.filenames import README_FILENAME, UOW_CFG_FILENAME
+from libcchdo.datadir.filenames import (
+    README_FILENAME, PROCESSING_EMAIL_FILENAME, UOW_CFG_FILENAME)
 known_formats = all_formats.keys()
 
 
@@ -1225,9 +1226,10 @@ def _args_mkdir_working(p):
 
 def datadir_get_cruise_dir(args):
     """Determine the cruise directory given an Expocode."""
+    from libcchdo.config import get_legacy_datadir_host
     from libcchdo.datadir.processing import _legacy_cruise_directory
     with _legacy_cruise_directory(args.expocode) as doc:
-        print doc.FileName
+        print '{0}:{1}'.format(get_legacy_datadir_host(), doc.FileName)
 
 
 with subcommand(datadir_parsers, 'get_cruise_dir',
@@ -1256,21 +1258,24 @@ def datadir_fetch(args):
     """
     from libcchdo.datadir.processing import (
         mkdir_uow, as_received_unmerged_list, as_received_infos)
-    if not args.ids:
+    fetch_requirements = [args.title, args.summary, args.ids]
+    if not any(fetch_requirements):
         for f in as_received_unmerged_list():
             print '\t'.join(map(str, 
                 [f['q_id'], f['data_type'], f['submitted_by'], f['filename']]))
         return
-    if not args.title:
+    if not args.title or not args.summary:
         LOG.error(
-            u'Please provide a more descriptive title for your UOW.\n'
-            'hydro datadir fetch --title="descriptive_title"')
+            u'Please provide a title and summary for your UOW.\n'
+            'hydro datadir fetch "title" "summary"')
         LOG.info(u'List of as-received files specified:')
         for info in as_received_infos(*args.ids):
-            LOG.info(
-                u'{0}\t{1}'.format(info['data_type'], info['filename']))
+            LOG.info(u'{0}\t{1}'.format(info['data_type'], info['filename']))
         return
-    print mkdir_uow(args.basepath, args.title, args.ids)
+    if not args.ids:
+        LOG.info(u'Creating a UOW without queue files to work on.')
+    print mkdir_uow(args.basepath, args.title, args.summary, args.ids,
+                    dl_originals=(not args.skip_dl_original))
 
 
 with subcommand(datadir_parsers, 'fetch', datadir_fetch) as p:
@@ -1278,25 +1283,63 @@ with subcommand(datadir_parsers, 'fetch', datadir_fetch) as p:
         '--basepath', default=os.getcwd(),
         help='Base path to put working directory in (default: current directory)')
     p.add_argument(
+        '--skip-dl-original', action='store_true',
+        help='whether to skip downloading the original directory')
+    p.add_argument(
         '--uow-dir', default='',
         help='a directory to use as the UOW directory (default: automatically '
             'generated)')
     p.add_argument(
-        '--title', type=str, default='',
+        'title', type=str, default='', nargs='?',
         help='summary title for unit-of-work. This ends up being the short '
             'working directory summary.')
+    p.add_argument(
+        'summary', type=str, default='', nargs='?',
+        help='summary title for history note. This will be the summary for the '
+            'resulting cruise history note. Typical entries contain file '
+            'formats that were updated e.g.\n'
+            'Exchange, NetCDF, WOCE files online\n'
+            'Exchange & NetCDF files updated\n')
     p.add_argument(
         'ids', type=int, nargs='*',
         help='as-received file ids (default: show list of as-received files')
 
 
+def datadir_parameter_listing(args):
+    """Generate a list of parameters with footnotes regarding disposition.
+
+    """
+    from libcchdo.datadir.readme import ProcessingReadme
+    print u'\n'.join(ProcessingReadme.parameter_list(
+        args.filepath, args.footnote_id_flagged, args.footnote_id_empty))
+
+
+with subcommand(datadir_parsers, 'param_list', datadir_parameter_listing) as p:
+    p.add_argument(
+        '--footnote-id-flagged', default=1,
+        help='the footnote id to use for whether the parameter has WOCE flags'
+            '(default: 1)')
+    p.add_argument(
+        '--footnote-id-empty', default=2,
+        help='the footnote id to use for whether the parameter only has fill '
+            'values or has no reported measured data (default: 2)')
+    p.add_argument(
+        'filepath', help='the path to a file to list the parameters for')
+
+
 def datadir_commit(args):
     """Commit a CCHDO Unit of Work."""
     from libcchdo.datadir.processing import uow_commit
-    uow_commit(args.uow_dir, person=args.person)
+    uow_commit(args.uow_dir, person=args.person,
+        confirm_html=(not args.readme_html_ok), dryrun=args.dry_run)
 
 
 with subcommand(datadir_parsers, 'commit', datadir_commit) as p:
+    p.add_argument(
+        '-n', '--dry-run', action='store_true')
+    p.add_argument(
+        '-r', '--readme-html-ok', action='store_true',
+        help='Set if the 00_README.txt output HTML has already been verified.')
     p.add_argument(
         '--person', default=None,
         help='The person doing the work (default: libcchdo merger initials)')
@@ -1307,9 +1350,12 @@ with subcommand(datadir_parsers, 'commit', datadir_commit) as p:
 def datadir_add_processing_note(args):
     """Record processing history note."""
     from libcchdo.datadir.processing import (
-        add_processing_note, is_processing_readme_render_ok)
-    if is_processing_readme_render_ok(args.readme_path):
-        add_processing_note(args.readme_path, args.uow_cfg_path)
+        add_processing_note, is_processing_readme_render_ok, read_uow_cfg)
+    if is_processing_readme_render_ok(
+            args.readme_path, confirm_html=(not args.readme_html_ok)):
+        uow_cfg = read_uow_cfg(args.uow_cfg_path)
+        add_processing_note(
+            args.readme_path, args.email_path, uow_cfg, args.dry_run)
     else:
         LOG.error(u'README is not valid reST or merger rejected. Stop.')
         return
@@ -1318,8 +1364,16 @@ def datadir_add_processing_note(args):
 with subcommand(datadir_parsers, 'processing_note',
                 datadir_add_processing_note) as p:
     p.add_argument(
+        '-n', '--dry-run', action='store_true')
+    p.add_argument(
+        '-r', '--readme-html-ok', action='store_true',
+        help='Set if the 00_README.txt output HTML has already been verified.')
+    p.add_argument(
         'readme_path', default=README_FILENAME, nargs='?',
         help='The path to the processing note file.')
+    p.add_argument(
+        'email_path', default=PROCESSING_EMAIL_FILENAME, nargs='?',
+        help='The path to write the processing note email to if email fails.')
     p.add_argument(
         'uow_cfg_path', default=UOW_CFG_FILENAME, nargs='?',
         help='The path to the UOW configuration file.')
@@ -1359,6 +1413,55 @@ with subcommand(datadir_parsers, 'copy_replaced',
     p.add_argument(
         'filename', 
         help='The file that is replaced and needs to be moved.')
+
+
+def datadir_correct_expocode_alias(args):
+    """Correct an ExpoCode/Alias for a cruise directory.
+
+    """
+    from json import load as json_load
+    from libcchdo.datadir.corrector import ExpoCodeAliasCorrector
+    try:
+        with open(args.alias_map) as fff:
+            alias_map = json_load(fff)
+        LOG.info(u'Using alias map: {0!r}'.format(alias_map))
+    except (OSError, IOError), err:
+        if args.alias_map == 'alias_map.json':
+            alias_map = {}
+        else:
+            raise err
+    
+    corrector = ExpoCodeAliasCorrector(
+        [args.old_expocode, args.new_expocode],
+        alias_map
+    )
+    corrector.correct(
+        args.cruise_dir, args.email_path, dryrun=args.dry_run, debug=args.debug)
+
+
+with subcommand(datadir_parsers, 'correct_expocode',
+                datadir_correct_expocode_alias) as p:
+    p.add_argument(
+        'old_expocode', help="The incorrect expocode")
+    p.add_argument(
+        'new_expocode', help="The correct expocode")
+    p.add_argument(
+        'cruise_dir', default='.', nargs='?',
+        help="The cruise directory to correct (default: '.')")
+    p.add_argument(
+        'email_path',
+        default='{0}.{1}'.format(
+            date.today().strftime('%F'), PROCESSING_EMAIL_FILENAME),
+        nargs='?',
+        help='The path to write the processing note email to if email fails.')
+    p.add_argument(
+        '--alias_map', default='alias_map.json',
+        help='A file with a json object mapping of incorrect to correct '
+            'aliases. E.g. {"AO95": "A095"} (default: alias_map.json)')
+    p.add_argument(
+        '--dry-run', action='store_true')
+    p.add_argument(
+        '--debug', action='store_true')
 
 
 plot_parser = hydro_subparsers.add_parser(
@@ -2044,6 +2147,24 @@ with subcommand(report_parsers, 'argo_ctd_index',
     p.add_argument(
         'output', type=FileType('w'), nargs='?', default=sys.stdout,
         help='output file')
+
+
+def env(args):
+    """Get or change libcchdo environment.
+
+    """
+    from libcchdo.config import ENVIRONMENT_ENV_VARIABLE, get_libenv
+    if args.environment:
+        print 'export {0}={1}'.format(
+            ENVIRONMENT_ENV_VARIABLE, args.environment)
+    else:
+        print get_libenv()
+
+
+with subcommand(hydro_subparsers, 'env', env) as p:
+    p.add_argument(
+        'environment', nargs='?', 
+        help='the environment to set')
 
 
 def deprecated_reorder_surface_to_bottom():

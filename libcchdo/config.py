@@ -49,6 +49,11 @@ from libcchdo.util import memoize
 _CONFIG_DIR = '.%s' % __package__
 
 
+# This environment name is the *actual* production environment.
+ENVIRONMENT_ENV_VARIABLE = 'LIBCCHDO_ENV'
+PRODUCTION_ENVIRONMENT = 'prod'
+
+
 @memoize
 def get_libenv():
     """Return the current operating environment.
@@ -62,16 +67,28 @@ def get_libenv():
     3. test - test
 
     """
-    env = os.environ.get('LIBCCHDO_ENV', 'prod')
-    if env != 'prod':
+    env = os.environ.get(ENVIRONMENT_ENV_VARIABLE, PRODUCTION_ENVIRONMENT)
+    if env != PRODUCTION_ENVIRONMENT:
         LOG.info('Running in {0} environment.'.format(env))
     return env
 
 
+def is_env_production():
+    """Return whether the current env is the *actual* production env."""
+    return get_libenv() == PRODUCTION_ENVIRONMENT
+
+
 def _config_filename():
-    env = get_libenv()
-    if env == 'prod':
+    """Return the configuration file name to be used.
+
+    This changes with the environment name. If the environment name is the 
+    *actual* production environment, the name is libcchdo.cfg, otherwise it is
+    envname_libcchdo.cfg.
+
+    """
+    if is_env_production():
         return '{0}.cfg'.format(__package__)
+    env = get_libenv()
     return '{0}_{1}.cfg'.format(env, __package__)
 
 
@@ -204,6 +221,21 @@ def get_db_credentials_cchdo():
         except EOFError:
             password = None
     return (username, password, db_host, db_name)
+
+
+def get_website_domain():
+    def input_website_domain():
+        return raw_input(
+            u'What is the website domain? {0} '.format(_storage_notice()))
+    return get_option('website', 'domain', input_website_domain)
+
+
+def get_legacy_datadir_host():
+    def input_hostname():
+        return raw_input(
+            u'What host does the datadir live on? {0} '.format(
+            _storage_notice()))
+    return get_option('datadir', 'hostname', input_hostname)
     
 
 def get_merger_division():
@@ -235,28 +267,28 @@ def get_merger_institution():
 def get_merger_email():
     def input_email():
         return raw_input('What is your email? %s ' % \
-                          _storage_notice()).upper()
+                          _storage_notice())
     return get_option('Merger', 'email', input_email)
 
 
 def get_merger_name_first():
     def input_name_first():
         return raw_input('What is your first name (or rough equivalent)? %s ' % \
-                          _storage_notice()).upper()
+                          _storage_notice())
     return get_option('Merger', 'name_first', input_name_first)
 
 
 def get_merger_name_last():
     def input_name_last():
         return raw_input('What is your last name (or rough equivalent)? %s ' % \
-                          _storage_notice()).upper()
+                          _storage_notice())
     return get_option('Merger', 'name_last', input_name_last)
 
 
 def get_merger_name():
     def input_name():
         return raw_input('What is your name? %s ' % \
-                          _storage_notice()).upper()
+                          _storage_notice())
     return get_option('Merger', 'name', input_name)
 
 

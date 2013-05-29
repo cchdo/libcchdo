@@ -45,13 +45,10 @@ def _json_row(self, i, global_values, column_headers):
 
 class DefaultJSONSerializer(JSONEncoder):
     def serialize_datetime(self, o):
-        nums = (','.join(['%d'] * 5)) % \
-               (o.year, o.month, o.day, o.hour, o.minute)
-        return 'Date(%s)' % nums
+        return o.strftime('%FT%T')
 
     def serialize_date(self, o):
-        nums = (','.join(['%d'] * 3)) % (o.year, o.month, o.day)
-        return 'Date(%s)' % nums
+        return o.strftime('%F')
 
     def default(self, o):
         if isinstance(o, datetime):
@@ -62,6 +59,15 @@ class DefaultJSONSerializer(JSONEncoder):
 
 
 class GoogleWireJSONSerializer(DefaultJSONSerializer):
+    def serialize_datetime(self, o):
+        nums = (','.join(['%d'] * 5)) % \
+               (o.year, o.month, o.day, o.hour, o.minute)
+        return 'Date(%s)' % nums
+
+    def serialize_date(self, o):
+        nums = (','.join(['%d'] * 3)) % (o.year, o.month, o.day)
+        return 'Date(%s)' % nums
+
     def default(self, o):
         if isinstance(o, datetime):
             return self.serialize_datetime(o)
