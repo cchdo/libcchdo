@@ -701,6 +701,9 @@ def write_timeseries_info_title_and_id(
     # Pass along OS_id to zip writing so it can be used in filename generation
     self.globals['_OS_id'] = file_and_timeseries_info_to_id(
         self, timeseries_info, type=data_type, version=version)
+# TODO ENSURE THAT THIS ID IS UNIQUE WHEN WRITING THE ZIP FILE, THEORETICALLY IT
+# IS ALREADY UNIQUE WHEN WRITING THE CRUISE SO MAKING SURE IT IS unique in the
+# cruise will be sufficient
     nc_file.id = self.globals['_OS_id']
 
     nc.check_variable_ranges(nc_file)
@@ -781,8 +784,8 @@ def write_zip_factory(module):
         """Write a ZIP file containing multiple OceanSITES cast files.
 
         """
-        from libcchdo.formats.zip import write
-        write(self, handle, module, get_filename, timeseries=timeseries,
+        from libcchdo.formats.zip import write as zip_write
+        zip_write(self, handle, module, get_filename, timeseries=timeseries,
               timeseries_info=timeseries_info, version=version)
     return write
 

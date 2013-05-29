@@ -138,6 +138,7 @@ def createZipInfo(filename, dtime=None, permissions=0644):
 
 def write(self, handle, writer, get_filename, **kwargs):
     """Common write functionality for zip files."""
+    fnames = set()
     zfile = create(handle)
     for dfile in self:
         with SpooledTemporaryFile(max_size=2 ** 13) as tempfile:
@@ -146,6 +147,11 @@ def write(self, handle, writer, get_filename, **kwargs):
             tempfile.seek(0)
 
             filename = get_filename(dfile)
+            if filename in fnames:
+                LOG.warn(
+                    u'{0!r} is already present in zip file'.format(filename))
+            else:
+                fnames.add(filename)
             try:
                 zfile.writestr(createZipInfo(filename), tempfile.read())
             except Exception, err:

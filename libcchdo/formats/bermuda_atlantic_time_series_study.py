@@ -18,39 +18,7 @@ def dpr_idparts(filename):
         return {'type': None, 'cruise': None, 'cast': None}
     type_id = idpart[0]
     cruise_id = idpart[1:5]
-    cast_id = idpart[6]
-    return {'type': type_id, 'cruise': cruise_id, 'cast': cast_id}
-
-
-def _timedelta_to_seconds(td):
-    return td.total_seconds() + td.microseconds * 1e-9
-
-
-def bats_time_to_dt(bats_time):
-    dyear = float(bats_time)
-    year = int(dyear)
-
-    start = datetime(year, 1, 1)
-    td_year = datetime(year + 1, 1, 1) - start
-    seconds_in_year = _timedelta_to_seconds(td_year)
-    seconds_of_year = seconds_in_year * (dyear - year)
-    return start + timedelta(seconds=seconds_of_year)
-
-
-BATS_SECT_ID = 'ARS20'
-
-
-def dpr_idparts(filename):
-    """Extract type, cruise, and cast ids from a BATS .dpr (CTD) file."""
-    try:
-        filename = os.path.basename(filename)
-        idpart, ext = os.path.splitext(filename)
-    except ValueError:
-        LOG.warn('BATS CTD filename {0!r} should end in .dpr'.format(filename))
-        return {'type': None, 'cruise': None, 'cast': None}
-    type_id = idpart[0]
-    cruise_id = idpart[1:5]
-    cast_id = idpart[6]
+    cast_id = idpart[6:]
     return {'type': type_id, 'cruise': cruise_id, 'cast': cast_id}
 
 
