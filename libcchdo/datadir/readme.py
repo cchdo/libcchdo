@@ -263,8 +263,7 @@ class ProcessingReadme(Readme):
             param = column.parameter.mnemonic_woce()
             if column.is_flagged_woce():
                 param += ' ' + ReST.footnote_note(qf_footnote_id)
-            if (    equal_with_epsilon(column.values[0], FILL_VALUE) and
-                    column.is_global()):
+            if (column.values[0] is None and column.is_global()):
                 param += ' ' + ReST.footnote_note(fill_footnote_id)
             parameter_list.append(param)
         return parameter_list
