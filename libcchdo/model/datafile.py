@@ -421,12 +421,12 @@ class DataFile(File):
             if isinstance(parameter, basestring):
                 if (parameter.endswith('FLAG_W') or 
                     parameter.endswith('FLAG_I')):
-                    LOG.info(
+                    LOG.debug(
                         u'Skipped creating column for flag {0}'.format(
                         parameter))
                     continue
                 elif parameter in self.columns:
-                    LOG.info(
+                    LOG.debug(
                         u'Skipped creating already present column {0}'.format(
                         parameter))
                     continue

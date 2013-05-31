@@ -171,7 +171,7 @@ def check_any(args):
                         (u'column {0} row {1} has unexpected fill value for '
                          'flag {2}: {3!r}').format(
                             c.parameter.name, i, flag,
-                            woce.WATER_SAMPLE_FLAGS[flag]))
+                            woce.WATER_SAMPLE_FLAGS.get(flag, 'Unknown flag')))
 
     def check_datafile(df):
         df.check_and_replace_parameters(convert=False)

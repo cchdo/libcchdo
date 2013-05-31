@@ -3,7 +3,7 @@ from StringIO import StringIO
 
 from libcchdo import config
 from libcchdo.model.datafile import DataFile
-from libcchdo.formats.bottle import exchange as botex
+from libcchdo.formats.bottle import exchange as btlex
 
 
 class TestBottleExchange(unittest.TestCase):
@@ -38,7 +38,7 @@ END_DATA
 
     def test_read(self):
         self.buff = StringIO(TestBottleExchange.sample)
-        botex.read(self.file, self.buff)
+        btlex.read(self.file, self.buff)
 
         # Ensure flags are ints
         for c in self.file.columns.values():
@@ -53,11 +53,11 @@ END_DATA
   
     def test_write(self):
         self.buff = StringIO(TestBottleExchange.sample)
-        botex.read(self.file, self.buff)
+        btlex.read(self.file, self.buff)
         self.buff.close()
 
         self.buff = StringIO()
-        botex.write(self.file, self.buff)
+        btlex.write(self.file, self.buff)
         # TODO
         #print self.buff.getvalue()
         #self.assertEqual(self.buff.getvalue(), self.output)
@@ -66,16 +66,34 @@ END_DATA
     def test_no_stamp_uses_users(self):
         """If the writer is not given a stamp, it will use the config stamp."""
         self.buff = StringIO(TestBottleExchange.sample)
-        botex.read(self.file, self.buff)
+        btlex.read(self.file, self.buff)
         self.buff.close()
 
         self.file.globals['stamp'] = ''
 
         self.buff = StringIO()
-        botex.write(self.file, self.buff)
+        btlex.write(self.file, self.buff)
 
         expected_stamp = config.stamp()
 
         first_line = self.buff.getvalue().split('\n')[0]
         self.assertEqual(expected_stamp, first_line.split(',')[1])
         self.buff.close()
+
+    sample2 = '''\
+BOTTLE,20071011WHPSIODBK
+EXPOCODE,SECT_ID,STNNBR,CASTNO,SAMPNO,BTLNBR,BTLNBR_FLAG_W,DATE,TIME,LATITUDE,LONGITUDE,DEPTH,CTDRAW,CTDPRS,CTDTMP,CTDSAL,CTDSAL_FLAG_W
+,,,,,,,,,,,,,DBAR,ITS-90,PSS-78,
+  33RR20070204,   I8S,     1,  1,     15,     15,2,20070215,1442,-65.8108,  84.5502,  450,    3.0,      3.0,  -1.1066,  33.4536,-999
+  33RR20070204,   I8S,     1,  1,     16,     16,2,20070215,1442,-65.8108,  84.5502,  450,    3.0,      3.0,  -1.1112,  33.4642,-999
+END_DATA
+'''
+
+    def test_illegal_flag_gets_none(self):
+        """An illegal flag will still get a spot in the flags list as None."""
+        self.buff = StringIO(TestBottleExchange.sample2)
+        btlex.read(self.file, self.buff)
+        self.buff.close()
+
+        column = self.file['CTDSAL']
+        self.assertEqual(len(column.values), len(column.flags_woce))

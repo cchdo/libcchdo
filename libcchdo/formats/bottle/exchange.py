@@ -75,13 +75,14 @@ def read(self, handle):
         # TODO check if parameter exists but no flag & vice versa
 
         for column, raw in zip(columns, values):
-            value = raw.strip()
-            if out_of_band(value):
+            raw_value = raw.strip()
+            if out_of_band(raw_value):
                 value = None
-            try:
-                value = _decimal(value)
-            except:
-                pass
+            else:
+                try:
+                    value = _decimal(raw_value)
+                except:
+                    value = raw_value
 
             param_name = column[:-7]
             flag_column = None
@@ -102,12 +103,14 @@ def read(self, handle):
                     LOG.warn(
                         u'Flag {0} for parameter {1} has bad flag {2!r} on '
                         'data line {3}'.format(
-                        flag_type, param_name, value, row_i))
+                        flag_type, param_name, raw_value, row_i))
+                    flag_column.append(None)
                 except KeyError:
                     LOG.warn(
                         u'Flag {0} column exists for parameter {1} but '
                         'parameter column does not exist.'.format(
                         flag_type, param_name))
+                    flag_column.append(None)
         l = handle.readline().strip()
         row_i += 1
 
