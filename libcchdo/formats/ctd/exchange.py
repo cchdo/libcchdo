@@ -5,6 +5,7 @@ from libcchdo.log import LOG
 from libcchdo.fns import Decimal, out_of_band
 from libcchdo.formats import pre_write
 from libcchdo.formats import woce
+from libcchdo.formats.exchange import read_identifier_line, read_comments
 
 
 REQUIRED_HEADERS = [
@@ -18,24 +19,8 @@ def read(self, handle, retain_order=False, header_only=False):
     header_only - only read the CTD headers, not the data
 
     """
-    # Read identifier and stamp
-    stamp = re_compile('CTD,(\d{8}\w+)')
-    stampline = handle.readline()
-    m = stamp.match(stampline)
-    if m:
-        self.globals['stamp'] = m.group(1)
-    else:
-        LOG.warn(('Expected identifier line with stamp '
-                  '(e.g. CTD,YYYYMMDDdivINSwho).\n'
-                  'Instead got: %s') % stampline)
-
-    # Read comments
-    l = handle.readline()
-    headers = []
-    while l and l.startswith('#'):
-        headers.append(l.decode('raw_unicode_escape'))
-        l = handle.readline()
-    self.globals['header'] = u''.join(headers)
+    read_identifier_line(self, handle, 'CTD')
+    l = read_comments(self, handle)
 
     # Read NUMBER_HEADERS
     num_headers = re_compile('NUMBER_HEADERS\s*=\s*(\d+)')
@@ -44,8 +29,8 @@ def read(self, handle, retain_order=False, header_only=False):
          # NUMBER_HEADERS counts itself as a header
         num_headers = int(m.group(1))-1
     else:
-        raise ValueError(('Expected NUMBER_HEADERS as the second line in '
-                          'the file.'))
+        raise ValueError(
+            u'Expected NUMBER_HEADERS as the second non-comment line.')
     header = re_compile('(\w+)\s*=\s*(-?[\w\.]*)')
     for i in range(0, num_headers):
         m = header.match(handle.readline())

@@ -6,26 +6,13 @@ from libcchdo.fns import _decimal, out_of_band
 from libcchdo.log import LOG
 from libcchdo.model.datafile import Column
 from libcchdo.formats import woce
+from libcchdo.formats.exchange import read_identifier_line, read_comments
 
 
 def read(self, handle):
     """ How to read a Bottle Exchange file. """
-    # Read identifier and stamp
-    stamp = re.compile('BOTTLE,(\d{8}\w+)')
-    m = stamp.match(handle.readline())
-    if m:
-        self.globals['stamp'] = m.group(1)
-    else:
-        raise ValueError(("Expected identifier line with stamp "
-                          "(e.g. BOTTLE,YYYYMMDDdivINSwho)"))
-    # Read comments
-    l = handle.readline()
-    headers = []
-    while l and l.startswith('#'):
-        # It's possible for files to come in with unicode.
-        headers.append(l.decode('raw_unicode_escape'))
-        l = handle.readline()
-    self.globals['header'] = u''.join(headers)
+    read_identifier_line(self, handle, 'BOTTLE')
+    l = read_comments(self, handle)
 
     # Read columns and units
     columns = [x.strip() for x in l.strip().split(',')]

@@ -288,7 +288,8 @@ class ProcessingReadme(Readme):
                 self.uow_dir, UOWDirName.submission, str(qinfo['q_id']), fname)
             try:
                 file_summaries.append(
-                    ReST.list(ProcessingReadme.parameter_list(path)))
+                    ReST.list(ProcessingReadme.parameter_list(
+                        path, qf_footnote_id, fill_footnote_id)))
             except Exception, err:
                 LOG.error(
                     u'Unable to read parameters for {0}:\n{1!r}'.format(
