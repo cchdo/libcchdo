@@ -173,9 +173,17 @@ def check_any(args):
                             c.parameter.name, i, flag,
                             woce.WATER_SAMPLE_FLAGS.get(flag, 'Unknown flag')))
 
+    def check_empty_columns(dfile):
+        for c in dfile.columns.values():
+            if c.values and c.values[0] is None and c.is_global():
+                LOG.info(u'column {0} is empty (only has fill values)'.format(
+                    c.parameter.name))
+
     def check_datafile(df):
+        LOG.info(u'Checking datafile format')
         df.check_and_replace_parameters(convert=False)
         check_fill_value_has_flag_w_9(df)
+        check_empty_columns(df)
 
     with closing(args.output) as out_file:
         try:
