@@ -1,5 +1,6 @@
 from re import compile as re_compile
 
+from libcchdo.log import LOG
 from libcchdo.fns import strip_all
 from libcchdo.model.datafile import Column
 from libcchdo.formats import woce
@@ -54,22 +55,39 @@ def read(self, handle):
 
 
 def write(self, handle):
-    '''How to write a Bottle WOCE file.'''
+    """How to write a Bottle WOCE file."""
 
-    #datetimes = self.columns["_DATETIME"].values[:]
-    #BEGIN_DATE = 0
-    #END_DATE = 0
-    #if any(datetimes):
-    #    usable_datetimes = filter(None, datetimes)
-    #    BEGIN_DATE = min(usable_datetimes)
-    #    END_DATE = max(usable_datetimes)
-    #del self.columns["_DATETIME"]
+    # Look through datetime for begin and end dates
+    datetimes = self.columns["_DATETIME"].values[:]
+    begin_date = 0
+    end_date = 0
+    if any(datetimes):
+        usable_datetimes = filter(None, datetimes)
+        begin_date = min(usable_datetimes)
+        end_date = max(usable_datetimes)
+        begin_date = woce.strftime_woce_date(begin_date)
+        end_date = woce.strftime_woce_date(end_date)
 
-    #handle.write("EXPOCODE %-s WHP-ID %-s CRUISE DATES %06d TO %06d %-s\n" %
-    #        (self.globals["EXPOCODE"],
-    #         self.globals["SECT_ID"][0],
-    #         BEGIN_DATE,
-    #         END_DATE,
-    #         self.globals['stamp']))
-    #woce.write_data(self, handle)
-    return NotImplementedError("Not to be used, nitwit!")
+    # ensure the cruise identifier columns are globals
+    if self['EXPOCODE'].is_global():
+        self.globals['EXPOCODE'] = self['EXPOCODE'].values[0]
+    if self['SECT_ID'].is_global():
+        self.globals['SECT_ID'] = self['SECT_ID'].values[0]
+
+    columns, qualt_format, base_format = \
+        woce.columns_qualt_and_base_format(self)
+
+    vals = [''] * (len(columns) + 1)
+    empty_line = base_format % tuple(vals)
+    record_len = len(empty_line) - 2
+
+    record_1 = "EXPOCODE %-s WHP-ID %-s CRUISE DATES %6s TO %6s %-s" % (
+        self.globals["EXPOCODE"], self.globals["SECT_ID"], begin_date, end_date,
+        self.globals['stamp'])
+
+    record_1 += ' ' * (record_len - len(record_1))
+    record_1 += '*'
+    record_1 += '\n'
+
+    handle.write(record_1)
+    woce.write_data(self, handle, columns, qualt_format, base_format)

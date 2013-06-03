@@ -14,14 +14,20 @@ from libcchdo.fns import (
 FILL_VALUE = -999.0
 
 
+END_DATA = 'END_DATA'
+
+
+WOCE_FILL_VALUE = -9
+
+
+ASTERISK_FLAG = '*' * 7
+
+
 CHARACTER_PARAMETERS = ['STNNBR', 'SAMPNO', 'BTLNBR']
 
 
 COLUMN_WIDTH = 8
 SAFE_COLUMN_WIDTH = COLUMN_WIDTH - 1
-
-
-END_DATA = 'END_DATA'
 
 
 UNKNONW_TIME_FILL = '0000'
@@ -72,7 +78,6 @@ WATER_SAMPLE_FLAGS = {
 def flag_description(flag_map):
     return ':'.join([':'] + ['%d = %s' % (i + 1, flag_map[i + 1]) for i in \
         range(len(flag_map))] + ["\n"])
-
 
 
 BOTTLE_FLAG_DESCRIPTION = flag_description(BOTTLE_FLAGS)
@@ -164,12 +169,20 @@ def dec_lng_to_woce_lng(lng):
     return '%3d %05.2f %1s' % (lng_deg, lng_dec, lng_hem)
 
 
+def strftime_woce_date(dt):
+    return dt.strftime('%Y%m%d')
+
+
+def strftime_woce_time(dt):
+    return dt.strftime('%H%M')
+
+
 def strftime_woce_date_time(dt):
     if dt is None:
         return (None, None)
     if type(dt) is date:
-    	return (dt.strftime('%Y%m%d'), None)
-    return (dt.strftime('%Y%m%d'), dt.strftime('%H%M'))
+    	return (strftime_woce_date(dt), None)
+    return (strftime_woce_date(dt), strftime_woce_time(dt))
 
 
 def strptime_woce_date(woce_date):
@@ -392,10 +405,43 @@ def read_data(self, handle, parameters_line, units_line, asterisk_line):
             else:
                 self.columns[parameter].set(i, datum)
 
+
     # Expand globals into columns TODO?
 
 
-def write_data(self, handle, ):
+_UNWRITTEN_COLUMNS = [
+    'EXPOCODE', 'SECT_ID', 'LATITUDE', 'LONGITUDE', 'DEPTH', '_DATETIME']
+
+
+def writeable_columns(dfile):
+    """Return the columns that belong in a WOCE data file."""
+    columns = dfile.sorted_columns()
+    columns = filter(
+        lambda col: col.parameter.mnemonic_woce() not in _UNWRITTEN_COLUMNS,
+        columns)
+    return columns
+
+
+def columns_qualt_and_base_format(dfile):
+    """Return columns qualt_format and base format for WOCE fixed column data.
+
+    """
+    columns = writeable_columns(dfile)
+    num_qualt = len(filter(lambda col: col.is_flagged_woce(), columns))
+    base_format = "%8s" * len(columns)
+    qualt_colsize = max((len(" QUALT#"), num_qualt))
+    qualt_format = "%%%ds" % qualt_colsize
+    base_format += " " + qualt_format + "\n"
+    return columns, qualt_format, base_format
+
+
+def write_data(self, handle, columns, qualt_format, base_format):
+    """Write WOCE data in fixed width columns.
+
+    columns, qualt_format, and base_format should be obtained from 
+    columns_qualt_and_base_format()
+
+    """
     def parameter_name_of (column, ):
         return column.parameter.mnemonic_woce()
 
@@ -406,42 +452,41 @@ def write_data(self, handle, ):
             return ''
 
     def quality_flags_of (column, ):
-        return "*******" if column.is_flagged_woce() else ""
-
-    def countable_flag_for (column, ):
-        return 1 if column.is_flagged_woce() else 0
-
-    num_qualt = sum(map(
-            countable_flag_for, self.columns.values() ))
-
-    base_format = "%8s" * len(self.columns)
-    qualt_colsize = max( (len(" QUALT#"), num_qualt) )
-    qualt_format = "%%%ds" % qualt_colsize
-    base_format += qualt_format
-    base_format += "\n"
-
-    columns = self.sorted_columns()
+        return ASTERISK_FLAG if column.is_flagged_woce() else ""
 
     all_headers = map(parameter_name_of, columns)
     all_units = map(units_of, columns)
     all_asters = map(quality_flags_of, columns)
 
     all_headers.append(qualt_format % "QUALT1")
-    all_units.append(qualt_format % "")
-    all_asters.append(qualt_format % "")
+    all_units.append(qualt_format % "*")
+    all_asters.append(qualt_format % "*")
 
     handle.write(base_format % tuple(all_headers))
     handle.write(base_format % tuple(all_units))
     handle.write(base_format % tuple(all_asters))
 
-    nobs = max(map(len, columns))
-    for i in range(nobs):
+    for i in range(len(self)):
         values = []
         flags = []
         for column in columns:
             format = column.parameter.format
             if column[i]:
-                values.append(format % column[i])
+                formatted_value = format % column[i]
+            else:
+                formatted_value = format % WOCE_FILL_VALUE
+
+            if len(formatted_value) > COLUMN_WIDTH:
+                extra = len(formatted_value) - COLUMN_WIDTH
+                leading_extra = formatted_value[:extra]
+                if len(leading_extra.strip()) == 0:
+                    formatted_value = formatted_value[extra:]
+                else:
+                    LOG.warn(u'Formatted data value {0!r} for {1} row {2} was '
+                             'too long.'.format(formatted_value,
+                                                column.parameter.name, i))
+
+            values.append(formatted_value)
             if column.is_flagged_woce():
                 flags.append(str(column.flags_woce[i]))
 
@@ -549,9 +594,9 @@ def split_datetime_columns(file):
     time = file['TIME'] = Column('TIME')
     for dtime in file['_DATETIME'].values:
         if dtime:
-            date.append(dtime.strftime('%Y%m%d'))
+            date.append(strftime_woce_date(dtime))
             if type(dtime) is datetime:
-                time.append(dtime.strftime('%H%M'))
+                time.append(strftime_woce_time(dtime))
         else:
             date.append(None)
             time.append(None)

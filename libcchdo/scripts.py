@@ -424,6 +424,31 @@ with subcommand(bot_converter_parsers, 'exchange_to_parameter_kml',
         help='output file (default: stdout)')
 
 
+def btlex_to_btlwoce(args):
+    from libcchdo.model.datafile import DataFile
+    import libcchdo.formats.bottle.exchange as btlex
+    import libcchdo.formats.bottle.woce as btlwoce
+
+    df = DataFile()
+
+    with closing(args.input_btlex) as in_file:
+        btlex.read(df, in_file)
+
+    with closing(args.output_btlwoce) as out_file:
+        btlwoce.write(df, out_file)
+
+
+with subcommand(bot_converter_parsers, 'exchange_to_woce',
+                btlex_to_btlwoce) as p:
+    p.add_argument(
+        'input_btlex', type=FileType('r'),
+        help='input Bottle Exchange file')
+    p.add_argument(
+        'output_btlwoce', type=FileType('w'), nargs='?',
+        default=sys.stdout,
+        help='output Bottle WOCE file (default: stdout)')
+
+
 def bottle_exchange_to_bottlezip_netcdf(args):
     from libcchdo.model.datafile import DataFile
     import libcchdo.model.convert.datafile_to_datafilecollection as df2dfc
