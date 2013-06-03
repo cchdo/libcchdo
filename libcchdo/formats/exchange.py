@@ -6,6 +6,13 @@ from re import compile as re_compile, match as re_match
 from libcchdo.log import LOG
 
 
+# Where no data is known
+FILL_VALUE = -999.0
+
+
+END_DATA = 'END_DATA'
+
+
 r_idstamp = re_compile('(BOTTLE|CTD),(\w+)')
 r_stamp = re_compile('\d{8}\w+')
 

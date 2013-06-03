@@ -10,14 +10,7 @@ from libcchdo.fns import (
 
 
 # Where no data is known
-# TODO this isn't actually WOCE. This is Exchange. WOCE is -9.
-FILL_VALUE = -999.0
-
-
-END_DATA = 'END_DATA'
-
-
-WOCE_FILL_VALUE = -9
+FILL_VALUE = -9
 
 
 ASTERISK_FLAG = '*' * 7
@@ -474,7 +467,7 @@ def write_data(self, handle, columns, qualt_format, base_format):
             if column[i]:
                 formatted_value = format % column[i]
             else:
-                formatted_value = format % WOCE_FILL_VALUE
+                formatted_value = format % FILL_VALUE
 
             if len(formatted_value) > COLUMN_WIDTH:
                 extra = len(formatted_value) - COLUMN_WIDTH

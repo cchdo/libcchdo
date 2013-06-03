@@ -6,7 +6,8 @@ from libcchdo.fns import _decimal, out_of_band
 from libcchdo.log import LOG
 from libcchdo.model.datafile import Column
 from libcchdo.formats import woce
-from libcchdo.formats.exchange import read_identifier_line, read_comments
+from libcchdo.formats.exchange import (
+    read_identifier_line, read_comments, FILL_VALUE, END_DATA)
 
 
 def read(self, handle):
@@ -49,7 +50,7 @@ def read(self, handle):
     row_i = 0
     l = handle.readline().strip()
     while l:
-        if l.startswith('END_DATA'): break
+        if l.startswith(END_DATA): break
         values = l.split(',')
         
         # Check columns and values to match length
@@ -171,7 +172,7 @@ def write(self, handle):
         flagged_units.append(param.units.mnemonic if param.units and \
             param.units.mnemonic else '')
         flagged_format_parameter_values.append(
-            [param.format, len(param.format % woce.FILL_VALUE), param,
+            [param.format, len(param.format % FILL_VALUE), param,
              c.values])
         if c.is_flagged_woce():
             flagged_parameter_names.append(param.mnemonic_woce() + '_FLAG_W')
@@ -197,7 +198,7 @@ def write(self, handle):
                 if value is not None:
                     values.append((format_str % value).rjust(limit))
                 else:
-                    values.append(format_str % woce.FILL_VALUE)
+                    values.append(format_str % FILL_VALUE)
             except Exception, e:
                 LOG.warn(
                     u'Could not format %r (column %r row %d) with %r' % (
@@ -206,6 +207,6 @@ def write(self, handle):
         handle.write(','.join(values))
         handle.write('\n')
 
-    handle.write(woce.END_DATA)
+    handle.write(END_DATA)
 
     woce.fuse_datetime(self)

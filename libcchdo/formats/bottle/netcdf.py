@@ -10,6 +10,7 @@ from libcchdo.log import LOG
 from libcchdo.db.model import std
 from libcchdo.formats import netcdf as nc
 from libcchdo.formats import woce
+from libcchdo.formats.exchange import FILL_VALUE
 
 
 NC_BOTTLE_VAR_TO_WOCE_PARAM = dict(std.session().query(
@@ -155,10 +156,10 @@ def _nc_bottom_depth(df):
     try:
         depths = filter(None, df['DEPTH'].values)
         if not depths:
-            return woce.FILL_VALUE
+            return FILL_VALUE
         return int(max(depths))
     except (KeyError, AttributeError):
-        return woce.FILL_VALUE
+        return FILL_VALUE
 
 
 def write(self, handle):

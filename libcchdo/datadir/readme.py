@@ -11,7 +11,6 @@ from libcchdo.datadir.filenames import (
 from libcchdo.config import get_merger_name_first, get_merger_name_last
 from libcchdo.datadir.processing import read_uow_cfg, UOWDirName
 from libcchdo.fns import read_arbitrary, equal_with_epsilon
-from libcchdo.formats.woce import FILL_VALUE
 
 
 class Table(object):

@@ -6,6 +6,7 @@ from libcchdo.log import LOG
 from libcchdo.fns import equal_with_epsilon
 from libcchdo.model.datafile import Column
 from libcchdo.formats import woce
+from libcchdo.formats.exchange import FILL_VALUE
 from libcchdo.formats import netcdf as nc
 
 
@@ -142,7 +143,7 @@ def write(self, handle):
         'WOCE CTD',
         self.globals.get('STNNBR', nc.UNKNOWN),
         self.globals.get('CASTNO', nc.UNKNOWN),
-        int(self.globals.get('DEPTH', woce.FILL_VALUE)),
+        int(self.globals.get('DEPTH', FILL_VALUE)),
         )
 
     nc_file.ORIGINAL_HEADER = self.globals.get('header', '')

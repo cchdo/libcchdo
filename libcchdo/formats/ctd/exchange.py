@@ -5,7 +5,8 @@ from libcchdo.log import LOG
 from libcchdo.fns import Decimal, out_of_band
 from libcchdo.formats import pre_write
 from libcchdo.formats import woce
-from libcchdo.formats.exchange import read_identifier_line, read_comments
+from libcchdo.formats.exchange import (
+    read_identifier_line, read_comments, FILL_VALUE, END_DATA)
 
 
 REQUIRED_HEADERS = [
@@ -171,7 +172,7 @@ def write(self, handle):
                 if c[i] is not None:
                     value = c[i]
                 else:
-                    value = woce.FILL_VALUE
+                    value = FILL_VALUE
                 string = c.parameter.format % value
             except TypeError:
                 LOG.debug(u'{0} {1}'.format(type(c[i]), c[i]))
@@ -183,4 +184,4 @@ def write(self, handle):
             if c.is_flagged_igoss():
                 data.append(c.flags_igoss[i])
         handle.write(u','.join(map(str, data))+"\n")
-    handle.write(unicode(woce.END_DATA))
+    handle.write(unicode(END_DATA))

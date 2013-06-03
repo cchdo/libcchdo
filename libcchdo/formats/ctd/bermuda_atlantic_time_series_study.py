@@ -1,6 +1,6 @@
 from libcchdo import LOG
 from libcchdo.fns import _decimal, equal_with_epsilon
-from libcchdo.formats import woce
+from libcchdo.formats.exchange import FILL_VALUE
 from libcchdo.datadir import create_expocode
 from libcchdo.formats.bermuda_atlantic_time_series_study import (
     dpr_idparts, bats_time_to_dt, BATS_SECT_ID, correct_longitude,
@@ -52,6 +52,6 @@ def read(self, handle):
     self.globals['_OS_ID'] = idparts['cruise']
     self.globals['STNNBR'] = idparts['type']
     self.globals['CASTNO'] = idparts['cast']
-    self.globals['DEPTH'] = woce.FILL_VALUE
+    self.globals['DEPTH'] = FILL_VALUE
 
     collapse_globals(self, ['_DATETIME', 'LATITUDE', 'LONGITUDE'])
