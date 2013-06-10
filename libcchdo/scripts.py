@@ -1478,6 +1478,19 @@ with subcommand(datadir_parsers, 'correct_expocode',
     p.add_argument(
         '--debug', action='store_true')
 
+def datadir_doctor(args):
+    """checks for missing exchange files if WOCE data exists
+    
+    """
+    from datadir.doctor import (checkCDF_ex_and_woce, checkbot_ex_and_woce,
+            checkCTD_ex_and_woce)
+
+    checkCDF_ex_and_woce()
+    checkbot_ex_and_woce()
+    checkCTD_ex_and_woce()
+
+with subcommand(datadir_parsers, 'doctor', datadir_doctor) as p:
+    pass
 
 plot_parser = hydro_subparsers.add_parser(
     'plot', help='Plotters')
