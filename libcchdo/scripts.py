@@ -2186,12 +2186,18 @@ def env(args):
     """Get or change libcchdo environment.
 
     """
-    from libcchdo.config import ENVIRONMENT_ENV_VARIABLE, get_libenv
+    from libcchdo.config import (
+        ENVIRONMENT_ENV_VARIABLE, get_libenv, get_merger_name, get_merger_email,
+        stamp
+        )
     if args.environment:
         print 'export {0}={1}'.format(
             ENVIRONMENT_ENV_VARIABLE, args.environment)
     else:
         print get_libenv()
+        print get_merger_name()
+        print get_merger_email()
+        print stamp()
 
 
 with subcommand(hydro_subparsers, 'env', env) as p:

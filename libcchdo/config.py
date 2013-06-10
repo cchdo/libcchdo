@@ -39,6 +39,7 @@ from ConfigParser import (
     SafeConfigParser, Error as ConfigError, NoSectionError,
     DuplicateSectionError, NoOptionError)
 from datetime import date
+from sys import stdout, stderr
 import os
 from getpass import getpass
 
@@ -180,10 +181,25 @@ def _storage_notice():
     return u'Your answer will be saved in {0}.'.format(get_config_path())
 
 
+def get_input(prompt=None):
+    """Get user input.
+
+    If stdout is not a tty, then print the message to stderr and get input
+    without writing to stdout.
+
+    """
+    if stdout.isatty():
+        return raw_input(prompt)
+    else:
+        if prompt:
+            stderr.write(prompt)
+        return raw_input()
+
+
 def get_db_credentials_cchdo():
     def input_cchdo_db_host():
         LOG.info(_storage_notice())
-        return raw_input(u'Which host is the legacy CCHDO database on? ')
+        return get_input(u'Which host is the legacy CCHDO database on? ')
 
     cfg_db = 'db_cred'
     cfg_host = 'cchdo/host'
@@ -191,7 +207,7 @@ def get_db_credentials_cchdo():
 
     def input_cchdo_db_name():
         LOG.info(_storage_notice())
-        return raw_input(u'What is the name of the legacy CCHDO database? ')
+        return get_input(u'What is the name of the legacy CCHDO database? ')
 
     cfg_db = 'db_cred'
     cfg_name = 'cchdo/name'
@@ -199,7 +215,7 @@ def get_db_credentials_cchdo():
 
     def input_cchdo_username():
         LOG.info(_storage_notice())
-        return raw_input(
+        return get_input(
             u'What is your username for the database {}/{}? '.format(
                 db_host, db_name))
 
@@ -225,14 +241,14 @@ def get_db_credentials_cchdo():
 
 def get_website_domain():
     def input_website_domain():
-        return raw_input(
+        return get_input(
             u'What is the website domain? {0} '.format(_storage_notice()))
     return get_option('website', 'domain', input_website_domain)
 
 
 def get_legacy_datadir_host():
     def input_hostname():
-        return raw_input(
+        return get_input(
             u'What host does the datadir live on? {0} '.format(
             _storage_notice()))
     return get_option('datadir', 'hostname', input_hostname)
@@ -241,7 +257,7 @@ def get_legacy_datadir_host():
 def get_merger_division():
     def input_division():
         def get():
-            return (raw_input('What division do you work for [CCH]? %s ' % \
+            return (get_input('What division do you work for [CCH]? %s ' % \
                               _storage_notice()) or 'CCH').upper()
         input = get()
         while len(input) != 3:
@@ -254,7 +270,7 @@ def get_merger_division():
 def get_merger_institution():
     def input_institution():
         def get():
-            return (raw_input('What institution do you work for [SIO]? %s ' % \
+            return (get_input('What institution do you work for [SIO]? %s ' % \
                               _storage_notice()) or 'SIO').upper()
         input = get()
         while len(input) != 3:
@@ -266,48 +282,48 @@ def get_merger_institution():
 
 def get_merger_email():
     def input_email():
-        return raw_input('What is your email? %s ' % \
+        return get_input('What is your email? %s ' % \
                           _storage_notice())
     return get_option('Merger', 'email', input_email)
 
 
 def get_merger_name_first():
     def input_name_first():
-        return raw_input('What is your first name (or rough equivalent)? %s ' % \
+        return get_input('What is your first name (or rough equivalent)? %s ' % \
                           _storage_notice())
     return get_option('Merger', 'name_first', input_name_first)
 
 
 def get_merger_name_last():
     def input_name_last():
-        return raw_input('What is your last name (or rough equivalent)? %s ' % \
+        return get_input('What is your last name (or rough equivalent)? %s ' % \
                           _storage_notice())
     return get_option('Merger', 'name_last', input_name_last)
 
 
 def get_merger_name():
     def input_name():
-        return raw_input('What is your name? %s ' % \
+        return get_input('What is your name? %s ' % \
                           _storage_notice())
     return get_option('Merger', 'name', input_name)
 
 
 def get_merger_initials():
     def input_initials():
-        return raw_input('What are your initials? %s ' % \
+        return get_input('What are your initials? %s ' % \
                           _storage_notice()).upper()
     return get_option('Merger', 'initials', input_initials)
 
 
 def get_datadir_hostname():
     def input_datadir_hostname():
-        return raw_input('What is the host of the data directory? %s ' % _storage_notice())
+        return get_input('What is the host of the data directory? %s ' % _storage_notice())
     return get_option('datadir', 'hostname', input_datadir_hostname)
 
 
 def get_datadir_root():
     def input_datadir_root():
-        return raw_input('Where is the root of the data directory? %s ' % _storage_notice())
+        return get_input('Where is the root of the data directory? %s ' % _storage_notice())
     return get_option('datadir', 'root', input_datadir_root)
 
 
