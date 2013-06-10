@@ -71,7 +71,7 @@ def read(self, handle, retain_order=False, header_only=False):
     numberlike = re_compile('-?\d+(.\d+)?([eE]-?\d+)?')
     l = handle.readline().strip()
     while l:
-        if l == 'END_DATA':
+        if l == END_DATA:
             break
         values = l.split(',')
         

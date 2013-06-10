@@ -4,6 +4,7 @@ from csv import reader as csv_reader
 from lxml.html import builder as E, tostring, fromstring
 
 from libcchdo import LOG, get_library_abspath
+from libcchdo.formats.exchange import END_DATA
 from libcchdo.serve import SimpleHTTPServer
 
 
@@ -83,7 +84,7 @@ def view(path):
                     table_type = 'comments'
                     table = E.TABLE(E.CLASS('comments'))
                     df.append(accordion_group('comments', table))
-            elif row[0] == 'END_DATA':
+            elif row[0] == END_DATA:
                 if table_type != 'enddata':
                     table_type = 'enddata'
                     table = E.TABLE(E.CLASS('enddata'))

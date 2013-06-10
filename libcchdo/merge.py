@@ -2,6 +2,7 @@ from pandas import *
 
 from libcchdo import LOG
 from libcchdo.formats import woce
+from libcchdo.formats.exchange import END_DATA
 from libcchdo.fns import equal_with_epsilon
 
 
@@ -48,7 +49,7 @@ class Merger(object):
     def check_last_line(self, file_handle):
         lines = file_handle.readlines()
         file_handle.seek(0,0)
-        if lines[-1].startswith(woce.END_DATA):
+        if lines[-1].startswith(END_DATA):
             return True 
         else:
             return False
