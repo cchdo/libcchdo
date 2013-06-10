@@ -73,10 +73,10 @@ TIMESERIES_INFO = {
         'data_codes': 'SOT',
     },
     'HOT': {
-        'platform_code': 'ALOHA',
+        'platform_code': 'HOT',
         'institution': ("University of Hawai'i School of Ocean and "
                         "Earth Science and Technology"),
-        'site_code': 'HOT',
+        'site_code': 'ALOHA',
         'array': 'HOT',
         'references': 'http://cchdo.ucsd.edu/search?query=group:HOT',
         'comment': ('HOT {data_type} data from SIO, translated to OceanSITES '
