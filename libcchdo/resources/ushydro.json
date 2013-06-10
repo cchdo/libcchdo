@@ -10,8 +10,8 @@
     "properties": {
       "title": "P2",
       "line": "P2",
-      "completed": [2004],
-      "pending": [2013],
+      "completed": [2004, 2013],
+      "pending": [],
       "box": [160, 30]
     }
   },
