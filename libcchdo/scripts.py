@@ -1156,51 +1156,33 @@ def merge_botex_and_botex(args):
     data.
 
     """
-    from libcchdo.config import stamp
-    from libcchdo.model.datafile import DataFile
-    from libcchdo.merge import Merger, convert_to_datafile
+    from libcchdo.merge import Merger
     import libcchdo.formats.bottle.exchange as botex
-
-    def do_merge(m, parameters):
-        columns_to_merge = []
-        units_to_merge = []
-        for parameter in parameters:
-            columns_to_merge.append(parameter)
-            unit_index = \
-                m.dataframe2.columns.values.tolist().index(parameter)
-            try:
-                units_to_merge.append(m.units2[unit_index])
-            except IndexError:
-                LOG.error(u'File does not have enough units')
-        df = DataFile()
-        result_units = m.units1 + (units_to_merge)
-        result = m.mergeit(columns_to_merge)
-        new_header = '# Merged parameters: {0}\n#{1}\n'.format(
-            ' '.join(columns_to_merge), m.stamp1) + m.header1
-        convert_to_datafile(
-            df, new_header, result, result_units, stamp())
-        with closing(args.output) as out_file:
-            botex.write(df, out_file)
 
     with closing(args.file1) as in_file1:
         with closing(args.file2) as in_file2:
-            m = Merger(in_file1, in_file2)
+            merger = Merger(in_file1, in_file2)
             if args.parameters_to_merge:
-                do_merge(m, args.parameters_to_merge)
+                parameters = args.parameters_to_merge
             elif args.merge_different:
-                different_columns = m.different_cols()
+                different_columns = merger.different_cols()
                 LOG.info(
                     u'The following parameters in {0} are different'.format(
                     in_file2.name))
-                LOG.info(u' '.join(different_columns))
-                do_merge(m, different_columns)
+                LOG.info(u', '.join(different_columns))
             else:
                 # Show parameters with differing data
-                different_columns = m.different_cols()
+                parameters = merger.different_cols()
                 LOG.info(
                     u'The following parameters in {0} are different'.format(
                     in_file2.name))
-                print u' '.join(different_columns)
+                print u'\n'.join(parameters)
+                return
+
+            mdata = merger.merge(parameters)
+            dfile = mdata.convert_to_datafile(parameters)
+            with closing(args.output) as out_file:
+                botex.write(dfile, out_file)
 
 
 with subcommand(merge_parsers, 'botex_and_botex', merge_botex_and_botex) as p:
@@ -1212,10 +1194,10 @@ with subcommand(merge_parsers, 'botex_and_botex', merge_botex_and_botex) as p:
         help='Merge all different parameters')
     p.add_argument(
         'file1', type=FileType('r'),
-        help='first file to merge')
+        help='file to merge onto')
     p.add_argument(
         'file2', type=FileType('r'),
-        help='second file to merge')
+        help='file to update first file with')
     merge_group = p.add_argument_group(title='Merge parameters')
     merge_group.add_argument(
         'parameters_to_merge', type=str, nargs='*', default=[],
