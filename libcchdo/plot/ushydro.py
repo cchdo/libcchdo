@@ -8,11 +8,13 @@ import matplotlib.pyplot as plt
 from matplotlib.offsetbox import (AnnotationBbox, TextArea, DrawingArea,
 VPacker, HPacker, AnchoredOffsetbox)
 
+
 font_style = {
-        "line":dict(color="k", size=6),
-        "complete":dict(color="0.65", size=5),
-        "pending":dict(color="r", style="italic", size=5),
-        }
+    "line": dict(color="k", size=6),
+    "complete": dict(color="0.65", size=5),
+    "pending": dict(color="r", style="italic", size=5),
+    }
+
 
 def load_geojson(f):
     return geojson.load(f)
@@ -132,13 +134,14 @@ def generate_title(d_min, d_max, ax):
     (bbox_to_anchor).
     '''
     title = TextArea("Cruises for the U.S. Global Ocean Carbon and Repeat "
-            "Hydrography Program, {0}-{1}".format(d_min, d_max), textprops=dict(size=10))
-    subt1 = TextArea("(", textprops=dict(size=8))
-    subt2 = TextArea("red italic", textprops=dict(color="r",style="italic",size=8))
-    subt3 = TextArea("indicates pending cruise;", textprops=dict(size=8))
-    subt4 = TextArea("grey", textprops=dict(color="grey",size=8))
+            "Hydrography Program, {0}-{1}".format(d_min, d_max), textprops=dict(size=9))
+    subtitle_size = 8
+    subt1 = TextArea("(", textprops=dict(size=subtitle_size))
+    subt2 = TextArea("red italic", textprops=dict(color="r",style="italic",size=subtitle_size))
+    subt3 = TextArea("indicates pending cruise;", textprops=dict(size=subtitle_size))
+    subt4 = TextArea("grey", textprops=dict(color="grey",size=subtitle_size))
     subt5 = TextArea("indicates completed cruises; black indicates funded cruises)",
-            textprops=dict(size=8))
+            textprops=dict(size=subtitle_size))
     
     subt = HPacker(children=[subt1,subt2,subt3,subt4,subt5], align="center", pad=0,
             sep=2)
