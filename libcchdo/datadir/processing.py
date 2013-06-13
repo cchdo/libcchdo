@@ -33,7 +33,8 @@ from libcchdo.config import (
     get_merger_name)
 from libcchdo.formats.google_wire import DefaultJSONSerializer
 from libcchdo.datadir.dl import AFTP, SFTP
-from libcchdo.datadir.util import ReadmeEmail, DRYRUN_PREFACE
+from libcchdo.datadir.util import (
+    ReadmeEmail, DRYRUN_PREFACE, is_cruise_dir, is_working_dir)
 from libcchdo.datadir.filenames import (
     EXPOCODE_FILENAME, README_FILENAME, PROCESSING_EMAIL_FILENAME,
     UOW_CFG_FILENAME, FILE_MANIFEST_FILENAME, README_TEMPLATE_FILENAME)
@@ -656,24 +657,6 @@ def copy_replaced(filename, curr_date, separator='_'):
         except OSError, e:
             LOG.error(u'Could not move file: {0}'.format(e))
             return 1
-
-
-def is_cruise_dir(path):
-    """Determine if the given path is a cruise directory.
-
-    Basically, if an 'ExpoCode' is present.
-
-    """
-    return EXPOCODE_FILENAME in os.listdir(path)
-
-
-def is_working_dir(path):
-    """Determine if the given path is a working directory.
-
-    Basically, if an '00_README.txt' is present.
-
-    """
-    return README_FILENAME in os.listdir(path)
 
 
 def write_cruise_dir_expocode(cruise_dir, expocode):

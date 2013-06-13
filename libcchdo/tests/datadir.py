@@ -7,6 +7,9 @@ from shutil import rmtree
 from datetime import datetime
 
 from libcchdo.datadir import processing
+from libcchdo.datadir.filenames import README_FILENAME, EXPOCODE_FILENAME
+from libcchdo.datadir.util import (
+    find_data_directory, is_cruise_dir, is_working_dir, is_data_dir)
 
 
 @contextmanager
@@ -49,18 +52,23 @@ class TestProcessing(TestCase):
                 self.assertTrue(
                     os.path.isdir(os.path.join(working_dir, entry)))
 
-    #def test_depth(self):
-    #    print depth.depth(9.8, [1], [1])
-    #    self.assertRaises(AssertionError, depth.depth, 9.8, [1,2 ], [1])
-    #    print depth.depth(9.8, [16], [2])
-    #    #print depth.depth(9.8, [16, 16], [2, 2])
-    #    #depth has an issue with sequences of length 2 to integrate over.
-    #    print depth.depth(9.8, [1, 2, 3, 4, 5], [5, 4, 3, 2, 1])
-    #    # TODO
+    def test_is_data_dir(self):
+        self.assertFalse(is_data_dir('/'))
+        self.assertTrue(is_data_dir('/data'))
 
-    #def test_density(self):
-    #    self.assertTrue(depth.density(None, 1, 1) is None)
+    def test_is_cruise_dir(self):
+        with temp_dir() as tdir:
+            self.assertFalse(is_cruise_dir(tdir))
+            with open(os.path.join(tdir, EXPOCODE_FILENAME), 'w') as fff:
+                fff.write('TESTEXPO')
+            self.assertTrue(is_cruise_dir(tdir))
 
-    #def test_depth_unesco(self):
-    #    print depth.depth_unesco(1, 0)
-    #    # TODO
+    def test_is_working_dir(self):
+        with temp_dir() as tdir:
+            self.assertFalse(is_working_dir(tdir))
+            with open(os.path.join(tdir, README_FILENAME), 'w') as fff:
+                fff.write('README')
+            self.assertTrue(is_working_dir(tdir))
+
+    def test_find_datadir(self):
+        self.assertEqual('/data', find_data_directory())

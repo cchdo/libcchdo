@@ -12,7 +12,7 @@ from getpass import getpass
 
 from libcchdo import LOG
 from libcchdo.config import get_merger_email, is_env_production
-from libcchdo.datadir.filenames import README_FILENAME
+from libcchdo.datadir.filenames import README_FILENAME, EXPOCODE_FILENAME
 
 
 def intersection(self, o):
@@ -23,55 +23,78 @@ def all_in(a, b):
     return intersection(a, b) == a
 
 
-def cd_to_data_directory():
-  """Find the data directory.
-  
-  Find the data directory by checking for the existence of
-  main_data_directories as subdirectories and sets it as the cwd.
-  """
-  directories_to_try = ['.', '/data', '/Volumes/DataArchive/data']
-  main_data_directories = ['co2clivar', 'onetime', 'repeat']
-  
-  def is_root_data_dir():
-      return all_in(main_data_directories, os.listdir('.'))
+DIRECTORIES_TO_TRY = ['.', '/data', '/Volumes/DataArchive/data']
 
-  found = False
-  for dir in directories_to_try:
-      LOG.info('Checking for data directory %s' % dir)
-      os.chdir(dir)
-      if is_root_data_dir():
-          found = True
-          break
-  if not found:
-      LOG.error('Unable to find data directory with subdirectories: %s' % \
-                    ' '.join(main_data_directories))
-      exit(1)
-  LOG.info('Selected data directory %s' % os.getcwd())
+
+MAIN_DATA_DIRECTORIES = ['co2clivar', 'onetime', 'repeat']
+
+
+def find_data_directory():
+    """Find the data directory.
+
+    Find the data directory by checking for the existence of
+    MAIN_DATA_DIRECTORIES as subdirectories and sets it as the cwd.
+
+    """
+
+    for direc in DIRECTORIES_TO_TRY:
+        LOG.debug('Checking for data directory %s' % direc)
+        os.chdir(direc)
+        if is_data_dir(direc):
+            LOG.info('Selected data directory %s' % direc)
+            return direc
+    LOG.error(
+        'Unable to find data directory with subdirectories: {0!r}'.format(
+        MAIN_DATA_DIRECTORIES))
+    return None
+
+
+def cd_to_data_directory():
+    """Change current directory to the data directory."""
+    datadir = find_data_directory()
+    if datadir:
+        os.chdir(datadir)
+    else:
+        raise EnvironmentError('No data directory found.')
 
 
 datafile_extensions = ['su.txt', 'hy.txt', 'hy1.csv', 'ct.zip', 'ct1.zip',
                        'nc_hyd.zip', 'nc_ctd.zip']
 
 
-def is_data_dir(dir):
+def has_data_files(path):
+    """Return whether the given path has datafiles in it."""
+    def filename_has_any_extensions(filename, extensions):
+        return any(filename.endswith(ext) for ext in extensions)
+
+    return any(filename_has_any_extensions(fname, datafile_extensions)
+        for fname in os.listdir(path))
+    
+
+def is_data_dir(path):
     """Determine if the given path is a data directory.
 
     """
-    def filename_has_any_extensions(filename, extensions):
-        return any(map(lambda e: filename.endswith(e), extensions))
-
-    return any(map(lambda f: filename_has_any_extensions(
-                   f, datafile_extensions),
-               os.listdir(dir)))
+    return (all_in(MAIN_DATA_DIRECTORIES, os.listdir(path)) or
+            has_data_files(path))
 
 
-def is_cruise_dir(dir):
+def is_cruise_dir(path):
     """Determine if the given path is a cruise directory.
 
-    Basically, if the 'ExpoCode' file exists, it's a cruise directory.
+    Basically, if an 'ExpoCode' is present.
 
     """
-    return 'ExpoCode' in os.listdir(dir)
+    return EXPOCODE_FILENAME in os.listdir(path)
+
+
+def is_working_dir(path):
+    """Determine if the given path is a working directory.
+
+    Basically, if an '00_README.txt' is present.
+
+    """
+    return README_FILENAME in os.listdir(path)
 
 
 allowable_oceans = ['arctic', 'atlantic', 'pacific', 'indian', 'southern']
@@ -99,21 +122,19 @@ def do_for_cruise_directories(operation):
   cd_to_data_directory()
 
   # Traverse the data directory to find real data directories to operate on
-  main_data_directories = ['co2clivar', 'onetime', 'repeat']
-  for dir in main_data_directories:
-      for root, dirs, files in os.walk(dir, topdown=True):
-          # Filter out unwanted directories if still traveling down tree
-          for dir in dirs[:]:
-              if dir in _blacklisted_dirnames:
-                  dirs.remove(dir)
-              else:
-                  for black in _blacklisted_dirname_regexps:
-                      if re.search(black, dir, re.IGNORECASE):
-                          dirs.remove(dir)
-                          break
-          # Only operate if this is a data directory
-          if is_data_dir(root):
-              operation(root, dirs, files)
+  for root, dirs, files in os.walk('.', topdown=True):
+      # Filter out unwanted directories if still traveling down tree
+      for dir in dirs[:]:
+          if dir in _blacklisted_dirnames:
+              dirs.remove(dir)
+          else:
+              for black in _blacklisted_dirname_regexps:
+                  if re.search(black, dir, re.IGNORECASE):
+                      dirs.remove(dir)
+                      break
+      # Only operate if this is a cruise directory
+      if is_cruise_dir(root):
+          operation(root, dirs, files)
 
 
 def mkdir_ensure(path, mode=0777):
