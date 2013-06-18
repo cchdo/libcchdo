@@ -16,7 +16,8 @@ import os.path
 import traceback
 
 from libcchdo.log import LOG
-from libcchdo.fns import all_formats, read_arbitrary, get_editor
+from libcchdo.fns import get_editor
+from libcchdo.formats.formats import all_formats, read_arbitrary
 from libcchdo.datadir.filenames import (
     README_FILENAME, PROCESSING_EMAIL_FILENAME, UOW_CFG_FILENAME)
 known_formats = all_formats.keys()
@@ -262,7 +263,6 @@ with subcommand(any_converter_parsers, 'type', any_to_type) as p:
 
 
 def any_to_kml(args):
-    from libcchdo.fns import read_arbitrary
     from libcchdo.kml import any_to_kml
 
     with closing(args.cchdo_file) as in_file:
@@ -2175,6 +2175,37 @@ with subcommand(report_parsers, 'argo_ctd_index',
     p.add_argument(
         'output', type=FileType('w'), nargs='?', default=sys.stdout,
         help='output file')
+
+
+def shell(args):
+    """Load libcchdo and drop into a REPL."""
+    import libcchdo
+    from libcchdo.tools import HistoryConsole
+    console = HistoryConsole(locals=locals())
+    console.interact('libcchdo')
+
+
+with subcommand(hydro_subparsers, 'shell', shell) as p:
+    pass
+
+
+def formats(args):
+    """List file formats that are recognized.
+
+    """
+    from libcchdo.formats.formats import all_formats, file_extensions
+
+    for sname, module in all_formats.items():
+        print sname, '\t', module
+
+    print
+
+    for sname, exts in file_extensions.items():
+        print sname, '\t', repr(exts)
+
+
+with subcommand(hydro_subparsers, 'formats', formats) as p:
+    pass
 
 
 def env(args):

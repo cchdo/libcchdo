@@ -3,6 +3,7 @@ from re import compile
 from copy import copy
 
 from libcchdo import LOG
+from libcchdo.util import memoize
 from libcchdo.fns import Decimal, equal_with_epsilon
 from libcchdo.model.datafile import DataFile, DataFileCollection
 from libcchdo.db.model.nodc_ship import ship_code
@@ -196,38 +197,41 @@ bats_to_param = {
 }
 
 
-param_to_os = get_param_to_os()
+@memoize
+def param_to_os():
+    param_to_os = get_param_to_os()
 
-param_to_os.register({
-    'OxFixT': u'DOXY_TEMP',
-    # TODO find standard_name
-    'Anom1': OSVar(u'ANOM1', 'oxygen anomaly', None, 'umol/kg'),
-    'CO2': OSVar(
-        u'CO2', 'dissolved inorganic carbon',
-        'mole_concentration_of_dissolved_inorganic_carbon_in_sea_water',
-        'umol/kg'),
-    'POP': OSVar(
-        u'POP', 'pop',
-        ('mole_concentration_of_particulate_organic_matter_expressed_as_'
-         'phosphorus_in_sea_water'), 'umol/kg'),
-    # SeaDataNet TDPX
-    'TDP': OSVar(
-        u'TDPX', 'total dissolved phosphorus', 'WC_DissPhosphorus', 'nmol/kg'),
-    # TODO find standard_name
-    'SRP': OSVar(u'SRP', 'low-level phosphorus', None, 'nmol/kg'),
-    # TODO find standard_name
-    'BSi': OSVar(u'BSI', 'particulate bigenic silica', None, 'umol/kg'),
-    # TODO find standard_name
-    'LSi': OSVar(u'LSI', 'particulate lithogenic silica', None, 'umol/kg'),
-    # TODO find standard_name
-    'Pro': OSVar(u'PRO', 'prochlorococcus', None, 'cells/ml'),
-    # TODO find standard_name
-    'Syn': OSVar(u'SYN', 'synechococcus', None, 'cells/ml'),
-    # TODO find standard_name
-    'Piceu': OSVar(u'PICEU', 'picoeukaryotes', None, 'cells/ml'),
-    # TODO find standard_name
-    'Naneu': OSVar(u'NANEU', 'nanoeukaryotes', None, 'cells/ml'),
-})
+    param_to_os.register({
+        'OxFixT': u'DOXY_TEMP',
+        # TODO find standard_name
+        'Anom1': OSVar(u'ANOM1', 'oxygen anomaly', None, 'umol/kg'),
+        'CO2': OSVar(
+            u'CO2', 'dissolved inorganic carbon',
+            'mole_concentration_of_dissolved_inorganic_carbon_in_sea_water',
+            'umol/kg'),
+        'POP': OSVar(
+            u'POP', 'pop',
+            ('mole_concentration_of_particulate_organic_matter_expressed_as_'
+             'phosphorus_in_sea_water'), 'umol/kg'),
+        # SeaDataNet TDPX
+        'TDP': OSVar(
+            u'TDPX', 'total dissolved phosphorus', 'WC_DissPhosphorus', 'nmol/kg'),
+        # TODO find standard_name
+        'SRP': OSVar(u'SRP', 'low-level phosphorus', None, 'nmol/kg'),
+        # TODO find standard_name
+        'BSi': OSVar(u'BSI', 'particulate bigenic silica', None, 'umol/kg'),
+        # TODO find standard_name
+        'LSi': OSVar(u'LSI', 'particulate lithogenic silica', None, 'umol/kg'),
+        # TODO find standard_name
+        'Pro': OSVar(u'PRO', 'prochlorococcus', None, 'cells/ml'),
+        # TODO find standard_name
+        'Syn': OSVar(u'SYN', 'synechococcus', None, 'cells/ml'),
+        # TODO find standard_name
+        'Piceu': OSVar(u'PICEU', 'picoeukaryotes', None, 'cells/ml'),
+        # TODO find standard_name
+        'Naneu': OSVar(u'NANEU', 'nanoeukaryotes', None, 'cells/ml'),
+    })
+    return param_to_os
 
 
 def read(self, handle, metadata=None):

@@ -1,14 +1,34 @@
 """Formats
 
+This subpackage is organized into modules that either provide read/write
+capabilities or support those processes.
+
+Format modules
+--------------
+
 Reading/Writing
 ===============
 
-Formats are allowed to specify two operations::
+format modules (formats) are allowed to specify two operations::
 
 * read(DataFile_or_Collection, file_object)
 * write(DataFile_or_Collection, file_object)
 
 Formats are *not* required to specify both reading and writing.
+
+File names
+==========
+
+If a format is to be recognized from either its filename or contents, its module
+is *required* to specify three functions::
+
+* get_filename()
+* is_filename_recognized(fname)
+* is_file_recognized(fname)
+
+If these functions are not defined, the format will be available in
+`all_formats` but not `file_extensions`.
+
 
 Hierarchy
 ---------

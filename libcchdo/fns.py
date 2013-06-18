@@ -7,7 +7,6 @@ try:
     from cdecimal import Decimal, getcontext, InvalidOperation
 except ImportError:
     from decimal import Decimal, getcontext, InvalidOperation
-from collections import OrderedDict
 import math
 import os.path
 import sys
@@ -62,113 +61,6 @@ def get_editor():
         os.environ.get('VISUAL') or 
         os.environ.get('EDITOR', 'vi')
         )
-
-
-class file_type_dict(dict):
-    def __getitem__(self, key):
-        module = 'libcchdo.formats.' + super(file_type_dict, self).__getitem__(key)
-        __import__(module)
-        return sys.modules[module]
-
-
-file_extensions = OrderedDict([
-    ['sumhot', ['.hot.su.txt']],
-    ['sumwoce', ['su.txt']],
-    ['botwoce', ['hy.txt']],
-    ['lvbotex', ['lv_hy1.csv']],
-    ['tmbotex', ['tm_hy1.csv']],
-    ['botex', ['hy1.csv', '.exc.csv']],
-    ['botnc', ['hy1.nc']],
-    ['botzipnc', ['nc_hyd.zip']],
-    ['ctdex', ['ct1.csv']],
-    ['ctdzipex', ['ct1.zip']],
-    ['ctdnc', ['ctd.nc']],
-    ['ctdzipnc', ['nc_ctd.zip']],
-    ['coriolis', ['coriolis']],
-    ['nodc_sd2', ['.sd2']],
-    ['geosecs', ['.shore']],
-    ['tracks', ['_tracks.txt', 'na.txt']],
-])
-    
-
-all_formats = file_type_dict({
-    'sumhot': 'summary.hot',
-    'sumwoce': 'summary.woce',
-    'botwoce': 'bottle.woce',
-    'lvbotex': 'bottle.exchange',
-    'tmbotex': 'bottle.exchange',
-    'botex': 'bottle.exchange',
-    'botnc': 'bottle.netcdf',
-    'botzipnc': 'bottle.zip.netcdf',
-    'ctdex': 'ctd.exchange',
-    'ctdwoce': 'ctd.woce',
-    'ctdzipex': 'ctd.zip.exchange',
-    'ctdzipwoce': 'ctd.zip.woce',
-    'ctdnc': 'ctd.netcdf',
-    'ctdzipnc': 'ctd.zip.netcdf',
-    'coriolis': 'coriolis',
-    'polarstern': 'ctd.polarstern',
-    'nodc_sd2': 'nodc_sd2',
-    'geosecs': 'geosecs',
-    'sbe9': 'ctd.sbe9',
-    'tracks': 'common.nav',
-})
-
-
-def guess_file_type(filename, file_type=None):
-    if file_type is not None:
-        return file_type
-
-    for fmt, exts in file_extensions.items():
-        for ext in exts:
-            if filename.endswith(ext):
-                return fmt
-    return None
-
-
-def read_arbitrary(handle, file_type=None, file_name=None):
-    '''Takes any CCHDO recognized file and tries to open it.
-       The recognition is done by file extension.
-       Args:
-           handle - a file handle
-           file_type - forces a specific reader to be used
-       Returns:
-           a DataFile(Collection) or *SummaryFile that matches the file type.
-    '''
-    try:
-        handle.read
-    except AttributeError:
-        raise ValueError(u'read_arbitrary must be called with a file object')
-    import model.datafile
-
-    if not file_name:
-        try:
-            file_name = handle.name
-        except AttributeError:
-            pass
-
-    file_type = guess_file_type(file_name, file_type)
-
-    if file_type is None:
-        raise ValueError('Unrecognized file type for %s' % handle)
-
-    if file_type.find('zip') > 0:
-        datafile = model.datafile.DataFileCollection()
-    elif file_type.startswith('sum'):
-        datafile = model.datafile.SummaryFile()
-    else:
-        datafile = model.datafile.DataFile()
-    
-    if file_type == 'sd2':
-        file_type = 'nodc_sd2'
-
-    try:
-        format_module = all_formats[file_type]
-    except KeyError:
-        raise ValueError('Unrecognized file type for %s' % handle.name)
-    format_module.read(datafile, handle)
-
-    return datafile
 
 
 def great_circle_distance(lat_stand, lng_stand, lat_fore, lng_fore):

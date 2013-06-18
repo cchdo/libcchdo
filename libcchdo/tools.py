@@ -29,7 +29,8 @@ from libcchdo.db.model.legacy import Document
 from libcchdo.model.datafile import DataFile, DataFileCollection, Column
 from libcchdo.units import convert as ucvt
 from libcchdo.formats import add_pre_write
-from libcchdo import fns
+from libcchdo.fns import equal_with_epsilon
+from libcchdo.formats.formats import read_arbitrary
 from libcchdo.formats.ctd import asc
 import libcchdo.formats.summary.woce as sumwoce
 import libcchdo.formats.bottle.exchange as botex
@@ -376,7 +377,7 @@ def rebuild_hot_bats_oceansites(root, dirs, files):
 
     with open(ctdzipex_path) as file:
         try:
-            dfc = fns.read_arbitrary(file, 'ctdzipex')
+            dfc = read_arbitrary(file, 'ctdzipex')
         except Exception, e:
             print >> sys.stderr, 'Failed to read ctdzipex format for %s' % root
             print >> sys.stderr, e
@@ -644,7 +645,6 @@ def australian_navy_ctd(args):
     from pydap.client import open_url
     from libcchdo.thredds import crawl
     from libcchdo.formats.ctd.zip import exchange as ctdzipex
-    from libcchdo.fns import equal_with_epsilon
     from libcchdo.formats.zip import write as zwrite
 
     dfcs = []

@@ -7,6 +7,58 @@ from libcchdo.formats import pre_write
 from libcchdo.formats import woce
 from libcchdo.formats.exchange import (
     read_identifier_line, read_comments, FILL_VALUE, END_DATA)
+from libcchdo.formats.formats import (
+    get_filename_fnameexts, is_filename_recognized_fnameexts,
+    is_file_recognized_fnameexts)
+
+
+_fname_extensions = ['_ct1.csv', 'ct1.csv']
+
+
+def get_filename(basename):
+    """Return the filename for this format given a base filename.
+
+    This is a basic implementation using filename extensions.
+
+    """
+    return get_filename_fnameexts(basename, _fname_extensions)
+
+
+def is_filename_recognized(fname):
+    """Return whether the given filename is a match for this file format.
+
+    This is a basic implementation using filename extensions.
+
+    """
+    return is_filename_recognized_fnameexts(fname, _fname_extensions)
+
+
+def is_file_recognized(fileobj):
+    """Return whether the file is recognized based on its contents.
+
+    This is a basic non-implementation.
+
+    """
+    return is_file_recognized_fnameexts(fileobj, _fname_extensions)
+
+
+def get_datafile_filename(dfile):
+    """Returns an Exchange CTD filename identifier given a DataFile."""
+    expocode = dfile.globals['EXPOCODE']
+    station = dfile.globals['STNNBR'].strip()
+    cast = dfile.globals['CASTNO'].strip()
+
+    try:
+        station = '%05d' % int(station)
+    except TypeError:
+        station = station[:5]
+    try:
+        cast = '%05d' % int(cast)
+    except TypeError:
+        cast = cast[:5]
+    filename = '%s_%5s_%5s' % (expocode, station, cast)
+    filename = re.sub('\s', '_', filename)
+    return get_filename(filename)
 
 
 REQUIRED_HEADERS = [

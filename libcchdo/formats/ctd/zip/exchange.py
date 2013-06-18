@@ -5,6 +5,39 @@ from libcchdo.log import LOG
 from libcchdo.model.datafile import DataFile
 from libcchdo.formats import zip as Zip
 from libcchdo.formats.ctd import exchange as ctdex
+from libcchdo.formats.formats import (
+    get_filename_fnameexts, is_filename_recognized_fnameexts,
+    is_file_recognized_fnameexts)
+
+
+_fname_extensions = ['ct1.zip']
+
+
+def get_filename(basename):
+    """Return the filename for this format given a base filename.
+
+    This is a basic implementation using filename extensions.
+
+    """
+    return get_filename_fnameexts(basename, _fname_extensions)
+
+
+def is_filename_recognized(fname):
+    """Return whether the given filename is a match for this file format.
+
+    This is a basic implementation using filename extensions.
+
+    """
+    return is_filename_recognized_fnameexts(fname, _fname_extensions)
+
+
+def is_file_recognized(fileobj):
+    """Return whether the file is recognized based on its contents.
+
+    This is a basic non-implementation.
+
+    """
+    return is_file_recognized_fnameexts(fileobj, _fname_extensions)
 
 
 def read(self, handle, retain_order=False, header_only=False):
@@ -34,32 +67,6 @@ def read(self, handle, retain_order=False, header_only=False):
     zip.close()
 
 
-def get_filename(expocode, station, cast):
-    """Filename for Exchange CTD files."""
-    station = station.strip()
-    try:
-        station = '%05d' % int(station)
-    except TypeError:
-        station = station[:5]
-
-    cast = cast.strip()
-    try:
-        cast = '%05d' % int(cast)
-    except TypeError:
-        cast = cast[:5]
-
-    filename = '%s_%5s_%5s_ct1.csv' % (expocode, station, cast)
-    filename = re.sub('\s', '_', filename)
-    return filename
-
-
-def get_datafile_filename(dfile):
-    expocode = dfile.globals['EXPOCODE']
-    station = dfile.globals['STNNBR'].strip()
-    cast = dfile.globals['CASTNO'].strip()
-    return get_filename(expocode, station, cast)
-
-
 def write(self, handle):
     """How to write CTD Exchange files to a Zip."""
-    Zip.write(self, handle, ctdex, get_datafile_filename)
+    Zip.write(self, handle, ctdex, ctdex.get_datafile_filename)

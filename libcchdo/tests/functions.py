@@ -6,6 +6,7 @@ from zipfile import BadZipfile
 import unittest
 
 from libcchdo import fns
+from libcchdo.formats.formats import read_arbitrary
 
 
 class TestFunctions(unittest.TestCase):
@@ -35,9 +36,9 @@ class TestFunctions(unittest.TestCase):
 
     def test_read_arbitrary(self):
         td = mkstemp('notacchdofile.txt')
-        self.assertRaises(ValueError, fns.read_arbitrary, fdopen(td[0]))
+        self.assertRaises(ValueError, read_arbitrary, fdopen(td[0]))
         td = mkstemp('test_functions.py')
-        self.assertRaises(ValueError, fns.read_arbitrary, fdopen(td[0]))
+        self.assertRaises(ValueError, read_arbitrary, fdopen(td[0]))
         # TODO check more
 
     def test_great_circle_distance(self):
@@ -94,34 +95,34 @@ class TestFunctions(unittest.TestCase):
     def test_read_arbitrary(self):
         # TODO
         t = NamedTemporaryFile(suffix='su.txt')
-        fns.read_arbitrary(t)
+        read_arbitrary(t)
 
         t = NamedTemporaryFile(suffix='.hot.su.txt')
-        fns.read_arbitrary(t)
+        read_arbitrary(t)
 
         t = NamedTemporaryFile(suffix='hy.txt')
-        self.assertRaises(ValueError, fns.read_arbitrary, t)
+        self.assertRaises(ValueError, read_arbitrary, t)
 
         t = NamedTemporaryFile(suffix='hy1.csv')
-        self.assertRaises(ValueError, fns.read_arbitrary, t)
+        self.assertRaises(ValueError, read_arbitrary, t)
 
         t = NamedTemporaryFile(suffix='hy1.nc')
-        self.assertRaises(RuntimeError, fns.read_arbitrary, t)
+        self.assertRaises(RuntimeError, read_arbitrary, t)
 
         t = NamedTemporaryFile(suffix='nc_hyd.zip')
-        self.assertRaises(BadZipfile, fns.read_arbitrary, t)
+        self.assertRaises(BadZipfile, read_arbitrary, t)
 
         t = NamedTemporaryFile(suffix='ct1.csv')
-        self.assertRaises(ValueError, fns.read_arbitrary, t)
+        self.assertRaises(ValueError, read_arbitrary, t)
 
         t = NamedTemporaryFile(suffix='ct1.zip')
-        self.assertRaises(BadZipfile, fns.read_arbitrary, t)
+        self.assertRaises(BadZipfile, read_arbitrary, t)
 
         t = NamedTemporaryFile(suffix='ctd.nc')
-        self.assertRaises(RuntimeError, fns.read_arbitrary, t)
+        self.assertRaises(RuntimeError, read_arbitrary, t)
 
         t = NamedTemporaryFile(suffix='nc_ctd.zip')
-        self.assertRaises(BadZipfile, fns.read_arbitrary, t)
+        self.assertRaises(BadZipfile, read_arbitrary, t)
 
         t = NamedTemporaryFile(suffix='unk.unk')
-        self.assertRaises(ValueError, fns.read_arbitrary, t)
+        self.assertRaises(ValueError, read_arbitrary, t)

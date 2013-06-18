@@ -10,7 +10,8 @@ from libcchdo.datadir.filenames import (
     UOW_CFG_FILENAME, README_TEMPLATE_FILENAME)
 from libcchdo.config import get_merger_name_first, get_merger_name_last
 from libcchdo.datadir.processing import read_uow_cfg, UOWDirName
-from libcchdo.fns import read_arbitrary, equal_with_epsilon
+from libcchdo.fns import equal_with_epsilon
+from libcchdo.formats.formats import read_arbitrary
 
 
 class Table(object):

@@ -23,7 +23,8 @@ from docutils.core import publish_string
 from libcchdo import LOG
 from libcchdo.serve import SimpleHTTPServer
 from libcchdo.bb import BB
-from libcchdo.fns import file_extensions, guess_file_type, uniquify, get_editor
+from libcchdo.fns import uniquify, get_editor
+from libcchdo.formats.formats import file_extensions, guess_file_type
 from libcchdo.datadir.util import mkdir_ensure, make_subdirs
 from libcchdo.db.model import legacy
 from libcchdo.db.model.legacy import QueueFile

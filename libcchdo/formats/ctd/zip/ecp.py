@@ -3,7 +3,7 @@ from contextlib import closing
 
 from libcchdo.log import LOG
 from libcchdo.model.datafile import DataFile
-from libcchdo.formats.ctd import bonusgoodhope as bgh
+from libcchdo.formats.ctd import ecp
 
 
 def read(self, handle):
@@ -14,7 +14,7 @@ def read(self, handle):
             ecp_file = tf.extractfile(member)
             ctdfile = DataFile()
             try:
-                bgh.read(ctdfile, ecp_file)
+                ecp.read(ctdfile, ecp_file)
             except ValueError:
                 LOG.error(u'Failed on {0}'.format(member.name))
             self.files.append(ctdfile)

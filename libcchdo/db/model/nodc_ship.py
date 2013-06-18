@@ -42,6 +42,9 @@ def ship_code(ship_name, raise_on_unknown=True, default_to=None):
             LOG.warn(msg)
             if default_to is not None:
                 return default_to
+            LOG.warn(
+                u'Ship name {0!r} needs an NODC ship code defined.'.format(
+                ship_name))
             return SHIP_CODE_UNKNOWN
 
 
@@ -58,10 +61,6 @@ def reverse_lookup(ship_code):
 def register_ship_code(code, ship_name):
     if code:
         _ship_codes[ship_name] = code
-    else:
-        LOG.warn(
-            u'Ship name {0!r} needs an NODC ship code defined.'.format(
-            ship_name))
 
 
 def register_ship_codes(codes):
