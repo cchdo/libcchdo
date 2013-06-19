@@ -73,6 +73,7 @@ class ShieldedDict(OrderedDict):
     def _unshield(self):
         self._parent._scan_if_needed()
 
+
 class FormatScanner(object):
     def __init__(self, *args):
         super(FormatScanner, self).__init__(*args)

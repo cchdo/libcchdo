@@ -1,5 +1,7 @@
 """Entry point for libcchdo.
 
+PYTHON_ARGCOMPLETE_OK
+
 This module is the entry point for the hydro utility. To see a list of all
 available sub entry points, run 
 
@@ -17,7 +19,6 @@ import traceback
 
 import libcchdo
 from libcchdo.log import LOG
-from libcchdo.fns import get_editor
 from libcchdo.formats.formats import all_formats, read_arbitrary
 from libcchdo.datadir.filenames import (
     README_FILENAME, PROCESSING_EMAIL_FILENAME, UOW_CFG_FILENAME)
@@ -1909,6 +1910,7 @@ def edit_cfg(args):
     """Edit the most precedent configuration file."""
     from subprocess import call as subproc_call
 
+    from libcchdo.fns import get_editor
     from libcchdo.config import get_config_path
     cfg_path = get_config_path()
     subproc_call([get_editor(), cfg_path])
@@ -2237,10 +2239,6 @@ with subcommand(hydro_subparsers, 'env', env) as p:
         help='the environment to set')
 
 
-def deprecated_reorder_surface_to_bottom():
-    call_deprecated('misc', 'reorder_surface_to_bottom')
-
-
 def _subparsers(parser):
     """Get the subparsers for an ArgumentParser."""
     try:
@@ -2282,6 +2280,13 @@ def _format_parser_tree(parser, level=0):
     for sp in subparsers:
         string += _format_parser_tree(sp, level + 1)
     return string
+
+
+try:
+    from argcomplete import autocomplete
+    autocomplete(hydro_parser)
+except ImportError:
+    pass
     
 
 def main():

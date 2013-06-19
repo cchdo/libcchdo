@@ -28,6 +28,7 @@ if __name__ == "__main__":
         'speed': ['cdecimal', ],
         'coverage': ['coverage', ],
         'netcdf': ['numpy', 'netCDF4', ],
+        'autocomplete': ['argcomplete'],
         'merge': ['pandas', 'numpy>=1.6'],
         'plot': ['numpy>=1.4', 'scipy', 'PIL', 'matplotlib', 'basemap', ],
         'dap_thredds': ['lxml', 'httplib2', 'pydap'],

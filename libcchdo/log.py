@@ -72,7 +72,7 @@ LIBLOG_HANDLER = StreamHandler()
 LIBLOG_HANDLER.setFormatter(LibLogFormatter(
     u''.join((
         '%(asctime)-11s %(color_level)s%(levelname)s ',
-        '%(color_path)s%(pathname)s:%(lineno)d', TERMCOLOR['CLEAR'],
+        '%(color_path)s%(pathname)s:%(lineno)d %(funcName)s', TERMCOLOR['CLEAR'],
         '\t%(message)s', TERMCOLOR['CLEAR'])), "%H%M:%S"))
 
 LOG = getLogger(__name__)
