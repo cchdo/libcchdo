@@ -48,6 +48,9 @@ if __name__ == "__main__":
 
     packages = find_packages(exclude=['libcchdo.tests'])
 
+    resources = [os.path.join('resources', fname) for fname in
+                 os.listdir(os.path.join(PACKAGE_NAME, 'resources'))]
+
     setup(
         name=PACKAGE_NAME,
         version=libcchdo.__version__,
@@ -56,9 +59,8 @@ if __name__ == "__main__":
         provides=[PACKAGE_NAME],
         packages=packages,
         package_data={PACKAGE_NAME:[
-            'resources/ushydro.json',
-            'resources/csv_view.css',
-            ],
+            'RELEASE-VERSION.txt',
+            ] + resources,
         },
         test_suite='libcchdo.tests',
         install_requires=install_requires,

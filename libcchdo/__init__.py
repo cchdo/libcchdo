@@ -27,9 +27,7 @@ from the database (there is none anyway).
 from libcchdo import config
 from libcchdo.log import LOG
 from libcchdo.util import StringIO, pyStringIO, memoize, get_library_abspath
-
-
-__version__ = "0.7.1"
+from libcchdo.version import __version__
 
 
 # Database cache for parameters will be ensured

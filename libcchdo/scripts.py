@@ -15,6 +15,7 @@ import os
 import os.path
 import traceback
 
+import libcchdo
 from libcchdo.log import LOG
 from libcchdo.fns import get_editor
 from libcchdo.formats.formats import all_formats, read_arbitrary
@@ -2206,6 +2207,10 @@ def formats(args):
 
 with subcommand(hydro_subparsers, 'formats', formats) as p:
     pass
+
+
+hydro_parser.add_argument(
+    '--version', action='version', version=libcchdo.__version__)
 
 
 def env(args):

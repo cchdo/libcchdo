@@ -13,3 +13,4 @@ libcchdo/db/*.db-journal
 libcchdo/resources/woce_repr.csv
 build
 dist
+libcchdo/RELEASE-VERSION.txt
