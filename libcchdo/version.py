@@ -5,7 +5,7 @@ http://dcreager.net/2010/02/10/setuptools-git-version-numbers/
 """
 from os import chdir, getcwd
 from os.path import dirname, abspath, join
-from subprocess import check_output, CalledProcessError
+from subprocess import check_output, PIPE, CalledProcessError
 
 
 _here = dirname(abspath(__file__))
@@ -23,7 +23,7 @@ def get_git_describe():
     save = getcwd()
     try:
         chdir(_here)
-        return check_output(['git', 'describe']).rstrip()
+        return check_output(['git', 'describe'], stderr=PIPE).rstrip()
     except CalledProcessError:
         return None
     finally:
