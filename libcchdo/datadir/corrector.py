@@ -390,6 +390,9 @@ class ExpoCodeAliasCorrector(dict):
             if doc:
                 doc.Files = '\n'.join(os.listdir(newpath))
 
+            # Rewrite expocodes in database
+            fix_expocode_in_db()
+
             # Write Readme
             readme_path = os.path.join(workdir, README_FILENAME)
             if self.all_map:
@@ -400,7 +403,7 @@ class ExpoCodeAliasCorrector(dict):
             else:
                 alias_map_summary = ''
             alias_map_summary + '\n'
-            summary = (u'ExpoCode changed from {0} to {1}. {1} added as an '
+            summary = (u'ExpoCode changed from {0} to {1}. {0} added as an '
                 'alias for the cruise. {2}').format(
                 self.expocode_old, self.expocode_new, alias_map_summary)
             readme = Readme(self.expocode_new, summary)
