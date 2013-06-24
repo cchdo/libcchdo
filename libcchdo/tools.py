@@ -1,3 +1,4 @@
+from copy import copy
 import code
 import struct
 import sys
@@ -32,6 +33,8 @@ from libcchdo.formats import add_pre_write
 from libcchdo.fns import equal_with_epsilon
 from libcchdo.formats.formats import read_arbitrary
 from libcchdo.formats.ctd import asc
+from libcchdo.formats import zip as Zip
+from libcchdo.formats.zip import ZeroCommentZipFile, MemZipFile
 import libcchdo.formats.summary.woce as sumwoce
 import libcchdo.formats.bottle.exchange as botex
 import libcchdo.formats.ctd.exchange as ctdex
@@ -808,3 +811,19 @@ def plot_woce_representation(args, file_path):
             else:
                 dots = bm.scatter(xxx, yyy, **gmt_style)
     bm.savefig(args.output_filename)
+
+
+def flatten_zip(fileobj, outfile):
+    """Given a zip file, flatten any directory structure inside it."""
+    oldzip = ZeroCommentZipFile(fileobj, 'r')
+    newzip = Zip.create(outfile)
+    for info in oldzip.infolist():
+        fname = info.filename
+        if fname.find('/') > -1:
+            newfname = os.path.basename(fname)
+        newinfo = copy(info)
+        newinfo.filename = newfname
+        newzip.writestr(newinfo, oldzip.read(info))
+    newzip.close()
+    oldzip.close()
+    return fileobj

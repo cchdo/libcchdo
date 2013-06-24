@@ -2068,21 +2068,6 @@ with subcommand(misc_parsers, "get_bounds", get_bounds) as p:
 
 
 
-def edit_cfg(args):
-    """Edit the most precedent configuration file."""
-    from subprocess import call as subproc_call
-
-    from libcchdo.fns import get_editor
-    from libcchdo.config import get_config_path
-    cfg_path = get_config_path()
-    subproc_call([get_editor(), cfg_path])
-
-
-# XXX HACK don't know why it doesn't work without the with statement
-with subcommand(misc_parsers, 'edit_cfg', edit_cfg) as p:
-    pass
-
-
 def regen_db_cache(args):
     """Regenerate database cache"""
     from libcchdo.db.model import std
@@ -2186,6 +2171,29 @@ def collect_into_archive(args):
 with subcommand(
         misc_parsers, 'collect_into_archive', collect_into_archive) as p:
     pass
+
+
+def flatten_zip(args):
+    """Flattens a ZIP archive that has directories.
+
+    An Exchange ZIP file is not allowed to have directories. This utility will
+    take files that exist in subdirectories of a zip and put them at the top
+    level.
+
+    """
+    from libcchdo.tools import flatten_zip
+
+    with closing(args.input) as infile:
+        with closing(args.output) as outfile:
+            output = flatten_zip(infile, outfile)
+
+
+with subcommand(misc_parsers, 'flatten_zip', flatten_zip) as p:
+    p.add_argument(
+        'input', type=FileType('r'), help='input Zip file')
+    p.add_argument(
+        'output', type=FileType('w'), nargs='?', default=sys.stdout,
+        help='output Zip file (default: stdout)')
 
 
 def rebuild_hot_bats_oceansites(args):
@@ -2351,6 +2359,21 @@ def shell(args):
 
 
 with subcommand(hydro_subparsers, 'shell', shell) as p:
+    pass
+
+
+def edit_cfg(args):
+    """Edit the most precedent configuration file."""
+    from subprocess import call as subproc_call
+
+    from libcchdo.fns import get_editor
+    from libcchdo.config import get_config_path
+    cfg_path = get_config_path()
+    subproc_call([get_editor(), cfg_path])
+
+
+# XXX HACK don't know why it doesn't work without the with statement
+with subcommand(hydro_subparsers, 'edit_cfg', edit_cfg) as p:
     pass
 
 
