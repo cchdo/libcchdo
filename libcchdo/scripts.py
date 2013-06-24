@@ -1133,7 +1133,7 @@ def merge_ctd_bacp_xmiss_and_ctd_exchange(args):
     with closing(args.in_ctdex) as in_file:
         ctdex.read(df, in_file)
 
-    domerge(mergefile, df)
+    domerge(df, mergefile)
 
     with closing(args.out_ctdex) as out_file:
         ctdex.write(df, out_file)
@@ -1150,6 +1150,42 @@ with subcommand(merge_parsers, 'ctd_bacp_xmiss_and_ctd_exchange',
     p.add_argument(
         'out_ctdex', type=FileType('w'), nargs='?', default=sys.stdout,
         help='output CTD Exchange file')
+
+
+def merge_ctdzip_bacp_xmiss_and_ctdzipex(args):
+    """Merge BACp file into CTD Zip Exchange."""
+    from libcchdo.model.datafile import DataFileCollection
+    import libcchdo.formats.ctd.zip.bacp as ctdzipbacp
+    import libcchdo.formats.ctd.zip.exchange as ctdzipex
+    from libcchdo.merge import (
+        merge_ctd_bacp_xmiss_and_ctd_exchange as merge, merge_archives)
+
+    bacpfile = DataFileCollection()
+    ctdzipexfile = DataFileCollection()
+
+    with closing(args.ctdzip_bacp) as in_file:
+        ctdzipbacp.read(bacpfile, in_file)
+    with closing(args.in_ctdzipex) as in_file:
+        ctdzipex.read(ctdzipexfile, in_file)
+
+    merged_dfc = merge_archives(
+        ctdzipexfile, bacpfile, merge, ['STNNBR', 'CASTNO'])
+
+    with closing(args.out_ctdzipex) as out_file:
+        ctdzipex.write(ctdzipexfile, out_file)
+
+
+with subcommand(merge_parsers, 'ctdzip_bacp_xmiss_and_ctdzip_exchange',
+                merge_ctdzip_bacp_xmiss_and_ctdzipex) as p:
+    p.add_argument(
+        'ctdzip_bacp', type=FileType('r'),
+        help='input CTD ZIP BACP file')
+    p.add_argument(
+        'in_ctdzipex', type=FileType('r'),
+        help='input CTD ZIP Exchange file')
+    p.add_argument(
+        'out_ctdzipex', type=FileType('w'), nargs='?', default=sys.stdout,
+        help='output CTD ZIP Exchange file')
 
 
 def merge_botex_and_botex(args):
@@ -1258,7 +1294,7 @@ def merge_ctdzipex_and_ctdzipex(args):
     data.
 
     """
-    from libcchdo.merge import merge_data, different_columns
+    from libcchdo.merge import merge_data, different_columns, merge_archives
     import libcchdo.formats.ctd.zip.exchange as ctdzipex
     from libcchdo.model.datafile import DataFileCollection, PRESSURE_PARAMETERS
 
@@ -1285,25 +1321,10 @@ def merge_ctdzipex_and_ctdzipex(args):
         print u'\n'.join(parameters)
         return
 
-    dfkeys = ['EXPOCODE', 'STNNBR', 'CASTNO']
     keys = PRESSURE_PARAMETERS
-
-    # only merge files into the ones already present in origin. warn if any from
-    # deriv are not used
-    merged_dfc = DataFileCollection()
-    for ddfile in deriv.files:
-        dfkey = tuple([ddfile.globals[key] for key in dfkeys])
-        merged = False
-        for odfile in origin.files:
-            ofkey = tuple([odfile.globals[key] for key in dfkeys])
-            if ofkey == dfkey:
-                merged_dfc.append(
-                    merge_data(odfile, ddfile, keys, parameters))
-                merged = True
-                break
-        if not merged:
-            LOG.warn(u'Derivative file key {0!r} is not present in '
-                     'origin.'.format(dfkey))
+    def merge(origin, deriv):
+        return merge_data(origin, deriv, keys, parameters)
+    merged_dfc = merge_archives(origin, deriv, merge)
 
     with closing(args.output) as out_file:
         ctdzipex.write(merged_dfc, out_file)

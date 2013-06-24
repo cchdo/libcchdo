@@ -3,24 +3,14 @@ from tempfile import NamedTemporaryFile
 
 from libcchdo.model.datafile import DataFile
 from libcchdo.formats import netcdf as nc, zip as Zip
+from libcchdo.formats.zip import read as zip_read
 
 
 def read(self, handle, reader):
     """Generic reader for netCDF files in zip."""
-    zfile = Zip.ZeroCommentZipFile(handle, 'r')
-    try:
-        for fname in zfile.namelist():
-            if not fname.endswith('.nc'):
-                continue
-            with NamedTemporaryFile() as tempfile:
-                tempfile.write(zfile.read(fname))
-                tempfile.flush()
-                tempfile.seek(0)
-                dfile = DataFile()
-                reader.read(dfile, tempfile)
-                self.files.append(dfile)
-    finally:
-        zfile.close()
+    def is_fname_ok(fname):
+        return fname.endswith('.nc')
+    zip_read(self, handle, is_fname_ok, reader.read)
 
 
 def get_identifier_btl(dfile):

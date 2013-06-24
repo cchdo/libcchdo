@@ -7,6 +7,7 @@ from tempfile import SpooledTemporaryFile
 
 from libcchdo.log import LOG
 from libcchdo import StringIO
+from libcchdo.model.datafile import DataFile
 
 
 class MemZipFile(zipfile.ZipFile):
@@ -134,6 +135,29 @@ def createZipInfo(filename, dtime=None, permissions=0644):
     info.external_attr = permissions << 16L
     info.compress_type = zipfile.ZIP_DEFLATED
     return info
+
+
+def read(self, fileobj, is_fname_ok, reader, *args, **kwargs):
+    """Generic zip file reader for zip files with multiple datafiles inside."""
+    zfile = ZeroCommentZipFile(fileobj, 'r')
+    try:
+        for fname in zfile.namelist():
+            if not is_fname_ok(fname):
+                continue
+            with SpooledTemporaryFile(max_size=2 ** 13) as tempfile:
+                tempfile.name = fname
+                tempfile.write(zfile.read(fname))
+                tempfile.flush()
+                tempfile.seek(0)
+
+                dfile = DataFile()
+                reader(dfile, tempfile, *args, **kwargs)
+                self.append(dfile)
+    except Exception, err:
+        LOG.error(u'Unable to read {0} in {1}:\n{2!r}'.format(
+            fname, fileobj, err))
+    finally:
+        zfile.close()
 
 
 def write(self, handle, writer, get_filename, **kwargs):

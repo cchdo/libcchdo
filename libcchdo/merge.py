@@ -11,7 +11,8 @@ from libcchdo.formats import woce
 from libcchdo.formats.exchange import END_DATA, FILL_VALUE, FLAG_WOCE_ENDING
 from libcchdo.fns import equal_with_epsilon, set_list
 from libcchdo.recipes.orderedset import OrderedSet
-from libcchdo.model.datafile import DataFile, Column, PRESSURE_PARAMETERS
+from libcchdo.model.datafile import (
+    DataFile, DataFileCollection, Column, PRESSURE_PARAMETERS)
 
 
 KEY_COLS = ['EXPOCODE', 'STNNBR', 'CASTNO', 'SAMPNO', 'BTLNBR']
@@ -240,13 +241,14 @@ class Merger(object):
             self.mdata1.stamp, self.mdata1.header, param_units, merged_df)
 
 
-def merge_ctd_bacp_xmiss_and_ctd_exchange(mergefile, file):
+def merge_ctd_bacp_xmiss_and_ctd_exchange(file, mergefile):
+    """Merge mergefile onto file"""
     merge_pressure = None
     pressure = None
     for c in PRESSURE_PARAMETERS:
         try:
-            merge_pressure = mergefile.columns[c]
-            pressure = file.columns[c]
+            merge_pressure = mergefile[c]
+            pressure = file[c]
         except KeyError:
             pass
     if merge_pressure is None or pressure is None:
@@ -255,22 +257,25 @@ def merge_ctd_bacp_xmiss_and_ctd_exchange(mergefile, file):
             'not merge.')
         return 1
 
+    param = 'XMISS'
+    param = 'TRANSM'
+
     xmiss_column = None
     try:
-        xmiss_column = file['XMISS']
+        xmiss_column = file['TRANSM']
     except KeyError:
         pass
     if not xmiss_column:
-        xmiss_column = file['XMISS'] = Column('XMISS')
+        xmiss_column = file['TRANSM'] = Column('TRANSM')
         xmiss_column.values = [None] * len(file)
 
     merge_xmiss = None
     try:
-        merge_xmiss = mergefile['XMISS']
+        merge_xmiss = mergefile['TRANSM']
     except KeyError:
         pass
     if not merge_xmiss:
-        LOG.warn('Merge file has no XMISS column to merge')
+        LOG.warn('Merge file has no {0} column to merge'.format(param))
         return 1
 
     for i, p in enumerate(merge_pressure.values):
@@ -483,3 +488,25 @@ def merge_data(origin, deriv, keys, parameters):
                 except IndexError:
                     pass
     return merged
+
+
+def merge_archives(origin, deriv, merge,
+                   dfkeys=['EXPOCODE', 'STNNBR', 'CASTNO']):
+    """Match up files in two archives and apply the merge function to them."""
+    # Only merge files into the ones already present in origin. Warn if any
+    # files from deriv are not used
+    merged_dfc = DataFileCollection()
+    for ddfile in deriv.files:
+        dfkey = tuple([ddfile.globals[key] for key in dfkeys])
+        merged = False
+        for odfile in origin.files:
+            ofkey = tuple([odfile.globals[key] for key in dfkeys])
+            if ofkey == dfkey:
+                LOG.debug('merging archives on file key {0}'.format(ofkey))
+                merged_dfc.append(merge(odfile, ddfile))
+                merged = True
+                break
+        if not merged:
+            LOG.warn(u'Derivative file key {0!r} is not present in '
+                     'origin.'.format(dfkey))
+    return merged_dfc

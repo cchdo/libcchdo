@@ -4,6 +4,7 @@ from tempfile import NamedTemporaryFile
 from libcchdo.log import LOG
 from libcchdo.model.datafile import DataFile
 from libcchdo.formats import zip as Zip
+from libcchdo.formats.zip import read as zip_read
 from libcchdo.formats.ctd import exchange as ctdex
 from libcchdo.formats.formats import (
     get_filename_fnameexts, is_filename_recognized_fnameexts,
@@ -47,24 +48,22 @@ def read(self, handle, retain_order=False, header_only=False):
     _FILENAME on each individual CTD file.
 
     """
-    zip = Zip.ZeroCommentZipFile(handle, 'r')
-    for filename in zip.namelist():
-        if '.csv' not in filename: continue
-        if filename.find('/') > -1:
+    def is_fname_ok(fname):
+        if '.csv' not in fname:
+            return False
+        if fname.find('/') > -1:
             LOG.critical(('CTD Exchange Zip files should not contain '
-                          'directories. Offending file name: %s') % filename)
+                          'directories. Offending file name: %s') % fname)
             raise ValueError('CTD Exchange Zip files should not contain '
                              'directories. Please ensure you gave a CTD '
                              'Exchange Zip file to be read.')
-        with NamedTemporaryFile(prefix=filename) as tempfile:
-            tempfile.write(zip.read(filename))
-            tempfile.flush()
-            tempfile.seek(0)
-            ctdfile = DataFile()
-            ctdex.read(ctdfile, tempfile, retain_order, header_only)
-            ctdfile.globals['_FILENAME'] = filename
-            self.append(ctdfile)
-    zip.close()
+        return True
+
+    def reader(dfile, fileobj, retain_order, header_only):
+        ctdex.read(dfile, fileobj, retain_order, header_only)
+        dfile.globals['_FILENAME'] = fileobj.name
+        
+    zip_read(self, handle, is_fname_ok, reader, retain_order, header_only)
 
 
 def write(self, handle):
