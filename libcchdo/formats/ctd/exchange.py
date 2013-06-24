@@ -173,7 +173,7 @@ def write(self, handle):
         try:
             handle.write(header+' = '+str(self.globals[header])+"\n")
         except KeyError:
-            LOG.warn('Missing required header %s' % header)
+            LOG.error('Missing required header %s' % header)
 
     for key in set(self.globals.keys()) - set(REQUIRED_HEADERS):
         handle.write(u'{key} = {val}\n'.format(key=key, val=self.globals[key]))

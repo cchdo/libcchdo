@@ -303,6 +303,9 @@ class Parameter(Base):
         if display_order:
             self.display_order = display_order
 
+    def __ne__(self, other):
+        return not (self == other)
+
     def __eq__(self, other):
         if self is None:
             return False

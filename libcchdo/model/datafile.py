@@ -1,11 +1,37 @@
 from operator import itemgetter
 
-from libcchdo.fns import set_list, uniquify
+from libcchdo.fns import set_list, uniquify, equal_with_epsilon
 from libcchdo.log import LOG
 from libcchdo.ui import TERMCOLOR
 from libcchdo.util import memoize
 from libcchdo.db.model import std
 
+
+PRESSURE_PARAMETERS = ['CTDPRS', 'CTDRAW', ]
+
+
+def is_list_global(lll):
+    """Return whether the elements for the whole list are the same."""
+    check = None
+    for x in lll:
+        if check is None:
+            check = x
+            continue
+        if check != x:
+            return False
+    return True
+
+
+def is_list_globally(lll, value=0.0):
+    """Return whether the given list is entirely composed of the same value."""
+    if not is_list_global(lll):
+        return False
+    try:
+        return equal_with_epsilon(lll[0], value)
+    except IndexError:
+        pass
+    return True
+    
 
 class Column(object):
 
@@ -115,16 +141,51 @@ class Column(object):
     def is_flagged_igoss(self):
         return not (self.flags_igoss is None or len(self.flags_igoss) == 0)
 
+    def diff(self, column):
+        """Diff with other column.
+
+        There are three aspects to a column being different::
+
+        1. whether the parameters match
+        2. whether all the values match
+        3. whether all the flags match
+
+        If the parameters do not match, the function will return 'parameter'
+
+        In addition, it is important to show the best guess as to where the
+        columns are different. That is impractical if the columns are different
+        lengths, so in that case the return value is 'length'. Otherwise, the
+        returned diff column's values and flags will contain the difference
+        between the other column and this column's values and flags.
+
+        If there are no differences, then the function will return False.
+
+        """
+        # TODO consider whether to represent the difference as a difference
+        # object instead of multiple return types.
+        if self.parameter != column.parameter:
+            return 'parameter'
+
+        if len(self) != len(column):
+            return 'length'
+
+        diffcol = Column('_DIFF_' + self.parameter.name)
+        diffcol.values = [
+            y - x for x, y in zip(self.values, column.values)]
+        diffcol.flags_woce = [
+            y - x for x, y in zip(self.flags_woce, column.flags_woce)]
+        diffcol.flags_igoss = [
+            y - x for x, y in zip(self.flags_igoss, column.flags_igoss)]
+
+        if (    is_list_globally(diffcol.values, 0.0) and 
+                is_list_globally(diffcol.flags_woce, 0.0) and
+                is_list_globally(diffcol.flags_igoss, 0.0)):
+            return False
+        return diffcol
+
     def is_global(self):
         """Return whether the values for the whole column are the same."""
-        check = None
-        for x in self.values:
-            if check is None:
-                check = x
-                continue
-            if check != x:
-                return False
-        return True
+        return is_list_global(self.values)
 
     def __str__(self):
         return '%sColumn(%s): %s%s' % (TERMCOLOR['YELLOW'], self.parameter,
@@ -331,8 +392,6 @@ class SummaryFile(File):
 
 
 class DataFile(File):
-    PRESSURE_PARAMETERS = ('CTDPRS', 'CTDRAW', )
-
     def __init__(self, allow_contrived=False):
         super(DataFile, self).__init__()
         self.footer = None
@@ -424,9 +483,9 @@ class DataFile(File):
             if isinstance(parameter, basestring):
                 if (parameter.endswith('FLAG_W') or 
                     parameter.endswith('FLAG_I')):
-                    LOG.debug(
-                        u'Skipped creating column for flag {0}'.format(
-                        parameter))
+                    #LOG.debug(
+                    #    u'Skipped creating column for flag {0}'.format(
+                    #    parameter))
                     continue
                 elif parameter in self.columns:
                     LOG.debug(
@@ -472,7 +531,7 @@ class DataFile(File):
                         bot_ascending=False):
         """Sort the rows from indexes start to end by pressure and bottle."""
         pressure_col = None
-        for p in self.PRESSURE_PARAMETERS:
+        for p in PRESSURE_PARAMETERS:
             try:
                 pressure_col = self.columns[p]
             except KeyError:

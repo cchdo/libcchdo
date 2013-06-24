@@ -228,47 +228,6 @@ def convert_per_litre_to_per_kg(
     _check_and_replace_parameters_convert(file, default_convert)
 
 
-PRESSURE_COLUMNS = ('CTDPRS', 'CTDRAW', )
-
-
-def ctd_bacp_xmiss_merge_ctd_exchange(mergefile, file):
-    merge_pressure = None
-    pressure = None
-    for c in PRESSURE_COLUMNS:
-        try:
-            merge_pressure = mergefile.columns[c]
-            pressure = file.columns[c]
-        except KeyError:
-            pass
-    if merge_pressure is None or pressure is None:
-        LOG.warn(
-            'Unable to find a matching pressure column in both files. Could '
-            'not merge.')
-        return 1
-
-    xmiss_column = None
-    try:
-        xmiss_column = file.columns['XMISS']
-    except KeyError:
-        pass
-    if not xmiss_column:
-        xmiss_column = file.columns['XMISS'] = Column('XMISS')
-        xmiss_column.values = [None] * len(file)
-
-    merge_xmiss = None
-    try:
-        merge_xmiss = mergefile.columns['XMISS']
-    except KeyError:
-        pass
-    if not merge_xmiss:
-        LOG.warn('Merge file has no XMISS column to merge')
-        return 1
-
-    for i, p in enumerate(merge_pressure.values):
-        j = pressure.values.index(p)
-        xmiss_column.values[j] = merge_xmiss.values[i]
-
-
 def operate_healy_file(df):
     LOG.info('Attaching unit converters')
     cvt = ucvt.ctdoxy_micromole_per_liter_to_micromole_per_kilogram

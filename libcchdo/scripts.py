@@ -15,7 +15,7 @@ from copy import copy
 import sys
 import os
 import os.path
-import traceback
+from traceback import format_exc
 
 import libcchdo
 from libcchdo.log import LOG
@@ -139,7 +139,7 @@ def check_any(args):
             file = read_arbitrary(in_file, args.input_type)
         except Exception, e:
             LOG.error('Unable to read file {0}:\n{1}'.format(
-                args.cchdo_file, traceback.format_exc(e)))
+                args.cchdo_file, format_exc(e)))
             hydro_parser.exit(1) 
 
     # Water Quality flags that require fill value
@@ -1123,6 +1123,7 @@ def merge_ctd_bacp_xmiss_and_ctd_exchange(args):
     from libcchdo.model.datafile import DataFile
     import libcchdo.formats.ctd.bacp as ctdbacp
     import libcchdo.formats.ctd.exchange as ctdex
+    from libcchdo.merge import merge_ctd_bacp_xmiss_and_ctd_exchange as domerge
 
     mergefile = DataFile()
     df = DataFile()
@@ -1132,7 +1133,7 @@ def merge_ctd_bacp_xmiss_and_ctd_exchange(args):
     with closing(args.in_ctdex) as in_file:
         ctdex.read(df, in_file)
 
-    merge_ctd_bacp_xmiss_and_ctd_exchange_parser(mergefile, df)
+    domerge(mergefile, df)
 
     with closing(args.out_ctdex) as out_file:
         ctdex.write(df, out_file)
@@ -1161,23 +1162,23 @@ def merge_botex_and_botex(args):
     from libcchdo.merge import Merger
     import libcchdo.formats.bottle.exchange as botex
 
-    with closing(args.file1) as in_file1:
-        with closing(args.file2) as in_file2:
-            merger = Merger(in_file1, in_file2)
+    with closing(args.origin) as forigin:
+        with closing(args.derivative) as fderiv:
+            merger = Merger(forigin, fderiv)
             if args.parameters_to_merge:
                 parameters = args.parameters_to_merge
             elif args.merge_different:
-                different_columns = merger.different_cols()
+                parameters = merger.different_cols()
                 LOG.info(
                     u'The following parameters in {0} are different'.format(
-                    in_file2.name))
-                LOG.info(u', '.join(different_columns))
+                    fderiv.name))
+                LOG.info(u', '.join(parameters))
             else:
                 # Show parameters with differing data
                 parameters = merger.different_cols()
                 LOG.info(
                     u'The following parameters in {0} are different'.format(
-                    in_file2.name))
+                    fderiv.name))
                 print u'\n'.join(parameters)
                 return
 
@@ -1198,10 +1199,129 @@ with subcommand(merge_parsers, 'botex_and_botex', merge_botex_and_botex) as p:
         '--merge-different', action='store_true',
         help='Merge all different parameters')
     p.add_argument(
-        'file1', type=FileType('r'),
+        'origin', type=FileType('r'),
         help='file to merge onto')
     p.add_argument(
-        'file2', type=FileType('r'),
+        'derivative', type=FileType('r'),
+        help='file to update first file with')
+    merge_group = p.add_argument_group(title='Merge parameters')
+    merge_group.add_argument(
+        'parameters_to_merge', type=str, nargs='*', default=[],
+        help='parameters to merge')
+
+
+def merge_ctdex_and_ctdex(args):
+    """Merge CTD Exchange files by overwriting origin's data with derivative's.
+
+    If no parameters to merge are given, show the parameters that have differing
+    data.
+
+    """
+    from libcchdo.merge import merge_data, different_columns
+    import libcchdo.formats.ctd.exchange as ctdex
+    from libcchdo.model.datafile import DataFile, PRESSURE_PARAMETERS
+
+    origin = DataFile()
+    deriv = DataFile()
+    with closing(args.origin) as forigin:
+        ctdex.read(origin, forigin)
+    with closing(args.derivative) as fderiv:
+        deriv_name = fderiv.name
+        ctdex.read(deriv, fderiv)
+
+    if args.parameters_to_merge:
+        parameters = args.parameters_to_merge
+    elif args.merge_different:
+        parameters = different_columns(origin, deriv)
+        LOG.info(u'The following parameters in {0} are different'.format(
+            deriv_name))
+        LOG.info(u', '.join(parameters))
+    else:
+        # Show parameters with differing data
+        parameters = different_columns(origin, deriv)
+        LOG.info(u'The following parameters in {0} are different'.format(
+            deriv_name))
+        print u'\n'.join(parameters)
+        return
+
+    keys = PRESSURE_PARAMETERS
+    dfout = merge_data(origin, deriv, keys, parameters)
+
+    with closing(args.output) as out_file:
+        ctdex.write(dfout, out_file)
+
+
+def merge_ctdzipex_and_ctdzipex(args):
+    """Merge CTD Exchange files by overwriting the first with the second.
+
+    If no parameters to merge are given, show the parameters that have differing
+    data.
+
+    """
+    from libcchdo.merge import merge_data, different_columns
+    import libcchdo.formats.ctd.zip.exchange as ctdzipex
+    from libcchdo.model.datafile import DataFileCollection, PRESSURE_PARAMETERS
+
+    origin = DataFileCollection()
+    deriv = DataFileCollection()
+    with closing(args.origin) as forigin:
+        ctdzipex.read(origin, forigin)
+    with closing(args.derivative) as fderiv:
+        deriv_name = fderiv.name
+        ctdzipex.read(deriv, fderiv)
+
+    if args.parameters_to_merge:
+        parameters = args.parameters_to_merge
+    elif args.merge_different:
+        parameters = different_columns(origin, deriv)
+        LOG.info(u'The following parameters in {0} are different'.format(
+            deriv_name))
+        LOG.info(u', '.join(parameters))
+    else:
+        # Show parameters with differing data
+        parameters = different_columns(origin, deriv)
+        LOG.info(u'The following parameters in {0} are different'.format(
+            deriv_name))
+        print u'\n'.join(parameters)
+        return
+
+    dfkeys = ['EXPOCODE', 'STNNBR', 'CASTNO']
+    keys = PRESSURE_PARAMETERS
+
+    # only merge files into the ones already present in origin. warn if any from
+    # deriv are not used
+    merged_dfc = DataFileCollection()
+    for ddfile in deriv.files:
+        dfkey = tuple([ddfile.globals[key] for key in dfkeys])
+        merged = False
+        for odfile in origin.files:
+            ofkey = tuple([odfile.globals[key] for key in dfkeys])
+            if ofkey == dfkey:
+                merged_dfc.append(
+                    merge_data(odfile, ddfile, keys, parameters))
+                merged = True
+                break
+        if not merged:
+            LOG.warn(u'Derivative file key {0!r} is not present in '
+                     'origin.'.format(dfkey))
+
+    with closing(args.output) as out_file:
+        ctdzipex.write(merged_dfc, out_file)
+
+
+with subcommand(merge_parsers, 'ctdzipex_and_ctdzipex',
+                merge_ctdzipex_and_ctdzipex) as p:
+    p.add_argument(
+        '--output', type=FileType('w'), nargs='+', default=sys.stdout,
+        help='output CTD ZIP Exchange file')
+    p.add_argument(
+        '--merge-different', action='store_true',
+        help='Merge all different parameters')
+    p.add_argument(
+        'origin', type=FileType('r'),
+        help='file to merge onto')
+    p.add_argument(
+        'derivative', type=FileType('r'),
         help='file to update first file with')
     merge_group = p.add_argument_group(title='Merge parameters')
     merge_group.add_argument(
@@ -2394,4 +2514,8 @@ def main():
 
     args = hydro_parser.parse_args()
     with ignore_sa_warnings():
-        hydro_parser.exit(args.main(args))
+        try:
+            hydro_parser.exit(args.main(args))
+        except Exception, err:
+            LOG.critical(format_exc(err))
+            LOG.critical(err)

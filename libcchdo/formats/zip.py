@@ -142,9 +142,12 @@ def write(self, handle, writer, get_filename, **kwargs):
     zfile = create(handle)
     for dfile in self:
         with SpooledTemporaryFile(max_size=2 ** 13) as tempfile:
+            fname = dfile.globals['_FILENAME']
+            del dfile.globals['_FILENAME']
             writer.write(dfile, tempfile, **kwargs)
             tempfile.flush()
             tempfile.seek(0)
+            dfile.globals['_FILENAME'] = fname
 
             filename = get_filename(dfile)
             if filename in fnames:

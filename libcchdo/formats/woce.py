@@ -707,7 +707,10 @@ def split_datetime(file):
     try:
         split_datetime_globals(file)
     except KeyError:
-        split_datetime_columns(file)
+        try:
+            split_datetime_columns(file)
+        except KeyError:
+            LOG.warn(u'Unable to split non-existant _DATETIME column')
 
 
 _MSG_NO_STN_CAST_PAIR = (u'The station cast pair ({}, {}) was not found in '
