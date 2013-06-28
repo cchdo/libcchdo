@@ -142,7 +142,15 @@ def mkdir_uow(basepath, title, summary, ids, separator='_',
 
     # Check that all files referenced have the same cruise.
     qfis = _legacy_as_received_infos(*ids)
-    expocodes = uniquify([qf['expocode'] for qf in qfis])
+    if not qfis:
+        LOG.error(u'None of the ids given refer to Queue files.')
+        # fall back to ExpoCode mode
+        if len(ids) != 1:
+            return
+        LOG.error(u'Using id as ExpoCode')
+        expocodes = ids
+    else:
+        expocodes = uniquify([qf['expocode'] for qf in qfis])
     if len(expocodes) > 1:
         LOG.warn(
             u'As-received files do not have the same cruise.\n{0}'.format(
@@ -182,8 +190,9 @@ def mkdir_uow(basepath, title, summary, ids, separator='_',
     sftp.connect(sftp_host)
     aftp = AFTP(sftp)
 
-    qfis = fetch_as_received(
-        aftp, os.path.join(dirpath, UOWDirName.submission), *ids)
+    if expocode != ids[0]:
+        qfis = fetch_as_received(
+            aftp, os.path.join(dirpath, UOWDirName.submission), *ids)
     fetch_online(aftp, os.path.join(dirpath, UOWDirName.online), expocode)
     if dl_originals:
         fetch_originals(
@@ -650,7 +659,7 @@ def copy_replaced(filename, curr_date, separator='_'):
     new_name = os.path.relpath(os.path.join(dirname, 'original', ''.join(
         [basename, extra_extension, replaced_str, extension])))
 
-    print filename, '->', new_name
+    LOG.info('{0} -> {1}'.format(filename, new_name))
     accepted = raw_input('copy? (y/[n]) ')
     if accepted == 'y':
         try:
@@ -717,6 +726,10 @@ def _legacy_as_received_unmerged():
 
 def _legacy_as_received(*ids):
     with closing(legacy.session()) as sesh:
+        try:
+            ids = map(int, ids)
+        except ValueError:
+            ids = []
         qfs = sesh.query(QueueFile).filter(QueueFile.id.in_(ids)).all()
         for qf in qfs:
             yield qf

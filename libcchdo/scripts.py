@@ -1291,8 +1291,12 @@ def datadir_fetch(args):
         return
     if not args.ids:
         LOG.info(u'Creating a UOW without queue files to work on.')
-    print mkdir_uow(args.basepath, args.title, args.summary, args.ids,
+    uow_path = mkdir_uow(args.basepath, args.title, args.summary, args.ids,
                     dl_originals=(not args.skip_dl_original))
+    if uow_path:
+        print uow_path
+    else:
+        return 1
 
 
 with subcommand(datadir_parsers, 'fetch', datadir_fetch) as p:
@@ -1300,7 +1304,7 @@ with subcommand(datadir_parsers, 'fetch', datadir_fetch) as p:
         '--basepath', default=os.getcwd(),
         help='Base path to put working directory in (default: current directory)')
     p.add_argument(
-        '--skip-dl-original', action='store_true',
+        '-s', '--skip-dl-original', action='store_true',
         help='whether to skip downloading the original directory')
     p.add_argument(
         '--uow-dir', default='',
@@ -1318,7 +1322,7 @@ with subcommand(datadir_parsers, 'fetch', datadir_fetch) as p:
             'Exchange, NetCDF, WOCE files online\n'
             'Exchange & NetCDF files updated\n')
     p.add_argument(
-        'ids', type=int, nargs='*',
+        'ids', type=str, nargs='*',
         help='as-received file ids (default: show list of as-received files')
 
 
