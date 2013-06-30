@@ -964,6 +964,12 @@ Dear CCHDO,
 This is an automated message.
 
 The cruise page for http://cchdo.ucsd.edu/cruise/{expo} was updated by {merger}.
+{process_summary}
+A history note ({note_id}) has been made for the attached processing notes.
+"""
+
+
+PROCESS_SUMMARY = """\
 
 This update includes:
 
@@ -971,8 +977,6 @@ This update includes:
 {submission_summary}
 
 {q_plural} {q_ids} have been marked as merged.
-
-A history note ({note_id}) has been made for the attached processing notes.
 
 """
 
@@ -987,10 +991,15 @@ class ProcessingEmail(ReadmeEmail):
         if len(q_ids) == 1:
             q_plural = 'Queue entry'
         submission_summary = '\n'.join(map(summarize_submission, q_infos))
+        if q_infos:
+            process_summary = PROCESS_SUMMARY.format(sub_plural=sub_plural,
+                submission_summary=submission_summary, q_plural=q_plural,
+                q_ids=', '.join(map(str, q_ids)))
+        else:
+            process_summary = ''
         return PROCESSING_EMAIL_TEMPLATE.format(
-            expo=expocode, merger=merger, sub_plural=sub_plural,
-            submission_summary=submission_summary, q_plural=q_plural,
-            q_ids=', '.join(map(str, q_ids)), note_id=note_id)
+            expo=expocode, merger=merger, process_summary=process_summary,
+            note_id=note_id)
 
 
 def processing_email(readme, email_path, expocode, q_infos, note_id, q_ids,
@@ -1073,7 +1082,8 @@ def add_processing_note(readme_path, email_path, uow_cfg, dryrun=True):
             session, readme, expocode, title, summary)
         q_infos = uow_cfg['q_infos']
         q_ids = uniquify([x['q_id'] for x in q_infos])
-        mark_merged(session, q_ids)
+        if q_ids:
+            mark_merged(session, q_ids)
 
         try:
             processing_email(
