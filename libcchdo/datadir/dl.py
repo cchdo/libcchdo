@@ -247,17 +247,12 @@ class AFTP(object):
     def sftp_up(self, local_file_path, filepath):
         """Upload a filepath to the remote server."""
         sftp = self.sftp
-        try:
-            if self.dryrun:
-                LOG.info(u'dryrun uploading {0} to {1}'.format(
-                    local_file_path, filepath))
-            else:
-                LOG.info(u'uploading {0} {1}'.format(
-                    local_file_path, filepath))
-                sftp.put(local_file_path, filepath)
-        except (OSError, IOError), err:
-            LOG.warn(u'Unable to copy file to remote {0}:\n{1!r}'.format(
-                filepath, err))
+        if self.dryrun:
+            LOG.info(u'dryrun uploading {0} to {1}'.format(
+                local_file_path, filepath))
+        else:
+            LOG.info(u'uploading {0} {1}'.format(local_file_path, filepath))
+            sftp.put(local_file_path, filepath)
 
     def local_up(self, local_file_path, filepath):
         """Upload a filepath to the local filesystem.
@@ -275,18 +270,26 @@ class AFTP(object):
             return
         else:
             LOG.info('uploading {0}'.format(filepath))
-            try:
-                with su(su_lock=self.su_lock):
-                    copy2(local_file_path, filepath)
-            except IOError, e:
-                LOG.warn(u"Unable to copy to file on local {0}:\n{1!r}".format(
-                    filepath, e))
+            with su(su_lock=self.su_lock):
+                copy2(local_file_path, filepath)
     
-    def up(self, local_file_path, file_path):
+    def up(self, local_file_path, file_path, suppress_errors=True):
         if self.local_rewriter:
-            self.local_up(local_file_path, file_path)
+            try:
+                self.local_up(local_file_path, file_path)
+            except (OSError, IOError), err:
+                LOG.warn(u"Unable to copy to file on local {0}:\n{1!r}".format(
+                    file_path, err))
+                if not suppress_errors:
+                    raise err
         else:
-            self.sftp_up(local_file_path, file_path)
+            try:
+                self.sftp_up(local_file_path, file_path)
+            except (OSError, IOError), err:
+                LOG.warn(u'Unable to copy file to remote {0}:\n{1!r}'.format(
+                    file_path, err))
+                if not suppress_errors:
+                    raise err
 
     def local_up_dir(self, local_dir_path, dir_path):
         """Upload the local_dir_path tree contents into dir_path.
@@ -326,12 +329,14 @@ class AFTP(object):
                     self.sftp.chmod(rfpath, dir_lstat.st_mode)
                 for fname in fnames:
                     fpath = os.path.join(path, fname)
+                    f_lstat = os.lstat(fpath)
                     rfpath = fpath.replace(local_dir_path, dir_path)
                     if os.path.isdir(fpath):
                         continue
                     else:
                         LOG.debug(u'uploading {0} to {1}'.format(fpath, rfpath))
                         self.sftp.put(fpath, rfpath)
+                        self.sftp.chmod(rfpath, f_lstat.st_mode)
 
     def up_dir(self, local_dir_path, dir_path):
         """Upload directory."""

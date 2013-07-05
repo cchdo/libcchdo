@@ -41,6 +41,10 @@ from libcchdo.datadir.filenames import (
     UOW_CFG_FILENAME, FILE_MANIFEST_FILENAME, README_TEMPLATE_FILENAME)
 
 
+PERM_STAFF_ONLY_DIR = 0770
+PERM_STAFF_ONLY_FILE = 0660
+
+
 def str_to_fs_slug(sss):
     """Convert a possibly evil string into a filesystem safe slug."""
     return re_sub('(/|\s)', '-', sss)
@@ -70,7 +74,7 @@ def working_dir_path(basepath, person, title='working', dt=None, separator='_'):
     return os.path.join(basepath, dirname)
 
 
-def populate_dir(dirpath, files, subdirs, dir_perms=0700, file_perms=0600):
+def populate_dir(dirpath, files, subdirs, dir_perms=0755, file_perms=0644):
     """Create subdirectories and files in directory."""
     for fname in files:
         fpath = os.path.join(dirpath, fname)
@@ -92,8 +96,9 @@ def processing_subdir(name, processing_subdirs=False):
         return name
 
 
-def populate_working_dir(dirpath, dir_perms=0770, file_perms=0660,
-                         processing_subdirs=False):
+def populate_working_dir(
+        dirpath, dir_perms=PERM_STAFF_ONLY_DIR, file_perms=PERM_STAFF_ONLY_FILE,
+        processing_subdirs=False):
     files = [README_FILENAME]
     subdirs = [
         'submission',
@@ -279,6 +284,16 @@ def regenerate_file_manifest(uow_dir, online_files, tgo_files):
     return read_file_manifest(uow_dir)
 
 
+def _chmod_for_work_dir(path):
+    """Recursively change modes of UOW subdir for inclusion in working dir."""
+    if os.path.isdir(path):
+        os.chmod(path, PERM_STAFF_ONLY_DIR)
+        for fname in os.listdir(path):
+            _chmod_for_work_dir(os.path.join(path, fname))
+    else:
+        os.chmod(path, PERM_STAFF_ONLY_FILE)
+
+
 def uow_copy(uow_dir, uow_subdir, work_dir, work_subdir, filename=None):
     """Copy from UOW sub-directory to work sub-directory.
 
@@ -286,12 +301,14 @@ def uow_copy(uow_dir, uow_subdir, work_dir, work_subdir, filename=None):
     tree.
 
     """
+    uow_path = os.path.join(uow_dir, uow_subdir)
+    work_path = os.path.join(work_dir, work_subdir)
     if filename is None:
-        copytree(os.path.join(uow_dir, uow_subdir),
-                 os.path.join(work_dir, work_subdir))
+        copytree(uow_path, work_path)
+        _chmod_for_work_dir(work_path)
     else:
-        copy2(os.path.join(uow_dir, uow_subdir, filename),
-              os.path.join(work_dir, work_subdir))
+        copy2(os.path.join(uow_path, filename), work_path)
+        _chmod_for_work_dir(os.path.join(work_path, filename))
 
 
 IGNORED_FILES_CHECKSUM = ['.DS_Store']
@@ -378,14 +395,30 @@ def check_online_checksums(aftp, uow_dir, expocode):
                 u'Cruise online files have changed since the last UOW fetch!')
 
 
+def _is_uowdir_effectively_empty(path, subpath):
+    """Return whether the directory at path/subpath is effectively empty.
+
+    If a directory only contains .DS_Store or other such files, it is "empty".
+
+    """
+    path = os.path.join(path, subpath)
+    files = os.listdir(path)
+    if files:
+        return len(set(files) - set(IGNORED_FILES_CHECKSUM)) == 0
+    else:
+        return True
+
+
 def _copy_uow_dirs_into_work_dir(uow_dir, work_dir, dir_perms):
     """Copy a UOW's processing contents into a working directory.
 
     This only handles the subdirectories and leaves the readme file for later.
 
     """
-    uow_copy(uow_dir, UOWDirName.processing, work_dir, DirName.processing)
-    uow_copy(uow_dir, UOWDirName.submission, work_dir, DirName.submission)
+    if not _is_uowdir_effectively_empty(uow_dir, UOWDirName.processing):
+        uow_copy(uow_dir, UOWDirName.processing, work_dir, DirName.processing)
+    if not _is_uowdir_effectively_empty(uow_dir, UOWDirName.submission):
+        uow_copy(uow_dir, UOWDirName.submission, work_dir, DirName.submission)
     uow_copy(uow_dir, UOWDirName.tgo, work_dir, DirName.tgo)
 
 
@@ -473,7 +506,7 @@ def uow_commit(uow_dir, person=None, confirm_html=True, dryrun=True):
     from libcchdo.datadir.readme import ProcessingReadme
     dryrun_log_info(u'Comitting UOW directory {0}'.format(uow_dir), dryrun)
 
-    dir_perms = 0775
+    dir_perms = 0770
 
     # pre-flight checks
     # Make sure merger likes readme rendering
@@ -604,14 +637,25 @@ def uow_commit(uow_dir, person=None, confirm_html=True, dryrun=True):
         aftp.remove(os.path.join(cruise_dir, fname))
     LOG.info('unchanged:')
     for fname in unchanged_files:
-        aftp.up(
-            os.path.join(uow_dir, UOWDirName.online, fname),
-            os.path.join(cruise_dir, fname))
+        try:
+            aftp.up(
+                os.path.join(uow_dir, UOWDirName.online, fname),
+                os.path.join(cruise_dir, fname), suppress_errors=False)
+        except IOError, err:
+            # It doesn't matter, the file has't changed.
+            pass
+            
     LOG.info('new:')
     for fname in updated_files:
-        aftp.up(
-            os.path.join(uow_dir, UOWDirName.tgo, fname),
-            os.path.join(cruise_dir, fname))
+        try:
+            aftp.up(
+                os.path.join(uow_dir, UOWDirName.tgo, fname),
+                os.path.join(cruise_dir, fname), suppress_errors=False)
+        except IOError, err:
+# TODO Is there any way we can recover at this point? Some updated files may
+# have been overwritten by now
+# Other than making this loop atomic, I don't see how.
+            pass
 
     # Flight complete
     dryrun_log_info(
@@ -1088,9 +1132,8 @@ def add_processing_note(readme_path, email_path, uow_cfg, dryrun=True):
         try:
             processing_email(
                 readme, email_path, expocode, q_infos, note_id, q_ids, dryrun)
-            LOG.info(u'Sent processing email.')
             email_ok = True
-        except Exception, err:
+        except (KeyboardInterrupt, Exception), err:
             LOG.error(u'Could not send email: {0!r}'.format(err))
             email_ok = False
 
