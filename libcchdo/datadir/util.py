@@ -231,19 +231,24 @@ class ReadmeEmail(object):
     def send(self, email_path):
         """Send the email."""
         email_str = self._email.as_string()
+        send_email(email_str, self._email['From'], self._email['To'])
 
-        smtp = SMTP_SSL('smtp.ucsd.edu')
-        try:
-            smtp_pass = ''
-            while not smtp_pass:
-                smtp_pass = getpass(
-                    u'Please enter your UCSD email password to send notification '
-                    'email to {0}: '.format(self._email['To']))
-            smtp.login(get_merger_email(), smtp_pass)
-            smtp.sendmail(self._email['From'], self._email['To'], email_str)
-        except Exception, err:
-            with open(email_path, 'w') as fff:
-                fff.write(email_str)
-            LOG.info(u'Wrote email to {0} to send later.'.format(email_path))
-            raise err
-        smtp.quit()
+
+def send_email(email_str, from_addr, to_addr):
+    smtp = SMTP_SSL('smtp.ucsd.edu')
+    try:
+        smtp_pass = ''
+        while not smtp_pass:
+            smtp_pass = getpass(
+                u'Please enter your UCSD email password to send '
+                'notification email to {0}: '.format(to_addr))
+        smtp.login(get_merger_email(), smtp_pass)
+        smtp.sendmail(from_addr, to_addr, email_str)
+        LOG.info(u'Sent email.')
+    except (KeyboardInterrupt, Exception), err:
+        LOG.error(u'Unable to send email. Do not re-run!')
+        with open(email_path, 'w') as fff:
+            fff.write(email_str)
+        LOG.info(u'Wrote email to {0} to send manually.'.format(email_path))
+        raise err
+    smtp.quit()

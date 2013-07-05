@@ -1368,6 +1368,28 @@ with subcommand(datadir_parsers, 'commit', datadir_commit) as p:
         'uow_dir', default='.', nargs='?', help='unit-of-work directory')
 
 
+def datadir_email(args):
+    """Resend an email that was written out as a file from a commit."""
+    from libcchdo.datadir.util import send_email
+    from email.parser import FeedParser
+
+    email_str = args.email.read()
+
+    parser = FeedParser()
+    parser.feed(email_str)
+    message = parser.close()
+    from_addr = message['From']
+    to_addr = message['To']
+
+    send_email(email_str, from_addr, to_addr)
+
+
+with subcommand(datadir_parsers, 'email', datadir_email) as p:
+    p.add_argument(
+        'email', type=FileType('r'),
+         help='email file')
+
+
 def datadir_add_processing_note(args):
     """Record processing history note."""
     from libcchdo.datadir.processing import (
@@ -2217,6 +2239,61 @@ with subcommand(hydro_subparsers, 'formats', formats) as p:
 
 hydro_parser.add_argument(
     '--version', action='version', version=libcchdo.__version__)
+
+
+def fix_perms(args):
+    """Fix permissions."""
+    import os
+    from pwd import getpwnam
+
+    if os.getuid() != 0:
+        LOG.error(
+            u'Please run with elevated privileges to change permissions.')
+        return
+
+    # drop privileges
+    userpwd = getpwnam(os.getlogin())
+    esc_gid = os.getegid()
+    esc_uid = os.geteuid()
+    low_gid = userpwd.pw_gid
+    low_uid = userpwd.pw_uid
+    os.setegid(low_gid)
+    os.seteuid(low_uid)
+
+    # Make all cruise directory level files 664 and dirs 775. Queue should be 777
+    # everything in an original directory should be 660 and 770
+
+    path = os.getcwd()
+
+    for dirpath, dirnames, fnames in os.walk(path):
+        fperms = 0664
+        dperms = 0775
+
+        working = 'original' in os.path.split(dirpath)
+        if working:
+            fperms = 0660
+            dperms = 0770
+
+        queue = 'Queue' in os.path.split(dirpath)
+        if queue:
+            dperms = 0777
+
+        os.seteuid(esc_uid)
+        os.setegid(esc_gid)
+        os.chmod(path, dperms)
+        os.setegid(low_gid)
+        os.seteuid(low_uid)
+
+        for fname in fnames:
+            os.seteuid(esc_uid)
+            os.setegid(esc_gid)
+            os.chmod(os.path.join(dirpath, fname), fperms)
+            os.setegid(low_gid)
+            os.seteuid(low_uid)
+
+
+with subcommand(hydro_subparsers, 'fix_permissions', fix_perms) as p:
+    pass
 
 
 def env(args):
