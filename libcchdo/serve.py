@@ -3,8 +3,9 @@ from gzip import GzipFile
 from SocketServer import TCPServer
 from socket import socket, AF_INET, SOCK_DGRAM, error as sockerr
 from SimpleHTTPServer import SimpleHTTPRequestHandler
-from webbrowser import open as webopen
+from webbrowser import open as webopen, Error as WebError
 
+from libcchdo.log import LOG
 from libcchdo.util import StringIO
 
 
@@ -113,8 +114,13 @@ class SimpleHTTPServer():
             self.httpd.file_responses = {path: resp_tuple}
 
     def open_browser(self):
-        print self.host_port()
-        webopen(self.host_port())
+        try:
+            # FIXME TODO be smarter about how to open a web browser.
+            #webopen(self.host_port())
+            raise WebError()
+        except WebError:
+            LOG.info(u'Please open the following URL in your browser.')
+            print self.host_port()
 
     def serve_forever(self):
         try:
