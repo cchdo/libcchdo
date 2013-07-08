@@ -42,14 +42,14 @@ def pushd(dir):
 def lock(lock=None):
     name = current_thread().name
     if lock:
-        LOG.debug(u'{0} requested\t{1}'.format(name, lock))
+        #LOG.debug(u'{0} requested\t{1}'.format(name, lock))
         lock.acquire()
-        LOG.debug(u'{0} acquired\t{1}'.format(name, lock))
+        #LOG.debug(u'{0} acquired\t{1}'.format(name, lock))
         try:
             yield
         finally:
             lock.release()
-            LOG.debug(u'{0} released\t{1}'.format(name, lock))
+            #LOG.debug(u'{0} released\t{1}'.format(name, lock))
     else:
         yield
 

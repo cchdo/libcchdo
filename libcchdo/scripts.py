@@ -1381,7 +1381,7 @@ def datadir_email(args):
     from_addr = message['From']
     to_addr = message['To']
 
-    send_email(email_str, from_addr, to_addr)
+    send_email(email_str, from_addr, to_addr, os.devnull)
 
 
 with subcommand(datadir_parsers, 'email', datadir_email) as p:

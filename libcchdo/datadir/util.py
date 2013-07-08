@@ -231,10 +231,11 @@ class ReadmeEmail(object):
     def send(self, email_path):
         """Send the email."""
         email_str = self._email.as_string()
-        send_email(email_str, self._email['From'], self._email['To'])
+        send_email(
+            email_str, self._email['From'], self._email['To'], email_path)
 
 
-def send_email(email_str, from_addr, to_addr):
+def send_email(email_str, from_addr, to_addr, email_path):
     smtp = SMTP_SSL('smtp.ucsd.edu')
     try:
         smtp_pass = ''
@@ -249,6 +250,7 @@ def send_email(email_str, from_addr, to_addr):
         LOG.error(u'Unable to send email. Do not re-run!')
         with open(email_path, 'w') as fff:
             fff.write(email_str)
-        LOG.info(u'Wrote email to {0} to send manually.'.format(email_path))
+        LOG.info(u'Wrote email to {0} to send manually. '
+                 'Use hydro datadir email {0}.'.format(email_path))
         raise err
     smtp.quit()

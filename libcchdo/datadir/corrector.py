@@ -17,7 +17,10 @@ from libcchdo.datadir.filenames import (
 from libcchdo.formats.netcdf import Dataset
 from libcchdo.datadir.util import ReadmeEmail, full_datadir_path
 from libcchdo.db.model.legacy import (
-    session as lsesh, Document, Cruise, str_list_add)
+    session as lsesh, Document, Cruise, str_list_add,
+    ArcticAssignment, BottleDB, ArgoFile, ArgoSubmission, TrackLine, Event,
+    ParameterStatus, CruiseParameterInfo, QueueFile, Submission, SpatialGroup,
+    Internal, UnusedTrack, NewTrack, SupportFile, CruiseGroup)
 
 
 EXPOCODE_CORRECT_EMAIL_TEMPLATE = """\
@@ -129,7 +132,10 @@ class ExpoCodeAliasCorrector(dict):
             items = session.query(model).\
                 filter(model.ExpoCode == self.expocode_old).all()
             for item in items:
-                LOG.info(u'Change {0} {1} expocode'.format(model, item.id))
+                try:
+                    LOG.info(u'Change {0} {1} expocode'.format(model.__name__, item.id))
+                except AttributeError:
+                    LOG.info(u'Change {0} {1} expocode'.format(model.__name__, item.ID))
                 item.ExpoCode = self.expocode_new
 
         # Replace expocode in a list of cruises.
@@ -391,7 +397,7 @@ class ExpoCodeAliasCorrector(dict):
                 doc.Files = '\n'.join(os.listdir(newpath))
 
             # Rewrite expocodes in database
-            fix_expocode_in_db()
+            self.fix_expocode_in_db(session)
 
             # Write Readme
             readme_path = os.path.join(workdir, README_FILENAME)
