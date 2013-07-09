@@ -247,7 +247,7 @@ def send_email(email_str, from_addr, to_addr, email_path):
         smtp.sendmail(from_addr, to_addr, email_str)
         LOG.info(u'Sent email.')
     except (KeyboardInterrupt, Exception), err:
-        LOG.error(u'Unable to send email. Do not re-run!')
+        LOG.error(u'Unable to send email.')
         with open(email_path, 'w') as fff:
             fff.write(email_str)
         LOG.info(u'Wrote email to {0} to send manually. '

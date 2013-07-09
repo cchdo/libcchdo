@@ -366,8 +366,23 @@ class ProcessingReadme(Readme):
             raise err
 
         rows = []
-        for fname, fnames, sware in conversions:
-            rows.append([fname, u', '.join(fnames), sware])
+        try:
+            for fname, fnames, sware in conversions:
+                assert type(fnames) == list
+                rows.append([fname, u', '.join(fnames), sware])
+        except ValueError, err:
+            LOG.error(
+                u'Conversions list in {0} must be a list of lists.'.format(
+                UOW_CFG_FILENAME))
+            raise ValueError(u'Conversions list in {0} is malformed.'.format(
+                             UOW_CFG_FILENAME))
+        except AssertionError:
+            LOG.error(
+                u'Second element of Conversion list in {0} must be a list of '
+                'files that were the source for conversion.'.format(
+                UOW_CFG_FILENAME))
+            raise ValueError(u'Conversion list in {0} is malformed.'.format(
+                UOW_CFG_FILENAME))
         return [
             ReST.title('Conversion', '-'),
             u'',

@@ -438,13 +438,13 @@ class ExpoCodeAliasCorrector(dict):
                     self.expocode_new, get_merger_name(), summary, note_id))
                 ecemail.attach_readme(readme_text)
                 ecemail.send(email_path)
+                session.commit()
+                LOG.info(u'Please check documents table for {0} to ensure no '
+                         'duplicate Filename entries'.format(self.expocode_new))
             except Exception, err:
                 LOG.error(u'Could not send email: {0!r}'.format(err))
                 LOG.info(u'rolled back history note')
                 session.rollback()
-
-            LOG.info(u'Please check documents table for {0} to ensure no '
-                     'duplicate Filename entries'.format(self.expocode_new))
         finally:
             if dryrun:
                 if debug:
