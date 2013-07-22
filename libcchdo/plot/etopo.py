@@ -620,6 +620,12 @@ class ETOPOBasemap(Basemap):
     def add_title(self, text, size=28):
         """Add a title to the plot."""
         # TODO get the title to be bold. fontweight doesn't work...
+        
+        if sys.stdin.encoding == "UTF-8":
+            text = text.decode('utf-8')
+        else:
+            LOG.debug("Terminal excoding not UTF-8, only ASCII titles supported")
+
         self.axes.set_title(
             text, size=size, position=(0.5, 1), fontweight='bold')
 
