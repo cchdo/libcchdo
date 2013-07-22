@@ -267,6 +267,9 @@ class File(object):
     def check_and_replace_parameters(self, convert=True):
         self.each_column(Column.check_and_replace_parameter, convert=convert)
 
+    def __contains__(self, key):
+        return key in self.columns
+
 
 def station_equal(s0, s1):
     # TODO figure out how to compare station "numbers" reliably.
