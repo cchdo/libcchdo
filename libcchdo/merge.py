@@ -1,6 +1,8 @@
 from pandas import *
 
-from numpy import isnan
+pandas_merge = merge
+
+from numpy import isnan, object as np_object
 
 from libcchdo import LOG
 from libcchdo.formats import woce
@@ -10,7 +12,7 @@ from libcchdo.recipes.orderedset import OrderedSet
 from libcchdo.model.datafile import DataFile
 
 
-KEY_COLS = ['STNNBR', 'CASTNO', 'SAMPNO']
+KEY_COLS = ['EXPOCODE', 'STNNBR', 'CASTNO', 'SAMPNO', 'BTLNBR']
 
 
 class MergeData(object):
@@ -20,8 +22,32 @@ class MergeData(object):
         self.param_units = param_units
         self.dframe = dframe
 
+    def available_keys(self):
+        """Return keys that are available to merge on."""
+        df_cols = list(self.dframe.columns)
+        return [col for col in KEY_COLS if col in df_cols]
+
     def grouped(self):
-        return self.dframe.groupby(KEY_COLS, axis=0)
+        return self.dframe.groupby(self.available_keys(), axis=0)
+
+    def map_rows(self, other):
+        """Return a map of the rows in mergedata1 to mergedata2."""
+        df2_grouped = other.grouped()
+        df1_grouped = self.grouped()
+        df2_groups = df2_grouped.groups
+        df1_groups = df1_grouped.groups
+        df1_ids = df1_groups.keys()
+
+        row_map = []
+        for cast_identifier, group in df2_grouped:
+            if cast_identifier not in df1_ids:
+                LOG.warn(u'Key {0} in derivative file is not in origin file'.format(cast_identifier))
+                continue
+            # Find the rows that correspond to the same data row
+            row1 = df1_groups[cast_identifier][0]
+            row2 = df2_groups[cast_identifier][0]
+            row_map.append([row1, row2, cast_identifier])
+        return row_map
 
     def convert_to_datafile(self, parameters):
         dfile = DataFile()
@@ -31,21 +57,20 @@ class MergeData(object):
         dfile.globals['header'] = header
 
         params = self.dframe.head(1)
-        units = [self.param_units[param] for param in params]
+        units = []
+        for param in params:
+            units.append(self.param_units[param])
         dfile.create_columns(params, units)
+        dfile.check_and_replace_parameters()
 
         for param in params:
-            try:
-                param.index('FLAG')
+            if 'FLAG' in param:
                 continue
-            except ValueError:
-                pass
-            dfile[param].values = self.dframe[param]
+            dfile[param].values = list(self.dframe[param])
             flag_name = param + FLAG_WOCE_ENDING
             if flag_name in params:
-                dfile[param].flags_woce = self.dframe[flag_name]
+                dfile[param].flags_woce = list(self.dframe[flag_name])
 
-        dfile.check_and_replace_parameters()
         woce.fuse_datetime(dfile)
         return dfile
 
@@ -57,7 +82,8 @@ class Merger(object):
 
     def read_file(self, fobj):
         # TODO this should really be a read into libcchdo.model.datafile format
-        # and then converted into a pandas dataframe.
+        # and then converted into a pandas dataframe, or not at all because of
+        # precision problems.
         stamp, header, param_units, last_line = self._read_head_foot(fobj)
         fobj.seek(0)
 
@@ -72,6 +98,12 @@ class Merger(object):
 
         dframe = read_csv(fobj, header=(header_len), skiprows=skiprows,
                           skip_footer=skip_footer)
+
+        # For columns with string values, strip whitespace
+        for param in dframe.head(1):
+            if dframe[param].dtype == np_object:
+                dframe[param] = [xxx.strip() for xxx in dframe[param]]
+
         return MergeData(stamp, header, param_units, dframe)
 
     def _read_head_foot(self, fobj):
@@ -94,77 +126,94 @@ class Merger(object):
         last_line = lines[-1].startswith(END_DATA)
         return stamp, header, param_units, last_line
 
+    def map_rows(self):
+        return self.mdata1.map_rows(self.mdata2)
+
     def different_cols(self):
-        df1_grouped = self.mdata1.grouped()
-        df2_grouped = self.mdata2.grouped()
-
-        row_map = []
-        for cast_identifier, group in df2_grouped:
-            if cast_identifier not in df1_grouped.groups.keys():
-                continue
-            # Find the rows that correspond to the same data row
-            row1 = df1_grouped.groups[cast_identifier][0]
-            row2 = df2_grouped.groups[cast_identifier][0]
-            row_map.append([row1, row2])
-
         different_cols = OrderedSet()
         dframe2 = self.mdata2.dframe
         dframe1 = self.mdata1.dframe
         columns2 = dframe2.columns
         columns1 = dframe1.columns
+        row_map = self.map_rows()
         for col in columns2:
             if col not in columns1:
                 different_cols.add(col)
                 continue
 
-            for row1, row2 in row_map:
+            for row1, row2, cast_identifier in row_map:
                 # Make sure the values for both dataframes matches
                 val1 = dframe1[col][row1]
                 val2 = dframe2[col][row2]
-                if val1 != val2 and not equal_with_epsilon(val1, val2):
-                    LOG.info(u'{0} differs at {1}:\t{2!r} {3!r}'.format(col,
-                        cast_identifier, val1, val2))
-                    different_cols.add(col)
+                try:
+                    float(val1)
+                    float(val2)
+                    if val1 != val2 and not equal_with_epsilon(val1, val2):
+                        LOG.info(u'{0} differs at {1}:\t{2!r} {3!r}'.format(col,
+                            cast_identifier, val1, val2))
+                        different_cols.add(col)
+                except ValueError:
+                    if val1.strip() != val2.strip():
+                        different_cols.add(col)
         return list(different_cols)
-
-    def _available_keys(self):
-        """Return keys that are available to merge on."""
-        df1_cols = list(self.mdata1.dframe.columns)
-        return [col for col in KEY_COLS if col in df1_cols]
         
     def merge(self, columns_to_merge):
-        df1_cols = list(self.mdata1.dframe.columns)
-        on_cols = self._available_keys()
+        df1 = self.mdata1.dframe
+        df2 = self.mdata2.dframe
+        df1_cols = list(df1.columns)
+        df2_cols = list(df2.columns)
 
-        LOG.debug('Merging using keys: {0!r}'.format(on_cols))
+        keys1 = self.mdata1.available_keys()
+        keys2 = self.mdata1.available_keys()
+        if keys1 != keys2:
+            LOG.error(u'Mismatched keys to merge on {0!r} {1!r}'.format(keys1, keys2))
+            return
+        on_cols = keys1
 
+        LOG.info('Merging using keys composed of: {0!r}'.format(on_cols))
+
+        merged_df = df1.copy(deep=True)
+
+        row_map = self.map_rows()
+        # TODO consideration: DataFrame does not handle precision.
         for col in columns_to_merge:
-            LOG.debug('merging {0!r}'.format(col))
-            # Adding new column
+            # Case 1: Adding new column
             if col not in df1_cols:
-                temp_frame = self.mdata2.dframe.copy(deep=True)
-                for col_to_check in self.mdata2.dframe.columns:
-                    if col_to_check not in KEY_COLS + [col]:
+                if col not in df2_cols:
+                    LOG.warn(u'No such column: {0!r}'.format(col))
+                    continue
+                LOG.info(u'Adding new column {0!r}'.format(col))
+                # Make temporary frame with only the data and keys to merge
+                temp_frame = df2.copy(deep=True)
+                for col_to_check in df2.columns:
+                    if col_to_check not in on_cols + [col]:
                         del temp_frame[col_to_check]
-                self.mdata1.dframe = merge(
-                    self.mdata1.dframe, temp_frame, how='outer', on=on_cols)
+
+                merged_df = pandas_merge(
+                    merged_df, temp_frame, how='outer', on=on_cols)
                 # If the new file has less records, fill in the missing records
                 fill_map = {}
-                for param in self.mdata1.dframe.head(1):
+                for param in merged_df.head(1):
                     if param.endswith(FLAG_WOCE_ENDING):
                         fill_map[param] = 9
                     else:
                         fill_map[param] = FILL_VALUE
-                self.mdata1.dframe = self.mdata1.dframe.fillna(fill_map)
-            # Updating column data
+                merged_df = merged_df.fillna(fill_map)
+            # Case 2: Updating column data
             else:
-                temp_frame = self.mdata2.dframe.copy(deep=True)
-                for col_to_check in self.mdata2.dframe.columns:
-                    if col_to_check not in KEY_COLS + [col]:
-                        del temp_frame[col_to_check]
-                self.mdata1.dframe.update(temp_frame)
+                # WARNING: using pandas.DataFrame.update or join causes the
+                # dtypes for columns to change. This is highly undesirable, do
+                # not use them.
+                LOG.info(u'Updating data for column {0!r}'.format(col))
+                col1 = df1[col]
+                col2 = df2[col]
+                colm = merged_df[col]
+                for row1, row2, cast_identifier in row_map:
+                    val1 = col1[row1]
+                    val2 = col2[row2]
+                    colm[row1] = val2
 
-        param_units = dict(self.mdata1.param_units)
+        param_units = dict(**self.mdata1.param_units)
         param_units.update(self.mdata2.param_units)
-        return MergeData(self.mdata1.stamp, self.mdata1.header, param_units,
-                         self.mdata1.dframe)
+        return MergeData(
+            self.mdata1.stamp, self.mdata1.header, param_units, merged_df)
