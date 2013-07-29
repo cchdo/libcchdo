@@ -57,7 +57,10 @@ def _unicode_fake(u):
 
 
 def convert_unit(session, name, mnemonic):
-    units_name = _unicode_fake(name.strip())
+    if not name:
+        units_name = _unicode_fake(mnemonic.strip().lower())
+    else:
+        units_name = _unicode_fake(name.strip())
     units_mnemonic = str(mnemonic.strip())
 
     try:
@@ -113,8 +116,7 @@ def convert_parameter(session, legacy_param):
     parameter.bound_lower = float(range[0]) if range[0] else None
     parameter.bound_upper = float(range[1]) if range[1] else None
 
-    if legacy_param.units:
-        legacy_param.units = legacy_param.units
+    if legacy_param.units or legacy_param.unit_mnemonic:
         try:
             parameter.units = convert_unit(
                 session, legacy_param.units, legacy_param.unit_mnemonic)

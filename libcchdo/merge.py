@@ -213,6 +213,7 @@ class Merger(object):
                     val2 = col2[row2]
                     colm[row1] = val2
 
+        # Overwrite parameter units from origin with deriv
         param_units = dict(**self.mdata1.param_units)
         param_units.update(self.mdata2.param_units)
         return MergeData(
