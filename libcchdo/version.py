@@ -23,8 +23,10 @@ def get_git_describe():
     save = getcwd()
     try:
         chdir(_here)
+        # Don't use --always because this module depends on a release build to
+        # not be in a git repository to return the RELEASE-VERSION.txt.
         return check_output(
-            ['git', 'describe', '--always'], stderr=PIPE).rstrip()
+            ['git', 'describe'], stderr=PIPE).rstrip()
     except CalledProcessError:
         return None
     finally:
