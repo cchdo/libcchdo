@@ -2238,7 +2238,9 @@ with subcommand(hydro_subparsers, 'formats', formats) as p:
 
 
 hydro_parser.add_argument(
-    '--version', action='version', version=libcchdo.__version__)
+    '--version', action='version',
+    version='{0} {1}'.format(
+        os.path.basename(sys.argv[0]), libcchdo.__version__))
 
 
 def fix_perms(args):

@@ -7,6 +7,7 @@ import numpy as np
 
 from libcchdo import fns
 from libcchdo.log import LOG
+from libcchdo.util import memoize
 from libcchdo.db.model import std
 from libcchdo.formats import netcdf as nc
 from libcchdo.formats import woce
@@ -46,8 +47,10 @@ def is_file_recognized(fileobj):
     return is_file_recognized_fnameexts(fileobj, _fname_extensions)
 
 
-NC_BOTTLE_VAR_TO_WOCE_PARAM = dict(std.session().query(
-    std.Parameter.name_netcdf, std.Parameter.name).all())
+@memoize
+def nc_bottle_var_to_woce_param():
+    return dict(std.session().query(
+        std.Parameter.name_netcdf, std.Parameter.name).all())
 
 
 VARATTRS = frozenset(('time', 'latitude', 'longitude', 'woce_date',
@@ -125,10 +128,10 @@ def read(self, handle):
     for name in frozenset(vars.keys()) - VARATTRS:
         variable = vars[name]
         if name.endswith(nc.QC_SUFFIX):
-            qc_vars[NC_BOTTLE_VAR_TO_WOCE_PARAM[
+            qc_vars[nc_bottle_var_to_woce_param()[
                 name[:-len(nc.QC_SUFFIX)]]] = variable
         else:
-            name = NC_BOTTLE_VAR_TO_WOCE_PARAM.get(name, name)
+            name = nc_bottle_var_to_woce_param().get(name, name)
             
             if name == 'drop':
                 continue

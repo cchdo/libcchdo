@@ -23,7 +23,8 @@ def get_git_describe():
     save = getcwd()
     try:
         chdir(_here)
-        return check_output(['git', 'describe'], stderr=PIPE).rstrip()
+        return check_output(
+            ['git', 'describe', '--always'], stderr=PIPE).rstrip()
     except CalledProcessError:
         return None
     finally:
