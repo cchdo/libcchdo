@@ -7,7 +7,9 @@ Install
     pip install numpy && pip install .
 
 It is of note that numpy must be installed before the rest of the packages.
-Some required packages will not install concurrently with numpy.
+Some required packages will not install concurrently with numpy. This is the
+basic installation. If you need to perform any kind of operation on netCDF,
+KML, etc you will need to install with extras. Please see Deploying.
 
 Dependencies
 ============
@@ -47,8 +49,12 @@ All nodes are python packages except those marked as libraries.
   - scipy (optional) needed for interpolation and scientific math
   - PIL (optional) needed for image processing plot thumbnails
   - matplotlib (optional) needed for plotting
+
+    + geos (library)
+
   - basemap (optional) needed for plotting maps
   - pandas (optional) needed for merging
+  - pykml (optional) used to write KML documents.
 
 External Libraries
 ------------------
@@ -81,6 +87,8 @@ or
 
     pip install -e .
 
+Again, if you wish to use any special functions, please see Deploying.
+
 Deploying
 ---------
 
@@ -95,5 +103,9 @@ If you do want extras, you can find them under `extras_require`. Only
 
     # Install all extras
     pip install .[all]
+
     # Install only extras that are specified
     pip install .[speed,netcdf,plot,merge]
+
+    # Install extras with code in editable mode
+    pip install -e .[all]

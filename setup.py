@@ -19,13 +19,14 @@ if __name__ == "__main__":
         pass
 
     # To install extras with pip as editable:
+    # pip install -e .[all] will install all extras
     # pip install -e .[db,speed,netcdf]
-    # pip install -e.[all] will install all extras
     extras_require = {
         'csv_view': ['lxml', ],
         'db': ['MySQL-python', ],
         'datadir': ['oauth2', 'paramiko', 'docutils', ],
         'speed': ['cdecimal', ],
+        'kml': ['pykml', ],
         'coverage': ['coverage', ],
         'netcdf': ['numpy', 'netCDF4', ],
         'autocomplete': ['argcomplete'],
