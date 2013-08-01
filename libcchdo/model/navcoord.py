@@ -1,5 +1,21 @@
 from libcchdo.model.datafile import DataFile, SummaryFile, DataFileCollection
 
+def print_bounds(expocode, navcoords):
+    lats = [l.lat for l in navcoords.navcoords]
+    lons = [l.lon + 360 if l.lon < 0 else l.lon for l in navcoords.navcoords]
+
+    north = max(lats)
+    south = min(lats)
+    east = max(lons)
+    west = min(lons)
+    
+    if east > 180:
+        east -= 360
+    if west > 180:
+        west -= 360
+
+    print "North: %s\nSouth: %s\nEast: %s\nWest: %s" % (north, south, east,
+            west)
 
 class NavCoord(object):
     def __init__(self, lon, lat, stnnbr=None, date=None, code=None):

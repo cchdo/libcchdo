@@ -1931,6 +1931,19 @@ misc_parser = hydro_subparsers.add_parser(
     'misc', help='Miscellaneous')
 misc_parsers = misc_parser.add_subparsers(title='miscellaneous')
 
+def get_bounds(args):
+    """Take any readable file and output the bounding box"""
+    from libcchdo.model.navcoord import iter_coords, NavCoords, print_bounds
+
+    df = read_arbitrary(args.cchdo_file)
+    iter_coords(df, NavCoords, print_bounds)
+
+
+with subcommand(misc_parsers, "get_bounds", get_bounds) as p:
+    p.add_argument('cchdo_file', type=FileType('r'),
+            help='any recognized CCHDO file')
+
+
 
 def edit_cfg(args):
     """Edit the most precedent configuration file."""
