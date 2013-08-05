@@ -1,5 +1,5 @@
 """Common code for manipulating netCDF Zip archives."""
-from tempfile import SpooledTemporaryFile
+from tempfile import NamedTemporaryFile
 
 from libcchdo.model.datafile import DataFile
 from libcchdo.formats import netcdf as nc, zip as Zip
@@ -12,7 +12,7 @@ def read(self, handle, reader):
         for fname in zfile.namelist():
             if not fname.endswith('.nc'):
                 continue
-            with SpooledTemporaryFile(max_size=2 ** 13) as tempfile:
+            with NamedTemporaryFile() as tempfile:
                 tempfile.write(zfile.read(fname))
                 tempfile.flush()
                 tempfile.seek(0)
