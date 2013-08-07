@@ -27,13 +27,32 @@ class MergeData(object):
         df_cols = list(self.dframe.columns)
         return [col for col in KEY_COLS if col in df_cols]
 
-    def grouped(self):
-        return self.dframe.groupby(self.available_keys(), axis=0)
+    def grouped(self, keys=None):
+        if keys is None:
+            keys = self.available_keys()
+        return self.dframe.groupby(keys, axis=0)
 
-    def map_rows(self, other):
+    def merge_keys(self, other):
+        """Return the keys that are in both mergedatas."""
+        keys1 = self.available_keys()
+        keys2 = other.available_keys()
+        if keys1 != keys2:
+            LOG.warn(u'Mismatched key composition to merge on:\norigin:\t\t{0!r}\n'
+                      'derivative:\t{1!r}'.format(keys1, keys2))
+            LOG.warn(u'Merging on common subset.')
+            on_cols = list(OrderedSet(keys1) & OrderedSet(keys2))
+        else:
+            on_cols = keys1
+
+        LOG.info('Merging using keys composed of: {0!r}'.format(on_cols))
+        return on_cols
+
+    def map_rows(self, other, on_cols=None):
         """Return a map of the rows in mergedata1 to mergedata2."""
-        df2_grouped = other.grouped()
-        df1_grouped = self.grouped()
+        if on_cols is None:
+            on_cols = self.merge_keys(other)
+        df2_grouped = other.grouped(on_cols)
+        df1_grouped = self.grouped(on_cols)
         df2_groups = df2_grouped.groups
         df1_groups = df1_grouped.groups
         df1_ids = df1_groups.keys()
@@ -41,7 +60,9 @@ class MergeData(object):
         row_map = []
         for cast_identifier, group in df2_grouped:
             if cast_identifier not in df1_ids:
-                LOG.warn(u'Key {0} in derivative file is not in origin file'.format(cast_identifier))
+                LOG.warn(
+                    u'Key {0} in derivative file is not in origin file'.format(
+                    cast_identifier))
                 continue
             # Find the rows that correspond to the same data row
             row1 = df1_groups[cast_identifier][0]
@@ -126,8 +147,8 @@ class Merger(object):
         last_line = lines[-1].startswith(END_DATA)
         return stamp, header, param_units, last_line
 
-    def map_rows(self):
-        return self.mdata1.map_rows(self.mdata2)
+    def map_rows(self, on_cols=None):
+        return self.mdata1.map_rows(self.mdata2, on_cols)
 
     def different_cols(self):
         different_cols = OrderedSet()
@@ -163,18 +184,15 @@ class Merger(object):
         df1_cols = list(df1.columns)
         df2_cols = list(df2.columns)
 
-        keys1 = self.mdata1.available_keys()
-        keys2 = self.mdata1.available_keys()
-        if keys1 != keys2:
-            LOG.error(u'Mismatched keys to merge on {0!r} {1!r}'.format(keys1, keys2))
-            return
-        on_cols = keys1
+        on_cols = self.mdata1.merge_keys(self.mdata2)
+        row_map = self.map_rows(on_cols)
 
-        LOG.info('Merging using keys composed of: {0!r}'.format(on_cols))
+        if not row_map:
+            LOG.error(u'No keys matched in origin and derivative files.')
+            return None
 
         merged_df = df1.copy(deep=True)
 
-        row_map = self.map_rows()
         # TODO consideration: DataFrame does not handle precision.
         for col in columns_to_merge:
             # Case 1: Adding new column

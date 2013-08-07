@@ -1182,9 +1182,12 @@ def merge_botex_and_botex(args):
                 return
 
             mdata = merger.merge(parameters)
-            dfile = mdata.convert_to_datafile(parameters)
-            with closing(args.output) as out_file:
-                botex.write(dfile, out_file)
+            try:
+                dfile = mdata.convert_to_datafile(parameters)
+                with closing(args.output) as out_file:
+                    botex.write(dfile, out_file)
+            except AttributeError:
+                LOG.error(u'Unable to merge')
 
 
 with subcommand(merge_parsers, 'botex_and_botex', merge_botex_and_botex) as p:

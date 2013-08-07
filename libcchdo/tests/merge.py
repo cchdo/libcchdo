@@ -58,7 +58,7 @@ END_DATA
             self.assertNotIn('header 2', dfile.globals['header'])
             self.assertIn('header 1', dfile.globals['header'])
             # Header should contain the merged parameters
-            self.assertIn('Merged parameters: DELC14', dfile.globals['header'])
+            self.assertIn('Merged parameters: DELC14, DELC14_FLAG_W', dfile.globals['header'])
 
             # Key columns should not have been converted to floats. This happens
             # for some reason if pandas combine/update have been used.
@@ -79,3 +79,50 @@ END_DATA
                     found = True
                     break
             self.assertTrue(found)
+            LOG.removeHandler(loghandler)
+
+    def test_merge_btl_no_common_keys(self):
+        """Warn if there are no common keys."""
+        with    TemporaryFile() as origin, \
+                TemporaryFile() as deriv, \
+                TemporaryFile() as logstream:
+            origin.write("""\
+BOTTLE,19700101CCHSIOXXX
+# header 1
+EXPOCODE,SECT_ID,STNNBR,CASTNO,SAMPNO,BTLNBR,BTLNBR_FLAG_W,DEPTH,TDN,DELC14,DELC14_FLAG_W
+,,,,,,,METERS,UMOL/KG,/MILLE,
+ 316N145_9, TRNS1, 574, 1, 16, 36,2,1000,5,-999.000,9
+ 316N145_9, TRNS1, 574, 1, 15, 35,2,1000,5,-999.000,9
+END_DATA
+""")
+            origin.flush()
+            origin.seek(0)
+            deriv.write("""\
+BOTTLE,19700101CCHSIOXXX
+# header 2
+EXPOCODE,SECT_ID,STNNBR,CASTNO,SAMPNO,BTLNBR,BTLNBR_FLAG_W,DEPTH,TDN,DELC14,DELC14_FLAG_W
+,,,,,,,METERS,UMOL/KG,/MILLE,
+ 316N145_9, TRNS1, 574, 1, 36, 36,2,1000,5,  10.000,9
+ 316N145_9, TRNS1, 574, 1, 35, 35,2,1000,5,-999.000,1
+END_DATA
+""")
+            deriv.flush()
+            deriv.seek(0)
+
+            loghandler = StreamHandler(logstream)
+            LOG.addHandler(loghandler)
+
+            merger = Merger(origin, deriv)
+            parameters = merger.different_cols()
+            mdata = merger.merge(parameters)
+            self.assertEqual(mdata, None)
+
+            # Make sure warning is printed regarding extra key in deriv file.
+            logstream.seek(0)
+            found = False
+            for line in logstream:
+                if 'No keys matched' in line:
+                    found = True
+                    break
+            self.assertTrue(found)
+            LOG.removeHandler(loghandler)
