@@ -1158,7 +1158,7 @@ def merge_ctdzip_bacp_xmiss_and_ctdzipex(args):
     import libcchdo.formats.ctd.zip.bacp as ctdzipbacp
     import libcchdo.formats.ctd.zip.exchange as ctdzipex
     from libcchdo.merge import (
-        merge_ctd_bacp_xmiss_and_ctd_exchange as merge, merge_archives)
+        merge_ctd_bacp_xmiss_and_ctd_exchange as merge, merge_collections)
 
     bacpfile = DataFileCollection()
     ctdzipexfile = DataFileCollection()
@@ -1168,7 +1168,7 @@ def merge_ctdzip_bacp_xmiss_and_ctdzipex(args):
     with closing(args.in_ctdzipex) as in_file:
         ctdzipex.read(ctdzipexfile, in_file)
 
-    merged_dfc = merge_archives(
+    merged_dfc = merge_collections(
         ctdzipexfile, bacpfile, merge, ['STNNBR', 'CASTNO'])
 
     with closing(args.out_ctdzipex) as out_file:
@@ -1253,9 +1253,10 @@ def merge_ctdex_and_ctdex(args):
     data.
 
     """
-    from libcchdo.merge import merge_data, different_columns
+    from libcchdo.merge import (
+        determine_ctd_keys, merge_datafiles, different_columns)
     import libcchdo.formats.ctd.exchange as ctdex
-    from libcchdo.model.datafile import DataFile, PRESSURE_PARAMETERS
+    from libcchdo.model.datafile import DataFile
 
     origin = DataFile()
     deriv = DataFile()
@@ -1268,20 +1269,24 @@ def merge_ctdex_and_ctdex(args):
     if args.parameters_to_merge:
         parameters = args.parameters_to_merge
     elif args.merge_different:
-        parameters = different_columns(origin, deriv)
+        p_different, p_missing_from_origin, p_missing_from_derivative, p_common = \
+            different_columns(origin, deriv)
+        parameters = p_different + p_missing_from_origin
         LOG.info(u'The following parameters in {0} are different'.format(
             deriv_name))
         LOG.info(u', '.join(parameters))
     else:
         # Show parameters with differing data
-        parameters = different_columns(origin, deriv)
+        p_different, p_missing_from_origin, p_missing_from_derivative, p_common = \
+            different_columns(origin, deriv)
+        parameters = p_different + p_missing_from_origin
         LOG.info(u'The following parameters in {0} are different'.format(
             deriv_name))
         print u'\n'.join(parameters)
         return
 
-    keys = PRESSURE_PARAMETERS
-    dfout = merge_data(origin, deriv, keys, parameters)
+    keys = determine_ctd_keys(origin, deriv)
+    dfout = merge_datafiles(origin, deriv, keys, parameters)
 
     with closing(args.output) as out_file:
         ctdex.write(dfout, out_file)
@@ -1294,9 +1299,11 @@ def merge_ctdzipex_and_ctdzipex(args):
     data.
 
     """
-    from libcchdo.merge import merge_data, different_columns, merge_archives
+    from libcchdo.merge import (
+        determine_ctd_keys, merge_datafiles, different_columns,
+        merge_collections)
     import libcchdo.formats.ctd.zip.exchange as ctdzipex
-    from libcchdo.model.datafile import DataFileCollection, PRESSURE_PARAMETERS
+    from libcchdo.model.datafile import DataFileCollection
 
     origin = DataFileCollection()
     deriv = DataFileCollection()
@@ -1309,22 +1316,26 @@ def merge_ctdzipex_and_ctdzipex(args):
     if args.parameters_to_merge:
         parameters = args.parameters_to_merge
     elif args.merge_different:
-        parameters = different_columns(origin, deriv)
+        p_different, p_missing_from_origin, p_missing_from_derivative, p_common = \
+            different_columns(origin, deriv)
+        parameters = p_different + p_missing_from_origin
         LOG.info(u'The following parameters in {0} are different'.format(
             deriv_name))
         LOG.info(u', '.join(parameters))
     else:
         # Show parameters with differing data
-        parameters = different_columns(origin, deriv)
+        p_different, p_missing_from_origin, p_missing_from_derivative, p_common = \
+            different_columns(origin, deriv)
+        parameters = p_different + p_missing_from_origin
         LOG.info(u'The following parameters in {0} are different'.format(
             deriv_name))
         print u'\n'.join(parameters)
         return
 
-    keys = PRESSURE_PARAMETERS
     def merge(origin, deriv):
-        return merge_data(origin, deriv, keys, parameters)
-    merged_dfc = merge_archives(origin, deriv, merge)
+        keys = determine_ctd_keys(origin, deriv)
+        return merge_datafiles(origin, deriv, keys, parameters)
+    merged_dfc = merge_collections(origin, deriv, merge)
 
     with closing(args.output) as out_file:
         ctdzipex.write(merged_dfc, out_file)
@@ -2562,4 +2573,3 @@ def main():
             hydro_parser.exit(args.main(args))
         except Exception, err:
             LOG.critical(format_exc(err))
-            LOG.critical(err)

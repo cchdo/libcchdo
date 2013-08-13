@@ -153,6 +153,9 @@ def read(self, fileobj, is_fname_ok, reader, *args, **kwargs):
                 dfile = DataFile()
                 reader(dfile, tempfile, *args, **kwargs)
                 self.append(dfile)
+    except ValueError, err:
+        raise ValueError(
+            u'Unable to read {0} in {1}: {2}'.format(fname, fileobj, err))
     except Exception, err:
         LOG.error(u'Unable to read {0} in {1}:\n{2!r}'.format(
             fname, fileobj, err))

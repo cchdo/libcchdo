@@ -52,11 +52,8 @@ def read(self, handle, retain_order=False, header_only=False):
         if '.csv' not in fname:
             return False
         if fname.find('/') > -1:
-            LOG.critical(('CTD Exchange Zip files should not contain '
-                          'directories. Offending file name: %s') % fname)
-            raise ValueError('CTD Exchange Zip files should not contain '
-                             'directories. Please ensure you gave a CTD '
-                             'Exchange Zip file to be read.')
+            raise ValueError(
+                u'CTD Exchange Zip files should not contain directories.')
         return True
 
     def reader(dfile, fileobj, retain_order, header_only):

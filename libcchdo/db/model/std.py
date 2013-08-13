@@ -23,12 +23,20 @@ _cache_checked = False
 _cache_checking = Lock()
 
 
-def session():
+_global_session = None
+
+
+def session(no_global=False):
+    global _global_session
     if check_cache:
         _ensure_database_cache()
+    if _global_session and not no_global:
+        return _global_session
     session = connect.session(connect.cchdo_data())
     if not session:
         raise ValueError("Unable to connect to local cache db cchdo_data")
+    if not _global_session:
+        _global_session = session
     return session
 
 
@@ -241,6 +249,15 @@ class Unit(Base):
     def __init__(self, name, mnemonic=None):
         self.name = name
         self.mnemonic = mnemonic
+
+    def __eq__(self, other):
+        try:
+            return self.name == other.name and self.mnemonic == other.mnemonic
+        except AttributeError:
+            return False
+
+    def __ne__(self, other):
+        return not self == other
 
     def __repr__(self):
         return u"<Unit(%r, %r)>" % (self.name, self.mnemonic)

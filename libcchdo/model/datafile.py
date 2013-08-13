@@ -1,6 +1,10 @@
 from operator import itemgetter
+from datetime import timedelta
 
-from libcchdo.fns import set_list, uniquify, equal_with_epsilon
+from libcchdo.fns import (
+    InvalidOperation,
+    _decimal, set_list, uniquify, equal_with_epsilon, is_list_global,
+    is_list_globally_equal, is_list_globally)
 from libcchdo.log import LOG
 from libcchdo.ui import TERMCOLOR
 from libcchdo.util import memoize
@@ -9,29 +13,6 @@ from libcchdo.db.model import std
 
 PRESSURE_PARAMETERS = ['CTDPRS', 'CTDRAW', ]
 
-
-def is_list_global(lll):
-    """Return whether the elements for the whole list are the same."""
-    check = None
-    for x in lll:
-        if check is None:
-            check = x
-            continue
-        if check != x:
-            return False
-    return True
-
-
-def is_list_globally(lll, value=0.0):
-    """Return whether the given list is entirely composed of the same value."""
-    if not is_list_global(lll):
-        return False
-    try:
-        return equal_with_epsilon(lll[0], value)
-    except IndexError:
-        pass
-    return True
-    
 
 class Column(object):
 
@@ -113,8 +94,10 @@ class Column(object):
         fill_length = length - len(self.values)
         self.values += [fill_value] * fill_length
         if self.flags_woce:
+            fill_length = length - len(self.flags_woce)
             self.flags_woce += [9] * fill_length
         if self.flags_igoss:
+            fill_length = length - len(self.flags_igoss)
             self.flags_igoss += [9] * fill_length
 
     def __getitem__(self, key):
@@ -144,43 +127,9 @@ class Column(object):
     def diff(self, column):
         """Diff with other column.
 
-        There are three aspects to a column being different::
-
-        1. whether the parameters match
-        2. whether all the values match
-        3. whether all the flags match
-
-        If the parameters do not match, the function will return 'parameter'
-
-        In addition, it is important to show the best guess as to where the
-        columns are different. That is impractical if the columns are different
-        lengths, so in that case the return value is 'length'. Otherwise, the
-        returned diff column's values and flags will contain the difference
-        between the other column and this column's values and flags.
-
-        If there are no differences, then the function will return False.
-
         """
-        # TODO consider whether to represent the difference as a difference
-        # object instead of multiple return types.
-        if self.parameter != column.parameter:
-            return 'parameter'
-
-        if len(self) != len(column):
-            return 'length'
-
-        diffcol = Column('_DIFF_' + self.parameter.name)
-        diffcol.values = [
-            y - x for x, y in zip(self.values, column.values)]
-        diffcol.flags_woce = [
-            y - x for x, y in zip(self.flags_woce, column.flags_woce)]
-        diffcol.flags_igoss = [
-            y - x for x, y in zip(self.flags_igoss, column.flags_igoss)]
-
-        if (    is_list_globally(diffcol.values, 0.0) and 
-                is_list_globally(diffcol.flags_woce, 0.0) and
-                is_list_globally(diffcol.flags_igoss, 0.0)):
-            return False
+        diffcol = DiffColumn(self.parameter.name)
+        diffcol.diff(self, column)
         return diffcol
 
     def is_global(self):
@@ -190,6 +139,9 @@ class Column(object):
     def __str__(self):
         return '%sColumn(%s): %s%s' % (TERMCOLOR['YELLOW'], self.parameter,
                                        TERMCOLOR['CLEAR'], self.values)
+
+    def __repr__(self):
+        return '<Column({0})>'.format(self.parameter)
 
     def __cmp__(self, other):
         try:
@@ -268,6 +220,114 @@ class Column(object):
                 })
 
         self.parameter = std_parameter
+
+
+class DiffColumn(Column):
+    """Represent a column that is the difference between two columns.
+
+    There are three aspects to a column being different::
+
+    1. whether the parameters match
+    2. whether all the values match
+    3. whether all the flags match
+
+    In addition, it is important to show the best guess as to where the
+    columns are different. That is impractical if the columns are different
+    lengths, so in that case the values and flags will be empty. Otherwise, the
+    returned diff column's values and flags will contain the difference
+    between the other column and this column's values and flags.
+
+    Determine how the columns are different by asking any of
+    * is_diff() - any differences
+    * is_diff_parameter()
+    * is_diff_length()
+    * is_diff_values()
+    * is_diff_flags_woce()
+    * is_diff_flags_igoss()
+    * is_diff_flags()
+
+    """
+    def __init__(self, parameter, units=None):
+        super(DiffColumn, self).__init__('_DIFF_' + parameter, units=units)
+        self._is_diff = False
+        self._is_diff_parameter = False
+        self._is_diff_units = False
+        self._is_diff_length = False
+        self._is_diff_values = False
+        self._is_diff_flags_woce = False
+        self._is_diff_flags_igoss = False
+
+    def is_diff(self):
+        return self._is_diff
+
+    def is_diff_parameter(self):
+        return self._is_diff_parameter
+
+    def is_diff_units(self):
+        return self._is_diff_units
+
+    def is_diff_length(self):
+        return self._is_diff_length
+
+    def is_diff_values(self):
+        return self._is_diff_values
+
+    def is_diff_flags_woce(self):
+        return self._is_diff_flags_woce
+
+    def is_diff_flags_igoss(self):
+        return self._is_diff_flags_igoss
+
+    def is_diff_flags(self):
+        return self.is_diff_flags_woce() or self.is_diff_flags_igoss()
+
+    def diff(self, dfa, dfb):
+        """Calculate the difference and populate the responses."""
+        if dfa.parameter != dfb.parameter:
+            self._is_diff_parameter = True
+
+        if dfa.parameter.units != dfb.parameter.units:
+            self._is_diff_units = True
+
+        if len(dfa) != len(dfb):
+            self._is_diff_length = True
+            self._is_diff = True
+            return
+
+        try:
+            self.values = [y - x for x, y in zip(dfa.values, dfb.values)]
+            self._is_diff_values = not is_list_globally(
+                self.values, False, equal_func=lambda x, v: bool(x) == v)
+        except TypeError:
+            self.values = [x != y for x, y in zip(dfa.values, dfb.values)]
+            self._is_diff_values = is_list_globally_equal(self.values, True)
+
+        self.flags_woce = [
+            y - x for x, y in zip(dfa.flags_woce, dfb.flags_woce)]
+        self._is_diff_flags_woce = (
+            bool(self.flags_woce) and not is_list_globally(self.flags_woce, 0))
+
+        self.flags_igoss = [
+            y - x for x, y in zip(dfa.flags_igoss, dfb.flags_igoss)]
+        self._is_diff_flags_igoss = (
+            bool(self.flags_igoss) and
+            not is_list_globally(self.flags_igoss, 0))
+
+        self._is_diff = (
+            self.is_diff_parameter() or self.is_diff_units() or
+            self.is_diff_length() or self.is_diff_values() or
+            self.is_diff_flags())
+
+    def __str__(self):
+        return super(DiffColumn, self).__str__() + '\n' + repr({
+                'parameter': self._is_diff_parameter,
+                'units': self._is_diff_units,
+                'length': self._is_diff_length,
+                'values': self._is_diff_values,
+                'flags_woce': self._is_diff_flags_woce,
+                'flags_igoss': self._is_diff_flags_igoss,
+                'diff': self._is_diff,
+            })
 
 
 class File(object):

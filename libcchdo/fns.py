@@ -121,6 +121,36 @@ def equal_with_epsilon(a, b, epsilon=Decimal('1e-6')):
     return delta < _decimal(epsilon)
 
 
+def is_list_global(lll):
+    """Return whether the elements for the whole list are the same."""
+    check = None
+    for x in lll:
+        if check is None:
+            check = x
+            continue
+        if check != x:
+            return False
+    return True
+
+
+def is_list_globally_equal(lll, value=0.0):
+    """Return whether the given list is entirely composed of the same value."""
+    if not is_list_global(lll):
+        return False
+    return lll[0] == value
+
+
+def is_list_globally(lll, value=0.0, equal_func=equal_with_epsilon):
+    """Return whether the given list is entirely composed of the same value."""
+    if not is_list_global(lll):
+        return False
+    try:
+        return equal_func(lll[0], value)
+    except IndexError:
+        return False
+    return True
+
+
 def out_of_band(value, oob=Decimal(-999),
                 tolerance=Decimal('0.1')):
     try:

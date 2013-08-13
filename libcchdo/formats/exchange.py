@@ -10,7 +10,8 @@ from libcchdo.log import LOG
 FILL_VALUE = -999.0
 
 
-FLAG_WOCE_ENDING = '_FLAG_W'
+FLAG_ENDING_WOCE = '_FLAG_W'
+FLAG_ENDING_IGOSS = '_FLAG_I'
 
 
 END_DATA = 'END_DATA'
