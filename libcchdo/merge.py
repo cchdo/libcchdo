@@ -23,14 +23,7 @@ style flags or '_FLAG_I' suffix for IGOSS style flags or another similar style.
 from copy import copy
 from collections import OrderedDict
 
-from pandas import *
-
-pandas_merge = merge
-
-from numpy import isnan, object as np_object
-
 from libcchdo import LOG
-from libcchdo.fns import is_list_globally
 from libcchdo.formats import woce
 from libcchdo.formats.exchange import (
     END_DATA, FILL_VALUE, FLAG_ENDING_WOCE, FLAG_ENDING_IGOSS)
@@ -40,230 +33,10 @@ from libcchdo.model.datafile import (
     DataFile, DataFileCollection, Column, PRESSURE_PARAMETERS)
 
 
-KEY_COLS = ['EXPOCODE', 'STNNBR', 'CASTNO', 'SAMPNO', 'BTLNBR']
+BOTTLE_KEY_COLS = ('EXPOCODE', 'STNNBR', 'CASTNO', 'SAMPNO', 'BTLNBR',)
 
 
-class MergeData(object):
-    def __init__(self, stamp, header, param_units, dframe):
-        self.stamp = stamp
-        self.header = header
-        self.param_units = param_units
-        self.dframe = dframe
-
-    def available_keys(self):
-        """Return keys that are available to merge on."""
-        df_cols = list(self.dframe.columns)
-        return [col for col in KEY_COLS if col in df_cols]
-
-    def grouped(self, keys=None):
-        if keys is None:
-            keys = self.available_keys()
-        return self.dframe.groupby(keys, axis=0)
-
-    def merge_keys(self, other):
-        """Return the keys that are in both mergedatas."""
-        keys1 = self.available_keys()
-        keys2 = other.available_keys()
-        if keys1 != keys2:
-            LOG.warn(u'Mismatched key composition to merge on:\norigin:\t\t{0!r}\n'
-                      'derivative:\t{1!r}'.format(keys1, keys2))
-            LOG.warn(u'Merging on common subset.')
-            on_cols = list(OrderedSet(keys1) & OrderedSet(keys2))
-        else:
-            on_cols = keys1
-
-        LOG.info('Merging using keys composed of: {0!r}'.format(on_cols))
-        return on_cols
-
-    def map_rows(self, other, on_cols=None):
-        """Return a map of the rows in mergedata1 to mergedata2."""
-        if on_cols is None:
-            on_cols = self.merge_keys(other)
-        df2_grouped = other.grouped(on_cols)
-        df1_grouped = self.grouped(on_cols)
-        df2_groups = df2_grouped.groups
-        df1_groups = df1_grouped.groups
-        df1_ids = df1_groups.keys()
-
-        row_map = []
-        for cast_identifier, group in df2_grouped:
-            if cast_identifier not in df1_ids:
-                LOG.warn(
-                    u'Key {0} in derivative file is not in origin file'.format(
-                    cast_identifier))
-                continue
-            # Find the rows that correspond to the same data row
-            row1 = df1_groups[cast_identifier][0]
-            row2 = df2_groups[cast_identifier][0]
-            row_map.append([row1, row2, cast_identifier])
-        return row_map
-
-    def convert_to_datafile(self, parameters):
-        dfile = DataFile()
-
-        header = '# Merged parameters: {0}\n#{1}\n{2}\n'.format(
-            ', '.join(parameters), self.stamp, '\n'.join(self.header))
-        dfile.globals['header'] = header
-
-        params = self.dframe.head(1)
-        units = []
-        for param in params:
-            units.append(self.param_units[param])
-        dfile.create_columns(params, units)
-        dfile.check_and_replace_parameters()
-
-        for param in params:
-            if 'FLAG' in param:
-                continue
-            dfile[param].values = list(self.dframe[param])
-            flag_name = param + FLAG_ENDING_WOCE
-            if flag_name in params:
-                dfile[param].flags_woce = list(self.dframe[flag_name])
-
-        woce.fuse_datetime(dfile)
-        return dfile
-
-
-class Merger(object):
-    def __init__(self, file1, file2):
-        self.mdata1 = self.read_file(file1)
-        self.mdata2 = self.read_file(file2)
-
-    def read_file(self, fobj):
-        # TODO this should really be a read into libcchdo.model.datafile format
-        # and then converted into a pandas dataframe, or not at all because of
-        # precision problems.
-        stamp, header, param_units, last_line = self._read_head_foot(fobj)
-        fobj.seek(0)
-
-        # Skip the stamp, headers and units line when reading the CSV as a
-        # dataframe
-        header_len = len(header)
-        skiprows = [header_len, header_len + 2]
-        if last_line:
-            skip_footer = 1
-        else:
-            skip_footer = 0
-
-        dframe = read_csv(fobj, header=(header_len), skiprows=skiprows,
-                          skip_footer=skip_footer)
-
-        # For columns with string values, strip whitespace
-        for param in dframe.head(1):
-            if dframe[param].dtype == np_object:
-                dframe[param] = [xxx.strip() for xxx in dframe[param]]
-
-        return MergeData(stamp, header, param_units, dframe)
-
-    def _read_head_foot(self, fobj):
-        header = []
-        stamp = fobj.readline().rstrip()
-        if not stamp.startswith('BOTTLE') and not stamp.startswith('CTD'):
-            raise ValueError(
-                'Stamp {0!r} must start with BOTTLE or CTD'.format(stamp))
-        line = fobj.readline()
-        while line:
-            if not line.startswith('#'):
-                break
-            header.append(line.rstrip())
-            line = fobj.readline()
-        params = line.rstrip().split(',')
-        line = fobj.readline()
-        units = line.rstrip().split(',')
-        param_units = dict(zip(params, units))
-        lines = fobj.readlines()
-        last_line = lines[-1].startswith(END_DATA)
-        return stamp, header, param_units, last_line
-
-    def map_rows(self, on_cols=None):
-        return self.mdata1.map_rows(self.mdata2, on_cols)
-
-    def different_cols(self):
-        different_cols = OrderedSet()
-        dframe2 = self.mdata2.dframe
-        dframe1 = self.mdata1.dframe
-        columns2 = dframe2.columns
-        columns1 = dframe1.columns
-        row_map = self.map_rows()
-        for col in columns2:
-            if col not in columns1:
-                different_cols.add(col)
-                continue
-
-            for row1, row2, cast_identifier in row_map:
-                # Make sure the values for both dataframes matches
-                val1 = dframe1[col][row1]
-                val2 = dframe2[col][row2]
-                try:
-                    float(val1)
-                    float(val2)
-                    if val1 != val2 and not equal_with_epsilon(val1, val2):
-                        LOG.info(u'{0} differs at {1}:\t{2!r} {3!r}'.format(col,
-                            cast_identifier, val1, val2))
-                        different_cols.add(col)
-                except ValueError:
-                    if val1.strip() != val2.strip():
-                        different_cols.add(col)
-        return list(different_cols)
-        
-    def merge(self, columns_to_merge):
-        df1 = self.mdata1.dframe
-        df2 = self.mdata2.dframe
-        df1_cols = list(df1.columns)
-        df2_cols = list(df2.columns)
-
-        on_cols = self.mdata1.merge_keys(self.mdata2)
-        row_map = self.map_rows(on_cols)
-
-        if not row_map:
-            LOG.error(u'No keys matched in origin and derivative files.')
-            return None
-
-        merged_df = df1.copy(deep=True)
-
-        # TODO consideration: DataFrame does not handle precision.
-        for col in columns_to_merge:
-            # Case 1: Adding new column
-            if col not in df1_cols:
-                if col not in df2_cols:
-                    LOG.warn(u'No such column: {0!r}'.format(col))
-                    continue
-                LOG.info(u'Adding new column {0!r}'.format(col))
-                # Make temporary frame with only the data and keys to merge
-                temp_frame = df2.copy(deep=True)
-                for col_to_check in df2.columns:
-                    if col_to_check not in on_cols + [col]:
-                        del temp_frame[col_to_check]
-
-                merged_df = pandas_merge(
-                    merged_df, temp_frame, how='outer', on=on_cols)
-                # If the new file has less records, fill in the missing records
-                fill_map = {}
-                for param in merged_df.head(1):
-                    if param.endswith(FLAG_ENDING_WOCE):
-                        fill_map[param] = 9
-                    else:
-                        fill_map[param] = FILL_VALUE
-                merged_df = merged_df.fillna(fill_map)
-            # Case 2: Updating column data
-            else:
-                # WARNING: using pandas.DataFrame.update or join causes the
-                # dtypes for columns to change. This is highly undesirable, do
-                # not use them.
-                LOG.info(u'Updating data for column {0!r}'.format(col))
-                col1 = df1[col]
-                col2 = df2[col]
-                colm = merged_df[col]
-                for row1, row2, cast_identifier in row_map:
-                    val1 = col1[row1]
-                    val2 = col2[row2]
-                    colm[row1] = val2
-
-        # Overwrite parameter units from origin with deriv
-        param_units = dict(**self.mdata1.param_units)
-        param_units.update(self.mdata2.param_units)
-        return MergeData(
-            self.mdata1.stamp, self.mdata1.header, param_units, merged_df)
+DFILE_KEY_COLS = ('EXPOCODE', 'STNNBR', 'CASTNO',)
 
 
 def merge_ctd_bacp_xmiss_and_ctd_exchange(file, mergefile):
@@ -308,7 +81,7 @@ def merge_ctd_bacp_xmiss_and_ctd_exchange(file, mergefile):
         xmiss_column.values[j] = merge_xmiss.values[i]
 
 
-def datafile_parameter_mnemonics(dfile):
+def _datafile_parameter_mnemonics(dfile):
     """Return a list of columns in a data file including flag columns."""
     columns = OrderedSet()
     for column in dfile.sorted_columns():
@@ -321,7 +94,7 @@ def datafile_parameter_mnemonics(dfile):
     return columns
 
 
-def different_columns(origin, deriv):
+def different_columns(origin, deriv, keys, row_map=None):
     """Return different, not in origin, not in derivative, and common columns
     between two DataFiles.
 
@@ -332,6 +105,8 @@ def different_columns(origin, deriv):
     merging.
 
     """
+    if not row_map:
+        row_map = map_keys(origin, deriv, keys)
     if type(origin) == DataFileCollection and type(deriv) == DataFileCollection:
         different = OrderedSet()
         not_in_origin = OrderedSet()
@@ -339,8 +114,9 @@ def different_columns(origin, deriv):
         common = OrderedSet()
 
         dfile_map = map_collections(origin, deriv)
-        for odfile, ddfile in dfile_map:
-            diff, notino, notind, com = different_columns(odfile, ddfile)
+        for odfile, ddfile, dfkey in dfile_map:
+            diff, notino, notind, com = different_columns(
+                odfile, ddfile, [], row_map=row_map)
             different |= diff
             not_in_origin |= notino
             not_in_derivative |= notind
@@ -349,13 +125,21 @@ def different_columns(origin, deriv):
             list(different), list(not_in_origin), list(not_in_derivative),
             list(common))
 
-    origin_columns = datafile_parameter_mnemonics(origin)
-    deriv_columns = datafile_parameter_mnemonics(deriv)
+    origin_columns = _datafile_parameter_mnemonics(origin)
+    deriv_columns = _datafile_parameter_mnemonics(deriv)
 
     common = origin_columns & deriv_columns
     not_in_origin = deriv_columns - origin_columns
     not_in_derivative = origin_columns - deriv_columns
     different = OrderedSet()
+
+    def report_differences(param, difflist, difftuples):
+        for i, diff in enumerate(difflist):
+            if not diff:
+                continue
+            LOG.info(u'{0} differs at origin row {1}:\t{2!r}'.format(
+                param, i, difftuples[i]))
+        
 
     # check common columns for differing data
     for col in common:
@@ -365,33 +149,44 @@ def different_columns(origin, deriv):
             param = col
         origcol = origin[param]
         derivcol = deriv[param]
-        diffcol = origcol.diff(derivcol)
+        diffcol = origcol.diff(derivcol, row_map=row_map)
         if not diffcol.is_diff():
             continue
 
-        if not diffcol.is_diff_values() and not diffcol.is_diff_flags():
-            different.add(col)
-            common.remove(col)
-            continue
-
+        is_diff = False
         if 'FLAG' in col:
             if (    (col.endswith(FLAG_ENDING_WOCE) and
                      diffcol.is_diff_flags_woce()) or
                     (col.endswith(FLAG_ENDING_IGOSS) and
                      diffcol.is_diff_flags_igoss())):
-                different.add(col)
-                common.remove(col)
-        elif diffcol.is_diff_values():
+                is_diff = True
+
+            # Report where the flags first differ.
+            if col.endswith(FLAG_ENDING_WOCE):
+                report_differences(
+                    col, diffcol.flags_woce, diffcol.flags_woce_tuples)
+            elif col.endswith(FLAG_ENDING_IGOSS):
+                report_differences(
+                    col, diffcol.flags_igoss, diffcol.flags_igoss_tuples)
+        else:
+            if diffcol.is_diff_values():
+                is_diff = True
+
+                report_differences(
+                    col, diffcol.values, diffcol.values_tuples)
+            elif diffcol.is_diff_units():
+                is_diff = True
+            elif diffcol.is_diff_flags():
+                pass
+            else:
+                raise ValueError(u'{0} columns differ in a way that cannot be '
+                                 'merged.'.format(col))
+        if is_diff:
             different.add(col)
             common.remove(col)
-
     return (
         list(different), list(not_in_origin), list(not_in_derivative),
         list(common))
-
-
-KEY_COLUMNS = [
-    'EXPOCODE', 'SECT_ID', 'STNNBR', 'CASTNO', 'SAMPNO', 'BTLNBR']
 
 
 def overwrite_list(origin_col, derivative_col, keymap):
@@ -413,13 +208,14 @@ def overwrite_list(origin_col, derivative_col, keymap):
     return origin_col
 
 
-def determine_params_to_merge(diffcols, not_in_orig_cols, not_in_deriv_cols,
-                              commoncols, parameters):
-    """Return the parameters to merge based on given and availability."""
+def filter_params_to_merge(diffcols, not_in_orig_cols, not_in_deriv_cols,
+                           commoncols, parameters_to_merge):
+    """Filter the parameters_to_merge based on given and availability."""
     # make sure all given parameters to merge are actually different and exist
-    parameters = OrderedSet(parameters)
-    notdiff_params = parameters - diffcols - not_in_orig_cols - not_in_deriv_cols
-    params_to_merge = parameters - notdiff_params
+    parameters_to_merge = OrderedSet(parameters_to_merge)
+    notdiff_params = \
+        parameters_to_merge - diffcols - not_in_orig_cols - not_in_deriv_cols
+    params_to_merge = parameters_to_merge - notdiff_params
     if len(notdiff_params) != 0:
         unknown_parameters = []
         for param in notdiff_params:
@@ -435,12 +231,17 @@ def determine_params_to_merge(diffcols, not_in_orig_cols, not_in_deriv_cols,
                      '{0!r}'.format(list(notdiff_params)))
 
     if not params_to_merge:
-        raise ValueError(u'No columns selected to merge.')
+        raise ValueError(u'No columns selected to merge are different.')
+    LOG.info(u'Merging {0}'.format(list(params_to_merge)))
     return params_to_merge
 
 
 def map_keys(origin, deriv, keys):
     """Return a map of rows in origin to rows in deriv based on key columns."""
+    if not keys:
+        LOG.error(u'No keys provided to map on.')
+        return []
+
     # Map the deriv's rows onto the origin's rows based on the keys while
     # warning about missing keys in origin.
     origincols = [origin[param] for param in keys]
@@ -459,9 +260,12 @@ def map_keys(origin, deriv, keys):
     originkeys = OrderedDict()
     derivkeys = OrderedDict()
     for i in range(origin_collen):
-        originkeys[tuple([col[i] for col in origincols])] = i
+        key = tuple([col[i] for col in origincols])
+        originkeys[key] = i
     for i in range(deriv_collen):
-        derivkeys[tuple([col[i] for col in derivcols])] = i
+        key = tuple([col[i] for col in derivcols])
+        derivkeys[key] = i
+
     keymap = []
     for key in derivkeys:
         ideriv = derivkeys[key]
@@ -477,18 +281,46 @@ def map_keys(origin, deriv, keys):
             continue
         LOG.warn(u'Key on row {0} of origin file does not exist in derivative: '
                  '{1!r}'.format(iorigin, key))
+
+    if not keymap:
+        LOG.error(u'No keys matched in origin and derivative files.')
+
     return keymap
 
 
+def _determine_available_bottle_keys(dfile):
+    """Return keys that are available to merge on."""
+    df_cols = _datafile_parameter_mnemonics(dfile)
+    return tuple([col for col in BOTTLE_KEY_COLS if col in df_cols])
+
+
+def determine_bottle_keys(origin, deriv):
+    """Return the columns that should compose the key to merge on.
+
+    These are columns that are available in both files to merge.
+
+    The keys are the sample identifier which can be made up of multiple
+    columns e.g. EXPOCODE, STNNBR, CASTNO, BTLNBR,
+    SAMPNO
+
+    """
+    keys1 = _determine_available_bottle_keys(origin)
+    keys2 = _determine_available_bottle_keys(deriv)
+    if keys1 != keys2:
+        LOG.warn(u'Mismatched key composition to merge on:\norigin:\t\t{0!r}\n'
+                  'derivative:\t{1!r}'.format(keys1, keys2))
+        LOG.warn(u'Merging on common subset.')
+        return list(OrderedSet(keys1) & OrderedSet(keys2))
+    return keys1
+
+
 def determine_ctd_keys(origin, deriv):
-    # Determine key columns
-    # In the case of CTD, the key column is the pressure column, whether it is
-    # CTDPRS or REVPRS, or some other.
-    # In the case of Bottle, the key column is the sample identifier which can
-    # be made up of multiple columns e.g. EXPOCODE, STNNBR, CASTNO, BTLNBR,
-    # SAMPNO
-    # TODO It might be good for determination of the key to be overrideable by
-    # the user...
+    """Return the coumns that should compose the key to merge on.
+
+    The key is the pressure column, whether it is CTDPRS or REVPRS, or some
+    other parameter.
+
+    """
     keycol = None
     for param in PRESSURE_PARAMETERS:
         if param in origin and param in deriv:
@@ -496,23 +328,23 @@ def determine_ctd_keys(origin, deriv):
             break
     if keycol is None:
         raise ValueError(u'No available pressure columns to merge CTD on.')
-    LOG.info('Merging on pressure column: {0!r}'.format(keycol))
-    return [keycol]
+    return (keycol,)
 
 
 def merge_datafiles(origin, deriv, keys, parameters):
     """Merge the columns and data of two DataFiles."""
+    row_map = map_keys(origin, deriv, keys)
+
     diffcols, not_in_orig_cols, not_in_deriv_cols, commoncols = \
-        different_columns(origin, deriv)
-    params_to_merge = determine_params_to_merge(
+        different_columns(origin, deriv, [], row_map)
+    params_to_merge = filter_params_to_merge(
         diffcols, not_in_orig_cols, not_in_deriv_cols, commoncols, parameters)
 
+    LOG.info('Merging on keys composed of: {0!r}'.format(keys))
     param_keys = set(params_to_merge) & set(keys)
     if param_keys:
         raise ValueError(
             u'Cannot merge key column using itself: {0!r}'.format(param_keys))
-
-    keymap = map_keys(origin, deriv, keys)
 
     # Create merged file using origin as template
     merged = copy(origin)
@@ -534,7 +366,7 @@ def merge_datafiles(origin, deriv, keys, parameters):
     # gets merged or whether only column values get merged or which flag gets
     # merged. The way this could happen is...
 
-    all_cols = commoncols + not_in_deriv_cols + keys + \
+    all_cols = commoncols + not_in_deriv_cols + list(keys) + \
         list(OrderedSet(diffcols) | params_to_merge)
     for key in all_cols:
         if '_FLAG_' in key:
@@ -570,12 +402,12 @@ def merge_datafiles(origin, deriv, keys, parameters):
                     col.flags_woce = [9]
                     col.set_length(len(merged))
                     col.flags_woce = overwrite_list(
-                        col.flags_woce, derivcol.flags_woce, keymap)
+                        col.flags_woce, derivcol.flags_woce, row_map)
                 if derivcol.flags_igoss:
                     col.flags_igoss = [9]
                     col.set_length(len(merged))
                     col.flags_igoss = overwrite_list(
-                        col.flags_igoss, derivcol.flags_igoss, keymap)
+                        col.flags_igoss, derivcol.flags_igoss, row_map)
             else:
                 if derivcol.parameter.units:
                     try:
@@ -591,14 +423,20 @@ def merge_datafiles(origin, deriv, keys, parameters):
                     col.parameter.units = derivcol.parameter.units
                 col.set_length(len(merged))
                 col.values = overwrite_list(
-                    col.values, derivcol.values, keymap)
+                    col.values, derivcol.values, row_map)
+
+    # Copy header from origin and add note about merged parameters
+    header = '# Merged parameters: {0}\n# {1}\n'.format(
+        ', '.join(params_to_merge), origin.globals['stamp'].rstrip())
+    header_orig = origin.globals['header'].rstrip()
+    if header_orig:
+        header += header_orig
+    merged.globals['header'] = header
+
     return merged
 
 
-DATAFILE_KEYS = ['EXPOCODE', 'STNNBR', 'CASTNO']
-
-
-def map_collections(origin, deriv, dfkeys=DATAFILE_KEYS):
+def map_collections(origin, deriv, dfkeys=DFILE_KEY_COLS):
     """Return list of tuples of matching DataFiles and the key.
 
     Match the datafiles based on keys composed of the given columns. 
@@ -636,7 +474,7 @@ def map_collections(origin, deriv, dfkeys=DATAFILE_KEYS):
     return dfile_map
 
 
-def merge_collections(origin, deriv, merge, dfkeys=DATAFILE_KEYS):
+def merge_collections(origin, deriv, merge, dfkeys=DFILE_KEY_COLS):
     """Match up files in two archives and apply the merge function to them."""
     # Only merge files into the ones already present in origin. Warn if any
     # files from deriv are not used
@@ -644,5 +482,9 @@ def merge_collections(origin, deriv, merge, dfkeys=DATAFILE_KEYS):
     dfile_map = map_collections(origin, deriv)
     for odfile, ddfile, dfkey in dfile_map:
         LOG.info(u'Merging files for key {0}'.format(dfkey))
-        merged_dfc.append(merge(odfile, ddfile))
+        try:
+            merged_dfc.append(merge(odfile, ddfile))
+        except ValueError, err:
+            LOG.error(
+                u'Unable to merge datafiles for {0}: {1}'.format(dfkey, err))
     return merged_dfc

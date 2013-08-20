@@ -1188,49 +1188,75 @@ with subcommand(merge_parsers, 'ctdzip_bacp_xmiss_and_ctdzip_exchange',
         help='output CTD ZIP Exchange file')
 
 
-def merge_botex_and_botex(args):
+def _merge_ex_and_ex(args, file_format, key_determiner, collection=False):
+    from libcchdo.merge import (
+        merge_datafiles, different_columns, map_collections, merge_collections)
+    import libcchdo.formats.bottle.exchange as btlex
+    from libcchdo.model.datafile import DataFile, DataFileCollection
+    from libcchdo.recipes.orderedset import OrderedSet
+
+    if collection:
+        origin = DataFileCollection()
+        deriv = DataFileCollection()
+    else:
+        origin = DataFile()
+        deriv = DataFile()
+    with closing(args.origin) as forigin:
+        file_format.read(origin, forigin)
+    with closing(args.derivative) as fderiv:
+        deriv_name = fderiv.name
+        file_format.read(deriv, fderiv)
+
+    keycols = key_determiner(origin, deriv)
+    if args.on:
+        keycols = [xxx.strip() for xxx in args.on.split(',')]
+
+    if args.parameters_to_merge:
+        parameters = args.parameters_to_merge
+    else:
+        p_different, p_not_in_origin, p_not_in_derivative, p_common = \
+            different_columns(origin, deriv, keycols)
+        parameters = p_different + p_not_in_origin
+        LOG.info(u'The following parameters in {0} are different'.format(
+            deriv_name))
+        if args.merge_different:
+            LOG.info(u', '.join(parameters))
+        else:
+            # Show parameters with differing data
+            print u'\n'.join(parameters)
+            return
+
+    parameters = list(OrderedSet(parameters) - OrderedSet(keycols))
+    if collection:
+        def merge(origin, deriv):
+            return merge_datafiles(origin, deriv, keycols, parameters)
+        dfout = merge_collections(origin, deriv, merge)
+    else:
+        dfout = merge_datafiles(origin, deriv, keycols, parameters)
+
+    with closing(args.output) as out_file:
+        file_format.write(dfout, out_file)
+
+
+def merge_btlex_and_btlex(args):
     """Merge Bottle Exchange files by overwriting the first with the second.
 
     If no parameters to merge are given, show the parameters that have differing
     data.
 
     """
-    from libcchdo.merge import Merger
-    import libcchdo.formats.bottle.exchange as botex
-
-    with closing(args.origin) as forigin:
-        with closing(args.derivative) as fderiv:
-            merger = Merger(forigin, fderiv)
-            if args.parameters_to_merge:
-                parameters = args.parameters_to_merge
-            elif args.merge_different:
-                parameters = merger.different_cols()
-                LOG.info(
-                    u'The following parameters in {0} are different'.format(
-                    fderiv.name))
-                LOG.info(u', '.join(parameters))
-            else:
-                # Show parameters with differing data
-                parameters = merger.different_cols()
-                LOG.info(
-                    u'The following parameters in {0} are different'.format(
-                    fderiv.name))
-                print u'\n'.join(parameters)
-                return
-
-            mdata = merger.merge(parameters)
-            try:
-                dfile = mdata.convert_to_datafile(parameters)
-                with closing(args.output) as out_file:
-                    botex.write(dfile, out_file)
-            except AttributeError:
-                LOG.error(u'Unable to merge')
+    from libcchdo.merge import determine_bottle_keys
+    import libcchdo.formats.bottle.exchange as btlex
+    _merge_ex_and_ex(args, btlex, determine_bottle_keys)
 
 
-with subcommand(merge_parsers, 'botex_and_botex', merge_botex_and_botex) as p:
+with subcommand(merge_parsers, 'botex_and_botex', merge_btlex_and_btlex) as p:
     p.add_argument(
         '--output', type=FileType('w'), nargs='+', default=sys.stdout,
         help='output Bottle Exchange file')
+    p.add_argument(
+        '--on', type=str, nargs='?',
+        help='Comma separated columns to use as the key to merge on.')
     p.add_argument(
         '--merge-different', action='store_true',
         help='Merge all different parameters')
@@ -1253,43 +1279,31 @@ def merge_ctdex_and_ctdex(args):
     data.
 
     """
-    from libcchdo.merge import (
-        determine_ctd_keys, merge_datafiles, different_columns)
+    from libcchdo.merge import determine_ctd_keys
     import libcchdo.formats.ctd.exchange as ctdex
-    from libcchdo.model.datafile import DataFile
+    _merge_ex_and_ex(args, ctdex, determine_ctd_keys)
 
-    origin = DataFile()
-    deriv = DataFile()
-    with closing(args.origin) as forigin:
-        ctdex.read(origin, forigin)
-    with closing(args.derivative) as fderiv:
-        deriv_name = fderiv.name
-        ctdex.read(deriv, fderiv)
 
-    if args.parameters_to_merge:
-        parameters = args.parameters_to_merge
-    elif args.merge_different:
-        p_different, p_missing_from_origin, p_missing_from_derivative, p_common = \
-            different_columns(origin, deriv)
-        parameters = p_different + p_missing_from_origin
-        LOG.info(u'The following parameters in {0} are different'.format(
-            deriv_name))
-        LOG.info(u', '.join(parameters))
-    else:
-        # Show parameters with differing data
-        p_different, p_missing_from_origin, p_missing_from_derivative, p_common = \
-            different_columns(origin, deriv)
-        parameters = p_different + p_missing_from_origin
-        LOG.info(u'The following parameters in {0} are different'.format(
-            deriv_name))
-        print u'\n'.join(parameters)
-        return
-
-    keys = determine_ctd_keys(origin, deriv)
-    dfout = merge_datafiles(origin, deriv, keys, parameters)
-
-    with closing(args.output) as out_file:
-        ctdex.write(dfout, out_file)
+with subcommand(merge_parsers, 'ctdex_and_ctdex', merge_ctdex_and_ctdex) as p:
+    p.add_argument(
+        '--output', type=FileType('w'), nargs='+', default=sys.stdout,
+        help='output CTD Exchange file')
+    p.add_argument(
+        '--on', type=str, nargs='?',
+        help='Comma separated columns to use as the key to merge on.')
+    p.add_argument(
+        '--merge-different', action='store_true',
+        help='Merge all different parameters')
+    p.add_argument(
+        'origin', type=FileType('r'),
+        help='file to merge onto')
+    p.add_argument(
+        'derivative', type=FileType('r'),
+        help='file to update first file with')
+    merge_group = p.add_argument_group(title='Merge parameters')
+    merge_group.add_argument(
+        'parameters_to_merge', type=str, nargs='*', default=[],
+        help='parameters to merge')
 
 
 def merge_ctdzipex_and_ctdzipex(args):
@@ -1299,46 +1313,23 @@ def merge_ctdzipex_and_ctdzipex(args):
     data.
 
     """
+    from libcchdo.recipes.orderedset import OrderedSet
     from libcchdo.merge import (
-        determine_ctd_keys, merge_datafiles, different_columns,
-        merge_collections)
+        map_collections, determine_ctd_keys)
     import libcchdo.formats.ctd.zip.exchange as ctdzipex
-    from libcchdo.model.datafile import DataFileCollection
 
-    origin = DataFileCollection()
-    deriv = DataFileCollection()
-    with closing(args.origin) as forigin:
-        ctdzipex.read(origin, forigin)
-    with closing(args.derivative) as fderiv:
-        deriv_name = fderiv.name
-        ctdzipex.read(deriv, fderiv)
+    def key_determiner(origin, deriv):
+        dfile_map = map_collections(origin, deriv)
+        keycols = OrderedSet()
+        for odfile, ddfile, dfkey in dfile_map:
+            keycols.add(determine_ctd_keys(odfile, ddfile))
 
-    if args.parameters_to_merge:
-        parameters = args.parameters_to_merge
-    elif args.merge_different:
-        p_different, p_missing_from_origin, p_missing_from_derivative, p_common = \
-            different_columns(origin, deriv)
-        parameters = p_different + p_missing_from_origin
-        LOG.info(u'The following parameters in {0} are different'.format(
-            deriv_name))
-        LOG.info(u', '.join(parameters))
-    else:
-        # Show parameters with differing data
-        p_different, p_missing_from_origin, p_missing_from_derivative, p_common = \
-            different_columns(origin, deriv)
-        parameters = p_different + p_missing_from_origin
-        LOG.info(u'The following parameters in {0} are different'.format(
-            deriv_name))
-        print u'\n'.join(parameters)
-        return
-
-    def merge(origin, deriv):
-        keys = determine_ctd_keys(origin, deriv)
-        return merge_datafiles(origin, deriv, keys, parameters)
-    merged_dfc = merge_collections(origin, deriv, merge)
-
-    with closing(args.output) as out_file:
-        ctdzipex.write(merged_dfc, out_file)
+        if not keycols:
+            raise ValueError(
+                u'Unable to determine the key columns across all CTD files.')
+        keycols = keycols.pop()
+        return keycols
+    _merge_ex_and_ex(args, ctdzipex, key_determiner, collection=True)
 
 
 with subcommand(merge_parsers, 'ctdzipex_and_ctdzipex',
@@ -1346,6 +1337,9 @@ with subcommand(merge_parsers, 'ctdzipex_and_ctdzipex',
     p.add_argument(
         '--output', type=FileType('w'), nargs='+', default=sys.stdout,
         help='output CTD ZIP Exchange file')
+    p.add_argument(
+        '--on', type=str, nargs='?',
+        help='Comma separated columns to use as the key to merge on.')
     p.add_argument(
         '--merge-different', action='store_true',
         help='Merge all different parameters')

@@ -10,9 +10,9 @@ from libcchdo.fns import _decimal
 from libcchdo.model.datafile import DataFile, DataFileCollection
 from libcchdo.db.model.std import Unit
 from libcchdo.merge import (
-    Merger, different_columns, map_collections, merge_collections,
-    merge_datafiles
-    )
+    BOTTLE_KEY_COLS, determine_bottle_keys, different_columns, map_collections,
+    merge_collections, merge_datafiles)
+from libcchdo.recipes.orderedset import OrderedSet
 from libcchdo.log import LOG
 
 from libcchdo.formats.ctd import exchange as ctdex
@@ -37,9 +37,9 @@ def ensure_lines(lines, stream):
                     lines.remove(query)
     if not lines:
         return True
-    print 'Missing log lines', lines
+    print 'Missing log lines', repr(lines)
     stream.seek(0)
-    print stream.read()
+    print repr(stream.read())
     return False
 
 
@@ -66,25 +66,34 @@ class TestMerge(TestCase):
         self._reload_handlers()
 
     def test_different_columns(self):
+        """Columns between two datafiles differ under a wide variety of cases.
+
+        Case 1: Column values are different
+        Case 1 corollary: Flag values are different
+        Case 2: Units are different
+        Case 3: Column not in original
+        Case 4: Column not in derivative
+
+        """
         with TemporaryFile() as origin, TemporaryFile() as deriv:
             origin.write("""\
-BOTTLE,19700101CCHSIOXXX
+BOTTLE,19700101CCHSIOYYY
 # header 1
-EXPOCODE,SECT_ID,STNNBR,CASTNO,SAMPNO,BTLNBR,BTLNBR_FLAG_W,LATITUDE,LONGITUDE,DATE,TIME,DEPTH,NITRAT,NITRIT,DELC14,DELC14_FLAG_W
-,,,,,,,,,,,METERS,UMOL/KG,UMOL/KG,/MILLE,
- 316N145_9, TRNS1, 574, 1, 16, 36, 2, 0, 0, 19700101, 0000,1000,3.00,10.0,-999.000,9
- 316N145_9, TRNS1, 574, 1, 15, 35, 2, 0, 0, 19700101, 0000,1000,4.00,10.0,-999.000,9
+EXPOCODE,SECT_ID,STNNBR,CASTNO,SAMPNO,BTLNBR,BTLNBR_FLAG_W,LATITUDE,LONGITUDE,DATE,TIME,DEPTH,NITRAT,NITRAT_FLAG_W,NITRIT,DELC14,DELC14_FLAG_W
+,,,,,,,,,,,METERS,UMOL/KG,,UMOL/KG,/MILLE,
+ 316N145_9, TRNS1, 574, 1, 16, 36, 2, 0, 0, 19700101, 0000,1000,3.00,2,10.0,-999.000,9
+ 316N145_9, TRNS1, 574, 1, 15, 35, 2, 0, 0, 19700101, 0000,1000,4.00,2,10.0,-999.000,9
 END_DATA
 """)
             origin.flush()
             origin.seek(0)
             deriv.write("""\
-BOTTLE,19700101CCHSIOXXX
+BOTTLE,19700101CCHSIOYYY
 # header 2
-EXPOCODE,SECT_ID,STNNBR,CASTNO,SAMPNO,BTLNBR,BTLNBR_FLAG_W,LATITUDE,LONGITUDE,DATE,TIME,DEPTH,TDN,NITRIT,DELC14,DELC14_FLAG_W
-,,,,,,,,,,,METERS,UMOL/KG,NMOL/KG,/MILLE,
- 316N145_9, TRNS1, 573, 1, 16, 36, 2, 0, 0, 19700101, 0000,1000,6.00,10.0,  10.000,9
- 316N145_9, TRNS1, 574, 1, 15, 35, 2, 0, 0, 19700101, 0000,1000,5.00,10.0,-999.000,1
+EXPOCODE,SECT_ID,STNNBR,CASTNO,SAMPNO,BTLNBR,BTLNBR_FLAG_W,LATITUDE,LONGITUDE,DATE,TIME,DEPTH,TDN,TDN_FLAG_W,NITRIT,DELC14,DELC14_FLAG_W
+,,,,,,,,,,,METERS,UMOL/KG,,NMOL/KG,/MILLE,
+ 316N145_9, TRNS1, 574, 1, 16, 36, 2, 0, 0, 19700101, 0000,1000,6.00,3,10.0,-999.000,1
+ 316N145_9, TRNS1, 574, 1, 15, 35, 2, 0, 0, 19700101, 0000,1000,5.00,3,10.0,  10.000,9
 END_DATA
 """)
             deriv.flush()
@@ -97,19 +106,45 @@ END_DATA
             self.assertEqual(
                 # NITRIT comes after because NMOL/KG is not an expected unit and
                 # gets pushed to the end when sorting
-                (['STNNBR', 'DELC14_FLAG_W', 'NITRIT'],
-                 ['TDN'],
-                 ['NITRAT'],
-                 ['EXPOCODE', 'SECT_ID', 'CASTNO', 'SAMPNO', 'BTLNBR',
-                  'BTLNBR_FLAG_W', 'LATITUDE', 'LONGITUDE', 'DEPTH', 'DELC14',
+                (['DELC14', 'DELC14_FLAG_W', 'NITRIT'],
+                 ['TDN', 'TDN_FLAG_W'],
+                 ['NITRAT', 'NITRAT_FLAG_W'],
+                 ['EXPOCODE', 'SECT_ID', 'STNNBR', 'CASTNO', 'SAMPNO', 'BTLNBR',
+                  'BTLNBR_FLAG_W', 'LATITUDE', 'LONGITUDE', 'DEPTH',
                   '_DATETIME']),
-                different_columns(dforigin, dfderiv))
+                different_columns(dforigin, dfderiv,
+                    ('EXPOCODE', 'SECT_ID', 'STNNBR', 'CASTNO', 'SAMPNO',
+                     'BTLNBR',)))
+
+            lines = [
+                "DELC14 differs at origin row 1:\t(None, Decimal('10.000'))",
+                "DELC14_FLAG_W differs at origin row 0:\t(9, 1)",
+            ]
+            self.assertTrue(ensure_lines(lines, self.logstream))
+
+            # Columns are not different if merged results are not different.
+            dfo = DataFile()
+            dfd = DataFile()
+
+            dfo.create_columns(['CTDPRS', 'CTDOXY'])
+            dfo.check_and_replace_parameters()
+            dfd.create_columns(['CTDPRS', 'CTDOXY'])
+            dfd.check_and_replace_parameters()
+
+            dfo['CTDPRS'].values = [1, 2, 3]
+            dfo['CTDOXY'].values = [10, 20, 30]
+            dfd['CTDPRS'].values = [3, 2, 1]
+            dfd['CTDOXY'].values = [30, 20, 10]
+
+            self.assertEqual(
+                ([], [], [], ['CTDPRS', 'CTDOXY']),
+                different_columns(dfo, dfd, ('CTDPRS',)))
 
     def test_integration_merge_btl(self):
         with    TemporaryFile() as origin, \
                 TemporaryFile() as deriv:
             origin.write("""\
-BOTTLE,19700101CCHSIOXXX
+BOTTLE,19700101CCHSIOYYY
 # header 1
 EXPOCODE,SECT_ID,STNNBR,CASTNO,SAMPNO,BTLNBR,BTLNBR_FLAG_W,DEPTH,TDN,DELC14,DELC14_FLAG_W
 ,,,,,,,METERS,UMOL/KG,/MILLE,
@@ -122,7 +157,7 @@ END_DATA
             origin.flush()
             origin.seek(0)
             deriv.write("""\
-BOTTLE,19700101CCHSIOXXX
+BOTTLE,19700101CCHSIOYYY
 # header 2
 EXPOCODE,SECT_ID,STNNBR,CASTNO,SAMPNO,BTLNBR,BTLNBR_FLAG_W,DEPTH,TDN,DELC14,DELC14_FLAG_W
 ,,,,,,,METERS,UMOL/KG,/MILLE,
@@ -135,10 +170,16 @@ END_DATA
             deriv.flush()
             deriv.seek(0)
 
-            merger = Merger(origin, deriv)
-            parameters = merger.different_cols()
-            mdata = merger.merge(parameters)
-            dfile = mdata.convert_to_datafile(parameters)
+            dfo = DataFile()
+            dfd = DataFile()
+            btlex.read(dfo, origin)
+            btlex.read(dfd, deriv)
+            p_different, p_not_in_orig, p_not_in_deriv, p_common = \
+                different_columns(dfo, dfd, BOTTLE_KEY_COLS)
+            parameters = p_different + p_not_in_orig
+            keys = determine_bottle_keys(dfo, dfd)
+            parameters = list(OrderedSet(parameters) - OrderedSet(keys))
+            dfile = merge_datafiles(dfo, dfd, keys, parameters)
 
             self.assertEqual(dfile['DELC14'][0], _decimal('10.000'))
             self.assertEqual(dfile['DELC14'].flags_woce[1], 1)
@@ -147,7 +188,12 @@ END_DATA
             self.assertNotIn('header 2', dfile.globals['header'])
             self.assertIn('header 1', dfile.globals['header'])
             # Header should contain the merged parameters
-            self.assertIn('Merged parameters: DELC14, DELC14_FLAG_W', dfile.globals['header'])
+            self.assertIn('Merged parameters: DELC14, DELC14_FLAG_W',
+                          dfile.globals['header'])
+            # No double new lines
+            self.assertNotIn('\n\n', dfile.globals['header'])
+            # new line for header is not included in the writers
+            self.assertEqual('\n', dfile.globals['header'][-1])
 
             # Key columns should not have been converted to floats. This happens
             # for some reason if pandas combine/update have been used.
@@ -161,7 +207,8 @@ END_DATA
 
             # Make sure warning is printed regarding extra key in deriv file.
             lines = [
-                ['600', 'in derivative file is not in origin']
+                "Merging on keys composed of: ('EXPOCODE', 'STNNBR', 'CASTNO', 'SAMPNO', 'BTLNBR')",
+                ['Key on', 'derivative file does not exist in origin', '600']
             ]
             self.assertTrue(ensure_lines(lines, self.logstream))
 
@@ -170,7 +217,7 @@ END_DATA
         with    TemporaryFile() as origin, \
                 TemporaryFile() as deriv:
             origin.write("""\
-BOTTLE,19700101CCHSIOXXX
+BOTTLE,19700101CCHSIOYYY
 # header 1
 EXPOCODE,SECT_ID,STNNBR,CASTNO,SAMPNO,BTLNBR,BTLNBR_FLAG_W,DEPTH,TDN,DELC14,DELC14_FLAG_W
 ,,,,,,,METERS,UMOL/KG,/MILLE,
@@ -181,7 +228,7 @@ END_DATA
             origin.flush()
             origin.seek(0)
             deriv.write("""\
-BOTTLE,19700101CCHSIOXXX
+BOTTLE,19700101CCHSIOYYY
 # header 2
 EXPOCODE,SECT_ID,STNNBR,CASTNO,SAMPNO,BTLNBR,BTLNBR_FLAG_W,DEPTH,TDN,DELC14,DELC14_FLAG_W
 ,,,,,,,METERS,UMOL/KG,/MILLE,
@@ -192,14 +239,21 @@ END_DATA
             deriv.flush()
             deriv.seek(0)
 
-            merger = Merger(origin, deriv)
-            parameters = merger.different_cols()
-            mdata = merger.merge(parameters)
-            self.assertEqual(mdata, None)
+            dfo = DataFile()
+            dfd = DataFile()
+            btlex.read(dfo, origin)
+            btlex.read(dfd, deriv)
+            p_different, p_not_in_orig, p_not_in_derip_not_in_deriv, p_common = \
+                different_columns(dfo, dfd, BOTTLE_KEY_COLS)
+            parameters = p_different + p_not_in_orig
+            keys = determine_bottle_keys(dfo, dfd)
+            parameters = list(OrderedSet(parameters) - OrderedSet(keys))
+            mdf = merge_datafiles(dfo, dfd, keys, parameters)
 
             # Make sure warning is printed regarding extra key in deriv file.
             lines = [
-                'No keys matched'
+                'No keys matched',
+                'No keys provided to map on.',
             ]
             self.assertTrue(ensure_lines(lines, self.logstream))
 
@@ -328,8 +382,6 @@ END_DATA
 
         df1['CTDOXY'].parameter.units = Unit('UMOL/KG')
 
-        self._reload_handlers()
-
         # Case 1 column add
         mdf = merge_datafiles(
             df0, df1, ['CTDPRS'],
@@ -356,7 +408,6 @@ END_DATA
         ]
         self.assertTrue(ensure_lines(lines, self.logstream))
         
-
     def test_merge_datafiles_no_column(self):
         """Error to merge columns in neither datafile."""
         df0 = DataFile()
@@ -373,7 +424,8 @@ END_DATA
         df1['NITRAT'].append(20, 3)
         df1['NITRAT'].append(21, 4)
 
-        with self.assertRaisesRegexp(ValueError, 'No columns selected to merge'):
+        with self.assertRaisesRegexp(ValueError,
+                                     'No columns selected to merge are different.'):
             merge_datafiles(df0, df1, ['CTDPRS'], ['CTDSAL'])
         lines = [
             "Instructed to merge parameters that are not in either datafile: ['CTDSAL']",
@@ -469,4 +521,50 @@ DBAR,,ITS-90,,PSS-78,,UMOL/KG,,0-5VDC,,,
                 self.assertEqual(dfile['CTDSAL'].flags_woce, [2, 2])
                 self.assertEqual(map(str, dfile['TRANSM'].values), ['4.3348', '4.3334'])
                 self.assertEqual(dfile['TRANSM'].flags_woce, [1, 1])
+            unlink(output.name)
+
+
+    def test_functional_scripts_btlex(self):
+        """Test merging Bottle Exchange files."""
+        from argparse import Namespace
+        from libcchdo.scripts import merge_btlex_and_btlex
+        with    TemporaryFile() as origin, \
+                TemporaryFile() as deriv, \
+                NamedTemporaryFile(delete=False) as output:
+            origin.write("""\
+BOTTLE,19700101CCHSIOYYY
+# header 1
+EXPOCODE,SECT_ID,STNNBR,CASTNO,SAMPNO,BTLNBR,BTLNBR_FLAG_W,LATITUDE,LONGITUDE,DATE,TIME,DEPTH,NITRAT,DELC14,DELC14_FLAG_W
+,,,,,,,,,,,METERS,UMOL/KG,/MILLE,
+ 316N145_9, TRNS1, 574, 1, 16, 36, 2, 0, 0, 19700101, 0000,1000,3.00,-999.000,9
+ 316N145_9, TRNS1, 574, 1, 15, 35, 2, 0, 0, 19700101, 0000,1000,4.00,-999.000,9
+END_DATA
+""")
+            origin.flush()
+            origin.seek(0)
+            deriv.write("""\
+BOTTLE,19700101CCHSIOYYY
+# header 2
+EXPOCODE,SECT_ID,STNNBR,CASTNO,SAMPNO,BTLNBR,BTLNBR_FLAG_W,LATITUDE,LONGITUDE,DATE,TIME,DEPTH,TDN,DELC14,DELC14_FLAG_W
+,,,,,,,,,,,METERS,UMOL/KG,/MILLE,
+ 316N145_9, TRNS1, 574, 1, 15, 35, 2, 0, 0, 19700101, 0000,1000,5.00,-999.000,1
+ 316N145_9, TRNS1, 574, 1, 16, 36, 2, 0, 0, 19700101, 0000,1000,6.00,  10.000,9
+END_DATA
+""")
+            deriv.flush()
+            deriv.seek(0)
+
+            args = Namespace()
+            args.origin = origin
+            args.derivative = deriv
+            args.parameters_to_merge = None
+            args.merge_different = True
+            args.output = output
+            merge_btlex_and_btlex(args)
+
+            with open(output.name) as fff:
+                dfile = DataFile()
+                btlex.read(dfile, fff)
+                self.assertEqual(map(str, dfile['TDN'].values), ['6.00', '5.00'])
+                self.assertEqual(dfile['TDN'].flags_woce, [])
             unlink(output.name)

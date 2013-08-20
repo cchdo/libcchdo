@@ -124,12 +124,12 @@ class Column(object):
     def is_flagged_igoss(self):
         return not (self.flags_igoss is None or len(self.flags_igoss) == 0)
 
-    def diff(self, column):
+    def diff(self, column, row_map=None):
         """Diff with other column.
 
         """
         diffcol = DiffColumn(self.parameter.name)
-        diffcol.diff(self, column)
+        diffcol.diff(self, column, row_map=row_map)
         return diffcol
 
     def is_global(self):
@@ -281,7 +281,25 @@ class DiffColumn(Column):
     def is_diff_flags(self):
         return self.is_diff_flags_woce() or self.is_diff_flags_igoss()
 
-    def diff(self, dfa, dfb):
+    def _zip_row_map(self, lll, mmm, row_map=None):
+        """Zip two lists with row map for the second list.
+
+        Row map maps the indices of the second list onto those of the first
+        list.
+
+        """
+        if row_map:
+            assert len(lll) == len(mmm)
+            zipped = []
+            if len(lll) == 0:
+                return zipped
+            for iii, jjj, kkk in row_map:
+                zipped.append((lll[iii], mmm[jjj]))
+            return zipped
+        else:
+            return zip(lll, mmm)
+
+    def diff(self, dfa, dfb, row_map=None):
         """Calculate the difference and populate the responses."""
         if dfa.parameter != dfb.parameter:
             self._is_diff_parameter = True
@@ -294,24 +312,22 @@ class DiffColumn(Column):
             self._is_diff = True
             return
 
+        self.values_tuples = self._zip_row_map(dfa.values, dfb.values, row_map)
         try:
-            self.values = [y - x for x, y in zip(dfa.values, dfb.values)]
-            self._is_diff_values = not is_list_globally(
-                self.values, False, equal_func=lambda x, v: bool(x) == v)
+            self.values = [y - x for x, y in self.values_tuples]
         except TypeError:
-            self.values = [x != y for x, y in zip(dfa.values, dfb.values)]
-            self._is_diff_values = is_list_globally_equal(self.values, True)
+            self.values = [x != y for x, y in self.values_tuples]
+        self._is_diff_values = any(self.values)
 
-        self.flags_woce = [
-            y - x for x, y in zip(dfa.flags_woce, dfb.flags_woce)]
-        self._is_diff_flags_woce = (
-            bool(self.flags_woce) and not is_list_globally(self.flags_woce, 0))
+        self.flags_woce_tuples = self._zip_row_map(
+            dfa.flags_woce, dfb.flags_woce, row_map)
+        self.flags_woce = [y - x for x, y in self.flags_woce_tuples]
+        self._is_diff_flags_woce = any(self.flags_woce)
 
-        self.flags_igoss = [
-            y - x for x, y in zip(dfa.flags_igoss, dfb.flags_igoss)]
-        self._is_diff_flags_igoss = (
-            bool(self.flags_igoss) and
-            not is_list_globally(self.flags_igoss, 0))
+        self.flags_igoss_tuples = self._zip_row_map(
+            dfa.flags_igoss, dfb.flags_igoss, row_map)
+        self.flags_igoss = [y - x for x, y in self.flags_igoss_tuples]
+        self._is_diff_flags_igoss = any(self.flags_igoss)
 
         self._is_diff = (
             self.is_diff_parameter() or self.is_diff_units() or
