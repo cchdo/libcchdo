@@ -178,6 +178,8 @@ END_DATA
                 different_columns(dfo, dfd, BOTTLE_KEY_COLS)
             parameters = p_different + p_not_in_orig
             keys = determine_bottle_keys(dfo, dfd)
+            self.assertEqual(
+                keys, ('EXPOCODE', 'STNNBR', 'CASTNO', 'SAMPNO', 'BTLNBR'))
             parameters = list(OrderedSet(parameters) - OrderedSet(keys))
             dfile = merge_datafiles(dfo, dfd, keys, parameters)
 
@@ -207,7 +209,6 @@ END_DATA
 
             # Make sure warning is printed regarding extra key in deriv file.
             lines = [
-                "Merging on keys composed of: ('EXPOCODE', 'STNNBR', 'CASTNO', 'SAMPNO', 'BTLNBR')",
                 ['Key on', 'derivative file does not exist in origin', '600']
             ]
             self.assertTrue(ensure_lines(lines, self.logstream))
@@ -513,6 +514,7 @@ DBAR,,ITS-90,,PSS-78,,UMOL/KG,,0-5VDC,,,
             args.parameters_to_merge = None
             args.merge_different = True
             args.output = output
+            args.on = None
             merge_ctdex_and_ctdex(args)
 
             with open(output.name) as fff:
@@ -560,6 +562,7 @@ END_DATA
             args.parameters_to_merge = None
             args.merge_different = True
             args.output = output
+            args.on = None
             merge_btlex_and_btlex(args)
 
             with open(output.name) as fff:
@@ -568,3 +571,7 @@ END_DATA
                 self.assertEqual(map(str, dfile['TDN'].values), ['6.00', '5.00'])
                 self.assertEqual(dfile['TDN'].flags_woce, [])
             unlink(output.name)
+        lines = [
+            "Merging on keys composed of: ('EXPOCODE', 'STNNBR', 'CASTNO', 'SAMPNO', 'BTLNBR')",
+        ]
+        self.assertTrue(ensure_lines(lines, self.logstream))

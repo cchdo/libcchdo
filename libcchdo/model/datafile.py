@@ -256,6 +256,9 @@ class DiffColumn(Column):
         self._is_diff_values = False
         self._is_diff_flags_woce = False
         self._is_diff_flags_igoss = False
+        self.values_tuples = []
+        self.flags_woce_tuples = []
+        self.flags_igoss_tuples = []
 
     def is_diff(self):
         return self._is_diff
@@ -289,12 +292,19 @@ class DiffColumn(Column):
 
         """
         if row_map:
-            assert len(lll) == len(mmm)
             zipped = []
             if len(lll) == 0:
                 return zipped
             for iii, jjj, kkk in row_map:
-                zipped.append((lll[iii], mmm[jjj]))
+                try:
+                    lval = lll[iii]
+                except IndexError:
+                    lval = float('nan')
+                try:
+                    mval = mmm[jjj]
+                except IndexError:
+                    mval = float('nan')
+                zipped.append((lval, mval))
             return zipped
         else:
             return zip(lll, mmm)
@@ -309,8 +319,6 @@ class DiffColumn(Column):
 
         if len(dfa) != len(dfb):
             self._is_diff_length = True
-            self._is_diff = True
-            return
 
         self.values_tuples = self._zip_row_map(dfa.values, dfb.values, row_map)
         try:

@@ -1210,6 +1210,7 @@ def _merge_ex_and_ex(args, file_format, key_determiner, collection=False):
     keycols = key_determiner(origin, deriv)
     if args.on:
         keycols = [xxx.strip() for xxx in args.on.split(',')]
+    LOG.info('Merging on keys composed of: {0!r}'.format(keycols))
 
     if args.parameters_to_merge:
         parameters = args.parameters_to_merge

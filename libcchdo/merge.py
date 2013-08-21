@@ -178,9 +178,11 @@ def different_columns(origin, deriv, keys, row_map=None):
                 is_diff = True
             elif diffcol.is_diff_flags():
                 pass
+            elif diffcol.is_diff_length():
+                pass
             else:
                 raise ValueError(u'{0} columns differ in a way that cannot be '
-                                 'merged.'.format(col))
+                                 'merged: {1}'.format(col, diffcol))
         if is_diff:
             different.add(col)
             common.remove(col)
@@ -309,7 +311,7 @@ def determine_bottle_keys(origin, deriv):
     if keys1 != keys2:
         LOG.warn(u'Mismatched key composition to merge on:\norigin:\t\t{0!r}\n'
                   'derivative:\t{1!r}'.format(keys1, keys2))
-        LOG.warn(u'Merging on common subset.')
+        LOG.warn(u'Using common subset.')
         return list(OrderedSet(keys1) & OrderedSet(keys2))
     return keys1
 
@@ -340,7 +342,6 @@ def merge_datafiles(origin, deriv, keys, parameters):
     params_to_merge = filter_params_to_merge(
         diffcols, not_in_orig_cols, not_in_deriv_cols, commoncols, parameters)
 
-    LOG.info('Merging on keys composed of: {0!r}'.format(keys))
     param_keys = set(params_to_merge) & set(keys)
     if param_keys:
         raise ValueError(
@@ -430,7 +431,7 @@ def merge_datafiles(origin, deriv, keys, parameters):
         ', '.join(params_to_merge), origin.globals['stamp'].rstrip())
     header_orig = origin.globals['header'].rstrip()
     if header_orig:
-        header += header_orig
+        header += header_orig + '\n'
     merged.globals['header'] = header
 
     return merged
