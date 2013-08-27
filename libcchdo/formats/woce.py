@@ -1,4 +1,5 @@
 from datetime import datetime, date
+from collections import OrderedDict
 import re
 import struct
 
@@ -258,10 +259,145 @@ def _warn_broke_character_column_rule(headername, headers):
                      (headername, header, SAFE_COLUMN_WIDTH))
 
 
-def _unpack_parameters(unpack_str, parameters_line, num_param_columns):
-    parameters = strip_all(
-        struct.unpack(unpack_str, parameters_line[:num_param_columns * 8]))
-    return (parameters, _bad_column_alignment(parameters))
+def _unpack_line(unpack_str, line, num_param_columns):
+    values = strip_all(struct.unpack(unpack_str, line[:num_param_columns * 8]))
+    return (values, _bad_column_alignment(values))
+
+
+re_asterisk = re.compile('\*')
+
+
+def scan_for_trailing_edges(line, clock_signal=re_asterisk):
+    edges = []
+    clock = False
+    for iii, ccc in enumerate(line):
+        if clock_signal.match(ccc):
+            clock = True
+        elif clock:
+            clock = False
+            edges.append(iii)
+    return edges
+
+
+def split_on_edges(line, edges):
+    values = []
+    iii = 0
+    for jjj in edges:
+        values.append(line[iii:jjj].strip())
+        iii = jjj
+    return values
+
+
+def read_data_egee(self, handle, parameters_line, units_line, asterisk_line):
+    # num_quality_flags = the number of asterisk-marked columns minus the
+    # quality word which is marked in EGEE for no good reason.
+    num_quality_flags = len(re.findall('\*+', asterisk_line)) - 1
+    num_quality_words = len(parameters_line.split('QUALT'))-1
+
+    LOG.debug(u'{0} quality flags, {1} quality words'.format(
+        num_quality_flags, num_quality_words))
+
+    # The extra 1 in quality_length is for spacing between the columns
+    quality_length = num_quality_words * (
+        max(len('QUALT#'), num_quality_flags) + 1)
+    num_param_columns = len(units_line.split())
+
+    re_notword = re.compile('\S')
+    p_edges = scan_for_trailing_edges(parameters_line, re_notword)
+    u_edges = scan_for_trailing_edges(units_line, re_notword)
+    a_edges = scan_for_trailing_edges(asterisk_line)[:-1]
+
+    edges = [max(uuu, aaa) for uuu, aaa in zip(u_edges, a_edges)]
+
+    parameters = split_on_edges(parameters_line, edges)
+    units = split_on_edges(unicode(units_line, encoding='utf8'), edges)
+    asterisks = split_on_edges(asterisk_line, edges)
+
+    # rewrite duplicate parameters.
+    seen = {}
+    for param in parameters:
+        try:
+            seen[param] += 1
+        except KeyError:
+            seen[param] = 1
+    count = {}
+    renamed_parameters = []
+    for param in parameters:
+        if seen[param] > 1:
+            try:
+                count[param] += 1
+            except KeyError:
+                count[param] = ord('A')
+            letter = chr(count[param])
+            param = '{0}_{1}'.format(param, letter)
+        if ' ' in param:
+            param = param.replace(' ', '')
+        if 'CTDFLUO' == param:
+            param = 'FLUOR'
+        renamed_parameters.append(param)
+    parameters = renamed_parameters
+
+    bad_cols = []
+
+    corrected_units = []
+    for unit in units:
+        if type(unit) == unicode:
+            # mu
+            if u'\xb5' in unit:
+                unit = unit.replace(u'\xb5', 'U')
+        corrected_units.append(unit)
+    units = corrected_units
+
+    self.create_columns(parameters, units)
+
+    # Get each data line
+    # For data, include the QUALT flags in the edges
+    edges.append(len(asterisk_line))
+
+    for iii, line in enumerate(handle):
+        line = line.rstrip()
+        if not line:
+            raise ValueError('Empty lines are not allowed in the data section '
+                             'of a WOCE file')
+
+        unpacked = split_on_edges(line, edges)
+        _build_columns_for_row(
+            self, iii, unpacked, num_quality_words, parameters, asterisks)
+
+
+def _build_columns_for_row(self, iii, row, num_quality_words, parameters,
+                           asterisks):
+    # QUALT1 takes precedence
+    quality_flags = row[-num_quality_words:]
+
+    # Build up the columns for the line
+    flag_i = 0
+    for j, parameter in enumerate(parameters):
+        datum = row[j].strip()
+        datum = in_band_or_none(datum, -9)
+
+        if parameter not in CHARACTER_PARAMETERS:
+            try:
+                datum = _decimal(datum)
+            except Exception, e:
+                LOG.warning(
+                    u'Expected numeric data for parameter %r, got %r' % (
+                    parameter, datum))
+
+        # Only assign flag if column is flagged.
+        if "**" in asterisks[j].strip():
+            # TODO should use better detection for asterisks
+            try:
+                woce_flag = int(quality_flags[0][flag_i])
+            except ValueError, e:
+                LOG.error(
+                    u'Received bad flag "{}" for {} on record {}'.format(
+                    quality_flags[0][flag_i], parameter, iii))
+                raise e
+            flag_i += 1
+            self[parameter].set(iii, datum, woce_flag)
+        else:
+            self[parameter].set(iii, datum)
 
 
 def read_data(self, handle, parameters_line, units_line, asterisk_line):
@@ -283,7 +419,7 @@ def read_data(self, handle, parameters_line, units_line, asterisk_line):
 
     bad_cols = []
 
-    parameters, start_bad = _unpack_parameters(
+    parameters, start_bad = _unpack_line(
         unpack_str, parameters_line, num_param_columns)
     while start_bad[0] > -1:
         bad_cols.append(start_bad[1])
@@ -293,13 +429,11 @@ def read_data(self, handle, parameters_line, units_line, asterisk_line):
         parameters_line, units_line, asterisk_line = \
             _remove_char_column(start_bad[1], parameters_line,
                                 units_line, asterisk_line)
-        parameters, start_bad = _unpack_parameters(
+        parameters, start_bad = _unpack_line(
             unpack_str, parameters_line, num_param_columns)
 
-    units = strip_all(
-        struct.unpack(unpack_str, units_line[:num_param_columns * 8]))
-    asterisks = strip_all(
-        struct.unpack(unpack_str, asterisk_line[:num_param_columns * 8]))
+    units, _ = _unpack_line(unpack_str, units_line, num_param_columns)
+    asterisks, _ = _unpack_line(unpack_str, asterisk_line, num_param_columns)
 
     # Warn if the header lines break 8 character column rules
     _warn_broke_character_column_rule("Parameter", parameters)
@@ -353,7 +487,7 @@ def read_data(self, handle, parameters_line, units_line, asterisk_line):
     handle.seek(savepoint)
     LOG.debug(u'Settled on unpack format: {0!r}'.format(unpack_str))
 
-    for i, line in enumerate(handle):
+    for iii, line in enumerate(handle):
         line = _remove_char_columns(bad_cols, line.rstrip())[0]
         if not line:
             raise ValueError('Empty lines are not allowed in the data section '
@@ -363,41 +497,11 @@ def read_data(self, handle, parameters_line, units_line, asterisk_line):
         except struct.error, e:
             expected_len = struct.calcsize(unpack_str)
             LOG.warn('Data record %d has length %d (expected %d).' % (
-                i, len(line), expected_len))
+                iii, len(line), expected_len))
             raise e
 
-        # QUALT1 takes precedence
-        quality_flags = unpacked[-num_quality_words:]
-
-        # Build up the columns for the line
-        flag_i = 0
-        for j, parameter in enumerate(parameters):
-            datum = unpacked[j].strip()
-            datum = in_band_or_none(datum, -9)
-
-            if parameter not in CHARACTER_PARAMETERS:
-                try:
-                    datum = _decimal(datum)
-                except Exception, e:
-                    LOG.warning(
-                        u'Expected numeric data for parameter %r, got %r' % (
-                        parameter, datum))
-
-            # Only assign flag if column is flagged.
-            if "**" in asterisks[j].strip():
-                # TODO should use better detection for asterisks
-                try:
-                    woce_flag = int(quality_flags[0][flag_i])
-                except ValueError, e:
-                    LOG.error(
-                        u'Received bad flag "{}" for {} on record {}'.format(
-                        quality_flags[0][flag_i], parameter, i))
-                    raise e
-                flag_i += 1
-                self.columns[parameter].set(i, datum, woce_flag)
-            else:
-                self.columns[parameter].set(i, datum)
-
+        _build_columns_for_row(
+            self, iii, unpacked, num_quality_words, parameters, asterisks)
 
     # Expand globals into columns TODO?
 

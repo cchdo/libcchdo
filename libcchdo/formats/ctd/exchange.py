@@ -1,4 +1,4 @@
-from re import compile as re_compile
+from re import compile as re_compile, sub as re_sub
 
 from libcchdo import config
 from libcchdo.log import LOG
@@ -57,7 +57,7 @@ def get_datafile_filename(dfile):
     except TypeError:
         cast = cast[:5]
     filename = '%s_%5s_%5s' % (expocode, station, cast)
-    filename = re.sub('\s', '_', filename)
+    filename = re_sub('\s', '_', filename)
     return get_filename(filename)
 
 
