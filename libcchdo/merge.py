@@ -351,10 +351,13 @@ def merge_datafiles(origin, deriv, keys, parameters):
     merged = copy(origin)
 
     # Create columns that are going to be added
-    for param in not_in_orig_cols:
+    for param in params_to_merge:
         if '_FLAG_' in param:
             continue
-        merged[param] = Column(deriv[param].parameter)
+        try:
+            merged[param]
+        except KeyError:
+            merged[param] = Column(deriv[param].parameter)
         
     # There are two cases to consider when merging
     #

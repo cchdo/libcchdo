@@ -229,7 +229,12 @@ def write(self, handle):
     for i in range(len(self)):
         values = []
         for format_str, limit, param, col in flagged_format_parameter_values:
-            value = col[i]
+            try:
+                value = col[i]
+            except IndexError, err:
+                LOG.error(u'Could not get value of {0} at row {1}'.format(
+                    param, i))
+                value = None
             try:
                 if value is not None:
                     values.append((format_str % value).rjust(limit))

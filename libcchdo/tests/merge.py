@@ -404,10 +404,42 @@ END_DATA
             mdf['CTDOXY'].parameter.units, df1['CTDOXY'].parameter.units)
 
         # Make sure warning is printed regarding unit overwrite.
+        # This doubles to make sure derivate columns do not wholesale overwrite
+        # the origin column, they must be merged using the row match algo.
         lines = [
             "Changed units for CTDOXY from '' to 'UMOL/KG'",
         ]
         self.assertTrue(ensure_lines(lines, self.logstream))
+        
+    def test_merge_datafiles_does_not_create_extra_columns(self):
+        """Merge datafiles but don't create extra columns.
+
+        When merging data files, create columns only if they exist in derivative
+        and were requested to be merged in.
+
+        Thanks to sescher for finding this.
+
+        """
+        df0 = DataFile()
+        df0.create_columns(['CTDPRS', 'CTDOXY'])
+        df0['CTDPRS'].append(1, 2)
+        df0['CTDPRS'].append(2, 2)
+        df0['CTDOXY'].append(40, 2)
+        df0['CTDOXY'].append(41, 3)
+
+        df1 = DataFile()
+        df1.create_columns(['CTDPRS', 'CTDOXY', 'CTDSAL'])
+        df1['CTDPRS'].append(2, 2)
+        df1['CTDPRS'].append(3, 2)
+        df1['CTDOXY'].append(50, 2)
+        df1['CTDOXY'].append(51, 3)
+        df1['CTDSAL'].append(20, 2)
+        df1['CTDSAL'].append(21, 2)
+
+        mdf = merge_datafiles(df0, df1, ['CTDPRS'], ['CTDOXY'])
+
+        with self.assertRaises(KeyError):
+            mdf['CTDSAL']
         
     def test_merge_datafiles_no_column(self):
         """Error to merge columns in neither datafile."""
