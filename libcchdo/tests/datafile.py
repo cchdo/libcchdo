@@ -1,9 +1,10 @@
-import unittest
+from unittest import TestCase
 
 from libcchdo.model.datafile import DataFile, Column
+from libcchdo.fns import _decimal
 
 
-class TestDataFile(unittest.TestCase):
+class TestDataFile(TestCase):
 
     def setUp(self):
         self.file = DataFile()
@@ -88,3 +89,29 @@ class TestDataFile(unittest.TestCase):
         """Contrived parameters are not checked."""
         col = Column('_DATETIME')
         col.check_and_replace_parameter(self.file, convert=False)
+
+
+class TestColumn(TestCase):
+    def test_decimal_places_requires_decimal(self):
+        ccc = Column('test')
+        ccc.values = [
+            _decimal('-999.0000'),
+            20.12355,
+            _decimal('-999.00'),
+        ]
+        with self.assertRaises(ValueError):
+            ccc.decimal_places()
+
+    def test_decimal_places(self):
+        """A column's decimal places is the max number of places after a decimal
+        in the column.
+
+        """
+        ccc = Column('test')
+        ccc.values = [
+            _decimal('-999.0000'),
+            _decimal('19.0'),
+            _decimal('-999.000'),
+            _decimal('-999.00'),
+        ]
+        self.assertEqual(4, ccc.decimal_places())

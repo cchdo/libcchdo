@@ -1,9 +1,11 @@
 import unittest
 from StringIO import StringIO
+from contextlib import closing
 
 from libcchdo import config
 from libcchdo.model.datafile import DataFile
 from libcchdo.formats.bottle import exchange as btlex
+from libcchdo.fns import _decimal
 
 
 class TestBottleExchange(unittest.TestCase):
@@ -59,7 +61,7 @@ END_DATA
         self.buff = StringIO()
         btlex.write(self.file, self.buff)
         # TODO
-        #print self.buff.getvalue()
+        print self.buff.getvalue()
         #self.assertEqual(self.buff.getvalue(), self.output)
         self.buff.close()
 
@@ -97,3 +99,31 @@ END_DATA
 
         column = self.file['CTDSAL']
         self.assertEqual(len(column.values), len(column.flags_woce))
+
+    def test_write_fill_value_decimal_places_follow_column(self):
+        """Fill values should follow the column's data's lead for decimal places.
+
+        E.g. if the column has data [10.001, 11.123], the normal fill value -999
+        should be written -999.000. I.e. as many trailing zeros as the data has.
+
+        If the column has no data in it, default to the old-style C format
+        string for how many decimal places to show.
+
+        """
+        with closing(StringIO()) as buff:
+            dfile = DataFile()
+            dfile.create_columns(['STNNBR', 'CASTNO', 'BTLNBR', '_DATETIME', 'CTDPRS', 'CTDOXY'])
+            dfile['STNNBR'].values = [None, None]
+            dfile['CASTNO'].values = [None, None]
+            dfile['BTLNBR'].values = [None, None]
+            dfile['_DATETIME'].values = [None, None]
+            dfile['CTDPRS'].values = [_decimal('10.0001'), None]
+            dfile['CTDOXY'].values = [None, _decimal('243.23')]
+            btlex.write(dfile, buff)
+            
+            result = buff.getvalue().split('\n')
+            # CTDPRS default decplaces is 1 but the data has 4
+            self.assertEqual('-999.0000', result[4].split(',')[5].lstrip())
+            # CTDOXY default decplaces is 4 but the data has 2
+            self.assertEqual('-999.00', result[3].split(',')[6].lstrip())
+

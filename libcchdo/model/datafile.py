@@ -132,6 +132,22 @@ class Column(object):
         diffcol.diff(self, column, row_map=row_map)
         return diffcol
 
+    def decimal_places(self):
+        """Return maximum decimal_places available in the column's values."""
+        def get_decplaces(dec):
+            try:
+                return dec.as_tuple().exponent
+            except AttributeError:
+                LOG.critical(u'{0} contains non-Decimal values.'.format(self))
+                LOG.info(u'Ensure the reader wraps values with _decimal')
+                raise ValueError(
+                    u'Values in columns are required to be Decimal objects, '
+                    'not {0}: {1}'.format(type(dec), dec))
+        decplaces = [get_decplaces(vvv) for vvv in self.values if vvv]
+        if not decplaces:
+            return 0
+        return -min(decplaces)
+
     def is_global(self):
         """Return whether the values for the whole column are the same."""
         return is_list_global(self.values)

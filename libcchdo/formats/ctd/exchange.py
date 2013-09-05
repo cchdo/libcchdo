@@ -1,12 +1,13 @@
 from re import compile as re_compile, sub as re_sub
 
-from libcchdo import config
 from libcchdo.log import LOG
 from libcchdo.fns import Decimal, out_of_band
 from libcchdo.formats import pre_write
 from libcchdo.formats import woce
 from libcchdo.formats.exchange import (
-    read_identifier_line, read_comments, FILL_VALUE, END_DATA)
+    FLAG_ENDING_WOCE, FLAG_ENDING_IGOSS,
+    read_identifier_line, read_comments, write_identifier, write_data,
+    write_flagged_format_parameter_values, FILL_VALUE, END_DATA)
 from libcchdo.formats.formats import (
     get_filename_fnameexts, is_filename_recognized_fnameexts,
     is_file_recognized_fnameexts)
@@ -136,10 +137,10 @@ def read(self, handle, retain_order=False, header_only=False):
 
         for column, value in zip(columns, values):
             value = value.strip()
-            if column.endswith('_FLAG_W'):
+            if column.endswith(FLAG_ENDING_WOCE):
                 self.columns[column[:-7]].flags_woce.append(int(value))
                 continue
-            elif column.endswith('_FLAG_I'):
+            elif column.endswith(FLAG_ENDING_IGOSS):
                 self.columns[column[:-7]].flags_igoss.append(int(value))
                 continue
             if out_of_band(float(value)):
@@ -159,9 +160,11 @@ def write(self, handle):
     """ How to write a CTD Exchange file. """
     pre_write(self)
 
-    handle.write(u'CTD,%s\n' % config.stamp())
-    handle.write(self.globals['header'].encode('utf8'))
+    write_identifier(self, handle, 'CTD')
+    if self.globals['header']:
+        handle.write(self.globals['header'].encode('utf8'))
 
+    # Write the header
     stamp = self.globals['stamp']
     header = self.globals['header']
     del self.globals['stamp']
@@ -182,58 +185,4 @@ def write(self, handle):
     self.globals['stamp'] = stamp
     self.globals['header'] = header
 
-    headers = []
-    for c in self.sorted_columns():
-        param = c.parameter.mnemonic_woce()
-        headers.append(param)
-        if c.is_flagged_woce():
-            headers.append(param+'_FLAG_W')
-        if c.is_flagged_igoss():
-            headers.append(param+'_FLAG_I')
-    handle.write(u','.join(headers)+"\n")
-
-    #XXX
-    units = []
-    for c in self.sorted_columns():
-        if c.parameter.units:
-            u = c.parameter.units.mnemonic
-            units.append(u)
-        else:
-            units.append('')
-        if c.is_flagged():
-            units.append('')
-    handle.write(u",".join(units)+"\n")
-    #XXX
-
-    columns = [self.columns[header] for header in self.column_headers()]
-    for i in range(len(self)):
-        data = []
-        for c in columns:
-            fmt = c.parameter.format
-            if fmt.endswith('f'):
-                parts = fmt[:-1].split('.')
-                assert len(parts) <= 2 and len(parts) >= 1
-                if len(parts) == 2:
-                    # Should do this check before printing to prevent ragged columns.
-                    if type(c[i]) is Decimal:
-                        exponent = \
-                            -(c[i] - c[i].to_integral()).as_tuple()[-1]
-                        if exponent > -1 and exponent > parts[1]:
-                            fmt = '%%%d.%df' % (parts[0], exponent)
-            try:
-                if c[i] is not None:
-                    value = c[i]
-                else:
-                    value = FILL_VALUE
-                string = c.parameter.format % value
-            except TypeError:
-                LOG.debug(u'{0} {1}'.format(type(c[i]), c[i]))
-                raise
-
-            data.append(string)
-            if c.is_flagged_woce():
-                data.append(c.flags_woce[i])
-            if c.is_flagged_igoss():
-                data.append(c.flags_igoss[i])
-        handle.write(u','.join(map(str, data))+"\n")
-    handle.write(unicode(END_DATA))
+    write_data(self, handle)

@@ -1,13 +1,14 @@
 import re
 import datetime
 
-from libcchdo import config
 from libcchdo.fns import _decimal, out_of_band
 from libcchdo.log import LOG
 from libcchdo.model.datafile import Column
 from libcchdo.formats import woce
 from libcchdo.formats.exchange import (
-    read_identifier_line, read_comments, FILL_VALUE, END_DATA)
+    FLAG_ENDING_WOCE, FLAG_ENDING_IGOSS,
+    read_identifier_line, read_comments, write_identifier, write_data,
+    write_flagged_format_parameter_values, FILL_VALUE, END_DATA)
 from libcchdo.formats.formats import (
     get_filename_fnameexts, is_filename_recognized_fnameexts,
     is_file_recognized_fnameexts)
@@ -111,10 +112,10 @@ def read(self, handle):
             param_name = column[:-7]
             flag_column = None
             flag_type = None
-            if column.endswith('_FLAG_W'):
+            if column.endswith(FLAG_ENDING_WOCE):
                 flag_column = self[param_name].flags_woce
                 flag_type = 'WOCE'
-            elif column.endswith('_FLAG_I'):
+            elif column.endswith(FLAG_ENDING_IGOSS):
                 flag_column = self[param_name].flags_igoss
                 flag_type = 'IGOSS'
             else:
@@ -140,11 +141,11 @@ def read(self, handle):
 
     # Format all data to be what it is
     try:
-        self['LATITUDE'].values = map(float, self['LATITUDE'].values)
+        self['LATITUDE'].values = map(_decimal, self['LATITUDE'].values)
     except KeyError:
         pass
     try:
-        self['LONGITUDE'].values = map(float, self['LONGITUDE'].values)
+        self['LONGITUDE'].values = map(_decimal, self['LONGITUDE'].values)
     except KeyError:
         pass
     try:
@@ -165,12 +166,7 @@ def read(self, handle):
 
 def write(self, handle):
     """ How to write a Bottle Exchange file. """
-    if self.globals['stamp']:
-        handle.write('BOTTLE,%s\n' % self.globals['stamp'])
-    else:
-        LOG.warning("No stamp given. Using current user's stamp.")
-        stamp = config.stamp()
-        handle.write('BOTTLE,%s\n' % stamp)
+    write_identifier(self, handle, 'BOTTLE')
     if self.globals['header']:
         handle.write('# Original header:\n')
         handle.write(self.globals['header'].encode('utf8'))
@@ -183,71 +179,22 @@ def write(self, handle):
             return int(x)
         return x
 
-    self['STNNBR'].values = map(if_float_then_int, self['STNNBR'].values)
-    self['CASTNO'].values = map(if_float_then_int, self['CASTNO'].values)
-    try:
-        self['SAMPNO'].values = map(if_float_then_int, self['SAMPNO'].values)
-    except KeyError:
-        LOG.warn(u'Missing SAMPNO')
-        pass
-    try:
-        self['BTLNBR'].values = map(if_float_then_int, self['BTLNBR'].values)
-    except KeyError:
-        LOG.warn(u'Missing BTLNBR')
-        pass
+    def convert_column_floats_to_ints(dfile, param, required=True):
+        try:
+            column = dfile[param]
+            column.values = [if_float_then_int(vvv) for vvv in column.values]
+        except KeyError:
+            if required:
+                LOG.warn(u'Missing {0} column'.format(param))
+            else:
+                LOG.warn(u'Missing optional {0} column'.format(param))
+
+    convert_column_floats_to_ints(self, 'STNNBR')
+    convert_column_floats_to_ints(self, 'CASTNO')
+    convert_column_floats_to_ints(self, 'SAMPNO', required=False)
+    convert_column_floats_to_ints(self, 'BTLNBR')
     self.check_and_replace_parameters()
 
-    columns = self.sorted_columns()
-    flagged_parameter_names = []
-    flagged_units = []
-    flagged_format_parameter_values = []
-
-    for c in columns:
-        param = c.parameter
-        flagged_parameter_names.append(param.mnemonic_woce())
-        flagged_units.append(param.units.mnemonic if param.units and \
-            param.units.mnemonic else '')
-        flagged_format_parameter_values.append(
-            [param.format, len(param.format % FILL_VALUE), param,
-             c.values])
-        if c.is_flagged_woce():
-            flagged_parameter_names.append(param.mnemonic_woce() + '_FLAG_W')
-            flagged_units.append('')
-            flagged_format_parameter_values.append(
-                ['%1d', 1, param, c.flags_woce])
-        if c.is_flagged_igoss():
-            flagged_parameter_names.append(param.mnemonic_woce() + '_FLAG_I')
-            flagged_units.append('')
-            flagged_format_parameter_values.append(
-                ['%1d', 1, param, c.flags_igoss])
-
-    handle.write(','.join(flagged_parameter_names))
-    handle.write('\n')
-    handle.write(','.join(flagged_units))
-    handle.write('\n')
-
-    for i in range(len(self)):
-        values = []
-        for format_str, limit, param, col in flagged_format_parameter_values:
-            try:
-                value = col[i]
-            except IndexError, err:
-                LOG.error(u'Could not get value of {0} at row {1}'.format(
-                    param, i))
-                value = None
-            try:
-                if value is not None:
-                    values.append((format_str % value).rjust(limit))
-                else:
-                    values.append(format_str % FILL_VALUE)
-            except Exception, e:
-                LOG.warn(
-                    u'Could not format %r (column %r row %d) with %r' % (
-                    value, param, i, format_str))
-                values.append(value)
-        handle.write(','.join(values))
-        handle.write('\n')
-
-    handle.write(END_DATA)
+    write_data(self, handle)
 
     woce.fuse_datetime(self)

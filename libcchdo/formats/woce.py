@@ -687,9 +687,10 @@ def split_datetime_columns(file):
         Arg:
             file - a DataFile object
     """
+    dtimecol = file['_DATETIME']
     date = file['DATE'] = Column('DATE')
     time = file['TIME'] = Column('TIME')
-    for dtime in file['_DATETIME'].values:
+    for dtime in dtimecol.values:
         if dtime:
             date.append(strftime_woce_date(dtime))
             if type(dtime) is datetime:

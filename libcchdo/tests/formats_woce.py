@@ -78,3 +78,15 @@ class TestFormatsWoce(unittest.TestCase):
 
         woce.combine(botfile, sumfile)
         self.assertTrue('X13' in botfile['STNNBR'].values)
+
+    def test_split_datetime_no_extras(self):
+        """Splitting non-existant date time column should not create DATE and 
+        TIME columns.
+
+        """
+        dfile = df.DataFile()
+        woce.split_datetime(dfile)
+        with self.assertRaises(KeyError):
+            dfile['DATE']
+        with self.assertRaises(KeyError):
+            dfile['TIME']
