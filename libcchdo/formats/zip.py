@@ -7,7 +7,8 @@ from tempfile import SpooledTemporaryFile
 
 from libcchdo.log import LOG
 from libcchdo import StringIO
-from libcchdo.model.datafile import DataFile
+from libcchdo.model.datafile import DataFile, DataFileCollection
+from libcchdo.model.convert.datafile_to_datafilecollection import split_on_cast
 
 
 class MemZipFile(zipfile.ZipFile):
@@ -167,14 +168,25 @@ def write(self, handle, writer, get_filename, **kwargs):
     """Common write functionality for zip files."""
     fnames = set()
     zfile = create(handle)
+    if type(self) != DataFileCollection:
+        LOG.warn(u'Should not write a single DataFile to a zip collection. '
+                 'Splitting the data into a collection by cast.')
+        self = split_on_cast(self)
     for dfile in self:
         with SpooledTemporaryFile(max_size=2 ** 13) as tempfile:
-            fname = dfile.globals['_FILENAME']
-            del dfile.globals['_FILENAME']
+            # Temporarily hide the _FILENAME global from the header
+            try:
+                fname = dfile.globals['_FILENAME']
+                del dfile.globals['_FILENAME']
+            except KeyError:
+                pass
             writer.write(dfile, tempfile, **kwargs)
             tempfile.flush()
             tempfile.seek(0)
-            dfile.globals['_FILENAME'] = fname
+            try:
+                dfile.globals['_FILENAME'] = fname
+            except NameError:
+                pass
 
             filename = get_filename(dfile)
             if filename in fnames:

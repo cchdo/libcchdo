@@ -463,7 +463,7 @@ def bottle_exchange_to_bottlezip_netcdf(args):
         botex.read(df, in_file)
 
     with closing(args.output_botzipnc) as out_file:
-        botzipnc.write(df2dfc.split_bottle(df), out_file)
+        botzipnc.write(df2dfc.split_on_cast(df), out_file)
 
 
 with subcommand(bot_converter_parsers, 'exchange_to_zip_netcdf',

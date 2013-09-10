@@ -570,15 +570,18 @@ class DataFile(File):
             self[mnemonic] = Column(mnemonic)
 
     def create_columns(self, parameters, units=None, ordered=False):
-        """Create columns given parameters and their units.
+        """Create columns given parameters and their units and return them.
         Args:
             parameters - parameter names as WOCE mnemonics or Parameter
                 instances
             units - units to check. If None then no check is done.
             ordered - specifies that the order the parameters were given is the
                 order to use when columns are sorted
+        Return:
+            a list of the Columns that were created
 
         """
+        columns = []
         for i, parameter in enumerate(parameters):
             if isinstance(parameter, basestring):
                 if (parameter.endswith('FLAG_W') or 
@@ -600,8 +603,9 @@ class DataFile(File):
                     parameter, units[i] if units else None)
                 if ordered:
                     self.ordered_columns.append(self[parameter])
-            except Exception, e:
-                raise e
+                columns.append(column)
+            except Exception, err:
+                raise err
 
             # Check the units
             if column.parameter and column.parameter.units:
@@ -615,6 +619,7 @@ class DataFile(File):
                         u"Mismatched units for {0}. Expected {1!r} and "
                         "received {2!r}".format(
                         parameter, expected_units, given_unit))
+        return columns
 
     def swap_rows(self, a, b):
         """Swaps two rows in the file."""

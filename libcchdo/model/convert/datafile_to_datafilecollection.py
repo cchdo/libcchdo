@@ -4,38 +4,40 @@ from copy import copy
 from libcchdo.model.datafile import DataFileCollection
 
 
-def split_bottle(file):
-    """ Split apart the bottle exchange file into a data file collection based
-        on station cast. Each cast is a new 'file'.
+def split_on_cast(dfile):
+    """Split a DataFile that has multiple casts into a DataFileCollection.
+
+    Splits are done based on station cast. Each cast is a new 'file'.
+
     """
     coll = DataFileCollection()
 
-    file_parameters = file.parameter_mnemonics_woce()
+    file_parameters = dfile.parameter_mnemonics_woce()
 
-    current_file = copy(file)
+    current_file = copy(dfile)
 
-    expocodes = file['EXPOCODE']
-    stations = file['STNNBR']
-    casts = file['CASTNO']
+    expocodes = dfile['EXPOCODE']
+    stations = dfile['STNNBR']
+    casts = dfile['CASTNO']
 
     expocode = expocodes[0]
     station = stations[0]
     cast = casts[0]
-    for i in range(len(file)):
+    for i in range(len(dfile)):
         # Check if this row is a new measurement location
         if expocodes[i] != expocode or \
            stations[i] != station or \
            casts[i] != cast:
             current_file.check_and_replace_parameters()
             coll.append(current_file)
-            current_file = copy(file)
+            current_file = copy(dfile)
         expocode = expocodes[i]
         station = stations[i]
         cast = casts[i]
 
-        # Put the current row in the current file
+        # Put the current row in the current dfile
         for p in file_parameters:
-            source_col = file[p]
+            source_col = dfile[p]
             value = source_col[i]
             try:
                 flag_woce = source_col.flags_woce[i]
