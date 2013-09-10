@@ -100,6 +100,28 @@ END_DATA
         column = self.file['CTDSAL']
         self.assertEqual(len(column.values), len(column.flags_woce))
 
+    def test_write_btl_date_time_no_decimals(self):
+        """BTL_DATE and BTL_TIME should not have decimal places."""
+        with closing(StringIO()) as buff:
+            dfile = DataFile()
+            dfile.create_columns([
+                'STNNBR', 'CASTNO', 'BTLNBR', '_DATETIME', 'CTDPRS', 
+                'BTL_DATE', 'BTL_TIME'])
+            dfile['STNNBR'].values = [None, None]
+            dfile['CASTNO'].values = [None, None]
+            dfile['BTLNBR'].values = [None, None]
+            dfile['_DATETIME'].values = [None, None]
+            dfile['CTDPRS'].values = [_decimal('10.0001'), None]
+            dfile['BTL_DATE'].values = [_decimal('19700101'), _decimal('19700102')]
+            dfile['BTL_TIME'].values = [_decimal('0000'), _decimal('1234')]
+            btlex.write(dfile, buff)
+            
+            result = buff.getvalue().split('\n')
+            self.assertEqual('19700101', result[3].split(',')[6].lstrip())
+            self.assertEqual('1234', result[4].split(',')[7].lstrip())
+            # TODO determine if time of 0 should be 0000 and 0123 should be 123
+            # or 0123.
+
     def test_write_fill_value_decimal_places_follow_column(self):
         """Fill values should follow the column's data's lead for decimal places.
 
