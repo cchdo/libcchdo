@@ -77,9 +77,11 @@ from datetime import datetime
 from contextlib import contextmanager
 import tempfile
 
+from libcchdo.util import memoize
 from libcchdo import fns, LOG
 from libcchdo.formats import netcdf as nc
 from libcchdo.formats.matlab import dimes
+from libcchdo.formats.netcdf_oceansites import write_columns, OSVar, ParamToOS
 
 
 def read(self, handle):
@@ -94,7 +96,8 @@ def read(self, handle):
         }
     vertical_params = ['ep1', 'ep2', 'epl']
     dimes.read(self, handle, global_params, vertical_params)
-    self.globals['TIME'] = ordinal_datetime_to_datetime(self.globals['TIME'])
+    self.globals['CASTNO'] = 1
+    self.globals['TIME'] = fns.ordinal_datetime_to_datetime(self.globals['TIME'])
 
 
 # TODO refactor
@@ -112,8 +115,28 @@ def nc_dataset_to_stream(stream, *args, **kwargs):
         tmp.close()
     
 
-# TODO
-param_to_cf = {}
+@memoize
+def converter():
+    param_to_os = ParamToOS()
+    param_to_os.register_osvars(
+        OSVar('pgrid', 'pgrid', 'pgrid', ''), 
+        OSVar('tave', 'tave', 'tave', ''),
+        OSVar('s_ave', 's_ave', 's_ave', ''),
+        OSVar('spinrate', 'spinrate', 'spinrate', ''),
+        OSVar('dzdtave', 'dzdtave', 'dzdtave', ''),
+        OSVar('mav_relup', 'mav_relup', 'mav_relup', ''),
+        OSVar('mav_vortzrel', 'mav_vortzrel', 'mav_vortzrel', ''),
+        OSVar('mav_n', 'nav_n', 'nav_n', ''),
+        OSVar('mav_e', 'mav_e', 'mav_e', ''),
+        OSVar('ep1', 'ep1', 'ep1', ''),
+        OSVar('ep2', 'ep2', 'ep2', ''),
+        OSVar('epl', 'epl', 'epl', ''),
+        OSVar('u_ef', 'u_ef', 'u_ef', ''),
+        OSVar('v_ef', 'v_ef', 'v_ef', ''),
+        OSVar('u_adcp', 'u_adcp', 'u_adcp', ''),
+        OSVar('v_adcp', 'v_adcp', 'v_adcp', ''),
+    )
+    return param_to_os
 
 
 def write(self, handle):
@@ -243,85 +266,7 @@ def write(self, handle):
         var_latitude[:] = [self.globals['LATITUDE']]
         var_longitude[:] = [self.globals['LONGITUDE']]
 
-        for column in self.columns.values():
-            try:
-                name = column.parameter.name_netcdf
-            except AttributeError:
-                LOG.warn('No netcdf name for parameter: %s' % column.parameter)
-                continue
-            try:
-                assert name
-            except AssertionError:
-                LOG.warn('Netcdf name for parameter is not specified: %s' % \
-                         column.parameter)
-                continue
-
-            if name in param_to_cf.keys():
-                name = param_to_cf[name]
-                # Write variable
-                var = nc_file.createVariable(
-                    name, 'f8', ('DEPTH',), fill_value=float('nan'))# TODO fill value?
-                # TODO ref table 3 for fill_value
-                variable = oceansites_variables[name]
-                var.long_name = variable['long'] or ''
-                var.standard_name = variable['std'] or ''
-                var.units = variable['units'] or ''
-                var.QC_indicator = 2 # Probably good data
-                var.QC_procedure = 5 # Data manually reviewed
-                var.valid_min = float(column.parameter.bound_lower)
-                var.valid_max = float(column.parameter.bound_upper)
-                # TODO nominal sensor depth in meters positive in direction of
-                # DEPTH:positive
-                var.sensor_depth = 999.0
-                var.uncertainty = oceansites_uncertainty[name]
-                var.cell_methods = ('TIME: point DEPTH: average '
-                                    'LATITUDE: point LONGITUDE: point')
-                var.DM_indicator = 'D'
-                var[:] = column.values
-                # Write QC variable
-                if column.is_flagged_woce():
-                    qc_var_name = name + nc.QC_SUFFIX
-                    var.ancillary_variables = qc_var_name
-                    flag = nc_file.createVariable(
-                        qc_var_name, 'b', ('DEPTH',), fill_value=-128)
-                    flag.long_name = 'quality flag'
-                    flag.conventions = 'OceanSITES reference table 2'
-                    flag.valid_min = 0
-                    flag.valid_max = 9
-                    flag.flag_values = 0#, 1, 2, 3, 4, 5, 6, 7, 8, 9 TODO??
-                    flag.flag_meanings = FLAG_MEANINGS
-                    flag[:] = [
-                        WOCE_to_OceanSITES_flag[f] for f in column.flags_woce]
-            else:
-                LOG.info(("Parameter '%s' is not mapped to a CF "
-                          'variable. Skipping.') % name)
-            if name is 'PRES':
-                # Fun using Sverdrup's depth integration with density.
-                localgrav = \
-                    depth.grav_ocean_surface_wrt_latitude(
-                        self.globals['LATITUDE'])
-                sal_tmp_pres = zip(self['CTDSAL'].values,
-                                   self['CTDTMP'].values,
-                                   column.values)
-                density_series = [depth.density(*args) for args in sal_tmp_pres]
-
-                try: 
-                    if None in density_series:
-                        # Can't perform integration with missing data points.
-                        raise ValueError
-                    var_depth.comment = \
-                        ('Calculated using integration of insitu density. '
-                         'Sverdrup, et al. 1942')
-                    depth_series = depth.depth(
-                        localgrav, self['CTDPRS'].values, density_series)
-                except ValueError:
-                    depth_series = fallback_depth_unesco(
-                        self.globals['LATITUDE'], self['CTDPRS'].values, var_depth)
-                except IndexError:
-                    depth_series = fallback_depth_unesco(
-                        self.globals['LATITUDE'], self['CTDPRS'].values, var_depth)
-
-                var_depth[:] = depth_series
+        write_columns(self, nc_file, converter())
 
         nc_file.title = ('HRP2 ExpoCode=%s Station=%s Cast=%s') % \
             (self.globals['EXPOCODE'], self.globals['STNNBR'],

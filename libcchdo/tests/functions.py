@@ -57,6 +57,13 @@ class TestFunctions(unittest.TestCase):
         print '>>>>>>>>>>>>>>>>>>>>>>>>', fns.equal_with_epsilon(1, 1 + 1e-7, 1e-6)
         self.assertTrue(fns.equal_with_epsilon(1, 1 + 1e-7, 1e-6))
 
+    def test_ordinal_datetime_to_datetime(self):
+        self.assertEqual(
+            fns.ordinal_datetime_to_datetime(728647), datetime(1994, 12, 19))
+        self.assertEqual(
+            fns.ordinal_datetime_to_datetime(728647.75),
+            datetime(1994, 12, 19, 18, 0, 0))
+
     def test_out_of_band(self):
         self.assertTrue(fns.out_of_band(-999))
 

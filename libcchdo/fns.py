@@ -10,6 +10,7 @@ except ImportError:
 import math
 import os.path
 import sys
+from datetime import datetime, timedelta
 
 from libcchdo import RADIUS_EARTH
 from libcchdo.log import LOG
@@ -90,6 +91,18 @@ def great_circle_distance(lat_stand, lng_stand, lat_fore, lng_fore):
 
 def strftime_iso(dtime):
     return dtime.isoformat() + 'Z'
+
+
+def ordinal_datetime_to_datetime(dtime):
+    """Reverse of MATLAB's datenum.m.
+
+    dtime is serial number of days elapsed since 0000-01-01.
+
+    """
+    start_dtime = datetime(1, 1, 1)
+    extra_year = datetime(2, 1, 3) - start_dtime
+    dtime_from_ordinal = start_dtime + timedelta(days=dtime)
+    return dtime_from_ordinal - extra_year
 
 
 def _decimal(x, *args):

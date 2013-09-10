@@ -229,6 +229,7 @@ class ParamToOS(dict):
         if not osvar.standard_name:
             raise ValueError(u'No standard name given.')
         self._os_vars[osvar.short_name] = osvar
+        self._param_to_os[osvar.short_name] = osvar.short_name
 
     def register_osvars(self, *osvars):
         for osvar in osvars:
@@ -579,7 +580,12 @@ def _calculate_depth(self, nc_file):
     temp = _find_first(self, TEMPERATURE_VARIABLES)
     lat = self.globals['LATITUDE']
 
-    localgrav = depth.grav_ocean_surface_wrt_latitude(lat)
+    try:
+        localgrav = depth.grav_ocean_surface_wrt_latitude(lat)
+    except OverflowError, err:
+        LOG.error(u'Unable to calculate gravity for latitude. Sin algorithm '
+                  'probably oscillates.')
+        return
     try: 
         sal_tmp_pres = zip(salt.values, temp.values, pres.values)
         density_series = [depth.density(*args) for args in sal_tmp_pres]
@@ -599,7 +605,7 @@ def _calculate_depth(self, nc_file):
         raise ValueError(u'Cannot convert non-existant pressures to depths.')
 
 
-def write_columns(self, nc_file):
+def write_columns(self, nc_file, converter=get_param_to_os()):
     from libcchdo.formats import netcdf as nc
     LOG.debug(u'writing columns')
 
@@ -610,7 +616,7 @@ def write_columns(self, nc_file):
         # Determine the parameter's OceanSITES name and CF name
         pname = column.parameter.name
         try:
-            name, variable = get_param_to_os().convert(pname)
+            name, variable = converter.convert(pname)
         except KeyError:
             LOG.warn(
                 u'Parameter name {0!r} is not mapped to an OceanSITES '
@@ -657,8 +663,11 @@ def write_columns(self, nc_file):
         var.uncertainty = variable.uncertainty
         var.cell_methods = OS_TEXT['CELL_METHODS']
         var.DM_indicator = 'D'
-        var[:] = [
-            variable.fill_value if x is None else x for x in column.values]
+        data = [variable.fill_value if x is None else x for x in column.values]
+        short = len(self) - len(data)
+        if short:
+            data += [variable.fill_value] * short
+        var[:] = data
         # Write QC variable
         if column.is_flagged_woce():
             qc_var_name = name + nc.QC_SUFFIX
