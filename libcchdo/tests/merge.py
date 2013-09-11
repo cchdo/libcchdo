@@ -90,10 +90,10 @@ END_DATA
             deriv.write("""\
 BOTTLE,19700101CCHSIOYYY
 # header 2
-EXPOCODE,SECT_ID,STNNBR,CASTNO,SAMPNO,BTLNBR,BTLNBR_FLAG_W,LATITUDE,LONGITUDE,DATE,TIME,DEPTH,TDN,TDN_FLAG_W,NITRIT,DELC14,DELC14_FLAG_W
-,,,,,,,,,,,METERS,UMOL/KG,,NMOL/KG,/MILLE,
- 316N145_9, TRNS1, 574, 1, 16, 36, 2, 0, 0, 19700101, 0000,1000,6.00,3,10.0,-999.000,1
- 316N145_9, TRNS1, 574, 1, 15, 35, 2, 0, 0, 19700101, 0000,1000,5.00,3,10.0,  10.000,9
+EXPOCODE,SECT_ID,STNNBR,CASTNO,SAMPNO,BTLNBR,BTLNBR_FLAG_W,LATITUDE,LONGITUDE,DATE,TIME,DEPTH,TDN,TDN_FLAG_W,NITRIT,DELC14,DELC14_FLAG_W,PH_SWS,PH_SWS_FLAG_W
+,,,,,,,,,,,METERS,UMOL/KG,,NMOL/KG,/MILLE,,,
+ 316N145_9, TRNS1, 574, 1, 16, 36, 2, 0, 0, 19700101, 0000,1000,6.00,3,10.0,-999.000,1,-999.0,9
+ 316N145_9, TRNS1, 574, 1, 15, 35, 2, 0, 0, 19700101, 0000,1000,5.00,3,10.0,  10.000,9,-999.0,9
 END_DATA
 """)
             deriv.flush()
@@ -107,7 +107,9 @@ END_DATA
                 # NITRIT comes after because NMOL/KG is not an expected unit and
                 # gets pushed to the end when sorting
                 (['DELC14', 'DELC14_FLAG_W', 'NITRIT'],
-                 ['TDN', 'TDN_FLAG_W'],
+                 # PH_SWS_FLAG_W has underscores inside the parameter name. All
+                 # parts need to be included
+                 ['PH_SWS', 'PH_SWS_FLAG_W', 'TDN', 'TDN_FLAG_W'],
                  ['NITRAT', 'NITRAT_FLAG_W'],
                  ['EXPOCODE', 'SECT_ID', 'STNNBR', 'CASTNO', 'SAMPNO', 'BTLNBR',
                   'BTLNBR_FLAG_W', 'LATITUDE', 'LONGITUDE', 'DEPTH',
@@ -146,12 +148,12 @@ END_DATA
             origin.write("""\
 BOTTLE,19700101CCHSIOYYY
 # header 1
-EXPOCODE,SECT_ID,STNNBR,CASTNO,SAMPNO,BTLNBR,BTLNBR_FLAG_W,DEPTH,TDN,DELC14,DELC14_FLAG_W
-,,,,,,,METERS,UMOL/KG,/MILLE,
- 316N145_9, TRNS1, 574, 1, 36, 36,2,1000,5,-999.000,9
- 316N145_9, TRNS1, 574, 1, 35, 35,2,1000,5,-999.000,9
- 316N145_9, TRNS1, 574, 1, 34, 34,2,1000,5,-999.000,9
- 316N145_9, TRNS1, 574, 1, 32, 32,2,1000,5,-999.000,9
+EXPOCODE,SECT_ID,STNNBR,CASTNO,SAMPNO,BTLNBR,BTLNBR_FLAG_W,DEPTH,TDN,DELC14,DELC14_FLAG_W,PH_SWS,PH_SWS_FLAG_W
+,,,,,,,METERS,UMOL/KG,/MILLE,,,
+ 316N145_9, TRNS1, 574, 1, 36, 36,2,1000,5,-999.000,9,11,9
+ 316N145_9, TRNS1, 574, 1, 35, 35,2,1000,5,-999.000,9,22,9
+ 316N145_9, TRNS1, 574, 1, 34, 34,2,1000,5,-999.000,9,33,9
+ 316N145_9, TRNS1, 574, 1, 32, 32,2,1000,5,-999.000,9,44,9
 END_DATA
 """)
             origin.flush()
@@ -159,12 +161,12 @@ END_DATA
             deriv.write("""\
 BOTTLE,19700101CCHSIOYYY
 # header 2
-EXPOCODE,SECT_ID,STNNBR,CASTNO,SAMPNO,BTLNBR,BTLNBR_FLAG_W,DEPTH,TDN,DELC14,DELC14_FLAG_W
-,,,,,,,METERS,UMOL/KG,/MILLE,
- 316N145_9, TRNS1, 574, 1, 36, 36,2,1000,5,  10.000,9
- 316N145_9, TRNS1, 574, 1, 35, 35,2,1000,5,-999.000,1
- 316N145_9, TRNS1, 574, 1, 34, 34,2,1000,5,-999.000,9
- 316N145_9, TRNS1, 600, 1,  1,  1,2,1000,5,-999.000,9
+EXPOCODE,SECT_ID,STNNBR,CASTNO,SAMPNO,BTLNBR,BTLNBR_FLAG_W,DEPTH,TDN,DELC14,DELC14_FLAG_W,PH_SWS,PH_SWS_FLAG_W
+,,,,,,,METERS,UMOL/KG,/MILLE,,,
+ 316N145_9, TRNS1, 574, 1, 36, 36,2,1000,5,  10.000,9,-999.0,9
+ 316N145_9, TRNS1, 574, 1, 35, 35,2,1000,5,-999.000,1,-999.0,9
+ 316N145_9, TRNS1, 574, 1, 34, 34,2,1000,5,-999.000,9,-999.0,9
+ 316N145_9, TRNS1, 600, 1,  1,  1,2,1000,5,-999.000,9,-999.0,9
 END_DATA
 """)
             deriv.flush()
@@ -181,6 +183,10 @@ END_DATA
             self.assertEqual(
                 keys, ('EXPOCODE', 'STNNBR', 'CASTNO', 'SAMPNO', 'BTLNBR'))
             parameters = list(OrderedSet(parameters) - OrderedSet(keys))
+
+            # Parameters with underscores in them may be confused when matching
+            # flags with them. E.g. PH_SWS_FLAG_W should be matched with PH_SWS
+            # not PH.
             dfile = merge_datafiles(dfo, dfd, keys, parameters)
 
             self.assertEqual(dfile['DELC14'][0], _decimal('10.000'))
@@ -190,7 +196,7 @@ END_DATA
             self.assertNotIn('header 2', dfile.globals['header'])
             self.assertIn('header 1', dfile.globals['header'])
             # Header should contain the merged parameters
-            self.assertIn('Merged parameters: DELC14, DELC14_FLAG_W',
+            self.assertIn('Merged parameters: PH_SWS, DELC14, DELC14_FLAG_W',
                           dfile.globals['header'])
             # No double new lines
             self.assertNotIn('\n\n', dfile.globals['header'])
@@ -203,6 +209,7 @@ END_DATA
             self.assertEqual(str(dfile['CASTNO'][0]), '1')
             self.assertEqual(str(dfile['SAMPNO'][0]), '36')
             self.assertEqual(str(dfile['BTLNBR'][0]), '36')
+            self.assertEqual(str(dfile['PH_SWS'][0]), 'None')
 
             # Extra keys in derivative file should not be merged in.
             self.assertNotIn(600, dfile['STNNBR'])

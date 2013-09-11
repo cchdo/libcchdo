@@ -140,13 +140,9 @@ def different_columns(origin, deriv, keys, row_map=None):
             LOG.info(u'{0} differs at origin row {1}:\t{2!r}'.format(
                 param, i, difftuples[i]))
         
-
     # check common columns for differing data
     for col in common:
-        if '_FLAG_' in col:
-            param = col.split('_')[0]
-        else:
-            param = col
+        param = _normalize_column_name(col)
         origcol = origin[param]
         derivcol = deriv[param]
         diffcol = origcol.diff(derivcol, row_map=row_map)
@@ -290,6 +286,14 @@ def map_keys(origin, deriv, keys):
     return keymap
 
 
+def _normalize_column_name(colname):
+    """Return the column name for both flagged and data columns."""
+    if '_FLAG_' in colname:
+        return colname.split('_FLAG_')[0]
+    else:
+        return colname
+
+
 def _determine_available_bottle_keys(dfile):
     """Return keys that are available to merge on."""
     df_cols = _datafile_parameter_mnemonics(dfile)
@@ -373,10 +377,7 @@ def merge_datafiles(origin, deriv, keys, parameters):
     all_cols = commoncols + not_in_deriv_cols + list(keys) + \
         list(OrderedSet(diffcols) | params_to_merge)
     for key in all_cols:
-        if '_FLAG_' in key:
-            param = key.split('_')[0]
-        else:
-            param = key
+        param = _normalize_column_name(key)
         if param in origin:
             col = merged[param]
             # copy the origin values in to be overwritten
@@ -389,10 +390,7 @@ def merge_datafiles(origin, deriv, keys, parameters):
             else:
                 col.values = origincol.values
     for key in params_to_merge:
-        if '_FLAG_' in key:
-            param = key.split('_')[0]
-        else:
-            param = key
+        param = _normalize_column_name(key)
         if param in deriv:
             col = merged[param]
             # For each param in deriv, update column with deriv value at origin

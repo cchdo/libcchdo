@@ -1253,7 +1253,7 @@ def merge_btlex_and_btlex(args):
 
 with subcommand(merge_parsers, 'botex_and_botex', merge_btlex_and_btlex) as p:
     p.add_argument(
-        '--output', type=FileType('w'), nargs='+', default=sys.stdout,
+        '--output', type=FileType('w'), nargs='?', default=sys.stdout,
         help='output Bottle Exchange file')
     p.add_argument(
         '--on', type=str, nargs='?',

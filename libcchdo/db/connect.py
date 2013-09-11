@@ -60,9 +60,9 @@ def cchdo():
 
 
 @memoize
-def Sessionmaker(engine):
+def Sessionmaker(engine, **kwargs):
     return sessionmaker(bind=engine)
 
 
-def session(engine):
-    return Sessionmaker(engine)()
+def session(engine, **kwargs):
+    return Sessionmaker(engine)(**kwargs)
