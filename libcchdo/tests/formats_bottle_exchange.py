@@ -100,6 +100,26 @@ END_DATA
         column = self.file['CTDSAL']
         self.assertEqual(len(column.values), len(column.flags_woce))
 
+    def test_write_exchange_decimal_places(self):
+        """Decimal places should be kept from the original data."""
+        with closing(StringIO()) as buff:
+            dfile = DataFile()
+            dfile.create_columns([
+                'STNNBR', 'CASTNO', 'BTLNBR', '_DATETIME', 'CTDPRS', 
+                'LONGITUDE'])
+            dfile['STNNBR'].values = [None, None]
+            dfile['CASTNO'].values = [None, None]
+            dfile['BTLNBR'].values = [None, None]
+            dfile['_DATETIME'].values = [None, None]
+            dfile['CTDPRS'].values = [_decimal('10.0001'), None]
+            dfile['LONGITUDE'].values = [_decimal('0.0000000'), _decimal('1.000000')]
+            btlex.write(dfile, buff)
+
+            result = buff.getvalue().split('\n')
+            # Decimal('0.0000000') is converted to 0E-7 by str. The formatting
+            # has to be done manually.
+            self.assertEqual('0.0000000', result[3].split(',')[5].lstrip())
+
     def test_write_btl_date_time_no_decimals(self):
         """BTL_DATE and BTL_TIME should not have decimal places."""
         with closing(StringIO()) as buff:

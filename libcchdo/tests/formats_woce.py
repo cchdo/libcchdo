@@ -26,6 +26,10 @@ class TestFormatsWoce(unittest.TestCase):
         toks = ['12', '34.567', 'W']
         self.assertAlmostEqual(Decimal('-12.57611666667'),
             woce.woce_lng_to_dec_lng(toks))
+        toks = ['000', '0.00', 'E']
+        self.assertAlmostEqual(Decimal('0'),
+            woce.woce_lng_to_dec_lng(toks))
+        lng = woce.woce_lng_to_dec_lng(toks)
   
     def test_dec_lat_to_woce_lat(self):
         self.assertEqual('12 34.57 N',

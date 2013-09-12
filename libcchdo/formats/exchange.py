@@ -120,6 +120,14 @@ def get_flagged_format_parameter_values(dfile):
     return flagged_parameter_names, flagged_units, flagged_format_parameter_values
 
 
+def decimal_to_str(val):
+    """Convert Decimal to string intelligently or leave strings alone."""
+    try:
+        return format(val, '.{0}f'.format(-val.as_tuple().exponent))
+    except AttributeError:
+        return str(val)
+
+
 def write_flagged_format_parameter_values(dfile, fileobj,
                                           flagged_format_parameter_values):
     for i in range(len(dfile)):
@@ -134,7 +142,7 @@ def write_flagged_format_parameter_values(dfile, fileobj,
             if value is None:
                 value = format_str % FILL_VALUE
             try:
-                values.append(str(value).rjust(limit))
+                values.append(decimal_to_str(value).rjust(limit))
             except Exception, err:
                 LOG.warn(
                     u'Could not format {0} (column {1} row {2:d}): {3}'.format(
