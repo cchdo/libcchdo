@@ -48,7 +48,8 @@ def read(dfc, fileobj):
 
     # Convert header columns to globals
     global_headers = [
-        'EXPOCODE', 'STNNBR', 'CASTNO', '_DATETIME', 'LATITUDE', 'LONGITUDE']
+        'EXPOCODE', 'STNNBR', 'CASTNO', '_DATETIME', 'LATITUDE', 'LONGITUDE',
+        'DEPTH']
     for dfile in dfc.files:
         for header in global_headers:
             value = dfile[header][0]

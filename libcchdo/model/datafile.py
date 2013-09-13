@@ -9,9 +9,25 @@ from libcchdo.log import LOG
 from libcchdo.ui import TERMCOLOR
 from libcchdo.util import memoize
 from libcchdo.db.model import std
+from libcchdo.algorithms import depth
 
 
-PRESSURE_PARAMETERS = ['CTDPRS', 'CTDRAW', ]
+PRESSURE_VARIABLES = ['CTDPRS', 'CTDRAW', 'REVPRS', 'DWNPRS']
+
+
+PRESSURE_PARAMETERS = PRESSURE_VARIABLES
+
+
+BTL_SALINITY_VARIABLES = ['SALNTY', 'SOMSAL', ]
+
+
+SALINITY_VARIABLES = ['CTDSAL', ] + BTL_SALINITY_VARIABLES
+
+
+OXYGEN_VARIABLES = ['CTDOXY', 'DWNOXY', 'OXYGEN', ]
+
+
+TEMPERATURE_VARIABLES = ['CTDTMP', 'REVTMP', 'SBE35', ]
 
 
 class Column(object):
@@ -697,6 +713,68 @@ class DataFile(File):
                     last_i = i
             self.sort_file_range(
                 last_i, len(self), pres_ascending, bot_ascending)
+
+    def find_first(self, parameters):
+        for col in self.sorted_columns():
+            if col.parameter.name in parameters:
+                return col
+        return None
+
+    def calculate_depths(self, latitude=None):
+        """Calculate a DEPTH column's values.
+
+        Try first with _ACTUAL_DEPTH. If that column exists, simply return that
+        one.
+
+        Then try Sverdrup's depth integration with density before
+        falling back to UNESCO 1983 approximation.
+
+        Return:
+            The method used as a string and a list of the depths.
+
+        """
+        try:
+            depths = self['_ACTUAL_DEPTH']
+            return ('actual', depth.values)
+        except KeyError:
+            pass
+
+        # If there is no _ACTUAL_DEPTH column, calculate it using pressure,
+        # salinity, and temperature. _ACTUAL_DEPTH is used because CCHDO's
+        # parameter list includes DEPTH which is actually Bottom Depth.
+
+        # Fun using Sverdrup's depth integration with density.
+        pres = self.find_first(PRESSURE_VARIABLES)
+        salt = self.find_first(SALINITY_VARIABLES)
+        temp = self.find_first(TEMPERATURE_VARIABLES)
+
+        if latitude:
+            lat = latitude
+        else:
+            lat = self.globals['LATITUDE']
+
+        try:
+            localgrav = depth.grav_ocean_surface_wrt_latitude(lat)
+        except OverflowError, err:
+            LOG.error(u'Unable to calculate gravity for latitude. Sin algorithm '
+                      'probably oscillates.')
+            return
+        try: 
+            sal_tmp_pres = zip(salt.values, temp.values, pres.values)
+            density_series = [depth.density(*args) for args in sal_tmp_pres]
+            if None in density_series:
+                raise ValueError(
+                    u'Cannot perform depth integration with missing data points')
+            depths = depth.depth(localgrav, pres.values, density_series)
+            return ('sverdrup', depths)
+        except (AttributeError, IndexError, ValueError):
+            pass
+        try:
+            LOG.info(u'Falling back from depth integration to Unesco method.')
+            depths = [depth.depth_unesco(pres, lat) for pres in pres.values]
+            return ('unesco1983', depths)
+        except AttributeError:
+            raise ValueError(u'Cannot convert non-existant pressures to depths.')
 
 
 class DataFileCollection(object):

@@ -30,7 +30,8 @@ frparam_to_param = {
     'PHOW': 'PHSPHT',
     'NTAW': 'NITRAT',
     'SLCW': 'SILCAT',
-    'DEPH': 'DEPTH',
+    # DEPTH is actually bottom depth.
+    'DEPH': '_DEPTH',
 }
 
 
@@ -151,30 +152,55 @@ def read(dfile, fileobj, data_type=None):
 
     # French CSV does not include cast identifying information. Generate that
     # by watching for coordinate changes.
+    # While looping through and finding station changes, also populate the
+    # bottom depth column from the _DEPTH column by estimating it as the bottom
+    # most depth.
+    dfile.create_columns(['DEPTH'])
+
     last_coord = None
     last_dt = None
+    last_depths = []
     stnnbr = 0
     castno = 0
     btlnbr = 1
     col_lat = dfile['LATITUDE']
     col_lng = dfile['LONGITUDE']
     col_dt = dfile['_DATETIME']
+    col_bot = dfile['DEPTH']
+    try:
+        col_depth = dfile['_DEPTH']
+    except KeyError:
+        method, col_depth = dfile.calculate_depths(col_lat[rowi])
+    col_depth = [xxx.to_integral_value() if xxx else xxx for xxx in col_depth]
     for rowi in range(len(dfile)):
         coord = (col_lat[rowi], col_lng[rowi])
+        # location changed => station change
         if last_coord != coord:
             stnnbr += 1
             castno = 0
             btlnbr = 1
             last_coord = coord
+        # time changed => cast changed
         dtime = col_dt[rowi]
         if last_dt != dtime:
             castno += 1
             btlnbr = 1
+            if last_depths:
+                col_bot.set_length(rowi, max(last_depths))
+            last_depths = []
         else:
+            # normal measurement row
             btlnbr += 1
         last_dt = dtime
         col_exp.set(rowi, '')
         col_stn.set(rowi, stnnbr)
         col_cast.set(rowi, castno)
+        last_depths.append(col_depth[rowi])
         if data_type == 'bottle':
             col_btln.set(rowi, btlnbr)
+    col_bot.set_length(len(dfile), col_depth[len(dfile) - 1])
+
+    try:
+        del dfile['_DEPTH']
+    except KeyError:
+        pass

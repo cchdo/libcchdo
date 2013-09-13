@@ -13,7 +13,10 @@ from math import cos
 from libcchdo.log import LOG
 from libcchdo.fns import strftime_iso
 from libcchdo.util import memoize
-from libcchdo.algorithms import depth
+from libcchdo.model.datafile import (
+    PRESSURE_VARIABLES, BTL_SALINITY_VARIABLES, SALINITY_VARIABLES,
+    OXYGEN_VARIABLES, TEMPERATURE_VARIABLES
+    )
 
 
 __all__ = [
@@ -248,21 +251,6 @@ class ParamToOS(dict):
         except KeyError:
             raise ValueError(
                 u'OceanSITES name {0!r} has no definition.'.format(os_name))
-
-
-PRESSURE_VARIABLES = ['CTDPRS', 'CTDRAW', 'REVPRS', 'DWNPRS']
-
-
-BTL_SALINITY_VARIABLES = ['SALNTY', 'SOMSAL', ]
-
-
-SALINITY_VARIABLES = ['CTDSAL', ] + BTL_SALINITY_VARIABLES
-
-
-OXYGEN_VARIABLES = ['CTDOXY', 'DWNOXY', 'OXYGEN', ]
-
-
-TEMPERATURE_VARIABLES = ['CTDTMP', 'REVTMP', 'SBE35', ]
 
 
 @memoize
@@ -553,56 +541,19 @@ def create_oceansites_nc(df, filename, data_type, version=None):
     return nc_file
 
 
-def _find_first(df, parameters):
-    for c in df.sorted_columns():
-        if c.parameter.name in parameters:
-            return c
-    return None
-
-
 def _calculate_depth(self, nc_file):
     """Calculate a DEPTH column based on a series of methods."""
     var_depth = nc_file.variables['DEPTH']
-    try:
-        depths = self['_ACTUAL_DEPTH']
+
+    method, depths = self.calculate_depths()
+    if method == 'actual':
         var_depth[:] = depths.values
-        return
-    except KeyError:
-        pass
-
-    # If there is no _ACTUAL_DEPTH column, calculate it using pressure,
-    # salinity, and temperature. _ACTUAL_DEPTH is used because CCHDO's
-    # parameter list includes DEPTH which is actually Bottom Depth.
-
-    # Fun using Sverdrup's depth integration with density.
-    pres = _find_first(self, PRESSURE_VARIABLES)
-    salt = _find_first(self, SALINITY_VARIABLES)
-    temp = _find_first(self, TEMPERATURE_VARIABLES)
-    lat = self.globals['LATITUDE']
-
-    try:
-        localgrav = depth.grav_ocean_surface_wrt_latitude(lat)
-    except OverflowError, err:
-        LOG.error(u'Unable to calculate gravity for latitude. Sin algorithm '
-                  'probably oscillates.')
-        return
-    try: 
-        sal_tmp_pres = zip(salt.values, temp.values, pres.values)
-        density_series = [depth.density(*args) for args in sal_tmp_pres]
-        if None in density_series:
-            raise ValueError(
-                u'Cannot perform depth integration with missing data points')
-        var_depth.comment = OS_TEXT['DEPTH_CALCULATED_SVERDRUP']
-        var_depth[:] = depth.depth(localgrav, pres.values, density_series)
-        return
-    except (AttributeError, IndexError, ValueError):
-        pass
-    try:
-        LOG.info(u'Falling back from depth integration to Unesco method.')
+    elif method == 'unesco1983':
         var_depth.comment = OS_TEXT['DEPTH_CALCULATED_UNESCO_1983']
-        var_depth[:] = [depth.depth_unesco(pres, lat) for pres in pres.values]
-    except AttributeError:
-        raise ValueError(u'Cannot convert non-existant pressures to depths.')
+        var_depth[:] = depths
+    elif method == 'sverdrup':
+        var_depth.comment = OS_TEXT['DEPTH_CALCULATED_SVERDRUP']
+        var_depth[:] = depths
 
 
 def write_columns(self, nc_file, converter=get_param_to_os()):
