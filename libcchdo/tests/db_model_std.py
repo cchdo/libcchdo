@@ -2,6 +2,9 @@ import unittest
 
 from decimal import Decimal
 
+from sqlalchemy import create_engine
+
+from libcchdo.db.connect import Sessionmaker
 from libcchdo.db.model import std
 
 
@@ -37,3 +40,11 @@ class TestDbModelStd(unittest.TestCase):
         self.assertTrue(p.is_in_range(0.5))
         self.assertFalse(p.is_in_range(-1.0))
         self.assertFalse(p.is_in_range(2.0))
+
+    def test_regenerate_database_cache(self):
+        engine = create_engine('sqlite:///:memory:')
+        smaker = Sessionmaker(engine)
+        with std.closing(smaker()) as sesh:
+            std._regenerate_database_cache(sesh)
+            sesh.flush()
+            sesh.rollback()

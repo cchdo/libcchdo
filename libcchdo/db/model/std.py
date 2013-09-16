@@ -32,7 +32,7 @@ def session(no_global=False):
         _ensure_database_cache()
     if _global_session and not no_global:
         return _global_session
-    session = connect.session(connect.cchdo_data(), autoflush=False)
+    session = connect.session(connect.cchdo_data())
     if not session:
         raise ValueError("Unable to connect to local cache db cchdo_data")
     if not _global_session:
