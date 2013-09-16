@@ -85,6 +85,27 @@ class TestDataFile(TestCase):
         self.assertEqual(self.c.values, [None, None, 'test', 'test2'])
         self.assertEqual(self.c.flags_woce, [None, None, None, 'flag2'])
 
+    def test_calculate_depths(self):
+        self.file['_ACTUAL_DEPTH'] = Column('_ACTUAL_DEPTH')
+        self.assertEqual(('actual', []), self.file.calculate_depths())
+
+        del self.file['_ACTUAL_DEPTH']
+        self.file.globals['LATITUDE'] = -60.4987683333
+        self.file.create_columns(['CTDPRS', 'CTDSAL', 'CTDTMP'])
+        with self.assertRaises(OverflowError):
+            self.file.calculate_depths()
+
+        self.file.globals['LATITUDE'] = 0
+        self.assertEqual(('unesco1983', []), self.file.calculate_depths())
+
+        self.file['CTDPRS'].values = [1]
+        self.file['CTDSAL'].values = [1]
+        self.file['CTDTMP'].values = [1]
+
+        self.assertEqual(
+            ('sverdrup', [_decimal('1.021723814950101286444879340E-8')]),
+            self.file.calculate_depths())
+
     def test_check_and_replace_parameter_contrived(self):
         """Contrived parameters are not checked."""
         col = Column('_DATETIME')

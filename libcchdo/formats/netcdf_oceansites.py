@@ -545,15 +545,18 @@ def _calculate_depth(self, nc_file):
     """Calculate a DEPTH column based on a series of methods."""
     var_depth = nc_file.variables['DEPTH']
 
-    method, depths = self.calculate_depths()
-    if method == 'actual':
-        var_depth[:] = depths.values
-    elif method == 'unesco1983':
-        var_depth.comment = OS_TEXT['DEPTH_CALCULATED_UNESCO_1983']
-        var_depth[:] = depths
-    elif method == 'sverdrup':
-        var_depth.comment = OS_TEXT['DEPTH_CALCULATED_SVERDRUP']
-        var_depth[:] = depths
+    try:
+        method, depths = self.calculate_depths()
+        if method == 'actual':
+            var_depth[:] = depths.values
+        elif method == 'unesco1983':
+            var_depth.comment = OS_TEXT['DEPTH_CALCULATED_UNESCO_1983']
+            var_depth[:] = depths
+        elif method == 'sverdrup':
+            var_depth.comment = OS_TEXT['DEPTH_CALCULATED_SVERDRUP']
+            var_depth[:] = depths
+    except OverflowError:
+        pass
 
 
 def write_columns(self, nc_file, converter=get_param_to_os()):

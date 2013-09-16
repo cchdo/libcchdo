@@ -735,7 +735,7 @@ class DataFile(File):
         """
         try:
             depths = self['_ACTUAL_DEPTH']
-            return ('actual', depth.values)
+            return ('actual', depths.values)
         except KeyError:
             pass
 
@@ -756,9 +756,9 @@ class DataFile(File):
         try:
             localgrav = depth.grav_ocean_surface_wrt_latitude(lat)
         except OverflowError, err:
-            LOG.error(u'Unable to calculate gravity for latitude. Sin algorithm '
-                      'probably oscillates.')
-            return
+            LOG.error(u'Unable to calculate gravity for latitude {0}. Sin '
+                      'algorithm probably oscillates.'.format(lat))
+            raise err
         try: 
             sal_tmp_pres = zip(salt.values, temp.values, pres.values)
             density_series = [depth.density(*args) for args in sal_tmp_pres]
