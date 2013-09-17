@@ -96,8 +96,13 @@ def read(self, handle):
         }
     vertical_params = ['ep1', 'ep2', 'epl']
     dimes.read(self, handle, global_params, vertical_params)
+    self.globals['EXPOCODE'] = 'expocode'
+    self.globals['STNNBR'] = 1
     self.globals['CASTNO'] = 1
-    self.globals['TIME'] = fns.ordinal_datetime_to_datetime(self.globals['TIME'])
+    self.globals['DEPTH'] = 0
+    self.globals['_DATETIME'] = fns.ordinal_datetime_to_datetime(
+        self.globals['TIME'])
+    del self.globals['TIME']
 
 @memoize
 def converter():
@@ -125,10 +130,6 @@ def converter():
 
 def write(self, handle):
     """Write DIMES microstructure COARDS compliant file."""
-    self.globals['EXPOCODE'] = 'expocode'
-    self.globals['STNNBR'] = 1
-    self.globals['DEPTH'] = 0
-    self.globals['_DATETIME'] = datetime.utcnow()
     with nc.nc_dataset_to_stream(handle, format='NETCDF4') as nc_file:
         nc_file.Conventions = 'CF-1.6'
         nc_file.netcdf_version = '4'

@@ -63,6 +63,9 @@ class TestFunctions(unittest.TestCase):
         self.assertEqual(
             fns.ordinal_datetime_to_datetime(728647.75),
             datetime(1994, 12, 19, 18, 0, 0))
+        self.assertEqual(
+            fns.ordinal_datetime_to_datetime(734179.491458),
+            datetime(2010, 2, 10, 11, 47, 41, 971203))
 
     def test_out_of_band(self):
         self.assertTrue(fns.out_of_band(-999))
