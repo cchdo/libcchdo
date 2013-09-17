@@ -519,24 +519,25 @@ def writeable_columns(dfile):
     return columns
 
 
-def columns_qualt_and_base_format(dfile):
-    """Return columns qualt_format and base format for WOCE fixed column data.
+def columns_and_base_format(dfile):
+    """Return columns and base format for WOCE fixed column data.
 
     """
     columns = writeable_columns(dfile)
     num_qualt = len(filter(lambda col: col.is_flagged_woce(), columns))
-    base_format = "%8s" * len(columns)
-    qualt_colsize = max((len(" QUALT#"), num_qualt))
-    qualt_format = "%%%ds" % qualt_colsize
-    base_format += " " + qualt_format + "\n"
-    return columns, qualt_format, base_format
+    col_format = '{{{0}:>8}}'
+    base_format = ''.join([col_format.format(iii) for iii in range(len(columns))])
+    qualt_colsize = max((len("QUALT#"), num_qualt))
+    qualt_format = "{{0}}:>{0}".format(qualt_colsize)
+    base_format += ' {' + qualt_format.format(len(columns)) + "}\n"
+    return columns, base_format
 
 
-def write_data(self, handle, columns, qualt_format, base_format):
+def write_data(self, handle, columns, base_format):
     """Write WOCE data in fixed width columns.
 
-    columns, qualt_format, and base_format should be obtained from 
-    columns_qualt_and_base_format()
+    columns and base_format should be obtained from 
+    columns_and_base_format()
 
     """
     def parameter_name_of (column, ):
@@ -555,13 +556,13 @@ def write_data(self, handle, columns, qualt_format, base_format):
     all_units = map(units_of, columns)
     all_asters = map(quality_flags_of, columns)
 
-    all_headers.append(qualt_format % "QUALT1")
-    all_units.append(qualt_format % "*")
-    all_asters.append(qualt_format % "*")
+    all_headers.append("QUALT1")
+    all_units.append("*")
+    all_asters.append("*")
 
-    handle.write(base_format % tuple(all_headers))
-    handle.write(base_format % tuple(all_units))
-    handle.write(base_format % tuple(all_asters))
+    handle.write(base_format.format(*all_headers))
+    handle.write(base_format.format(*all_units))
+    handle.write(base_format.format(*all_asters))
 
     for i in range(len(self)):
         values = []
@@ -571,7 +572,7 @@ def write_data(self, handle, columns, qualt_format, base_format):
             if column[i]:
                 formatted_value = format % column[i]
             else:
-                formatted_value = format % FILL_VALUE
+                formatted_value = str(FILL_VALUE)
 
             if len(formatted_value) > COLUMN_WIDTH:
                 extra = len(formatted_value) - COLUMN_WIDTH
@@ -588,7 +589,7 @@ def write_data(self, handle, columns, qualt_format, base_format):
                 flags.append(str(column.flags_woce[i]))
 
         values.append("".join(flags))
-        handle.write(base_format % tuple(values))
+        handle.write(base_format.format(*values))
 
 
 def fuse_datetime_globals(file):

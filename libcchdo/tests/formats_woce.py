@@ -1,15 +1,17 @@
-import unittest
-import datetime
+from datetime import datetime, date, time
+from StringIO import StringIO
+from contextlib import closing
 
+from libcchdo.tests import BaseTestCase, sample_file
+from libcchdo.log import LOG
 from libcchdo.fns import Decimal
-from libcchdo.tests import sample_file
 from libcchdo.formats import woce
 from libcchdo.formats.bottle import woce as botwoce
 from libcchdo.formats.summary import woce as sumwoce
-from libcchdo.model import datafile as df
+from libcchdo.model.datafile import DataFile, SummaryFile, Column
 
 
-class TestFormatsWoce(unittest.TestCase):
+class TestFormatsWoce(BaseTestCase):
 
     def test_woce_lat_to_dec_lat(self):
         toks = ['12', '34.567', 'N']
@@ -47,8 +49,7 @@ class TestFormatsWoce(unittest.TestCase):
         self.assertEqual(None, woce.strptime_woce_date_time(None, None))
         self.assertEqual(None, woce.strptime_woce_date_time(None, 5432))
 
-        today = datetime.datetime.combine(
-            datetime.date.today(), datetime.time(0, 0))
+        today = datetime.combine(date.today(), time(0, 0))
         self.assertEqual(
             today,
             woce.strptime_woce_date_time(today.strftime('%Y%m%d'), None))
@@ -58,24 +59,24 @@ class TestFormatsWoce(unittest.TestCase):
 
         # Bad time gives back the date as a datetime with time set to 0000
         self.assertEqual(
-            datetime.datetime(2010, 03, 31, 0, 0),
+            datetime(2010, 03, 31, 0, 0),
             woce.strptime_woce_date_time(20100331, 81))
 
         # Bad time above 2400 returns a datetime with time as 0000
         self.assertEqual(
-            datetime.datetime(2010, 03, 31, 0, 0),
+            datetime(2010, 03, 31, 0, 0),
             woce.strptime_woce_date_time(20100331, 2513))
 
         self.assertEqual(
-            datetime.datetime(2010, 03, 31, 16, 59),
+            datetime(2010, 03, 31, 16, 59),
             woce.strptime_woce_date_time(20100331, 1659))
 
     def test_combine(self):
         botin = open(sample_file('bottle_woce', 'p01w_1999ahy.txt'), 'r')
         sumin = open(sample_file('summary_woce', 'p01w_1999asu.txt'), 'r')
 
-        botfile = df.DataFile()
-        sumfile = df.SummaryFile()
+        botfile = DataFile()
+        sumfile = SummaryFile()
 
         botwoce.read(botfile, botin)
         sumwoce.read(sumfile, sumin)
@@ -88,9 +89,55 @@ class TestFormatsWoce(unittest.TestCase):
         TIME columns.
 
         """
-        dfile = df.DataFile()
+        dfile = DataFile()
         woce.split_datetime(dfile)
         with self.assertRaises(KeyError):
             dfile['DATE']
         with self.assertRaises(KeyError):
             dfile['TIME']
+
+    def test_write_data_qualt1_fill(self):
+        """Length of quality word must be at least QUALT1?"""
+        dfile = DataFile()
+        cols = []
+        for cname in ['AAA', 'BBB', 'CCC']:
+            col = dfile[cname] = Column(cname)
+            col.values = [None]
+            col.flags_woce = [9]
+            cols.append(col)
+
+        # Short QUALT1 word must be left padded to at least the length of
+        # 'QUALT1'
+        with closing(StringIO()) as output:
+            cols, base_format = \
+                woce.columns_and_base_format(dfile)
+            woce.write_data(dfile, output, cols, base_format)
+            result = output.getvalue().split('\n')
+            self.assertEqual(' ' * 6 + '*', result[2][8 * len(cols):])
+
+        # Long QUALT1 word results in header being left padded.
+        for cname in ['DDD', 'EEE', 'FFF', 'GGG']:
+            col = dfile[cname] = Column(cname)
+            col.values = [None]
+            col.flags_woce = [9]
+            cols.append(col)
+        with closing(StringIO()) as output:
+            cols, base_format = \
+                woce.columns_and_base_format(dfile)
+            woce.write_data(dfile, output, cols, base_format)
+            result = output.getvalue().split('\n')
+            self.assertEqual(' ' * 2 + 'QUALT1', result[0][8 * len(cols):])
+            self.assertEqual(' ' * 7 + '*', result[2][8 * len(cols):])
+            self.assertEqual(' ' + '9' * len(cols), result[3][8 * len(cols):])
+
+    def test_write_data_fill_value(self):
+        dfile = DataFile()
+        cols = []
+        col = dfile['AAA'] = Column('AAA')
+        col.values = [None]
+        col.flags_woce = [9]
+        cols.append(col)
+        with closing(StringIO()) as output:
+            woce.write_data(dfile, output, cols, '{0:>8} {1:>1}\n')
+            result = output.getvalue().split('\n')
+            self.assertEqual('      -9', result[3][:8])

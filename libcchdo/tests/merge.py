@@ -1,8 +1,6 @@
 """Test cases for merge.
 
 """
-from unittest import TestCase
-from logging import StreamHandler
 from tempfile import TemporaryFile, NamedTemporaryFile
 from os import unlink
 
@@ -13,8 +11,8 @@ from libcchdo.merge import (
     BOTTLE_KEY_COLS, determine_bottle_keys, different_columns, map_collections,
     merge_collections, merge_datafiles)
 from libcchdo.recipes.orderedset import OrderedSet
-from libcchdo.log import LOG
 
+from libcchdo.tests import BaseTestCase
 from libcchdo.formats.ctd import exchange as ctdex
 from libcchdo.formats.bottle import exchange as btlex
 
@@ -43,28 +41,7 @@ def ensure_lines(lines, stream):
     return False
 
 
-class TestMerge(TestCase):
-    def _unload_handlers(self):
-        self.saved_handlers = []
-        for handler in LOG.handlers:
-            LOG.removeHandler(handler)
-            self.saved_handlers.append(handler)
-
-    def _reload_handlers(self):
-        for handler in self.saved_handlers:
-            LOG.addHandler(handler)
-        self.saved_handlers = []
-        
-    def setUp(self):
-        self._unload_handlers()
-        self.logstream = TemporaryFile()
-        self.loghandler = StreamHandler(self.logstream)
-        LOG.addHandler(self.loghandler)
-
-    def tearDown(self):
-        LOG.removeHandler(self.loghandler)
-        self._reload_handlers()
-
+class TestMerge(BaseTestCase):
     def test_different_columns(self):
         """Columns between two datafiles differ under a wide variety of cases.
 

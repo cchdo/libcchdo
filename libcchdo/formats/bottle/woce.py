@@ -111,7 +111,7 @@ def write(self, handle):
         woce.columns_qualt_and_base_format(self)
 
     vals = [''] * (len(columns) + 1)
-    empty_line = base_format % tuple(vals)
+    empty_line = base_format.format(*vals)
     record_len = len(empty_line) - 2
 
     record_1 = "EXPOCODE %-s WHP-ID %-s CRUISE DATES %6s TO %6s %-s" % (
