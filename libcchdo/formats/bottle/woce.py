@@ -107,8 +107,7 @@ def write(self, handle):
     if self['SECT_ID'].is_global():
         self.globals['SECT_ID'] = self['SECT_ID'].values[0]
 
-    columns, qualt_format, base_format = \
-        woce.columns_qualt_and_base_format(self)
+    columns, base_format = woce.columns_and_base_format(self)
 
     vals = [''] * (len(columns) + 1)
     empty_line = base_format.format(*vals)
@@ -123,4 +122,4 @@ def write(self, handle):
     record_1 += '\n'
 
     handle.write(record_1)
-    woce.write_data(self, handle, columns, qualt_format, base_format)
+    woce.write_data(self, handle, columns, base_format)
