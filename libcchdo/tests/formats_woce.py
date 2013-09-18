@@ -134,10 +134,11 @@ class TestFormatsWoce(BaseTestCase):
         dfile = DataFile()
         cols = []
         col = dfile['AAA'] = Column('AAA')
+        col.parameter.format = '%9.4f'
         col.values = [None]
         col.flags_woce = [9]
         cols.append(col)
         with closing(StringIO()) as output:
             woce.write_data(dfile, output, cols, '{0:>8} {1:>1}\n')
             result = output.getvalue().split('\n')
-            self.assertEqual('      -9', result[3][:8])
+            self.assertEqual(' -9.0000', result[3][:8])

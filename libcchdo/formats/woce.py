@@ -572,7 +572,7 @@ def write_data(self, handle, columns, base_format):
             if column[i]:
                 formatted_value = format % column[i]
             else:
-                formatted_value = str(FILL_VALUE)
+                formatted_value = format % FILL_VALUE
 
             if len(formatted_value) > COLUMN_WIDTH:
                 extra = len(formatted_value) - COLUMN_WIDTH
