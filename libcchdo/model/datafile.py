@@ -341,6 +341,12 @@ class DiffColumn(Column):
         else:
             return zip(lll, mmm)
 
+    def _compare_tuples(self, tuples):
+        try:
+            return [y - x for x, y in tuples]
+        except TypeError:
+            return [x != y for x, y in tuples]
+
     def diff(self, dfa, dfb, row_map=None):
         """Calculate the difference and populate the responses."""
         if dfa.parameter != dfb.parameter:
@@ -353,20 +359,17 @@ class DiffColumn(Column):
             self._is_diff_length = True
 
         self.values_tuples = self._zip_row_map(dfa.values, dfb.values, row_map)
-        try:
-            self.values = [y - x for x, y in self.values_tuples]
-        except TypeError:
-            self.values = [x != y for x, y in self.values_tuples]
+        self.values = self._compare_tuples(self.values_tuples)
         self._is_diff_values = any(self.values)
 
         self.flags_woce_tuples = self._zip_row_map(
             dfa.flags_woce, dfb.flags_woce, row_map)
-        self.flags_woce = [y - x for x, y in self.flags_woce_tuples]
+        self.flags_woce = self._compare_tuples(self.flags_woce_tuples)
         self._is_diff_flags_woce = any(self.flags_woce)
 
         self.flags_igoss_tuples = self._zip_row_map(
             dfa.flags_igoss, dfb.flags_igoss, row_map)
-        self.flags_igoss = [y - x for x, y in self.flags_igoss_tuples]
+        self.flags_igoss = self._compare_tuples(self.flags_igoss_tuples)
         self._is_diff_flags_igoss = any(self.flags_igoss)
 
         self._is_diff = (

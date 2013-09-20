@@ -136,3 +136,12 @@ class TestColumn(TestCase):
             _decimal('-999.00'),
         ]
         self.assertEqual(4, ccc.decimal_places())
+
+    def test_diff(self):
+        aaa = Column('aaa')
+        bbb = Column('aaa')
+        # Make sure can diff on Nones, results in no diff.
+        aaa.flags_woce = [None]
+        bbb.flags_woce = [None]
+        diff = aaa.diff(bbb)
+        self.assertFalse(diff['diff'])
