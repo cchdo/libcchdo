@@ -1,7 +1,9 @@
 from re import compile as re_compile, sub as re_sub
+from collections import OrderedDict
 
 from libcchdo.log import LOG
-from libcchdo.fns import Decimal, out_of_band
+from libcchdo.fns import Decimal, out_of_band, decimal_to_str
+from libcchdo.recipes.orderedset import OrderedSet
 from libcchdo.formats import pre_write
 from libcchdo.formats import woce
 from libcchdo.formats.exchange import (
@@ -164,25 +166,27 @@ def write(self, handle):
     if self.globals['header']:
         handle.write(self.globals['header'].encode('utf8'))
 
-    # Write the header
-    stamp = self.globals['stamp']
-    header = self.globals['header']
-    del self.globals['stamp']
-    del self.globals['header']
+    # Collect headers
+    headers = OrderedDict()
+    headers['NUMBER_HEADERS'] = 1
 
     woce.split_datetime(self)
-    handle.write(u'NUMBER_HEADERS = '+str(len(self.globals.keys())+1)+"\n")
-    for header in REQUIRED_HEADERS:
+    for key in REQUIRED_HEADERS:
         try:
-            handle.write(header+' = '+str(self.globals[header])+"\n")
+            headers[key] = self.globals[key]
         except KeyError:
-            LOG.error('Missing required header %s' % header)
-
-    for key in set(self.globals.keys()) - set(REQUIRED_HEADERS):
-        handle.write(u'{key} = {val}\n'.format(key=key, val=self.globals[key]))
+            LOG.error('Missing required header %s' % key)
+    keys_less_required = OrderedSet(self.globals.keys()) - \
+                         set(['stamp', 'header']) - \
+                         set(REQUIRED_HEADERS)
+    for key in keys_less_required:
+        headers[key] = self.globals[key]
+    headers['NUMBER_HEADERS'] = len(headers)
     woce.fuse_datetime(self)
 
-    self.globals['stamp'] = stamp
-    self.globals['header'] = header
+    # Write headers
+    for key in headers:
+        handle.write(u'{key} = {val}\n'.format(
+            key=key, val=decimal_to_str(headers[key])))
 
     write_data(self, handle)

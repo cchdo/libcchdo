@@ -25,13 +25,15 @@ frparam_to_param = {
     'TEMP': 'CTDTMP',
     'PSAL': 'CTDSAL',
     'DOX2': 'CTDOXY',
-    'CF2W': 'CF2W',
-    'CF1W': 'CF1W',
+    'CF2W': 'CFC-12',
+    'CF1W': 'CFC-11',
     'PHOW': 'PHSPHT',
     'NTAW': 'NITRAT',
     'SLCW': 'SILCAT',
     # DEPTH is actually bottom depth.
     'DEPH': '_DEPTH',
+    'EWCT': '_EWCT',
+    'NSCT': '_NSCT',
 }
 
 

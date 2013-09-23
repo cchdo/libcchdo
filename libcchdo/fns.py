@@ -120,6 +120,14 @@ def _decimal(x, *args):
         return Decimal(x)
 
 
+def decimal_to_str(val):
+    """Convert Decimal to string intelligently or leave strings alone."""
+    try:
+        return format(val, '.{0}f'.format(-val.as_tuple().exponent))
+    except AttributeError:
+        return str(val)
+
+
 def int_or_none(x):
     try:
         return int(x)

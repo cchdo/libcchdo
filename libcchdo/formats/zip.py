@@ -4,6 +4,7 @@
 import zipfile
 from datetime import datetime
 from tempfile import SpooledTemporaryFile
+from traceback import format_exc
 
 from libcchdo.log import LOG
 from libcchdo import StringIO
@@ -156,10 +157,11 @@ def read(self, fileobj, is_fname_ok, reader, *args, **kwargs):
                 self.append(dfile)
     except ValueError, err:
         raise ValueError(
-            u'Unable to read {0} in {1}: {2}'.format(fname, fileobj, err))
+            u'Unable to read {0} in {1}: {2}'.format(
+                fname, fileobj, format_exc(err)))
     except Exception, err:
-        LOG.error(u'Unable to read {0} in {1}:\n{2!r}'.format(
-            fname, fileobj, err))
+        LOG.error(u'Unable to read {0} in {1}:\n{2}'.format(
+            fname, fileobj, format_exc(err)))
     finally:
         zfile.close()
 

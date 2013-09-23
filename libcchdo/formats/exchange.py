@@ -5,7 +5,7 @@ from re import compile as re_compile, match as re_match
 
 from libcchdo.config import stamp as user_stamp
 from libcchdo.log import LOG
-from libcchdo.fns import Decimal
+from libcchdo.fns import Decimal, decimal_to_str
 
 
 # Where no data is known
@@ -118,14 +118,6 @@ def get_flagged_format_parameter_values(dfile):
             flagged_format_parameter_values.append(
                 ['%1d', 1, param, col.flags_igoss])
     return flagged_parameter_names, flagged_units, flagged_format_parameter_values
-
-
-def decimal_to_str(val):
-    """Convert Decimal to string intelligently or leave strings alone."""
-    try:
-        return format(val, '.{0}f'.format(-val.as_tuple().exponent))
-    except AttributeError:
-        return str(val)
 
 
 def write_flagged_format_parameter_values(dfile, fileobj,
