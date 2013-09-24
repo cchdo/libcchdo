@@ -3,8 +3,8 @@ from datetime import timedelta
 
 from libcchdo.fns import (
     InvalidOperation,
-    _decimal, set_list, uniquify, equal_with_epsilon, is_list_global,
-    is_list_globally_equal, is_list_globally)
+    decimal_to_str, _decimal, set_list, uniquify, equal_with_epsilon,
+    is_list_global, is_list_globally_equal, is_list_globally)
 from libcchdo.log import LOG
 from libcchdo.ui import TERMCOLOR
 from libcchdo.util import memoize
@@ -140,12 +140,12 @@ class Column(object):
     def is_flagged_igoss(self):
         return not (self.flags_igoss is None or len(self.flags_igoss) == 0)
 
-    def diff(self, column, row_map=None):
+    def diff(self, column, *args, **kwargs):
         """Diff with other column.
 
         """
         diffcol = DiffColumn(self.parameter.name)
-        diffcol.diff(self, column, row_map=row_map)
+        diffcol.diff(self, column, *args, **kwargs)
         return diffcol
 
     def decimal_places(self):
@@ -341,14 +341,31 @@ class DiffColumn(Column):
         else:
             return zip(lll, mmm)
 
-    def _compare_tuples(self, tuples):
-        try:
-            return [y - x for x, y in tuples]
-        except TypeError:
-            return [x != y for x, y in tuples]
+    def _compare_tuples(self, tuples, consider_precision=True):
+        if consider_precision:
+            diff = []
+            for x, y in tuples:
+                if x != y:
+                    diff.append(True)
+                else:
+                    if decimal_to_str(x) != decimal_to_str(y):
+                        diff.append(True)
+                    else:
+                        diff.append(False)
+            return diff
+        else:
+            try:
+                return [y - x for x, y in tuples]
+            except TypeError:
+                return [x != y for x, y in tuples]
 
-    def diff(self, dfa, dfb, row_map=None):
-        """Calculate the difference and populate the responses."""
+    def diff(self, dfa, dfb, row_map=None, consider_precision=True):
+        """Calculate the difference and populate the responses.
+
+        consider_precision - consider precision when deciding whether values are
+        different.
+
+        """
         if dfa.parameter != dfb.parameter:
             self._is_diff_parameter = True
 
@@ -359,17 +376,20 @@ class DiffColumn(Column):
             self._is_diff_length = True
 
         self.values_tuples = self._zip_row_map(dfa.values, dfb.values, row_map)
-        self.values = self._compare_tuples(self.values_tuples)
+        self.values = self._compare_tuples(
+            self.values_tuples, consider_precision=consider_precision)
         self._is_diff_values = any(self.values)
 
         self.flags_woce_tuples = self._zip_row_map(
             dfa.flags_woce, dfb.flags_woce, row_map)
-        self.flags_woce = self._compare_tuples(self.flags_woce_tuples)
+        self.flags_woce = self._compare_tuples(
+            self.flags_woce_tuples, consider_precision=consider_precision)
         self._is_diff_flags_woce = any(self.flags_woce)
 
         self.flags_igoss_tuples = self._zip_row_map(
             dfa.flags_igoss, dfb.flags_igoss, row_map)
-        self.flags_igoss = self._compare_tuples(self.flags_igoss_tuples)
+        self.flags_igoss = self._compare_tuples(
+            self.flags_igoss_tuples, consider_precision=consider_precision)
         self._is_diff_flags_igoss = any(self.flags_igoss)
 
         self._is_diff = (

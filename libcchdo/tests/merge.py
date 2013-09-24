@@ -4,7 +4,7 @@
 from tempfile import TemporaryFile, NamedTemporaryFile
 from os import unlink
 
-from libcchdo.fns import _decimal
+from libcchdo.fns import _decimal, decimal_to_str
 from libcchdo.model.datafile import DataFile, DataFileCollection
 from libcchdo.db.model.std import Unit
 from libcchdo.merge import (
@@ -394,6 +394,25 @@ END_DATA
             "Changed units for CTDOXY from '' to 'UMOL/KG'",
         ]
         self.assertTrue(ensure_lines(lines, self.logstream))
+
+    def test_diff_decplaces(self):
+        """Derivative is still different when decimal places are different."""
+        dfo = DataFile()
+        dfo.create_columns(['CTDPRS', 'CTDOXY'])
+        dfo['CTDPRS'].append(_decimal('1'))
+        dfo['CTDOXY'].append(_decimal('0.140'))
+
+        dfd = DataFile()
+        dfd.create_columns(['CTDPRS', 'CTDOXY'])
+        dfd['CTDPRS'].append(_decimal('1'))
+        dfd['CTDOXY'].append(_decimal('0.14'))
+
+        p_different, p_not_in_orig, p_not_in_deriv, p_common = \
+            different_columns(dfo, dfd, ['CTDPRS'])
+        self.assertEqual(p_different, ['CTDOXY'])
+
+        dfile = merge_datafiles(dfo, dfd, ['CTDPRS'], ['CTDOXY'])
+        self.assertEqual(decimal_to_str(dfile['CTDOXY'][0]), '0.14')
         
     def test_merge_datafiles_does_not_create_extra_columns(self):
         """Merge datafiles but don't create extra columns.
@@ -540,7 +559,6 @@ DBAR,,ITS-90,,PSS-78,,UMOL/KG,,0-5VDC,,,
                 self.assertEqual(map(str, dfile['TRANSM'].values), ['4.3348', '4.3334'])
                 self.assertEqual(dfile['TRANSM'].flags_woce, [1, 1])
             unlink(output.name)
-
 
     def test_functional_scripts_btlex(self):
         """Test merging Bottle Exchange files."""
