@@ -99,22 +99,6 @@ def read(self, handle):
     self.globals['CASTNO'] = 1
     self.globals['TIME'] = fns.ordinal_datetime_to_datetime(self.globals['TIME'])
 
-
-# TODO refactor
-@contextmanager
-def nc_dataset_to_stream(stream, *args, **kwargs):
-    """Creates a DataSet and writes it out to the stream when closed."""
-    # netcdf library wants to write its own files.
-    tmp = tempfile.NamedTemporaryFile()
-    nc_file = nc.Dataset(tmp.name, 'w', *args, **kwargs)
-    try:
-        yield nc_file
-    finally:
-        nc_file.close()
-        stream.write(tmp.read())
-        tmp.close()
-    
-
 @memoize
 def converter():
     param_to_os = ParamToOS()
@@ -145,7 +129,7 @@ def write(self, handle):
     self.globals['STNNBR'] = 1
     self.globals['DEPTH'] = 0
     self.globals['_DATETIME'] = datetime.utcnow()
-    with nc_dataset_to_stream(handle, format='NETCDF4') as nc_file:
+    with nc.nc_dataset_to_stream(handle, format='NETCDF4') as nc_file:
         nc_file.Conventions = 'CF-1.6'
         nc_file.netcdf_version = '4'
         nc_file.title = 'title'

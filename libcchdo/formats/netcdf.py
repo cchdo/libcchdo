@@ -61,6 +61,20 @@ def _pad_station_cast(x):
     return simplest_str(x).rjust(5, '0')
 
 
+@contextmanager
+def nc_dataset_to_stream(stream, *args, **kwargs):
+    """Creates a DataSet and writes it out to the stream when closed."""
+    # netcdf library wants to write its own files.
+    tmp = tempfile.NamedTemporaryFile()
+    nc_file = Dataset(tmp.name, 'w', *args, **kwargs)
+    try:
+        yield nc_file
+    finally:
+        nc_file.close()
+        stream.write(tmp.read())
+        tmp.close()
+
+
 def get_filename(expocode, station, cast, extension):
     assert extension in ['hy1', 'ctd']
     station = _pad_station_cast(station)
