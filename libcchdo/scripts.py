@@ -983,6 +983,39 @@ with subcommand(misc_converter_parsers, 'explore_any', explore_any) as p:
          help='any recognized CCHDO file')
 
 
+def matlab_hrp_and_config_to_nc_hrp(args):
+    from libcchdo.model.datafile import DataFile
+    from libcchdo.formats.matlab import hrp2
+    from json import loads
+
+    cfg = None
+    with closing(args.hrp_cfg) as in_file:
+        cfg = in_file.read()
+        cfg = loads(cfg)
+        hrp2.check_cfg(cfg)
+
+    dfile = DataFile()
+    with closing(args.matlab_hrp) as in_file:
+        hrp2.read(dfile, in_file, cfg=cfg)
+
+    with closing(args.output) as out_file:
+        hrp2.write(dfile, out_file, cfg=cfg)
+
+
+with subcommand(misc_converter_parsers, 'matlab_hrp_and_config_to_nc_hrp',
+                matlab_hrp_and_config_to_nc_hrp) as p:
+    p.add_argument(
+        'matlab_hrp', type=FileType('r'),
+        help='input Matlab HRP file')
+    p.add_argument(
+        'hrp_cfg', type=FileType('r'),
+        help='HRP configuration file')
+    p.add_argument(
+        'output', type=FileType('w'), nargs='?',
+        default=sys.stdout,
+        help='output NetCDF HRP file')
+
+
 def convert_per_litre_to_per_kg(args):
     """Do some common unit conversions."""
     from libcchdo.model.datafile import DataFile, DataFileCollection

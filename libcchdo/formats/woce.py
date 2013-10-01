@@ -569,6 +569,7 @@ def write_data(self, handle, columns, base_format):
         flags = []
         for column in columns:
             format = column.parameter.format
+            LOG.debug('{0} {1}'.format(column.parameter, format))
             if column[i]:
                 formatted_value = format % column[i]
             else:

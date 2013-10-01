@@ -9,6 +9,7 @@ class TestAlgorithmsDepth(TestCase):
 
     def test_grav_ocean_surface_wrt_latitude(self):
         self.assertAlmostEqual(_decimal('9.780318'), depth.grav_ocean_surface_wrt_latitude(0))
+        self.assertAlmostEqual(_decimal('9.80738775'), depth.grav_ocean_surface_wrt_latitude(-60.4987683333))
 
     def test_depth(self):
         print depth.depth(9.8, [1], [1])

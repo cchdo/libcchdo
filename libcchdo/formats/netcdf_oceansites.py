@@ -10,6 +10,8 @@ from datetime import datetime
 from collections import defaultdict
 from math import cos
 
+import numpy as np
+
 from libcchdo.log import LOG
 from libcchdo.fns import strftime_iso
 from libcchdo.util import memoize
@@ -197,14 +199,13 @@ class ParamToOS(dict):
         osvar may be an OSVar or string.
 
         """
-        if isinstance(osvar, OSVar):
-            try:
-                self.register_osvar(osvar)
-                self._param_to_os[pname] = osvar.short_name
-            except ValueError:
-                LOG.warn(
-                    u'Cannot register {0} without standard name'.format(osvar))
-        else:
+        try:
+            self.register_osvar(osvar)
+            self._param_to_os[pname] = osvar.short_name
+        except ValueError:
+            LOG.warn(
+                u'Cannot register {0} without standard name'.format(osvar))
+        except AttributeError:
             try:
                 self._os_vars[osvar]
             except KeyError:
@@ -545,10 +546,13 @@ def _calculate_depth(self, nc_file):
     """Calculate a DEPTH column based on a series of methods."""
     var_depth = nc_file.variables['DEPTH']
 
+    if np.any(var_depth):
+        return
+
     try:
         method, depths = self.calculate_depths()
         if method == 'actual':
-            var_depth[:] = depths.values
+            var_depth[:] = depths
         elif method == 'unesco1983':
             var_depth.comment = OS_TEXT['DEPTH_CALCULATED_UNESCO_1983']
             var_depth[:] = depths
@@ -634,7 +638,11 @@ def write_columns(self, nc_file, converter=get_param_to_os()):
             flag.valid_max = 9
             flag.flag_values = list(range(10))
             flag.flag_meanings = OS_TEXT['FLAG_MEANINGS']
-            flag[:] = [WOCE_to_OceanSITES_flag[f] for f in column.flags_woce]
+            try:
+                flag[:] = [WOCE_to_OceanSITES_flag[f] for f in column.flags_woce]
+            except IndexError, err:
+                LOG.error(u'Not enough flags in {0}'.format(column))
+                raise err
     _calculate_depth(self, nc_file)
 
 

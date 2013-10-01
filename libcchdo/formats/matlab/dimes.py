@@ -26,4 +26,7 @@ def read(self, handle, global_params, vertical_params):
         else:
             l = mat[p][0]
         for i, x in enumerate(l):
-            col.set(i, x)
+            # Act as if all files had QC and assign it to OceanSITES 1. Assuming
+            # that someone has already gone through level 0 data and we are
+            # receiving level 1 or higher.
+            col.set(i, x, 2)

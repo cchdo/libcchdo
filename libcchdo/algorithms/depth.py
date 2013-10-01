@@ -1,6 +1,8 @@
 from libcchdo.log import LOG
 from libcchdo.fns import _decimal, polynomial as polyn, sin
 
+from mpmath import sin as mpsin
+
 try:
     from cdecimal import InvalidOperation
 except ImportError:
@@ -9,8 +11,8 @@ except ImportError:
 
 def grav_ocean_surface_wrt_latitude(latitude):
     return _decimal('9.780318') * (_decimal(1) + \
-        _decimal('5.2788e-3') * (sin(latitude) ** _decimal(2)) + \
-        _decimal('2.35e-5') * (sin(latitude) ** _decimal(4)))
+        _decimal('5.2788e-3') * (_decimal(mpsin(str(latitude))) ** _decimal(2)) + \
+        _decimal('2.35e-5') * (_decimal(mpsin(str(latitude))) ** _decimal(4)))
 
 
 # Following two functions ports of

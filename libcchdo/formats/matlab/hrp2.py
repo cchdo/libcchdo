@@ -81,10 +81,34 @@ from libcchdo.util import memoize
 from libcchdo import fns, LOG
 from libcchdo.formats import netcdf as nc
 from libcchdo.formats.matlab import dimes
-from libcchdo.formats.netcdf_oceansites import write_columns, OSVar, ParamToOS
+from libcchdo.formats.netcdf_oceansites import (
+    write_columns, OSVar, ParamToOS, OS_TEXT)
 
 
-def read(self, handle):
+DEFAULT_CFG = {
+    'expocode': 'UNKNOWN',
+    'pi': 'Unknown',
+    'parameter_mapping': {
+        'pgrid': 'PRESSURE',
+        'tave': 'TEMPERATURE',
+        's_ave': 'PSAL',
+        'epl': 'EPSILON',
+        'chi-t': 'CHI-T',
+        'chi-c': 'CHI-C',
+    },
+    'data_type': 'HRP2',
+}
+
+
+def check_cfg(cfg):
+    """Apply this check to the configuration before reading/writing."""
+    assert cfg['data_type'] in ['HRP2', 'DMS']
+    assert isinstance(cfg['expocode'], basestring)
+    assert isinstance(cfg['pi'], basestring)
+    assert type(cfg['parameter_mapping']) == dict
+
+
+def read(self, handle, cfg=DEFAULT_CFG):
     """Read DIMES HRP2 format."""
     self.globals['header'] = ""
 
@@ -96,62 +120,75 @@ def read(self, handle):
         }
     vertical_params = ['ep1', 'ep2', 'epl']
     dimes.read(self, handle, global_params, vertical_params)
-    self.globals['EXPOCODE'] = 'expocode'
-    self.globals['STNNBR'] = 1
-    self.globals['CASTNO'] = 1
-    self.globals['DEPTH'] = 0
+
     self.globals['_DATETIME'] = fns.ordinal_datetime_to_datetime(
         self.globals['TIME'])
-    del self.globals['TIME']
+    self.globals['EXPOCODE'] = cfg['expocode']
+
+    # TODO
+    self.globals['DEPTH'] = 0
+
+
+def standard_osvar(short_name, standard_name, units, uncertainty=''):
+    return OSVar(short_name, standard_name, standard_name, units, uncertainty)
+
 
 @memoize
-def converter():
+def converter(cfg):
     param_to_os = ParamToOS()
     param_to_os.register_osvars(
-        OSVar('pgrid', 'pgrid', 'pgrid', ''), 
-        OSVar('tave', 'tave', 'tave', ''),
-        OSVar('s_ave', 's_ave', 's_ave', ''),
-        OSVar('spinrate', 'spinrate', 'spinrate', ''),
-        OSVar('dzdtave', 'dzdtave', 'dzdtave', ''),
-        OSVar('mav_relup', 'mav_relup', 'mav_relup', ''),
-        OSVar('mav_vortzrel', 'mav_vortzrel', 'mav_vortzrel', ''),
-        OSVar('mav_n', 'nav_n', 'nav_n', ''),
-        OSVar('mav_e', 'mav_e', 'mav_e', ''),
-        OSVar('ep1', 'ep1', 'ep1', ''),
-        OSVar('ep2', 'ep2', 'ep2', ''),
-        OSVar('epl', 'epl', 'epl', ''),
-        OSVar('u_ef', 'u_ef', 'u_ef', ''),
-        OSVar('v_ef', 'v_ef', 'v_ef', ''),
-        OSVar('u_adcp', 'u_adcp', 'u_adcp', ''),
-        OSVar('v_adcp', 'v_adcp', 'v_adcp', ''),
+        standard_osvar('PRESSURE', 'sea_water_pressure', 'dbar'),
+        standard_osvar('TEMPERATURE',
+            'sea_water_temperature', 'degrees_Celsius'),
+        standard_osvar('PSAL', 'sea_water_salinity', '1e-3'),
+        standard_osvar('EPSILON',
+            'ocean_turbulent_kinetic_energy_dissipation_rate', 'W kg^-1'),
+        standard_osvar('CHI-T',
+            'ocean_dissipation_rate_of_thermal_variance_from_microtemperature',
+            'C^2 s^-1'),
+        standard_osvar('CHI-C',
+            'ocean_dissipation_rate_of_thermal_variance_from_microconductivity',
+            'C^2 s^-1'),
     )
+
+    # Map matlabe variable names into CF names
+    for matlabp, cfp in cfg['parameter_mapping'].items():
+        param_to_os._register(matlabp, cfp)
+
     return param_to_os
 
 
-def write(self, handle):
+def decimal_days_since(dtime, epoch=datetime(1950, 1, 1)):
+    """Return the decimal days since an epoch.
+
+    Arguments:
+        dtime - the time to convert to decimal days since epoch.
+        since - (optional) the epoch. Defaults to 1950-01-01
+
+    """
+    delta = dtime - epoch
+    return delta.days + delta.seconds / 86400.0
+
+
+def write(self, handle, cfg=DEFAULT_CFG):
     """Write DIMES microstructure COARDS compliant file."""
     with nc.nc_dataset_to_stream(handle, format='NETCDF4') as nc_file:
         nc_file.Conventions = 'CF-1.6'
         nc_file.netcdf_version = '4'
-        nc_file.title = 'title'
-        nc_file.history = ''.join(["data collected\n",
-                           datetime.utcnow().isoformat(),
-                           "Z date file translated/written"])
-        nc_file.institution = 'institution'
-        nc_file.source = 'HRP2'
+        nc_file.history = ''.join([
+            "data collected\n", datetime.utcnow().isoformat(),
+            "Z date file translated/written"])
+        nc_file.source = cfg['data_type']
+        # TODO README file inclusion or reference? details quality, instruments
+        # used, TS used pumped instruments etc
+        # TODO will supply DOIs
         nc_file.references = 'references'
-        nc_file.comment = 'comment'
 
-        nc_file.data_type = 'DIMES HRP2'
-        nc_file.format_version = '0.1-alpha'
+        nc_file.data_type = cfg['data_type']
 
-        nc_file.wmo_platform_code = ''
+        nc_file.format_version = '0.1-beta'
+
         nc_file.date_update = fns.strftime_iso(datetime.utcnow())
-        nc_file.data_mode = 'D'
-        nc_file.quality_control_indicator = '1'
-        nc_file.quality_index = 'B'
-        nc_file.naming_authority = 'OceanSITES'
-        nc_file.cdm_data_type = 'Station'
         nc_file.geospatial_lat_min = str(self.globals['LATITUDE'])
         nc_file.geospatial_lat_max = str(self.globals['LATITUDE'])
         nc_file.geospatial_lon_min = str(self.globals['LONGITUDE'])
@@ -159,33 +196,29 @@ def write(self, handle):
         nc_file.geospatial_vertical_min = 0
         nc_file.geospatial_vertical_max = int(self.globals['DEPTH'])
         nc_file.geospatial_vertical_positive = 'down'
-        nc_file.author = 'CCHDO (Scripps Institution of Oceanography)'
+        nc_file.author = cfg['pi']
         nc_file.data_assembly_center = 'CCHDO'
+        # TODO
         nc_file.distribution_statement = (
-            'Follows CLIVAR (Climate Varibility and Predictability) '
-            'standards, cf. http://www.clivar.org/data/data_policy.php. '
-            'Data available free of charge. User assumes all risk for use of '
-            'data. User must display citation in any publication or product '
-            'using data. User must contact PI prior to any commercial use of '
-            'data.')
+            'HRP distribution statement. TBD.')
+        # TODO
         nc_file.citation = (
-            'These data were collected and made freely available by the OceanSITES '
-            'project and the national programs that contribute to it.')
+            'Citation statement. TBD.')
         nc_file.update_interval = 'void'
-        nc_file.qc_manual = ''
         nc_file.time_coverage_start = fns.strftime_iso(self.globals['_DATETIME'])
         nc_file.time_coverage_end = fns.strftime_iso(self.globals['_DATETIME'])
 
+        nc_file.dive_number = int(self.globals['STNNBR'])
+
         nc_file.createDimension('TIME')
+        nc_file.createDimension('BOTTOM_DEPTH', 1)
         try:
             nc_file.createDimension('DEPTH', len(self))
         except RuntimeError:
             raise AttributeError("There is no data to be written.")
         nc_file.createDimension('LATITUDE', 1)
         nc_file.createDimension('LONGITUDE', 1)
-        nc_file.createDimension('POSITION', 1)
 
-        # OceanSITES coordinate variables
         var_time = nc_file.createVariable(
             'TIME', 'd', ('TIME',), fill_value=999999.0)
         var_time.long_name = 'time'
@@ -193,10 +226,6 @@ def write(self, handle):
         var_time.units = 'days since 1950-01-01T00:00:00Z'
         var_time.valid_min = 0.0
         var_time.valid_max = 90000.0
-        var_time.QC_indicator = 7 # Matthias Lankhorst
-        var_time.QC_procedure = 5 # Matthias Lankhorst
-        # 1/24 assuming a typical cast lasts one hour Matthias Lankhorst
-        var_time.uncertainty = 0.0417
         var_time.axis = 'T'
 
         var_latitude = nc_file.createVariable(
@@ -206,12 +235,7 @@ def write(self, handle):
         var_latitude.units = 'degrees_north'
         var_latitude.valid_min = -90.0
         var_latitude.valid_max = 90.0
-        var_latitude.QC_indicator = 7 # Matthias Lankhorst
-        var_latitude.QC_procedure = 5 # Matthias Lankhorst
-        var_latitude.uncertainty = 0.0045 # Matthias Lankhorst
         var_latitude.axis = 'Y'
-        var_latitude.reference = 'WGS84'
-        var_latitude.coordinate_reference_frame = 'urn:ogc:crs:EPSG::4326'
 
         var_longitude = nc_file.createVariable(
             'LONGITUDE', 'f', ('LONGITUDE',), fill_value=99999.0)
@@ -220,14 +244,18 @@ def write(self, handle):
         var_longitude.units = 'degrees_east'
         var_longitude.valid_min = -180.0
         var_longitude.valid_max = 180.0
-        var_longitude.QC_indicator = 7 # Matthias Lankhorst
-        var_longitude.QC_procedure = 5 # Matthias Lankhorst
-        # Matthias Lankhorst
-        var_longitude.uncertainty = 0.0045 / math.cos(
-            float(self.globals['LATITUDE']))
         var_longitude.axis = 'X'
-        var_longitude.reference = 'WGS84'
-        var_longitude.coordinate_reference_frame = 'urn:ogc:crs:EPSG::4326'
+
+        if self.globals.get('DEPTH'):
+            var_bot_depth = nc_file.createVariable(
+                'BOT_DEPTH', 'f', ('BOTTOM_DEPTH',), fill_value=-99999.0)
+            var_bot_depth.long_name = 'Sea floor depth below sea level'
+            var_bot_depth.standard_name = 'sea_floor_depth_below_sea_level'
+            var_bot_depth.units = 'meters'
+            var_bot_depth.valid_min = 0.0
+            var_bot_depth.valid_max = 12000.0
+            var_bot_depth.axis = 'Z'
+            var_bot_depth = float(self.globals['DEPTH'])
 
         var_depth = nc_file.createVariable(
             'DEPTH', 'f', ('DEPTH',), fill_value=-99999.0)
@@ -236,29 +264,47 @@ def write(self, handle):
         var_depth.units = 'meters'
         var_depth.valid_min = 0.0
         var_depth.valid_max = 12000.0
-        # Subject: OceanSITES: more on QC flags, uncertainty, depth
-        # Interpolated from latitude and pressure.
-        var_depth.QC_indicator = 8
-        var_depth.QC_procedure = 2 # See above
-        var_depth.uncertainty = 1.0 # A decibar
-        var_depth.positive = 'down'
         var_depth.axis = 'Z'
-        var_depth.reference = 'sea_level' # TODO is this right?
-        var_depth.coordinate_reference_frame = 'urn:ogc:crs:EPSG::5113'
 
-        since_1950 = self.globals['_DATETIME'] - datetime(1950, 1, 1)
-        var_time[:] = [since_1950.days + since_1950.seconds/86400.0]
+        # Write variables
+        var_time[:] = [decimal_days_since(self.globals['_DATETIME'])]
         var_latitude[:] = [self.globals['LATITUDE']]
         var_longitude[:] = [self.globals['LONGITUDE']]
 
-        write_columns(self, nc_file, converter())
+        cvt = converter(cfg)
+        pres = None
+        salt = None
+        temp = None
+        for column in self.sorted_columns():
+            pname = column.parameter.name
+            try:
+                name, variable = cvt.convert(pname)
+            except KeyError:
+                LOG.warn(
+                    u'Parameter name {0!r} is not mapped to an OceanSITES '
+                    'variable. Skipping.'.format(pname))
+                continue
+            if name == 'PRESSURE':
+                pres = self[pname]
+            elif name == 'PSAL':
+                salt = self[pname]
+            elif name == 'TEMPERATURE':
+                temp = self[pname]
+            if pres and salt and temp:
+                break
+        depth_method, depths = self.calculate_depths(
+            pres=pres, salt=salt, temp=temp)
+        if depth_method == 'unesco1983':
+            var_depth.comment = OS_TEXT['DEPTH_CALCULATED_UNESCO_1983']
+        elif depth_method == 'sverdrup':
+            var_depth.comment = OS_TEXT['DEPTH_CALCULATED_SVERDRUP']
+        var_depth[:] = depths
 
-        nc_file.title = ('HRP2 ExpoCode=%s Station=%s Cast=%s') % \
-            (self.globals['EXPOCODE'], self.globals['STNNBR'],
-             self.globals['CASTNO'])
+        write_columns(self, nc_file, cvt)
 
-        nc_file.id = 'HRP2 {0} {1} {2}'.format(
-            self.globals['EXPOCODE'], self.globals['STNNBR'],
-            self.globals['CASTNO'])
+        nc_file.title = '{0} ExpoCode={1} Dive={2}'.format(
+            cfg['data_type'], self.globals['EXPOCODE'], self.globals['STNNBR'])
+        nc_file.id = '{0} {1} {2}'.format(
+            cfg['data_type'], self.globals['EXPOCODE'], self.globals['STNNBR'])
 
         nc.check_variable_ranges(nc_file)

@@ -743,7 +743,7 @@ class DataFile(File):
                 return col
         return None
 
-    def calculate_depths(self, latitude=None):
+    def calculate_depths(self, latitude=None, pres=None, salt=None, temp=None):
         """Calculate a DEPTH column's values.
 
         Try first with _ACTUAL_DEPTH. If that column exists, simply return that
@@ -751,6 +751,8 @@ class DataFile(File):
 
         Then try Sverdrup's depth integration with density before
         falling back to UNESCO 1983 approximation.
+
+        pres, salt, temp - override automatic column picking
 
         Return:
             The method used as a string and a list of the depths.
@@ -767,9 +769,12 @@ class DataFile(File):
         # parameter list includes DEPTH which is actually Bottom Depth.
 
         # Fun using Sverdrup's depth integration with density.
-        pres = self.find_first(PRESSURE_VARIABLES)
-        salt = self.find_first(SALINITY_VARIABLES)
-        temp = self.find_first(TEMPERATURE_VARIABLES)
+        if not pres:
+            pres = self.find_first(PRESSURE_VARIABLES)
+        if not salt:
+            salt = self.find_first(SALINITY_VARIABLES)
+        if not temp:
+            temp = self.find_first(TEMPERATURE_VARIABLES)
 
         if latitude:
             lat = latitude

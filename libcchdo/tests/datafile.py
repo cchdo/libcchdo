@@ -90,12 +90,8 @@ class TestDataFile(TestCase):
         self.assertEqual(('actual', []), self.file.calculate_depths())
 
         del self.file['_ACTUAL_DEPTH']
-        self.file.globals['LATITUDE'] = -60.4987683333
-        self.file.create_columns(['CTDPRS', 'CTDSAL', 'CTDTMP'])
-        with self.assertRaises(OverflowError):
-            self.file.calculate_depths()
-
         self.file.globals['LATITUDE'] = 0
+        self.file.create_columns(['CTDPRS', 'CTDSAL', 'CTDTMP'])
         self.assertEqual(('unesco1983', []), self.file.calculate_depths())
 
         self.file['CTDPRS'].values = [1]
