@@ -1,0 +1,368 @@
+#!/bin/bash
+# Deploy the given commit of libcchdo. Defaults to master.
+
+# Two deployments: alpha and beta.
+# Alpha will be the currently running version
+# Beta will be the last known good version
+#
+# If needed to rollback, alpha will be swapped with beta.
+#
+# To handle multiple deployments (edge), there can be addition deployments.
+# These should be named.
+#
+# The activator script should be able to distinguish between the names and
+# activate the appropriate deployment. It will default to alpha.
+# 
+# Since alpha usually exists, it may be possible to clone the virtualenv to
+# avoid deployment overheads.
+
+#set -e;
+
+hydro_vm__GIT_REPO="git@bitbucket.org:ghdc/libcchdo.git";
+hydro_vm__DEPLOY_DIR="/usr/local/cchdo/hydro-vm";
+
+hydro_vm__SOURCE_DIR="${hydro_vm__DEPLOY_DIR}/src";
+hydro_vm__VENV_DIR_BASE="${hydro_vm__DEPLOY_DIR}/hydro_";
+hydro_vm__VENV_TEMP="_";
+hydro_vm__VENV_ALPHA="a";
+hydro_vm__VENV_BETA="b";
+hydro_vm__VENV_DIR_TEMP="${hydro_vm__VENV_DIR_BASE}${hydro_vm__VENV_TEMP}";
+hydro_vm__VENV_DIR_ALPHA="${hydro_vm__VENV_DIR_BASE}${hydro_vm__VENV_ALPHA}";
+hydro_vm__VENV_DIR_BETA="${hydro_vm__VENV_DIR_BASE}${hydro_vm__VENV_BETA}";
+
+
+function hydro_vm__swap_alpha_beta {
+        rm -rf ${hydro_vm__VENV_DIR_TEMP};
+        virtualenv-clone ${hydro_vm__VENV_DIR_ALPHA} ${hydro_vm__VENV_DIR_TEMP};
+        rm -rf ${hydro_vm__VENV_DIR_ALPHA};
+        virtualenv-clone ${hydro_vm__VENV_DIR_BETA} ${hydro_vm__VENV_DIR_ALPHA};
+        rm -rf ${hydro_vm__VENV_DIR_BETA};
+        virtualenv-clone ${hydro_vm__VENV_DIR_TEMP} ${hydro_vm__VENV_DIR_BETA};
+        rm -rf ${hydro_vm__VENV_DIR_TEMP};
+}
+
+function hydro_vm__list_deployments() {
+        if [ ! -d ${hydro_vm__DEPLOY_DIR} ]; then
+                echo "No deployments.";
+        else
+                echo "Available deployments:";
+                python <<EOI
+from glob import glob
+import os.path
+from subprocess import check_output, STDOUT
+for path in glob("${hydro_vm__VENV_DIR_BASE}*/"):
+    print os.path.basename(path[:-1]).split('_')[1], "\t",
+    try:
+        print check_output(
+            '{0}bin/hydro --version'.format(path), shell=True, stderr=STDOUT
+            ).split('\n')[-2]
+    except Exception:
+        print 'error'
+EOI
+        fi
+}
+
+# copies function named $1 to name $2
+# http://stackoverflow.com/questions/1203583/how-do-i-rename-a-bash-function
+function hydro_vm__copy_function() {
+        declare -F $1 > /dev/null || return 1;
+        # ZSH declare misses the opening curly bracket while BASH doesn't
+        declarer=$(echo "function ${2}()"; if [ -n "$ZSH_VERSION" ]; then
+                echo "{"
+        fi; declare -f ${1} | tail -n +2);
+        eval "${declarer}";
+}
+
+function hydro_vm__install_hydro() {
+        # Default commit is current master
+        local commit=$1;
+        if [[ ${commit} == "" ]]; then
+                commit="master";
+        fi
+
+        # Default deployment method when no deployment name is given
+        # 1. install as alpha
+        # 2. if alpha exists, install as beta and swap out
+        # If a name is given, just install over it.
+        local deployment=$2;
+        local swap_install=0;
+        if [[ ${deployment} == "" ]]; then
+                if [[ -d ${hydro_vm__VENV_DIR_ALPHA} ]]; then
+                        deployment="${hydro_vm__VENV_BETA}";
+                        rm -rf ${deployment};
+                        swap_install=1;
+                else
+                        deployment="${hydro_vm__VENV_ALPHA}";
+                fi
+        else
+                # Ensure the deployment name is not a special name (_, alpha,
+                # or beta) and also does not contain illegal characters (/)
+                if [[ "${deployment}" =~ "(^(${hydro_vm__VENV_TEMP}|${hydro_vm__VENV_ALPHA}|${hydro_vm__VENV_BETA})$|.*\/.*)" ]]; then
+                        echo "invalid deployment name: ${deployment}";
+                        return;
+                fi
+        fi
+        echo "installing ${commit} as ${deployment}";
+        if [ ${swap_install} -ne 0 ]; then
+                echo "on successful install, will swap with current ${hydro_vm__VENV_ALPHA}";
+        fi
+        local venv_dir="${hydro_vm__VENV_DIR_BASE}${deployment}";
+
+        # Create venv if it doesn't exist.
+        if [ ! -d ${venv_dir} ]; then
+                # If an alpha install exists, we can clone it to bypass most of the
+                # package dependency deployment.
+                if [[ -d ${hydro_vm__VENV_DIR_ALPHA} ]]; then
+                        virtualenv-clone ${hydro_vm__VENV_DIR_ALPHA} ${venv_dir};
+                else
+                        one_up="$(dirname ${venv_dir})";
+                        mkdir -p ${one_up};
+                        virtualenv --distribute ${venv_dir};
+                fi
+        fi
+
+        # Activate the venv and upgrade.
+        source "${venv_dir}/bin/activate";
+
+        # Check out the source if not checked out.
+        if [ ! -d ${hydro_vm__SOURCE_DIR} ]; then
+                echo "Retrieving source code...";
+                one_up="$(dirname ${hydro_vm__SOURCE_DIR})";
+                mkdir -p ${one_up};
+                pushd ${one_up} &> /dev/null;
+                name=$(basename ${hydro_vm__SOURCE_DIR});
+                git clone ${hydro_vm__GIT_REPO} ${name};
+                pushd ${name} &> /dev/null;
+                git remote add myshen "git@bitbucket.org:myshen/libcchdo.git";
+                git remote add abarna "git@bitbucket.org:abarna/libcchdo.git";
+                popd &> /dev/null;
+                popd &> /dev/null;
+        fi
+
+        pushd ${hydro_vm__SOURCE_DIR} &> /dev/null;
+
+        git fetch --all || true;
+        git checkout "${commit}";
+
+        echo -n "Upgrading ";
+        vfrom=$(hydro --version 2>&1 | tail -n 1 | tr -d "\n");
+        echo -n "from ${vfrom}";
+
+        local vto="hydro $(git describe)";
+
+        if [[ ${vfrom} == ${vto} ]]; then
+                echo "...no version change.";
+                deactivate;
+                popd &> /dev/null;
+                return;
+        fi
+
+        echo -n "...installing dependencies" >&2;
+        pip install numpy &> /dev/null;
+        pip install -e ".[all]" &> /dev/null;
+        echo -n "...installing..." >&2;
+        pip uninstall . &> /dev/null;
+        pip install --upgrade . &> /dev/null;
+
+        popd &> /dev/null;
+
+        echo -n "to ";
+        hydro --version 2>&1 | tail -n 1;
+
+        deactivate;
+
+        # swapping deployment
+        if [ ${swap_install} -ne 0 ]; then
+                hydro_vm__swap_alpha_beta;
+        fi
+}
+
+function hydro_vm__uninstall_hydro() {
+        local install_name="";
+        if [[ $1 == "" ]]; then
+                install_name="all deployments";
+                hydro_vm__venv_dir=${hydro_vm__DEPLOY_DIR};
+        else
+                install_name=$1;
+                hydro_vm__get_deployment_dir $1;
+        fi
+        echo -n "Really uninstall ${install_name}? [yN] "
+        read confirm;
+        if [[ ${confirm} == "y" ]]; then
+                echo "Uninstalling ${hydro_vm__venv_dir}";
+                rm -rf ${hydro_vm__venv_dir};
+        else
+                echo "Not uninstalling ${install_name}."
+        fi
+}
+
+function hydro_vm__clear_path_of_hydro {
+        # Remove any path entries that have the deploy directory
+        export PATH=$(python <<EOI
+paths = [path for path in "${PATH}".split(':') if "${hydro_vm__VENV_DIR_BASE}" not in path]
+print ':'.join(paths)
+EOI);
+}
+
+function hydro_vm__check_sourced {
+        local propername="";
+        # Determine whether this file was sourced or run.
+        if [ -n "$ZSH_VERSION" ]; then
+                propername="hydro-vm";
+        elif [ -n "$BASH_VERSION" ]; then
+                propername="-bash";
+        else
+                propername="";
+        fi
+        local zero=$(basename ${1});
+        if [ "X${zero}" != "X${propername}" ]; then
+                echo "${zero} ${propername}";
+                echo "hydro-vm needs to be sourced, not run, for hydro activation"
+                return 0;
+        fi
+        if [[ "${propername}" == "" ]]; then
+                # CSH
+                return 2;
+        elif [[ "${propername}" == "-bash" ]]; then
+                # BASH
+                return 3;
+        elif [[ "${propername}" == "hydro-vm" ]]; then
+                # ZSH
+                return 4;
+        else
+                # Unknown
+                return 1;
+        fi
+}
+
+function hydro_vm__get_deployment_dir {
+        # If a temp venv exists, do not allow activation.
+        if [[ -d "${hydro_vm__VENV_DIR_TEMP}" ]]; then
+                echo "Upgrade in progress. Please try again in a moment.";
+                return;
+        fi
+
+        # Add deployment to path
+        local install_name=$1;
+        if [[ ${install_name} != "" ]]; then
+                hydro_vm__venv_dir="${hydro_vm__VENV_DIR_BASE}${install_name}";
+        else
+                hydro_vm__venv_dir="${hydro_vm__VENV_DIR_ALPHA}";
+        fi
+        local bin_dir="${hydro_vm__venv_dir}/bin";
+        if [ ! -d ${bin_dir} ]; then
+                echo "Could not find deployment: ${hydro_vm__venv_dir}";
+                hydro_vm__list_deployments;
+                return;
+        fi
+}
+
+function hydro_vm__activate {
+        hydro_vm__get_deployment_dir $1;
+
+        echo "activating ${hydro_vm__venv_dir}"
+        if [ ${2} -eq 2 ]; then
+                source "${hydro_vm__venv_dir}/bin/activate.csh";
+        elif [ ${2} -eq 1 ] || [ ${2} -eq 3 ] || [ ${2} -eq 4 ]; then
+                source "${hydro_vm__venv_dir}/bin/activate";
+
+                # TODO alternate
+                #hydro_vm__clear_path_of_hydro;
+                #export PATH="${bin_dir}:${PATH}";
+
+                # Load up autocomplete
+                if [ ${2} -eq 4 ]; then
+                        # If ZSH, load bashcompinit for compatibility
+                        if ! bashcompinit >/dev/null 2>&1; then
+                                autoload -U bashcompinit
+                                bashcompinit
+                        fi
+                fi
+
+                command -v register-python-argcomplete &> /dev/null;
+                if [ $? -eq 0 ]; then
+                        eval "$(register-python-argcomplete hydro)";
+                        echo "autocomplete enabled";
+                else
+                        echo "argcomplete is not installed. autocompletion is not available."
+                fi
+        else
+                echo "Unrecognized shell type. Abort."
+                return 1;
+        fi
+
+        # create hydro-off command alias that deactivates the deployment
+        hydro_vm__copy_function deactivate hydro_vm__deactivate_venv;
+        alias hydro-off="deactivate";
+
+        unset -f deactivate &> /dev/null;
+        function deactivate() {
+                unalias hydro-off;
+                hydro_vm__deactivate_venv;
+                unset -f hydro_vm__deactivate_venv;
+        }
+}
+
+function hydro_vm__usage {
+        cat <<EOI
+Usage: $1 [--help] (list|install|uninstall|deployment-dir|deploy-dir|rollback|on|off)
+Subcommands:
+EOI
+        echo -e "\tlist\t\tlist available deployments"
+        echo -e "\tinstall\t\t[commit] [deployment]"
+        echo -e "\tuninstall\tdeployment Uninstalls specified deployment"
+        echo -e "\tdeployment-dir\tdeployment Prints the directory for the specified deployment."
+        echo -e "\tdeploy-dir\tPrints the deployment directory"
+        echo -e "\trollback\tSwaps alpha and beta deployments"
+        echo -e "\ton\t\t[deployment] Activates the given deployment (default: a)"
+        echo -e "\toff\t\tDeactivates the active deployment, if any is active"
+        echo
+        cat <<EOI
+Subcommand install:
+Install the specified commit as an deployment.
+
+Arguments:
+commit - the git commit to install (default: master)
+deployment - the deployment name (default: ${hydro_vm__VENV_ALPHA})
+
+If the deployment is the default, $1 will first install in ${hydro_vm__VENV_BETA} and,
+when, successful, will swap the ${hydro_vm__VENV_ALPHA} and ${hydro_vm__VENV_BETA} deployments.
+Such an operation should keep the deployments in recoverable states in case
+of failure.
+EOI
+}
+
+
+if [[ $1 == "--help" ]]; then
+        hydro_vm__usage $0;
+elif [[ $1 == "list" ]]; then
+        hydro_vm__list_deployments;
+elif [[ $1 == "deploy-dir" ]]; then
+        echo "${hydro_vm__DEPLOY_DIR}";
+elif [[ $1 == "rollback" ]]; then
+        echo "Rolling back by swapping alpha and beta installs.";
+        hydro_vm__swap_alpha_beta;
+elif [[ $1 == "install" ]]; then
+        hydro_vm__install_hydro $2 $3;
+elif [[ $1 == "uninstall" ]]; then
+        hydro_vm__uninstall_hydro $2;
+elif [[ $1 == "deployment-dir" ]]; then
+        hydro_vm__get_deployment_dir $2;
+        echo ${hydro_vm__venv_dir};
+elif [[ $1 == "off" ]]; then
+        hydro_vm__check_sourced $0;
+        if [ $? -gt 0 ]; then
+                hydro-off &> /dev/null;
+                # TODO Alternate
+                # Remove deployment from path
+                # hydro_vm__clear_path_of_hydro;
+        fi
+elif [[ $1 == "on" ]]; then
+        hydro_vm__check_sourced $0;
+        hydro_vm__source_type=$?;
+        if [ ${hydro_vm__source_type} -gt 0 ]; then
+                hydro_vm__activate "$2" "${hydro_vm__source_type}";
+        fi
+else
+        hydro_vm__usage $0;
+fi
