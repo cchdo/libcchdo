@@ -172,7 +172,7 @@ def decimal_days_since(dtime, epoch=datetime(1950, 1, 1)):
 
 def write(self, handle, cfg=DEFAULT_CFG):
     """Write DIMES microstructure COARDS compliant file."""
-    with nc.nc_dataset_to_stream(handle, format='NETCDF4') as nc_file:
+    with nc.nc_dataset_to_stream(handle, format='NETCDF3_CLASSIC') as nc_file:
         nc_file.Conventions = 'CF-1.6'
         nc_file.netcdf_version = '4'
         nc_file.history = ''.join([
