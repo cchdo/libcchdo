@@ -130,7 +130,7 @@ function hydro_vm__install_hydro() {
                 one_up="$(dirname ${hydro_vm__SOURCE_DIR})";
                 mkdir -p ${one_up};
                 pushd ${one_up} &> /dev/null;
-                name=$(basename ${hydro_vm__SOURCE_DIR});
+                name=$(basename -- "${hydro_vm__SOURCE_DIR}");
                 git clone ${hydro_vm__GIT_REPO} ${name};
                 pushd ${name} &> /dev/null;
                 git remote add myshen "git@bitbucket.org:myshen/libcchdo.git";
@@ -214,7 +214,7 @@ function hydro_vm__check_sourced {
         else
                 propername="";
         fi
-        local zero=$(basename ${1});
+        local zero=$(basename -- "${1}");
         if [ "X${zero}" != "X${propername}" ]; then
                 echo "${zero} ${propername}";
                 echo "hydro-vm needs to be sourced, not run, for hydro activation"
