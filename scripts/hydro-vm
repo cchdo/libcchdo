@@ -143,6 +143,7 @@ function hydro_vm__install_hydro() {
 
         git fetch --all || true;
         git checkout "${commit}";
+        git pull;
 
         echo -n "Upgrading ";
         vfrom=$(hydro --version 2>&1 | tail -n 1 | tr -d "\n");
