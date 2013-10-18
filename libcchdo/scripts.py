@@ -2290,12 +2290,12 @@ def _sanitize_report_dates(args):
     Defaults to the past fiscal year.
 
     """
-    if type(args.date_start) != datetime:
-        args.date_start = datetime.strptime(args.date_start, '%Y-%m-%d')
-    if args.date_end is None:
-        args.date_end = args.date_start - timedelta(366)
+    if type(args.date_end) != datetime:
+        args.date_end = datetime.strptime(args.date_start, '%Y-%m-%d')
     if type(args.date_end) != datetime:
         args.date_end = datetime.strptime(args.date_end, '%Y-%m-%d')
+    if args.date_start is None:
+        args.date_start = args.date_end - timedelta(366)
 
 
 def report_data_updates(args):
@@ -2310,7 +2310,7 @@ def report_data_updates(args):
     report_data_updates(args)
 
 
-with subcommand(report_parsers, 'data_updates', report_data_updates):
+with subcommand(report_parsers, 'data_updates', report_data_updates) as p:
     p.add_argument(
         '--date-start', nargs='?', default=None,
         help='Day to end (default: a year before date-end)')
@@ -2363,7 +2363,7 @@ with subcommand(report_parsers, 'old_style_expocodes',
 
 
 def report_argo_ctd_index(args):
-    """Generate report of number of expocodes that are not new-style.
+    """Generates an Argo style index file of all CTD profiles.
 
     """
     from libcchdo.reports import report_argo_ctd_index
@@ -2372,6 +2372,21 @@ def report_argo_ctd_index(args):
 
 with subcommand(report_parsers, 'argo_ctd_index',
                 report_argo_ctd_index) as p:
+    p.add_argument(
+        'output', type=FileType('w'), nargs='?', default=sys.stdout,
+        help='output file')
+
+
+def report_profiles_available(args):
+    """Generate some inventory of all available profiles.
+
+    """
+    from libcchdo.reports import report_profiles_available
+    report_profiles_available(args)
+
+
+with subcommand(report_parsers, 'profiles_available',
+                report_profiles_available) as p:
     p.add_argument(
         'output', type=FileType('w'), nargs='?', default=sys.stdout,
         help='output file')

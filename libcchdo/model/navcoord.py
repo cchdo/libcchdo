@@ -148,13 +148,14 @@ def iter_coords(self, navcoordcls, callback):
                 coords.append(
                     [lons[i], lats[i], stnnbrs[i], dates[i], codes[i]])
     elif isinstance(self, DataFileCollection):
-        coords = [
-            [file.globals['LONGITUDE'],
-             file.globals['LATITUDE']] for file in self]
-        try:
-            expocode_coords[file.globals['EXPOCODE']].extend(coords)
-        except KeyError:
-            expocode_coords[file.globals['EXPOCODE']] = coords
+        for dfile in self:
+            coords = [
+                [dfile.globals['LONGITUDE'],
+                 dfile.globals['LATITUDE']] for file in self]
+            try:
+                expocode_coords[dfile.globals['EXPOCODE']].extend(coords)
+            except KeyError:
+                expocode_coords[dfile.globals['EXPOCODE']] = coords
     else:
         raise ArgumentError("Don't know how to write a nav file from that.")
 

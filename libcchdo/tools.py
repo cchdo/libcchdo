@@ -819,6 +819,7 @@ def flatten_zip(fileobj, outfile):
     newzip = Zip.create(outfile)
     for info in oldzip.infolist():
         fname = info.filename
+        newfname = fname
         if fname.find('/') > -1:
             newfname = os.path.basename(fname)
         newinfo = copy(info)

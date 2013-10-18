@@ -142,7 +142,6 @@ def report_submission_and_queue(args):
             '# queued and merged: {0}\n'.format(queued_and_merged))
         args.output.write(
             '# queued and not merged: {0}\n'.format(queued - queued_and_merged))
-        args.output.write(str(len(cruises)) + '\n')
 
 
 def report_old_style_expocodes(args):
@@ -397,4 +396,20 @@ def report_argo_ctd_index(args):
             raise ValueError(u'Unknown format {0}'.format(precedent_format))
 
     args.output.write(str(argo_index))
+
+
+def report_profiles_available(args):
+    """
+    """
+    args.output.write('CCHDO Cruises inventory\n')
+    args.output.write(','.join([
+        'country', 'dtime', 'ship', 'area', 'expocode', 'pi',
+        'number of stations', 'data_types', 'param_list']) + '\n')
+    with closing(lsession()) as session:
+        cruises = session.query(Cruise).order_by(Cruise.Country.asc(), Cruise.Begin_Date.desc()).all()
+        for cruise in cruises:
+            args.output.write(','.join(map(str, [
+                cruise.Country, cruise.Begin_Date, cruise.Ship_Name,
+                cruise.Line, cruise.ExpoCode, cruise.Chief_Scientist])))
+            args.output.write('\n')
 
