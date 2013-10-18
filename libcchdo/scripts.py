@@ -2291,12 +2291,11 @@ def _sanitize_report_dates(args):
 
     """
     if type(args.date_end) != datetime:
-        args.date_end = datetime.strptime(args.date_start, '%Y-%m-%d')
-    if type(args.date_end) != datetime:
         args.date_end = datetime.strptime(args.date_end, '%Y-%m-%d')
     if args.date_start is None:
         args.date_start = args.date_end - timedelta(366)
-
+    if type(args.date_start) != datetime:
+        args.date_start = datetime.strptime(args.date_start, '%Y-%m-%d')
 
 def report_data_updates(args):
     """Generate report of number of data formats change in a time range.

@@ -4,6 +4,7 @@ from contextlib import closing
 import os.path
 
 from sqlalchemy.sql import not_, between
+from sqlalchemy import distinct
 
 from libcchdo.log import LOG, DEBUG, ERROR
 from libcchdo.db.model.legacy import (
@@ -73,7 +74,9 @@ def report_data_updates(args):
         args.output.write(
             'Data updates from {0}/{1}:\n'.format(date_start, date_end))
         args.output.write(
-            '# cruises supported: {0}\n'.format(session.query(Cruise).count()))
+            '# cruises supported: {0}\n'.format(session.query(distinct(Cruise.ExpoCode)).count()))
+        args.output.write(
+            '# cruises with data: {0}\n'.format(session.query(distinct(Document.ExpoCode)).count()))
         args.output.write(
             '# cruises with updated files: {0}\n'.format(len(cruises)))
         args.output.write(
