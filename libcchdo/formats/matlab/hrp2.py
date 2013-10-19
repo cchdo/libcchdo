@@ -174,7 +174,7 @@ def write(self, handle, cfg=DEFAULT_CFG):
     """Write DIMES microstructure COARDS compliant file."""
     with nc.nc_dataset_to_stream(handle, format='NETCDF3_CLASSIC') as nc_file:
         nc_file.Conventions = 'CF-1.6'
-        nc_file.netcdf_version = '4'
+        nc_file.netcdf_version = '3'
         nc_file.history = ''.join([
             "data collected\n", datetime.utcnow().isoformat(),
             "Z date file translated/written"])
