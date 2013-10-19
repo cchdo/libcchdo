@@ -377,7 +377,7 @@ END_DATA
         self.assertEqual(mdf['CTDSAL'].flags_woce, [9, 2])
         # Case 2 data upate
         self.assertEqual(mdf['NITRAT'].values, [10, 12])
-        self.assertEqual(mdf['NITRAT'].flags_woce, [9, 4])
+        self.assertEqual(mdf['NITRAT'].flags_woce, [2, 4])
 
         # Columns in origin should be kept
         self.assertEqual(mdf['NITRIT'].values, [30, 31])
@@ -476,22 +476,34 @@ END_DATA
 
         """
         df0 = DataFile()
-        df0.create_columns(['CTDPRS', 'NITRAT'])
+        df0.create_columns(['CTDPRS', 'NITRAT', 'FLUOR'])
         df0['CTDPRS'].append(1, 2)
         df0['CTDPRS'].append(2, 2)
+        df0['CTDPRS'].append(3, 2)
         df0['NITRAT'].append(10, 2)
         df0['NITRAT'].append(11, 2)
+        df0['NITRAT'].append(12, 2)
+        df0['FLUOR'].append(100)
+        df0['FLUOR'].append(101)
+        df0['FLUOR'].append(102)
 
         df1 = DataFile()
-        df1.create_columns(['CTDPRS', 'NITRAT'])
+        df1.create_columns(['CTDPRS', 'NITRAT', 'FLUOR'])
         df1['CTDPRS'].append(1, 2)
         df1['CTDPRS'].append(2, 2)
+        df1['CTDPRS'].append(4, 2)
         df1['NITRAT'].append(20, 3)
         df1['NITRAT'].append(21, 4)
+        df1['NITRAT'].append(22, 4)
+        df1['FLUOR'].append(200, 2)
+        df1['FLUOR'].append(201, 3)
+        df1['FLUOR'].append(202, 3)
 
-        mdf = merge_datafiles(df0, df1, ['CTDPRS'], ['NITRAT_FLAG_W'])
-        self.assertEqual(mdf['NITRAT'].values, [10, 11])
-        self.assertEqual(mdf['NITRAT'].flags_woce, [3, 4])
+        mdf = merge_datafiles(df0, df1, ['CTDPRS'], ['NITRAT_FLAG_W', 'FLUOR_FLAG_W'])
+        self.assertEqual(mdf['NITRAT'].values, [10, 11, 12])
+        self.assertEqual(mdf['NITRAT'].flags_woce, [3, 4, 2])
+        self.assertEqual(mdf['FLUOR'].values, [100, 101, 102])
+        self.assertEqual(mdf['FLUOR'].flags_woce, [2, 3, 9])
 
     def test_functional_scripts_ctdex(self):
         """Test merging CTD Exchange files."""

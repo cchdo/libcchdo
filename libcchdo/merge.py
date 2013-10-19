@@ -401,13 +401,15 @@ def merge_datafiles(origin, deriv, keys, parameters):
             # set_length won't extend flag lists unless they evaluate to truthy
             if '_FLAG_' in key:
                 if derivcol.flags_woce:
-                    col.flags_woce = [9]
-                    col.set_length(len(merged))
+                    if not col.flags_woce:
+                        col.flags_woce = [9]
+                        col.set_length(len(merged))
                     col.flags_woce = overwrite_list(
                         col.flags_woce, derivcol.flags_woce, row_map)
                 if derivcol.flags_igoss:
-                    col.flags_igoss = [9]
-                    col.set_length(len(merged))
+                    if not col.flags_igoss:
+                        col.flags_igoss = [9]
+                        col.set_length(len(merged))
                     col.flags_igoss = overwrite_list(
                         col.flags_igoss, derivcol.flags_igoss, row_map)
             else:
