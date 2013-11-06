@@ -512,10 +512,12 @@ _UNWRITTEN_COLUMNS = [
 
 def writeable_columns(dfile):
     """Return the columns that belong in a WOCE data file."""
-    columns = dfile.sorted_columns()
+    columns = dfile.columns.values()
     columns = filter(
         lambda col: col.parameter.mnemonic_woce() not in _UNWRITTEN_COLUMNS,
         columns)
+    # TODO filter here for WHITELISTED columns.
+    # Also rewrite column formats to WOCE spec.
     return columns
 
 
@@ -531,6 +533,23 @@ def columns_and_base_format(dfile):
     qualt_format = "{{0}}:>{0}".format(qualt_colsize)
     base_format += ' {' + qualt_format.format(len(columns)) + "}\n"
     return columns, base_format
+
+
+def truncate_row(lll):
+    """Return a new row where all items are less than or equal to column width.
+
+    Warnings will be given for any truncations.
+
+    """
+    truncated = []
+    for xxx in lll:
+        if len(xxx) > COLUMN_WIDTH:
+            trunc = xxx[:COLUMN_WIDTH]
+            LOG.warn(u'Truncated {0!r} to {1!r} because longer than {2} '
+                     'characters.'.format(xxx, trunc, COLUMN_WIDTH))
+            xxx = trunc
+        truncated.append(xxx)
+    return truncated
 
 
 def write_data(self, handle, columns, base_format):
@@ -560,9 +579,9 @@ def write_data(self, handle, columns, base_format):
     all_units.append("*")
     all_asters.append("*")
 
-    handle.write(base_format.format(*all_headers))
-    handle.write(base_format.format(*all_units))
-    handle.write(base_format.format(*all_asters))
+    handle.write(base_format.format(*truncate_row(all_headers)))
+    handle.write(base_format.format(*truncate_row(all_units)))
+    handle.write(base_format.format(*truncate_row(all_asters)))
 
     for i in range(len(self)):
         values = []
@@ -580,9 +599,11 @@ def write_data(self, handle, columns, base_format):
                 if len(leading_extra.strip()) == 0:
                     formatted_value = formatted_value[extra:]
                 else:
-                    LOG.warn(u'Formatted data value {0!r} for {1} row {2} was '
-                             'too long.'.format(formatted_value,
-                                                column.parameter.name, i))
+                    old_value = formatted_value
+                    formatted_value = formatted_value[:-extra]
+                    LOG.warn(u'Truncated {0!r} to {1} for {2} '
+                             'row {3}'.format(old_value, formatted_value,
+                                              column.parameter.name, i))
 
             values.append(formatted_value)
             if column.is_flagged_woce():
