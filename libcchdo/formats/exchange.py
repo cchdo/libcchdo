@@ -166,4 +166,4 @@ def write_data(dfile, fileobj):
     write_flagged_format_parameter_values(
         dfile, fileobj, flagged_format_parameter_values)
 
-    fileobj.write(END_DATA)
+    fileobj.write(END_DATA + '\n')
