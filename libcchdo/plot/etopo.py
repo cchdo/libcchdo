@@ -816,9 +816,9 @@ class ETOPOBasemap(Basemap):
             projections and the default matches GMT's setting.
 
         """
-        line_dashes = [1, 1]
+        line_dashes = (1, 1)
         if line_solid:
-            line_dashes = [1, 0]
+            line_dashes = (None, None)
 
         xoffset, yoffset = self.gmt_label_offsets
         artists = {}
