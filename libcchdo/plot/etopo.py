@@ -627,7 +627,7 @@ class ETOPOBasemap(Basemap):
             LOG.debug("Terminal excoding not UTF-8, only ASCII titles supported")
 
         self.axes.set_title(
-            text, size=size, position=(0.5, 1), fontweight='bold')
+            text, size=size, position=(0.5, 1.03), fontweight='bold')
 
     def hide_axes_borders(self):
         """Hide and remove borders that have been added to the plot."""
