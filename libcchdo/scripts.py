@@ -1405,6 +1405,16 @@ with subcommand(datadir_parsers, 'get_cruise_dir',
         'expocode',
         help='the Expocode of the cruise to find the directory of')
 
+def cchdo_update(args):
+    """Python implimentation of cchdo_update.rb"""
+    from libcchdo.datadir.update import update
+    update(args.expo_or_path)
+
+with subcommand(datadir_parsers, 'update', cchdo_update) as p:
+    p.add_argument(
+            'expo_or_path',
+            help="An Expocode or path to data directory of a cruise")
+
 
 def datadir_get_processing_template(args):
     """Fetch the processing note template from the wiki."""
