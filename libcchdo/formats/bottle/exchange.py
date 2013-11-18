@@ -141,6 +141,10 @@ def read(self, handle):
 
     # Format all data to be what it is
     try:
+        self['EXPOCODE'].values = map(str, self['EXPOCODE'].values)
+    except KeyError:
+        pass
+    try:
         self['LATITUDE'].values = map(_decimal, self['LATITUDE'].values)
     except KeyError:
         pass
