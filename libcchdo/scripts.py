@@ -1409,7 +1409,7 @@ with subcommand(datadir_parsers, 'get_cruise_dir',
         help='the Expocode of the cruise to find the directory of')
 
 def cchdo_update(args):
-    """Python implimentation of cchdo_update.rb"""
+    """Python implementation of cchdo_update.rb"""
     from libcchdo.datadir.update import update
     update(args.expo_or_path)
 

@@ -153,7 +153,7 @@ def update(expo_or_ddir):
     try:
         if get_datadir_hostname() != socket.gethostname():
             raise ValueError("This can only be run on the computer that has the"\
-                    " data direcotry on it: {0}".format(socket.gethostname()))
+                    " data directory on it: {0}".format(socket.gethostname()))
 
         # This first block tries to figure out if the input expo_or_ddir is an
         # expocode or a data directory
