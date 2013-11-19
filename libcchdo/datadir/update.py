@@ -59,8 +59,9 @@ def is_expo_in_cruises(sesh, expo):
     It is ok if expo doesn't exist for this method
     """
     try:
-        ddir = sesh.query(Cruise).filter(Cruise.ExpoCode ==
-            expo).one()
+        ddir = sesh.query(Cruise).filter(
+                Cruise.ExpoCode == expo
+            ).one()
         return True
     except NoResultFound:
         LOG.info( "Given expocode or directory path is not an expocode in the"\
@@ -72,8 +73,11 @@ def guess_path_from_expo(sesh, expo):
     expocode and uses its 'FileName' (really a path) as the cruise directory
     """
     try:
-        ddir = sesh.query(Document).filter(Document.ExpoCode ==
-            expo).filter(Document.FileType == "Directory").one()
+        ddir = sesh.query(Document).filter(
+                    Document.ExpoCode == expo
+                ).filter(
+                    Document.FileType == "Directory"
+                ).one()
         return ddir.FileName
     except NoResultFound:
         raise IOError("No directory entry for ExpoCode {0}, please provide"\
@@ -240,8 +244,11 @@ def update(expo_or_ddir):
             sesh.add(d)
         
         try:
-            d = sesh.query(Document).filter(Document.FileType ==
-                    "Directory").filter(Document.ExpoCode == expocode).one()
+            d = sesh.query(Document).filter(
+                        Document.FileType == "Directory"
+                    ).filter(
+                        Document.ExpoCode == expocode
+                    ).one()
             d.Files = "\n".join(identified_files)
             d.FileName = base_dir
             sesh.add(d)
