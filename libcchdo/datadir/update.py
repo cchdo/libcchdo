@@ -9,9 +9,7 @@ from sqlalchemy.orm.exc import MultipleResultsFound
 from sqlalchemy import or_
 
 from libcchdo import LOG
-from libcchdo.db.model import legacy
-from libcchdo.db.model.legacy import Document
-from libcchdo.db.model.legacy import Cruise
+from libcchdo.db.model.legacy import Document, Cruise, session
 from libcchdo.config import get_datadir_hostname
 
 known_file_types = {
@@ -52,11 +50,14 @@ known_file_types = {
     '.lvs'   : 'Large Volume file',
     '$00_README.*/.txt' : 'Citation file',
 }
-ignored_filenames = [
+ignored_filenames_startswith = [
         '.'
         ]
 
 def is_expo_in_cruises(sesh, expo):
+    """Check to see if gvien expo exists in the cruises table.
+    It is ok if expo doesn't exist for this method
+    """
     try:
         ddir = sesh.query(Cruise).filter(Cruise.ExpoCode ==
             expo).one()
@@ -67,6 +68,9 @@ def is_expo_in_cruises(sesh, expo):
         return False
 
 def guess_path_from_expo(sesh, expo):
+    """This method checks the documents table for the "Directory" entry of an
+    expocode and uses its 'FileName' (really a path) as the cruise directory
+    """
     try:
         ddir = sesh.query(Document).filter(Document.ExpoCode ==
             expo).filter(Document.FileType == "Directory").one()
@@ -76,6 +80,12 @@ def guess_path_from_expo(sesh, expo):
                 "full path to cruise directory".format(expo))
 
 def get_ddir_list(ddir):
+    """Uses os.walk() to walk the given data dir path and get a list of files
+    The file list is then filterd by 'startswith' in the
+    ignored_filenames_startswith list. e.g. a "." in the list causes all
+    dotfiles to be removed from the file list. The os.walk() method does not
+    include . or .. as paths.
+    """
     if not os.path.isdir(ddir):
         raise IOError("The path '{0}' does not exist or is not a directory"\
                 ", if an ExpoCode was"\
@@ -91,7 +101,7 @@ def get_ddir_list(ddir):
     # remove the ignored filenames from the list of files to process
     to_ignore = []
     for name in files:
-        for f in ignored_filenames:
+        for f in ignored_filenames_startswith:
             if name.startswith(f):
                 to_ignore.append(name)
     for name in to_ignore:
@@ -100,6 +110,11 @@ def get_ddir_list(ddir):
     return base_dir, files
 
 def identify_files(files):
+    """Identifies files based on a regex matching, the regex was taken directly
+    from cchdo_update.rb
+
+    In addition, it will warn about duplicated file types
+    """
     identified_files = {}
     for key in known_file_types.keys():
         a = re.compile(key)
@@ -130,11 +145,14 @@ def identify_files(files):
     return identified_files
 
 def update(expo_or_ddir):
-    sesh = legacy.session()
+    sesh = session()
     try:
         if get_datadir_hostname() != socket.gethostname():
             raise ValueError("This can only be run on the computer that has the"\
                     " data direcotry on it: {0}".format(socket.gethostname()))
+
+        # This first block tries to figure out if the input expo_or_ddir is an
+        # expocode or a data directory
         ddir = None
         expocode = None
         if is_expo_in_cruises(sesh, expo_or_ddir):
@@ -144,9 +162,12 @@ def update(expo_or_ddir):
 
         base_dir, files = get_ddir_list(ddir)
 
+        # cruise directories are IDed by having an ExpoCode file in them
         if "ExpoCode" not in files:
             raise IOError("No 'ExpoCode' file in the given directory")
 
+        # The expocode as given by the 'ExpoCode' file must actually exist in
+        # the cruises table
         with open(os.path.join(base_dir, "ExpoCode")) as expocode_f:
             expocode = expocode_f.readline().strip()
             try: 
@@ -190,6 +211,8 @@ def update(expo_or_ddir):
                                 " is older than what is in the databae".format(file))
                     if modtime > d.LastModified or full_path != d.FileName:
                         updated_files.append((file, d.id))
+        # For the updated files, an ID is used because when the file is moved
+        # it can't be reliably idenfited by the FileName (really a path)
         for file, id in updated_files:
             full_path = os.path.join(base_dir, file)
             d = sesh.query(Document).filter(Document.id == id).one()
@@ -236,7 +259,7 @@ def update(expo_or_ddir):
         if len(new_files) > 0:
             LOG.info("The following files are new: {0}".format(new_files))
         if len(updated_files) > 0:
-            LOG.info("The following files are updated: {0}".format(updated_files))
+            LOG.info("The following files are updated: {0}".format([x[0] for x in updated_files]))
 
         LOG.info('Update done')
     except:
