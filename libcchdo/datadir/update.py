@@ -220,6 +220,7 @@ def update(expo_or_ddir):
                 d.FileType = identified_files[file]
             moddate = str(datetime.fromtimestamp(os.path.getmtime(full_path)))
             d.LastModified = moddate
+            d.Modified = d.Modified + "," + moddate
             d.Size = os.path.getsize(full_path)
             d.FileName = full_path
             sesh.add(d)
