@@ -6,6 +6,7 @@ from contextlib import closing
 
 from sqlalchemy.orm.exc import NoResultFound
 from sqlalchemy.orm.exc import MultipleResultsFound
+from sqlalchemy import or_
 
 from libcchdo import LOG
 from libcchdo.db.model import legacy
@@ -55,26 +56,24 @@ ignored_filenames = [
         '.'
         ]
 
-def is_expo_in_cruises(expo):
-    with closing(legacy.session()) as sesh:
-        try:
-            ddir = sesh.query(Cruise).filter(Cruise.ExpoCode ==
-                expo).one()
-            return True
-        except NoResultFound:
-            LOG.info( "Given expocode or directory path is not an expocode in the"\
-            " cruises table, assuming cruise directory path")
-            return False
+def is_expo_in_cruises(sesh, expo):
+    try:
+        ddir = sesh.query(Cruise).filter(Cruise.ExpoCode ==
+            expo).one()
+        return True
+    except NoResultFound:
+        LOG.info( "Given expocode or directory path is not an expocode in the"\
+        " cruises table, assuming cruise directory path")
+        return False
 
-def guess_path_from_expo(expo):
-    with closing(legacy.session()) as sesh:
-        try:
-            ddir = sesh.query(Document).filter(Document.ExpoCode ==
-                expo).filter(Document.FileType == "Directory").one()
-            return ddir.FileName
-        except NoResultFound:
-            raise IOError("No directory entry for ExpoCode {0}, please provide"\
-                    "full path to cruise directory".format(expo))
+def guess_path_from_expo(sesh, expo):
+    try:
+        ddir = sesh.query(Document).filter(Document.ExpoCode ==
+            expo).filter(Document.FileType == "Directory").one()
+        return ddir.FileName
+    except NoResultFound:
+        raise IOError("No directory entry for ExpoCode {0}, please provide"\
+                "full path to cruise directory".format(expo))
 
 def get_ddir_list(ddir):
     if not os.path.isdir(ddir):
@@ -100,32 +99,7 @@ def get_ddir_list(ddir):
     
     return base_dir, files
 
-def update(expo_or_ddir):
-    if get_datadir_hostname() != socket.gethostname():
-        raise ValueError("This can only be run on the computer that has the"\
-                " data direcotry on it: {0}".format(socket.gethostname()))
-    ddir = None
-    expocode = None
-    if is_expo_in_cruises(expo_or_ddir):
-        ddir = guess_path_from_expo(expo_or_ddir)
-    elif ddir is None:
-        ddir = expo_or_ddir
-
-    base_dir, files = get_ddir_list(ddir)
-
-    if "ExpoCode" not in files:
-        raise IOError("No 'ExpoCode' file in the given directory")
-
-    with open(os.path.join(base_dir, "ExpoCode")) as expocode_f:
-        expocode = expocode_f.readline().strip()
-        with closing(legacy.session()) as sesh:
-            try: 
-                sesh.query(Cruise).filter(Cruise.ExpoCode == expocode).one()
-            except NoResultFound:
-                raise NoResultFound("The ExpoCode '{0}' as defined in the ExpoCode file"\
-                " of the given directory does not exist in the cruises"\
-                " table".format(expocode))
-
+def identify_files(files):
     identified_files = {}
     for key in known_file_types.keys():
         a = re.compile(key)
@@ -153,53 +127,82 @@ def update(expo_or_ddir):
                 LOG.warn( "{0}: {1}".format(dup, f))
             LOG.warn("The update can continue, only one of each file type will"\
             " be displayed on the website")
-    
-    # The actual update stuff
-    with closing(legacy.session()) as sesh:
+    return identified_files
+
+def update(expo_or_ddir):
+    sesh = legacy.session()
+    try:
+        if get_datadir_hostname() != socket.gethostname():
+            raise ValueError("This can only be run on the computer that has the"\
+                    " data direcotry on it: {0}".format(socket.gethostname()))
+        ddir = None
+        expocode = None
+        if is_expo_in_cruises(sesh, expo_or_ddir):
+            ddir = guess_path_from_expo(sesh, expo_or_ddir)
+        elif ddir is None:
+            ddir = expo_or_ddir
+
+        base_dir, files = get_ddir_list(ddir)
+
+        if "ExpoCode" not in files:
+            raise IOError("No 'ExpoCode' file in the given directory")
+
+        with open(os.path.join(base_dir, "ExpoCode")) as expocode_f:
+            expocode = expocode_f.readline().strip()
+            try: 
+                sesh.query(Cruise).filter(Cruise.ExpoCode == expocode).one()
+            except NoResultFound:
+                raise NoResultFound("The ExpoCode '{0}' as defined in the ExpoCode file"\
+                " of the given directory does not exist in the cruises"\
+                " table".format(expocode))
+
+        identified_files = identify_files(files)
+        
+        # The actual update stuff
         documents = sesh.query(Document).filter(
-                Document.FileName.like('%{0}%'.format(base_dir))
-                ).all()
-    old_files = [d.FileName for d in documents]
-    new_files = []
-    unchanged_files = []
-    updated_files = []
-    deleted_files = []
-    for file in old_files:
-        if not os.path.exists(file):
-            deleted_files.append(file)
-    if len(deleted_files) > 0:
-        LOG.info("The following have been deleted: {0}".format(deleted_files))
-    for file in files:
-        full_path = os.path.join(base_dir, file)
-        if full_path not in old_files:
-            new_files.append(file)
-            continue
-        for d in documents:
-            if full_path == d.FileName:
-                modtime = datetime.fromtimestamp(os.path.getmtime(full_path))
-                if modtime == d.LastModified:
-                    unchanged_files.append(file)
-                    continue
-                if modtime < d.LastModified:
-                    raise ValueError("The modification date of the file '{0}'"\
-                            " is older than what is in the databae".format(file))
-                if modtime > d.LastModified:
-                    updated_files.append(file)
-    for file in updated_files:
-        full_path = os.path.join(base_dir, file)
-        with closing(legacy.session()) as sesh:
-            d = sesh.query(Document).filter(Document.FileName == full_path).one()
+                        Document.ExpoCode == expocode
+                    ).filter(
+                        or_(Document.FileType != "Directory", Document.FileType == None)
+                    ).all()
+        old_files = [os.path.basename(d.FileName) for d in documents]
+        new_files = []
+        unchanged_files = []
+        updated_files = []
+        deleted_files = []
+        for file in old_files:
+            if not os.path.exists(file):
+                deleted_files.append(file)
+        if len(deleted_files) > 0:
+            LOG.info("The following have been deleted: {0}".format(deleted_files))
+        for file in files:
+            full_path = os.path.join(base_dir, file)
+            if file not in old_files:
+                new_files.append(file)
+                continue
+            for d in documents:
+                if file == os.path.basename(d.FileName):
+                    modtime = datetime.fromtimestamp(os.path.getmtime(full_path))
+                    if modtime == d.LastModified and full_path == d.FileName:
+                        unchanged_files.append(file)
+                        continue
+                    if modtime < d.LastModified:
+                        raise ValueError("The modification date of the file '{0}'"\
+                                " is older than what is in the databae".format(file))
+                    if modtime > d.LastModified or full_path != d.FileName:
+                        updated_files.append((file, d.id))
+        for file, id in updated_files:
+            full_path = os.path.join(base_dir, file)
+            d = sesh.query(Document).filter(Document.id == id).one()
             if file in identified_files:
                 d.FileType = identified_files[file]
             moddate = str(datetime.fromtimestamp(os.path.getmtime(full_path)))
             d.LastModified = moddate
             d.Size = os.path.getsize(full_path)
+            d.FileName = full_path
             sesh.add(d)
-            sesh.commit()
 
-    for file in new_files:
-        full_path = os.path.join(base_dir, file)
-        with closing(legacy.session()) as sesh:
+        for file in new_files:
+            full_path = os.path.join(base_dir, file)
             d = Document()
             d.Size = os.path.getsize(full_path)
             if file in identified_files:
@@ -211,27 +214,33 @@ def update(expo_or_ddir):
             d.Modified = moddate
             d.Stamp = ""
             sesh.add(d)
-            sesh.commit()
-    
-    with closing(legacy.session()) as sesh:
+        
         try:
-            d = sesh.query(Document).filter(Document.FileName == base_dir).one()
+            d = sesh.query(Document).filter(Document.FileType ==
+                    "Directory").filter(Document.ExpoCode == expocode).one()
             d.Files = "\n".join(identified_files)
+            d.FileName = base_dir
             sesh.add(d)
-            sesh.commit()
         except NoResultFound:
             d = Document()
             d.FileType = "Directory"
             d.FileName = base_dir
             d.Files = "\n".join(identified_files)
+            d.Stamp = ""
+            d.ExpoCode = expocode
             sesh.add(d)
-            sesh.commit()
 
-    if len(unchanged_files) > 0:
-        LOG.info("The following files are unchanged: {0}".format(unchanged_files))
-    if len(new_files) > 0:
-        LOG.info("The following files are new: {0}".format(new_files))
-    if len(updated_files) > 0:
-        LOG.info("The following files are updated: {0}".format(updated_files))
+        sesh.commit()
+        if len(unchanged_files) > 0:
+            LOG.info("The following files are unchanged: {0}".format(unchanged_files))
+        if len(new_files) > 0:
+            LOG.info("The following files are new: {0}".format(new_files))
+        if len(updated_files) > 0:
+            LOG.info("The following files are updated: {0}".format(updated_files))
 
-    LOG.info('Update done')
+        LOG.info('Update done')
+    except:
+        sesh.rollback()
+        raise
+    finally:
+        sesh.close()
