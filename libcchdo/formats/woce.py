@@ -2,8 +2,11 @@ from datetime import datetime, date
 from collections import OrderedDict
 import re
 import struct
+import os.path
+from csv import reader as csv_reader
 
 from libcchdo.log import LOG
+from libcchdo.util import get_library_abspath
 from libcchdo.model.datafile import Column
 from libcchdo.fns import (
     Decimal, InvalidOperation, _decimal, in_band_or_none, IncreasedPrecision,
@@ -510,15 +513,87 @@ _UNWRITTEN_COLUMNS = [
     'EXPOCODE', 'SECT_ID', 'LATITUDE', 'LONGITUDE', 'DEPTH', '_DATETIME']
 
 
+WOCE_PARAMS_FOR_EXWOCE = os.path.join(
+    get_library_abspath(), 'resources', 'woce_params_for_exchange_to_woce.csv')
+
+
+def convert_fortran_format_to_c(ffmt):
+    """Simplistic conversion from Fortran format string to C format string.
+    This only operates on F formats.
+
+    """
+    if not ffmt:
+        return ffmt
+    if ffmt.startswith('F'):
+        return '%{0}f'.format(ffmt[1:])
+    elif ffmt.startswith('I'):
+        return '%{0}d'.format(ffmt[1:])
+    elif ffmt.startswith('A'):
+        return '%{0}s'.format(ffmt[1:])
+    elif ',' in ffmt:
+        # WOCE specifies things like 1X,A7, so only convert the last bit.
+        ffmt = ffmt.split(',')[1]
+        return convert_fortran_format_to_c(ffmt)
+    return ffmt
+
+
+def get_exwoce_params():
+    """Return a dictionary of WOCE parameters allowed for Exchange conversion.
+
+    Returns:
+        {'PMNEMON': {
+            'unit_mnemonic': 'WOCE', 'range': [0.0, 10.0], 'format': '%8.3f'}}
+
+    """
+    reader = csv_reader(open(WOCE_PARAMS_FOR_EXWOCE, 'r'))
+
+    # First line is header
+    reader.next()
+
+    params = {}
+    for order, row in enumerate(reader):
+        if row[-1] == 'x':
+            continue
+        if not row[1]:
+            row[1] = None
+        if row[2]:
+            prange = map(float, row[2].split(','))
+        else:
+            prange = None
+        if not row[3]:
+            row[3] = None
+        params[row[0]] = {
+            'unit_mnemonic': row[1],
+            'range': prange,
+            'format': convert_fortran_format_to_c(row[3]),
+            'order': order,
+        }
+    return params
+
+
+_EXWOCE_PARAMS = get_exwoce_params()
+
+
 def writeable_columns(dfile):
     """Return the columns that belong in a WOCE data file."""
     columns = dfile.columns.values()
-    columns = filter(
-        lambda col: col.parameter.mnemonic_woce() not in _UNWRITTEN_COLUMNS,
-        columns)
-    # TODO filter here for WHITELISTED columns.
-    # Also rewrite column formats to WOCE spec.
-    return columns
+
+    # Filter with whitelist and rewrite format strings to WOCE standard.
+    whitelisted_columns = []
+    for col in columns:
+        key = col.parameter.mnemonic_woce()
+        if key in _UNWRITTEN_COLUMNS:
+            continue
+        if key not in _EXWOCE_PARAMS:
+            continue
+        info = _EXWOCE_PARAMS[key]
+        fmt = info['format']
+        if fmt:
+            col.parameter.format = fmt
+        col.parameter.display_order = info['order']
+        whitelisted_columns.append(col)
+    return sorted(
+        whitelisted_columns, key=lambda col: col.parameter.display_order)
 
 
 def columns_and_base_format(dfile):

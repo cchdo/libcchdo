@@ -126,9 +126,9 @@ class TestFormatsWoce(BaseTestCase):
                 woce.columns_and_base_format(dfile)
             woce.write_data(dfile, output, cols, base_format)
             result = output.getvalue().split('\n')
-            self.assertEqual(' ' * 2 + 'QUALT1', result[0][8 * len(cols):])
-            self.assertEqual(' ' * 7 + '*', result[2][8 * len(cols):])
-            self.assertEqual(' ' + '9' * len(cols), result[3][8 * len(cols):])
+            self.assertEqual(' ' * 1 + 'QUALT1', result[0][8 * len(cols):])
+            self.assertEqual(' ' * 6 + '*', result[2][8 * len(cols):])
+            self.assertEqual(' ' * 7, result[3][8 * len(cols):])
 
     def test_write_data_fill_value(self):
         dfile = DataFile()

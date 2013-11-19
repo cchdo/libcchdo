@@ -428,16 +428,19 @@ with subcommand(bot_converter_parsers, 'exchange_to_parameter_kml',
 
 def btlex_to_btlwoce(args):
     from libcchdo.model.datafile import DataFile
+    from libcchdo.config import stamp
     import libcchdo.formats.bottle.exchange as btlex
     import libcchdo.formats.bottle.woce as btlwoce
 
-    df = DataFile()
+    dfile = DataFile()
 
     with closing(args.input_btlex) as in_file:
-        btlex.read(df, in_file)
+        btlex.read(dfile, in_file)
+
+    dfile.globals['stamp'] = stamp()
 
     with closing(args.output_btlwoce) as out_file:
-        btlwoce.write(df, out_file)
+        btlwoce.write(dfile, out_file)
 
 
 with subcommand(bot_converter_parsers, 'exchange_to_woce',
