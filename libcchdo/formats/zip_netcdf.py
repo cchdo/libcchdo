@@ -33,7 +33,26 @@ def get_identifier_ctd(dfile):
     return (expocode, station, cast)
 
 
-def write(self, handle, extension, writer, get_identifier_func):
+class CountingFileName(object):
+    """Returns the next available station or cast id."""
+    def __init__(self, extension, identifier_func):
+        self.station_i = 0
+        self.cast_i = 0
+        self.extension = extension
+        self.identifier_func = identifier_func
+
+    def get_filename(self, dfile):
+        expocode, station, cast = self.identifier_func(dfile)
+        if station is None:
+            station = self.station_i
+            self.station_i += 1
+        if cast is None:
+            cast = self.cast_i
+            self.cast_i += 1
+        return nc.get_filename(expocode, station, cast, self.extension)
+        
+
+def write(self, handle, extension, writer, get_identifier_func, **kwargs):
     """How to write netCDF files to a Zip.
 
     get_identifier_func(DataFile) - 
@@ -43,16 +62,5 @@ def write(self, handle, extension, writer, get_identifier_func):
     from 1.
 
     """
-    station_i = 0
-    cast_i = 0
-    def get_filename(dfile):
-        expocode, station, cast = get_identifier_func(dfile)
-        if station is None:
-            station = station_i
-            station_i += 1
-        if cast is None:
-            cast = cast_i
-            cast_i += 1
-        return nc.get_filename(expocode, station, cast, extension)
-
-    Zip.write(self, handle, writer, get_filename)
+    counting_fname = CountingFileName(extension, get_identifier_func)
+    Zip.write(self, handle, writer, counting_fname.get_filename, **kwargs)

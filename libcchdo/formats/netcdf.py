@@ -76,7 +76,8 @@ def nc_dataset_to_stream(stream, *args, **kwargs):
 
 
 def get_filename(expocode, station, cast, extension):
-    assert extension in ['hy1', 'ctd']
+    if extension not in ['hy1', 'ctd']:
+        LOG.warn(u'File extension is not recognized.')
     station = _pad_station_cast(station)
     cast = _pad_station_cast(cast)
     return '%s.%s' % ('_'.join((expocode, station, cast, extension)),

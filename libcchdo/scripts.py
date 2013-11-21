@@ -984,7 +984,7 @@ with subcommand(misc_converter_parsers, 'explore_any', explore_any) as p:
 
 
 def matlab_hrp_and_config_to_nc_hrp(args):
-    from libcchdo.model.datafile import DataFile
+    from libcchdo.model.datafile import DataFile, DataFileCollection
     from libcchdo.formats.matlab import hrp2
     from json import loads
 
@@ -994,7 +994,10 @@ def matlab_hrp_and_config_to_nc_hrp(args):
         cfg = loads(cfg)
         hrp2.check_cfg(cfg)
 
-    dfile = DataFile()
+    if cfg['data_type'] == 'HRP2 Oliver Sun':
+        dfile = DataFileCollection()
+    else:
+        dfile = DataFile()
     with closing(args.matlab_hrp) as in_file:
         hrp2.read(dfile, in_file, cfg=cfg)
 
