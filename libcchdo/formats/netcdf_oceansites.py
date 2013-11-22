@@ -361,7 +361,7 @@ and the national programs that contribute to it.""",
     ]),
     'CELL_METHODS': ' '.join([
         'TIME: point',
-        'DEPTH: average',
+        'DEPTH: mean',
         'LATITUDE: point',
         'LONGITUDE: point',
     ]),
