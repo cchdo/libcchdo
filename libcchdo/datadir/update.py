@@ -195,7 +195,7 @@ def update(expo_or_ddir):
         updated_files = []
         deleted_files = []
         for file in old_files:
-            if not os.path.exists(file):
+            if not os.path.exists(os.path.join(base_dir, file)):
                 deleted_files.append(file)
         if len(deleted_files) > 0:
             LOG.info("The following have been deleted: {0}".format(deleted_files))
