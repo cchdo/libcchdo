@@ -29,9 +29,9 @@ class TestProcessing(TestCase):
         test_dt = datetime(2000, 1, 2, 3, 4, 5)
         test_sep = '-'
 
-        work_dir = processing.working_dir_path(
-            '.', test_person, test_title, test_dt, test_sep)
-        answer = './2000.01.02{0}{1}{0}{2}'.format(
+        work_dir = processing.working_dir_name(
+            test_person, test_title, test_dt, test_sep)
+        answer = '2000.01.02{0}{1}{0}{2}'.format(
             test_sep, test_title, test_person)
         self.assertEqual(work_dir, answer)
 

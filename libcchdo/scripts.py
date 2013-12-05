@@ -1437,11 +1437,10 @@ def datadir_fetch(args):
     """Create a CCHDO Unit Of Work directory.
 
     """
-    from libcchdo.datadir.processing import (
-        mkdir_uow, as_received_unmerged_list, as_received_infos)
+    from libcchdo.datadir.processing import mkdir_uow, DSTORE
     fetch_requirements = [args.title, args.summary, args.ids]
     if not any(fetch_requirements):
-        for f in as_received_unmerged_list():
+        for f in DSTORE.as_received_unmerged_list():
             print '\t'.join(map(str, 
                 [f['q_id'], f['data_type'], f['submitted_by'], f['filename']]))
         return
@@ -1450,7 +1449,7 @@ def datadir_fetch(args):
             u'Please provide a title and summary for your UOW.\n'
             'hydro datadir fetch "title" "summary"')
         LOG.info(u'List of as-received files specified:')
-        for info in as_received_infos(*args.ids):
+        for info in DSTORE.as_received_infos(*args.ids):
             LOG.info(u'{0}\t{1}'.format(info['data_type'], info['filename']))
         return
     if not args.ids:
@@ -1560,13 +1559,13 @@ with subcommand(datadir_parsers, 'email', datadir_email) as p:
 
 
 def datadir_add_processing_note(args):
-    """Record processing history note."""
+    """Record processing history note, mark merged, and notify."""
     from libcchdo.datadir.processing import (
-        add_processing_note, is_processing_readme_render_ok, read_uow_cfg)
+        uow_commit_postflight, is_processing_readme_render_ok, read_uow_cfg)
     if is_processing_readme_render_ok(
             args.readme_path, confirm_html=(not args.readme_html_ok)):
         uow_cfg = read_uow_cfg(args.uow_cfg_path)
-        add_processing_note(
+        uow_commit_postflight(
             args.readme_path, args.email_path, uow_cfg, args.dry_run)
     else:
         LOG.error(u'README is not valid reST or merger rejected. Stop.')
