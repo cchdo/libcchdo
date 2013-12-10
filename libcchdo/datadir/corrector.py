@@ -300,14 +300,14 @@ class ExpoCodeAliasCorrector(dict):
                 dir=cruisedir, old=self.expocode_old, new=self.expocode_new))
 
         newpath = self.fix_cruise_dir_name(cruisedir, dryrun)
-        self.fix_cruise_dir_db(session, cruisedir, newpath, dryrun)
-        self.fix_expocode(newpath, dryrun)
         # Change cruise entries' ExpoCodes and add old ExpoCode to aliases.
         cruises = session.query(Cruise).\
             filter(Cruise.ExpoCode == self.expocode_old).all()
         for cruise in cruises:
             cruise.ExpoCode = self.expocode_new
             cruise.Alias = str_list_add(cruise.Alias, self.expocode_old)
+        self.fix_cruise_dir_db(session, cruisedir, newpath, dryrun)
+        self.fix_expocode(newpath, dryrun)
         self.fix_cruise_json(newpath, dryrun)
 
         # Edit all the files and put them in a working directory
