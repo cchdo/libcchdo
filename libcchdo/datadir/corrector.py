@@ -6,6 +6,8 @@ from zipfile import ZipFile
 from json import load as jload, dump as jdump
 from contextlib import closing
 
+from sqlalchemy.exc import ProgrammingError
+
 from libcchdo import LOG
 from libcchdo.config import get_merger_initials, get_merger_name
 from libcchdo.datadir.processing import (
@@ -129,8 +131,12 @@ class ExpoCodeAliasCorrector(dict):
             SpatialGroup, Internal, UnusedTrack, NewTrack, SupportFile, 
             ]
         for model in models_to_fix_expocode_for:
-            items = session.query(model).\
-                filter(model.ExpoCode == self.expocode_old).all()
+            try:
+                items = session.query(model).\
+                    filter(model.ExpoCode == self.expocode_old).all()
+            except ProgrammingError, err:
+                LOG.error(err)
+                continue
             for item in items:
                 try:
                     LOG.info(u'Change {0} {1} expocode'.format(model.__name__, item.id))
