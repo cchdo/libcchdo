@@ -19,7 +19,7 @@ from libcchdo.datadir.util import ReadmeEmail, full_datadir_path
 from libcchdo.db.model.legacy import (
     session as lsesh, Document, Cruise, str_list_add,
     ArcticAssignment, BottleDB, ArgoFile, ArgoSubmission, TrackLine, Event,
-    ParameterStatus, CruiseParameterInfo, QueueFile, Submission, SpatialGroup,
+    CruiseParameterInfo, QueueFile, Submission, SpatialGroup,
     Internal, UnusedTrack, NewTrack, SupportFile, CruiseGroup)
 
 
@@ -125,7 +125,7 @@ class ExpoCodeAliasCorrector(dict):
         """Correct the expocode all over the database."""
         models_to_fix_expocode_for = [
             ArcticAssignment, BottleDB, ArgoFile, ArgoSubmission, TrackLine,
-            Event, ParameterStatus, CruiseParameterInfo, QueueFile, Submission,
+            Event, CruiseParameterInfo, QueueFile, Submission,
             SpatialGroup, Internal, UnusedTrack, NewTrack, SupportFile, 
             ]
         for model in models_to_fix_expocode_for:
