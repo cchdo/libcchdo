@@ -108,9 +108,10 @@ class ExpoCodeAliasCorrector(dict):
         if dryrun:
             LOG.info(u'DRYRUN would rename {0} to {1}'.format(
                 cruise_dir_name, cruise_dir_name_new))
+            return cruisedir
         else:
-            os.rename(cruise_dir_name, cruise_dir_name_new)
-        return path_new
+            os.rename(cruisedir, path_new)
+            return path_new
 
     def fix_cruise_dir_db(self, session, oldpath, newpath, dryrun=True):
         documents = session.query(Document).filter(
@@ -300,6 +301,7 @@ class ExpoCodeAliasCorrector(dict):
         """
         assert os.path.exists(cruisedir), \
            'Cruise directory {0} does not exist'.format(cruisedir)
+        cruisedir = os.path.abspath(cruisedir)
         LOG.info(
             u'Changing ExpoCode for cruise directory {dir} from {old!r} to '
             '{new!r}'.format(
@@ -434,6 +436,11 @@ class ExpoCodeAliasCorrector(dict):
                 session, readme_text, self.expocode_new, 'ExpoCode',
                 'ExpoCode changed')
 
+            try:
+                session.commit()
+            except Exception, err:
+                LOG.critical(u'Unable to commit! {0!r}'.format(err))
+
             # Send expocode change email
             try:
                 subject = 'ExpoCode changed from {0} to {1}'.format(
@@ -444,13 +451,10 @@ class ExpoCodeAliasCorrector(dict):
                     self.expocode_new, get_merger_name(), summary, note_id))
                 ecemail.attach_readme(readme_text)
                 ecemail.send(email_path)
-                session.commit()
                 LOG.info(u'Please check documents table for {0} to ensure no '
                          'duplicate Filename entries'.format(self.expocode_new))
             except Exception, err:
                 LOG.error(u'Could not send email: {0!r}'.format(err))
-                LOG.info(u'rolled back history note')
-                session.rollback()
         finally:
             if dryrun:
                 if debug:
