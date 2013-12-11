@@ -307,13 +307,17 @@ class ExpoCodeAliasCorrector(dict):
             '{new!r}'.format(
                 dir=cruisedir, old=self.expocode_old, new=self.expocode_new))
 
-        newpath = self.fix_cruise_dir_name(cruisedir, dryrun)
         # Change cruise entries' ExpoCodes and add old ExpoCode to aliases.
         cruises = session.query(Cruise).\
             filter(Cruise.ExpoCode == self.expocode_old).all()
         for cruise in cruises:
             cruise.ExpoCode = self.expocode_new
             cruise.Alias = str_list_add(cruise.Alias, self.expocode_old)
+
+        # Rewrite expocodes in database
+        self.fix_expocode_in_db(session)
+
+        newpath = self.fix_cruise_dir_name(cruisedir, dryrun)
         self.fix_cruise_dir_db(session, cruisedir, newpath, dryrun)
         self.fix_expocode(newpath, dryrun)
         self.fix_cruise_json(newpath, dryrun)
@@ -403,9 +407,6 @@ class ExpoCodeAliasCorrector(dict):
                 filter(Document.FileType == 'Directory').first()
             if doc:
                 doc.Files = '\n'.join(os.listdir(newpath))
-
-            # Rewrite expocodes in database
-            self.fix_expocode_in_db(session)
 
             # Write Readme
             readme_path = os.path.join(workdir, README_FILENAME)
