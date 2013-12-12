@@ -137,7 +137,7 @@ class BottleDB(Base):
 
 class Codes(Base):
     """ Codes used by CruiseParameterInfos """
-    __tablename__ = 'codes'
+    __tablename__ = 'z_codes'
 
     Code = Column(Integer, primary_key=True)
     Status = Column(String, primary_key=True)
@@ -458,7 +458,7 @@ class Collection(Base):
 
 
 class ParameterStatus(Base):
-    __tablename__ = 'parameter_status'
+    __tablename__ = 'y_parameter_status'
 
     expocode = Column('ExpoCode', Integer(11), primary_key=True)
     ExpoCode = column_property(expocode)
@@ -621,7 +621,7 @@ class Internal(Base):
 
 
 class NewTrack(Base):
-    __tablename__ = 'new_tracks'
+    __tablename__ = 'z_new_tracks'
 
     id = Column(Integer(11), primary_key=True)
     expocode = Column('ExpoCode', String)
@@ -652,7 +652,7 @@ class SupportFile(Base):
 
 
 class UnusedTrack(Base):
-    __tablename__ = 'unused_tracks'
+    __tablename__ = 'z_unused_tracks'
 
     id = Column(Integer(11), primary_key=True)
     expocode = Column('ExpoCode', String)
