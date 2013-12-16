@@ -134,4 +134,4 @@ hydro-vm properly
     $ as admin hydro-vm install
 
     # Install specific git commits as deployment_name
-    # as admin hydro-vm install <deployment_name> <commit>
+    # as admin hydro-vm install <commit> <deployment_name>
