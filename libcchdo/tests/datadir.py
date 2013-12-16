@@ -1,15 +1,19 @@
 """Test cases for datadir"""
 from unittest import TestCase
 import os
-from contextlib import contextmanager
+from contextlib import contextmanager, closing
 from tempfile import mkdtemp
 from shutil import rmtree
 from datetime import datetime
+from zipfile import ZipFile
+from StringIO import StringIO
 
+from libcchdo.formats.netcdf import nc_dataset_to_stream
 from libcchdo.datadir import processing
 from libcchdo.datadir.filenames import README_FILENAME, EXPOCODE_FILENAME
 from libcchdo.datadir.util import (
     find_data_directory, is_cruise_dir, is_working_dir, is_data_dir)
+from libcchdo.datadir.readme import Readme
 
 
 @contextmanager
@@ -72,3 +76,51 @@ class TestProcessing(TestCase):
 
     def test_find_datadir(self):
         self.assertEqual('/data', find_data_directory())
+
+
+class TestReadme(TestCase):
+    def test_updated_files_manifest(self):
+        """Updated files manifest should include stamps."""
+        readme = Readme('testexpo', 'processtext')
+        with temp_dir() as tdir:
+            os.chdir(tdir)
+            tgodir = '5.to_go_online'
+            try:
+                os.makedirs(tgodir)
+            except OSError:
+                pass
+            files = ['hy1.csv', 'ct1.csv', 'ct1.zip', 'hy1.nc', 'nc_hyd.zip',
+                     'ctd.nc']
+            with open(os.path.join(tdir, tgodir, files[0]), 'w') as fff:
+                fff.write('BOTTLE,YYYYMMDDCCHSIOXXX')
+            with open(os.path.join(tdir, tgodir, files[1]), 'w') as fff:
+                fff.write('CTD,YYYYMMDDCCHSIOXXX')
+            with open(os.path.join(tdir, tgodir, files[2]), 'w') as fff:
+                with ZipFile(fff, 'w') as zzz:
+                    zzz.writestr('0ct1.csv', 'CTD,YYYYMMDDCCHSIOZZZ')
+                    zzz.writestr('1ct1.csv', 'CTD,YYYYMMDDCCHSIOXXX')
+                    zzz.writestr('2ct1.csv', 'CTD,YYYYMMDDCCHSIOXXX')
+            with open(os.path.join(tdir, tgodir, files[3]), 'w') as fff:
+                with nc_dataset_to_stream(fff) as ncf:
+                    ncf.ORIGINAL_HEADER = 'BOTTLE,YYYYMMDDCCHSIOXXX\n'
+            with open(os.path.join(tdir, tgodir, files[4]), 'w') as fff:
+                with ZipFile(fff, 'w') as zzz:
+                    with closing(StringIO()) as ggg:
+                        with nc_dataset_to_stream(ggg) as ncf:
+                            ncf.ORIGINAL_HEADER = 'BOTTLE,YYYYMMDDCCHSIOXXX\n'
+                        zzz.writestr('0.nc', ggg.getvalue())
+                    with closing(StringIO()) as ggg:
+                        with nc_dataset_to_stream(ggg) as ncf:
+                            ncf.ORIGINAL_HEADER = 'BOTTLE,YYYYMMDDCCHSIOXXX\n'
+                        zzz.writestr('1.nc', ggg.getvalue())
+            with open(os.path.join(tdir, tgodir, files[5]), 'w') as fff:
+                with nc_dataset_to_stream(fff) as ncf:
+                    pass
+            manifest = readme.updated_files_manifest(files)
+            rows = manifest[1].split('\n')
+            self.assertEqual('hy1.csv    YYYYMMDDCCHSIOXXX', rows[3])
+            self.assertEqual('ct1.csv    YYYYMMDDCCHSIOXXX', rows[4])
+            self.assertEqual('ct1.zip    YYYYMMDDCCHSIOXXX', rows[5])
+            self.assertEqual('hy1.nc     YYYYMMDDCCHSIOXXX', rows[6])
+            self.assertEqual('nc_hyd.zip YYYYMMDDCCHSIOXXX', rows[7])
+            self.assertEqual('ctd.nc                      ', rows[8])

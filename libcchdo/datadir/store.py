@@ -11,8 +11,8 @@ from libcchdo.config import (
     get_legacy_datadir_host, get_merger_name_first, get_merger_name_last)
 from libcchdo.datadir.util import (
     working_dir_name, dryrun_log_info, mkdir_ensure, checksum_dir, copy_chunked,
-    DirName, UOWDirName, uow_copy, tempdir, write_file_manifest,
-    read_file_manifest, regenerate_file_manifest, is_uowdir_effectively_empty,
+    DirName, UOWDirName, uow_copy, tempdir, read_file_manifest,
+    regenerate_file_manifest, is_uowdir_effectively_empty,
     checksum_diff_summary)
 from libcchdo.datadir.dl import AFTP, SFTP
 from libcchdo.datadir.filenames import README_FILENAME
@@ -405,11 +405,14 @@ class LegacyDatastore(Datastore):
             raise AssertionError(
                 u'check_cruise_exists should be called before committing')
         remote_work_path = os.path.join(self.cruise_original_dir, work_dir_base)
-        if self.aftp.isdir(remote_work_path):
-            LOG.error(u'Work directory {work_dir} already exists on '
-                      '{host}. Abort.'.format(
-                work_dir=remote_work_path, host=self.sftp_host))
-            raise ValueError()
+        try:
+            if self.aftp.isdir(remote_work_path):
+                LOG.error(u'Work directory {work_dir} already exists on '
+                          '{host}. Abort.'.format(
+                    work_dir=remote_work_path, host=self.sftp_host))
+                raise ValueError()
+        except IOError:
+            pass
 
         with tempdir(dir='/tmp') as temp_dir:
             work_dir = os.path.join(temp_dir, work_dir_base)
@@ -436,8 +439,8 @@ class LegacyDatastore(Datastore):
                     readme.finalize_sections(
                         remote_work_path, cruise_dir, list(updated_files)))
             except ValueError, err:
-                LOG.error(u'{0} Abort.'.format(err))
-                return
+                LOG.error(u'{0!r} Abort.'.format(err))
+                raise err
             LOG.debug(u'{0} final sections:\n{1}'.format(
                 README_FILENAME, finalize_sections))
 
@@ -458,6 +461,10 @@ class LegacyDatastore(Datastore):
             # All green. Go!
             LOG.info(u'Committing to {0}:{1}'.format(
                 self.sftp_host, remote_work_path))
+
+            LOG.debug('aborting as requested')
+            import sys
+            sys.exit(0)
 
             # upload the working directory
             self.aftp.up_dir(work_dir, remote_work_path)

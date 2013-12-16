@@ -174,12 +174,17 @@ def guess_file_type(filename, file_type=None):
     if file_type is not None:
         return file_type
 
+    matches = []
     for fmt, exts in file_extensions.items():
         for ext in exts:
             if filename.endswith(ext):
-                return fmt
-    # TODO use is_filename_recognized and is_file_recognized
-    return None
+                matches.append((fmt, ext))
+    # Return the format for the longest matching extension
+    if matches:
+        return sorted(matches, key=lambda x: len(x[1]), reverse=True)[0][0]
+    else:
+        # TODO use is_filename_recognized and is_file_recognized
+        return None
 
 
 def read_arbitrary(handle, file_type=None, file_name=None):

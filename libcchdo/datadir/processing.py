@@ -27,8 +27,7 @@ from libcchdo.formats.google_wire import DefaultJSONSerializer
 from libcchdo.datadir.util import (
     mkdir_ensure, make_subdirs, ReadmeEmail, dryrun_log_info, is_cruise_dir,
     str_to_fs_slug, working_dir_name, is_working_dir, copy_chunked, DirName,
-    UOWDirName, uow_copy, write_file_manifest, read_file_manifest,
-    regenerate_file_manifest, PERM_STAFF_ONLY_DIR, PERM_STAFF_ONLY_FILE)
+    UOWDirName, uow_copy, PERM_STAFF_ONLY_DIR, PERM_STAFF_ONLY_FILE)
 from libcchdo.datadir.filenames import (
     EXPOCODE_FILENAME, README_FILENAME, PROCESSING_EMAIL_FILENAME,
     UOW_CFG_FILENAME, README_TEMPLATE_FILENAME)

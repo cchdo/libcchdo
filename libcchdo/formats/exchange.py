@@ -6,6 +6,7 @@ from re import compile as re_compile, match as re_match
 from libcchdo.config import stamp as user_stamp
 from libcchdo.log import LOG
 from libcchdo.fns import Decimal, decimal_to_str
+from libcchdo.formats.stamped import read_stamp
 
 
 # Where no data is known
@@ -19,8 +20,20 @@ FLAG_ENDING_IGOSS = '_FLAG_I'
 END_DATA = 'END_DATA'
 
 
-r_idstamp = re_compile('(BOTTLE|CTD),(\w+)')
+r_idstamp = re_compile('(\w+)')
 r_stamp = re_compile('\d{8}\w+')
+
+
+def read_type_and_stamp(fileobj):
+    """Only get the file type and stamp line.
+
+    For zipfiles, return the most common stamp and warn if there is more than
+    one.
+
+    """
+    def reader(fobj):
+        return fobj.readline().rstrip().split(',')
+    return read_stamp(fileobj, reader)
 
 
 def read_identifier_line(dfile, fileobj, ftype):
@@ -34,19 +47,19 @@ def read_identifier_line(dfile, fileobj, ftype):
             identifier line is malformed.
 
     """
-    stamp_line = fileobj.readline()
-    matchgrp = r_idstamp.match(stamp_line)
-    if not matchgrp:
-        raise ValueError(
-            u"Expected Exchange type identifier line with stamp (e.g. "
-            "{0},YYYYMMDDdivINSwho) got: {1!r}".format(ftype, stamp_line))
-
-    read_ftype = matchgrp.group(1)
+    read_ftype, stamp = read_type_and_stamp(fileobj)
     if ftype != read_ftype:
         raise ValueError(
             u'Expected Exchange file type {0!r} and got {1!r}'.format(
             ftype, read_ftype))
-    stamp = dfile.globals['stamp'] = matchgrp.group(2)
+    matchgrp = r_idstamp.match(stamp)
+    if not matchgrp:
+        raise ValueError(
+            u"Expected Exchange type identifier line with stamp (e.g. "
+            "{0},YYYYMMDDdivINSwho) got: {1!r}".format(
+            ftype, ','.join([ftype, stamp])))
+
+    dfile.globals['stamp'] = stamp
     if not r_stamp.match(stamp):
         LOG.warn(u'{0!r} does not match stamp format YYYYMMDDdivINSwho.'.format(
             stamp))

@@ -139,31 +139,37 @@ def createZipInfo(filename, dtime=None, permissions=0644):
     return info
 
 
-def read(self, fileobj, is_fname_ok, reader, *args, **kwargs):
-    """Generic zip file reader for zip files with multiple datafiles inside."""
+def generate_files(fileobj, is_fname_ok=None):
+    """Generic zip file reader for zip files."""
     zfile = ZeroCommentZipFile(fileobj, 'r')
     try:
         for fname in zfile.namelist():
-            if not is_fname_ok(fname):
+            if is_fname_ok and not is_fname_ok(fname):
                 continue
             with SpooledTemporaryFile(max_size=2 ** 13) as tempfile:
                 tempfile.name = fname
                 tempfile.write(zfile.read(fname))
                 tempfile.flush()
                 tempfile.seek(0)
-
-                dfile = DataFile()
-                reader(dfile, tempfile, *args, **kwargs)
-                self.append(dfile)
-    except ValueError, err:
-        raise ValueError(
-            u'Unable to read {0} in {1}: {2}'.format(
-                fname, fileobj, format_exc(err)))
+                yield tempfile
     except Exception, err:
         LOG.error(u'Unable to read {0} in {1}:\n{2}'.format(
             fname, fileobj, format_exc(err)))
     finally:
         zfile.close()
+
+
+def read(self, fileobj, is_fname_ok, reader, *args, **kwargs):
+    """Generic zip file reader for zip files with multiple datafiles inside."""
+    try:
+        for tempfile in generate_files(fileobj, is_fname_ok):
+            dfile = DataFile()
+            reader(dfile, tempfile, *args, **kwargs)
+            self.append(dfile)
+    except ValueError, err:
+        raise ValueError(
+            u'Unable to read {0} in {1}: {2}'.format(
+                fname, fileobj, format_exc(err)))
 
 
 def write(self, handle, writer, get_filename, **kwargs):

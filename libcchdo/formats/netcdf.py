@@ -2,7 +2,7 @@
 
 
 import tempfile
-from contextlib import contextmanager
+from contextlib import contextmanager, closing
 import datetime
 
 try:
@@ -14,6 +14,7 @@ except ImportError, e:
 from libcchdo import LOG, fns
 from libcchdo.fns import Decimal
 from libcchdo.formats import woce
+from libcchdo.formats.stamped import read_stamp
 
 
 QC_SUFFIX = '_QC'
@@ -35,6 +36,25 @@ UNSPECIFIED_UNITS = 'unspecified'
 
 
 STRLEN = 40
+
+
+def read_type_and_stamp(fileobj):
+    """Only get the file type and stamp line.
+
+    For zipfiles, return the most common stamp and warn if there is more than
+    one.
+
+    """
+    def reader(fobj):
+        with closing(tempfile.NamedTemporaryFile()) as fff:
+            fff.write(fobj.read())
+            fff.flush()
+            nc_file = Dataset(fff.name, 'r')
+            try:
+                return nc_file.ORIGINAL_HEADER.split('\n')[0].split(',')
+            except AttributeError:
+                return ('', '')
+    return read_stamp(fileobj, reader)
 
 
 def ascii(x):

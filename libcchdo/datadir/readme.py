@@ -13,6 +13,14 @@ from libcchdo.datadir.processing import read_uow_cfg, UOWDirName
 from libcchdo.fns import equal_with_epsilon
 from libcchdo.formats.formats import read_arbitrary
 from libcchdo.formats.woce import get_exwoce_params
+from libcchdo.formats.bottle import exchange as btlex
+from libcchdo.formats.ctd import exchange as ctdex
+from libcchdo.formats.ctd.zip import exchange as ctdzipex
+from libcchdo.formats.formats import read_arbitrary, guess_file_type
+from libcchdo.formats.exchange import (
+    read_type_and_stamp as ex_read_type_and_stamp)
+from libcchdo.formats.netcdf import (
+    read_type_and_stamp as nc_read_type_and_stamp)
 
 
 class Table(object):
@@ -181,9 +189,28 @@ class Readme(object):
 
     def updated_files_manifest(self, files):
         """Updated files manifest."""
+        rows = []
+        for fname in files:
+            ftype = guess_file_type(fname)
+            fpath = os.path.join(UOWDirName.tgo, fname)
+            if ftype in ['btl.ex', 'ctd.ex', 'ctd.zip.ex']:
+                with open(fpath, 'r') as fff:
+                    dtype, stamp = ex_read_type_and_stamp(fff)
+                    rows.append([fname, stamp])
+            elif ftype in ['btl.nc', 'ctd.nc', 'btl.zip.nc', 'ctd.zip.nc']:
+                with open(fpath, 'r') as fff:
+                    dtype, stamp = nc_read_type_and_stamp(fff)
+                    rows.append([fname, stamp])
+            else:
+                LOG.debug(
+                    u'Unrecognized file type {0} for filename {1}'.format(
+                    ftype, fname))
+                rows.append([fname, ''])
+                continue
         return [
             ReST.title('Updated Files Manifest', '='),
-            ReST.list(files),
+            ReST.table(Table(
+                ['file', 'stamp'], *rows)),
             ]
 
     def finalize_sections(self, workdir, cruisedir, updated_files):
