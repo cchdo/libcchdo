@@ -75,8 +75,7 @@ def is_data_dir(path):
     """Determine if the given path is a data directory.
 
     """
-    return (all_in(MAIN_DATA_DIRECTORIES, os.listdir(path)) or
-            has_data_files(path))
+    return all_in(MAIN_DATA_DIRECTORIES, os.listdir(path))
 
 
 def is_cruise_dir(path):
