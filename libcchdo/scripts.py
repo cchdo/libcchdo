@@ -1495,7 +1495,8 @@ def datadir_parameter_listing(args):
     """
     from libcchdo.datadir.readme import ProcessingReadme
     print u'\n'.join(ProcessingReadme.parameter_list(
-        args.filepath, args.footnote_id_flagged, args.footnote_id_empty))
+        args.filepath, args.footnote_id_flagged, args.footnote_id_empty,
+        args.footnote_id_not_in_woce))
 
 
 with subcommand(datadir_parsers, 'param_list', datadir_parameter_listing) as p:
@@ -1507,6 +1508,10 @@ with subcommand(datadir_parsers, 'param_list', datadir_parameter_listing) as p:
         '--footnote-id-empty', default=2,
         help='the footnote id to use for whether the parameter only has fill '
             'values or has no reported measured data (default: 2)')
+    p.add_argument(
+        '--footnote-id-not-in-woce', default=3,
+        help='the footnote id to use for whether the parameter is not in WOCE '
+            'files (default: 3)')
     p.add_argument(
         'filepath', help='the path to a file to list the parameters for')
 

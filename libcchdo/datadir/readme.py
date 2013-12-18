@@ -12,6 +12,7 @@ from libcchdo.config import get_merger_name_first, get_merger_name_last
 from libcchdo.datadir.processing import read_uow_cfg, UOWDirName
 from libcchdo.fns import equal_with_epsilon
 from libcchdo.formats.formats import read_arbitrary
+from libcchdo.formats.woce import get_exwoce_params
 
 
 class Table(object):
@@ -244,7 +245,8 @@ class ProcessingReadme(Readme):
             ]
 
     @classmethod
-    def parameter_list(cls, path, qf_footnote_id, fill_footnote_id):
+    def parameter_list(cls, path, qf_footnote_id, fill_footnote_id,
+                       not_in_woce_id):
         """Return a parameter listing for the given file path.
 
         """
@@ -256,15 +258,19 @@ class ProcessingReadme(Readme):
             'EXPOCODE', 'SECT_ID', 'STNNBR', 'CASTNO', 'BTLNBR', 'SAMPNO',
             'DEPTH', 'LATITUDE', 'LONGITUDE', '_DATETIME']
 
+        woce_params = get_exwoce_params().keys()
         parameter_list = []
         for column in dfile.sorted_columns():
             if column.parameter.mnemonic_woce() in IGNORED_PARAMETERS:
                 continue
-            param = column.parameter.mnemonic_woce()
+            base_param = column.parameter.mnemonic_woce()
+            param = base_param
             if column.is_flagged_woce():
                 param += ' ' + ReST.footnote_note(qf_footnote_id)
             if (column.values[0] is None and column.is_global()):
                 param += ' ' + ReST.footnote_note(fill_footnote_id)
+            if base_param not in woce_params:
+                param += ' ' + ReST.footnote_note(not_in_woce_id)
             parameter_list.append(param)
         return parameter_list
 
