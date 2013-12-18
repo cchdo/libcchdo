@@ -70,8 +70,10 @@ ALKALI,UMOL/KG,"100,2800",F8.1,,x,,,
 PCO2,UATM,"50,2000",F8.1,,x,,,
 PCO2TMP,DEG C,,F8.2,,x,,,
 FCO2,,,,,,,,
-PH,,"7.6,8.3",F8.4,,x,,,
-PHTEMP,DEG C,,F8.2,,x,,,
+FCO2TMP,,,,,,,,
+PH_SWS,,"7.6,8.3",F8.4,,x,,,
+PH_TOT,,"7.6,8.3",F8.4,,x,,,
+PH_TMP,DEG C,,F8.2,,x,,,
 XMISS,%TRANS,"0,100",F8.2,,,,x,x
 FLUOR,MC/CUM,"0,50",F8.3,,,,x,x
 NUMBER,,,I8,,,,,x
