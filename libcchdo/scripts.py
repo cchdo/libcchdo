@@ -1210,9 +1210,10 @@ def _merge_ex_and_ex(args, file_format, key_determiner, collection=False):
         deriv_name = fderiv.name
         file_format.read(deriv, fderiv)
 
-    keycols = key_determiner(origin, deriv)
     if args.on:
         keycols = [xxx.strip() for xxx in args.on.split(',')]
+    else:
+        keycols = key_determiner(origin, deriv)
     LOG.info('Merging on keys composed of: {0!r}'.format(keycols))
 
     if args.parameters_to_merge:
