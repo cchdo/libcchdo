@@ -5,7 +5,7 @@ from sqlalchemy import (
     Column, Integer, String, Boolean, Unicode, DateTime, Date, ForeignKey
     )
 import sqlalchemy.orm
-from sqlalchemy.orm import relationship, relation, column_property
+from sqlalchemy.orm import relationship, relation, column_property, backref
 from sqlalchemy.types import BINARY
 import sqlalchemy.ext.declarative
 from geoalchemy import GeometryColumn, LineString
@@ -525,7 +525,8 @@ class QueueFile(Base):
     hidden = Column(Integer)
     documentation = Column(Integer)
     submission_id = Column(Integer, ForeignKey('submissions.id'))
-    submission = relationship('Submission')
+    submission = relationship('Submission', backref=backref(
+        'queue_file', uselist=False))
     
     def is_unmerged(self):
         """Return the unmerged status.
