@@ -1210,10 +1210,10 @@ def _merge_ex_and_ex(args, file_format, key_determiner, collection=False):
         deriv_name = fderiv.name
         file_format.read(deriv, fderiv)
 
-    if args.on:
-        keycols = [xxx.strip() for xxx in args.on.split(',')]
-    else:
+    if args.guess_key:
         keycols = key_determiner(origin, deriv)
+    else:
+        keycols = [xxx.strip() for xxx in args.key.split(',')]
     LOG.info('Merging on keys composed of: {0!r}'.format(keycols))
 
     if args.parameters_to_merge:
@@ -1243,6 +1243,29 @@ def _merge_ex_and_ex(args, file_format, key_determiner, collection=False):
         file_format.write(dfout, out_file)
 
 
+def _add_merge_arguments(p):
+    key_group = p.add_mutually_exclusive_group(required=True)
+    key_group.add_argument(
+        '--guess-key', action='store_true', 
+        help='Whether to guess the key on which to merge the files.')
+    key_group.add_argument(
+        '--key', type=str, 
+        help='Comma separated columns to use as the key to merge on.')
+    p.add_argument(
+        '--merge-different', action='store_true',
+        help='Merge all different parameters')
+    p.add_argument(
+        'origin', type=FileType('r'),
+        help='file to merge onto')
+    p.add_argument(
+        'derivative', type=FileType('r'),
+        help='file to update first file with')
+    merge_group = p.add_argument_group(title='Merge parameters')
+    merge_group.add_argument(
+        'parameters_to_merge', type=str, nargs='*', default=[],
+        help='parameters to merge')
+
+
 def merge_btlex_and_btlex(args):
     """Merge Bottle Exchange files by overwriting the first with the second.
 
@@ -1259,22 +1282,7 @@ with subcommand(merge_parsers, 'botex_and_botex', merge_btlex_and_btlex) as p:
     p.add_argument(
         '--output', type=FileType('w'), nargs='?', default=sys.stdout,
         help='output Bottle Exchange file')
-    p.add_argument(
-        '--on', type=str, nargs='?',
-        help='Comma separated columns to use as the key to merge on.')
-    p.add_argument(
-        '--merge-different', action='store_true',
-        help='Merge all different parameters')
-    p.add_argument(
-        'origin', type=FileType('r'),
-        help='file to merge onto')
-    p.add_argument(
-        'derivative', type=FileType('r'),
-        help='file to update first file with')
-    merge_group = p.add_argument_group(title='Merge parameters')
-    merge_group.add_argument(
-        'parameters_to_merge', type=str, nargs='*', default=[],
-        help='parameters to merge')
+    _add_merge_arguments(p)
 
 
 def merge_ctdex_and_ctdex(args):
@@ -1293,22 +1301,7 @@ with subcommand(merge_parsers, 'ctdex_and_ctdex', merge_ctdex_and_ctdex) as p:
     p.add_argument(
         '--output', type=FileType('w'), nargs='+', default=sys.stdout,
         help='output CTD Exchange file')
-    p.add_argument(
-        '--on', type=str, nargs='?',
-        help='Comma separated columns to use as the key to merge on.')
-    p.add_argument(
-        '--merge-different', action='store_true',
-        help='Merge all different parameters')
-    p.add_argument(
-        'origin', type=FileType('r'),
-        help='file to merge onto')
-    p.add_argument(
-        'derivative', type=FileType('r'),
-        help='file to update first file with')
-    merge_group = p.add_argument_group(title='Merge parameters')
-    merge_group.add_argument(
-        'parameters_to_merge', type=str, nargs='*', default=[],
-        help='parameters to merge')
+    _add_merge_arguments(p)
 
 
 def merge_ctdzipex_and_ctdzipex(args):
@@ -1342,22 +1335,7 @@ with subcommand(merge_parsers, 'ctdzipex_and_ctdzipex',
     p.add_argument(
         '--output', type=FileType('w'), nargs='+', default=sys.stdout,
         help='output CTD ZIP Exchange file')
-    p.add_argument(
-        '--on', type=str, nargs='?',
-        help='Comma separated columns to use as the key to merge on.')
-    p.add_argument(
-        '--merge-different', action='store_true',
-        help='Merge all different parameters')
-    p.add_argument(
-        'origin', type=FileType('r'),
-        help='file to merge onto')
-    p.add_argument(
-        'derivative', type=FileType('r'),
-        help='file to update first file with')
-    merge_group = p.add_argument_group(title='Merge parameters')
-    merge_group.add_argument(
-        'parameters_to_merge', type=str, nargs='*', default=[],
-        help='parameters to merge')
+    _add_merge_arguments(p)
 
 
 datadir_parser = hydro_subparsers.add_parser(
