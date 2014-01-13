@@ -462,10 +462,6 @@ class LegacyDatastore(Datastore):
             LOG.info(u'Committing to {0}:{1}'.format(
                 self.sftp_host, remote_work_path))
 
-            LOG.debug('aborting as requested')
-            import sys
-            sys.exit(0)
-
             # upload the working directory
             self.aftp.up_dir(work_dir, remote_work_path)
 
