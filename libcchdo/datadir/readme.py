@@ -11,7 +11,6 @@ from libcchdo.datadir.filenames import (
 from libcchdo.config import get_merger_name_first, get_merger_name_last
 from libcchdo.datadir.processing import read_uow_cfg, UOWDirName
 from libcchdo.fns import equal_with_epsilon
-from libcchdo.formats.formats import read_arbitrary
 from libcchdo.formats.woce import get_exwoce_params
 from libcchdo.formats.bottle import exchange as btlex
 from libcchdo.formats.ctd import exchange as ctdex
@@ -312,6 +311,8 @@ class ProcessingReadme(Readme):
         fill_footnote = ReST.footnote(
             'parameter only has fill values/no reported measured data')
         fill_footnote_id = ReST.next_footnote_id - 1
+        not_in_woce_footnote = ReST.footnote('not in WOCE bottle file')
+        not_in_woce_id = ReST.next_footnote_id - 1
 
         for qinfo in self.submission:
             fname = qinfo['filename']
@@ -322,7 +323,8 @@ class ProcessingReadme(Readme):
             try:
                 file_summaries.append(
                     ReST.list(ProcessingReadme.parameter_list(
-                        path, qf_footnote_id, fill_footnote_id)))
+                        path, qf_footnote_id, fill_footnote_id,
+                        not_in_woce_id)))
             except Exception, err:
                 LOG.error(
                     u'Unable to read parameters for {0}:\n{1!r}'.format(
@@ -334,7 +336,7 @@ class ProcessingReadme(Readme):
             u'',
             qf_footnote,
             fill_footnote,
-            ReST.footnote('not in WOCE bottle file'),
+            not_in_woce_footnote,
             ReST.footnote('merged, see merge_'),
             u'',
             ]

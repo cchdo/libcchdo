@@ -32,7 +32,7 @@ def read_type_and_stamp(fileobj):
 
     """
     def reader(fobj):
-        return fobj.readline().rstrip().split(',')
+        return fobj.readline().rstrip().split(',', 1)
     return read_stamp(fileobj, reader)
 
 
