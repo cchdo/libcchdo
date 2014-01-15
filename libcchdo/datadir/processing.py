@@ -13,6 +13,7 @@ from re import search, sub as re_sub
 from urllib2 import urlopen, HTTPError
 from json import load as json_load, dump as json_dump, loads
 from collections import OrderedDict
+from traceback import format_exc
 
 from docutils.utils import SystemMessage
 from docutils.core import publish_string
@@ -313,8 +314,6 @@ def parse_readme(readme):
     subject = title
     if not merger:
         merger = 'unknown'
-    matches = search(r'([A-Za-z0-9_\/]+)\s+processing', title)
-
     if merger == 'unknown':
         merger = get_merger_name()
     return title, merger, subject
@@ -326,20 +325,20 @@ Dear CCHDO,
 This is an automated message.
 
 The cruise page for http://cchdo.ucsd.edu/cruise/{expo} was updated by {merger}.
+
 {process_summary}
+
 A history note ({note_id}) has been made for the attached processing notes.
 """
 
 
 PROCESS_SUMMARY = """\
-
 This update includes:
 
 {sub_plural}
 {submission_summary}
 
-{q_plural} {q_ids} have been marked as merged.
-
+{q_plural} {q_ids} marked as merged.\
 """
 
 
@@ -364,7 +363,7 @@ class ProcessingEmail(ReadmeEmail):
             note_id=note_id)
 
 
-def send_processing_email(readme, email_path, expocode, q_infos, note_id, q_ids,
+def create_processing_email(readme, expocode, q_infos, note_id, q_ids,
                           dryrun=True):
     """Send processing completed notification email."""
     pemail = ProcessingEmail(dryrun=dryrun)
@@ -373,7 +372,7 @@ def send_processing_email(readme, email_path, expocode, q_infos, note_id, q_ids,
     pemail.set_body(pemail.generate_body(
         merger, expocode, q_infos, note_id, q_ids))
     pemail.attach_readme(readme)
-    pemail.send(email_path)
+    return pemail
 
 
 def _check_uow_cfg(uow_cfg):
@@ -402,6 +401,15 @@ def _check_uow_cfg(uow_cfg):
         raise ValueError(u'UOW configuration is missing required fields.')
 
 
+def _q_from_uow_cfg(uow_cfg):
+    """Retrieve the unique queue file infos and ids from the UOW configuration.
+
+    """
+    q_infos = uow_cfg.get('q_infos', [])
+    q_ids = uniquify([x['q_id'] for x in q_infos])
+    return q_infos, q_ids
+
+
 def uow_commit_postflight(readme_path, email_path, uow_cfg, dryrun=True):
     """Perform UOW commit postflight actions.
 
@@ -424,17 +432,17 @@ def uow_commit_postflight(readme_path, email_path, uow_cfg, dryrun=True):
     title = uow_cfg['title']
     summary = uow_cfg['summary']
 
-    q_infos = uow_cfg.get('q_infos', [])
-    q_ids = uniquify([x['q_id'] for x in q_infos])
+    q_ids = _q_ids_from_uow_cfg(uow_cfg)
 
     note_id = DSTORE.add_processing_note(
         readme, expocode, title, summary, q_ids, dryrun)
 
     try:
-        send_processing_email(
-            readme, email_path, expocode, q_infos, note_id, q_ids, dryrun)
+        pemail = create_processing_email(
+            readme, expocode, q_infos, note_id, q_ids, dryrun)
+        pemail.send(email_path)
     except (KeyboardInterrupt, Exception), err:
-        LOG.error(u'Could not send email: {0!r}'.format(err))
+        LOG.error(u'Could not send email: {0}'.format(format_exc(3)))
         LOG.info(u'Retry sending email with hydro datadir email {0}'.format(
             email_path))
 

@@ -261,6 +261,11 @@ class ReadmeEmail(object):
 
 
 def send_email(email_str, from_addr, to_addr, email_path):
+    """Attempt to send email using UCSD SMTP server.
+
+    email_path - the path to write the email to in case of failure
+
+    """
     smtp = SMTP_SSL('smtp.ucsd.edu')
     try:
         smtp_pass = ''

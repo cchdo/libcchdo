@@ -1536,6 +1536,40 @@ with subcommand(datadir_parsers, 'email', datadir_email) as p:
          help='email file')
 
 
+def datadir_create_processing_email(args):
+    """Record processing history note, mark merged, and notify."""
+    from libcchdo.datadir.processing import (
+        create_processing_email, _q_from_uow_cfg, read_uow_cfg)
+    with open(args.readme_path) as fff:
+        readme = fff.read()
+    uow_cfg = read_uow_cfg(args.uow_cfg_path)
+    expocode = uow_cfg['expocode']
+    q_infos, q_ids = _q_from_uow_cfg(uow_cfg)
+
+    pemail = create_processing_email(
+        readme, expocode, q_infos, args.note_id, q_ids, args.dry_run)
+    with open(args.email_path, 'w') as fff:
+        fff.write(pemail._email.as_string())
+
+
+with subcommand(datadir_parsers, 'create_processing_email',
+                datadir_create_processing_email) as p:
+    p.add_argument(
+        '-n', '--dry-run', action='store_true')
+    p.add_argument(
+        '--uow-cfg-path', default=UOW_CFG_FILENAME, nargs='?',
+        help='The path to the UOW configuration file.')
+    p.add_argument(
+        '--readme-path', default=README_FILENAME, nargs='?',
+        help='The path to the processing note file.')
+    p.add_argument(
+        '--email-path', default=PROCESSING_EMAIL_FILENAME, nargs='?',
+        help='The path to write the processing note email to.')
+    p.add_argument(
+        'note_id', type=str,
+        help='The history note id to use')
+
+
 def datadir_add_processing_note(args):
     """Record processing history note, mark merged, and notify."""
     from libcchdo.datadir.processing import (
