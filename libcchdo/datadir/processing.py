@@ -432,7 +432,7 @@ def uow_commit_postflight(readme_path, email_path, uow_cfg, dryrun=True):
     title = uow_cfg['title']
     summary = uow_cfg['summary']
 
-    q_ids = _q_ids_from_uow_cfg(uow_cfg)
+    q_infos, q_ids = _q_from_uow_cfg(uow_cfg)
 
     note_id = DSTORE.add_processing_note(
         readme, expocode, title, summary, q_ids, dryrun)
