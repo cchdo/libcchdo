@@ -86,9 +86,13 @@ def convert_unit(session, name, mnemonic):
     return units
 
 
+def find_parameter(session, pname):
+    return session.query(std.Parameter).filter(
+        std.Parameter.name == pname).first()
+
+
 def _find_or_create_parameter(session, name):
-    parameter = session.query(std.Parameter).filter(
-        std.Parameter.name == name).first()
+    parameter = find_parameter(session, name)
     if not parameter:
         parameter = std.Parameter(name)
         session.add(parameter)

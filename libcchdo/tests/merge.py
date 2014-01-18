@@ -17,30 +17,6 @@ from libcchdo.formats.ctd import exchange as ctdex
 from libcchdo.formats.bottle import exchange as btlex
 
 
-def ensure_lines(lines, stream):
-    stream.seek(0)
-    for line in stream:
-        if not lines:
-            break
-        for query in lines:
-            if type(query) is list:
-                found = 0
-                for qqq in query:
-                    if qqq in line:
-                        found += 1
-                if found == len(query):
-                    lines.remove(query)
-            else:
-                if query in line:
-                    lines.remove(query)
-    if not lines:
-        return True
-    print 'Missing log lines', repr(lines)
-    stream.seek(0)
-    print repr(stream.read())
-    return False
-
-
 class TestMerge(BaseTestCase):
     def test_different_columns(self):
         """Columns between two datafiles differ under a wide variety of cases.
@@ -99,7 +75,7 @@ END_DATA
                 "DELC14 differs at origin row 1:\t(None, Decimal('10.000'))",
                 "DELC14_FLAG_W differs at origin row 0:\t(9, 1)",
             ]
-            self.assertTrue(ensure_lines(lines, self.logstream))
+            self.assertTrue(self.ensure_lines(lines))
 
             # Columns are not different if merged results are not different.
             dfo = DataFile()
@@ -195,7 +171,7 @@ END_DATA
             lines = [
                 ['Key on', 'derivative file does not exist in origin', '600']
             ]
-            self.assertTrue(ensure_lines(lines, self.logstream))
+            self.assertTrue(self.ensure_lines(lines))
 
     def test_merge_btl_no_common_keys(self):
         """Warn if there are no common keys."""
@@ -240,7 +216,7 @@ END_DATA
                 'No keys matched',
                 'No keys provided to map on.',
             ]
-            self.assertTrue(ensure_lines(lines, self.logstream))
+            self.assertTrue(self.ensure_lines(lines))
 
     def test_map_collections_keep_origin_files(self):
         """When merging collections, make sure to keep origin's files.
@@ -273,7 +249,7 @@ END_DATA
             "Origin file key ('a', 1, 1) is not present in derivative collection.",
             "Derivative file key ('b', 1, 1) is not present in origin collection.",
         ]
-        self.assertTrue(ensure_lines(lines, self.logstream))
+        self.assertTrue(self.ensure_lines(lines))
 
     def test_merge_collections(self):
         """When merging collections, map files, then merge mapped files.
@@ -323,7 +299,7 @@ END_DATA
             # NITRIT columns are the same
             "Instructed to merge parameters that are not different: ['NITRIT']"
         ]
-        self.assertTrue(ensure_lines(lines, self.logstream))
+        self.assertTrue(self.ensure_lines(lines))
 
     def test_merge_datafiles(self):
         """Merge datafiles.
@@ -393,7 +369,7 @@ END_DATA
         lines = [
             "Changed units for CTDOXY from '' to 'UMOL/KG'",
         ]
-        self.assertTrue(ensure_lines(lines, self.logstream))
+        self.assertTrue(self.ensure_lines(lines))
 
     def test_diff_decplaces(self):
         """Derivative is still different when decimal places are different."""
@@ -466,7 +442,7 @@ END_DATA
         lines = [
             "Instructed to merge parameters that are not in either datafile: ['CTDSAL']",
         ]
-        self.assertTrue(ensure_lines(lines, self.logstream))
+        self.assertTrue(self.ensure_lines(lines))
 
     def test_merge_datafiles_flags(self):
         """It should be possible to only merge flag "columns".
@@ -561,7 +537,7 @@ DBAR,,ITS-90,,PSS-78,,UMOL/KG,,0-5VDC,,,
             args.parameters_to_merge = None
             args.merge_different = True
             args.output = output
-            args.on = None
+            args.guess_key = True
             merge_ctdex_and_ctdex(args)
 
             with open(output.name) as fff:
@@ -609,7 +585,7 @@ END_DATA
             args.parameters_to_merge = None
             args.merge_different = True
             args.output = output
-            args.on = None
+            args.guess_key = True
             merge_btlex_and_btlex(args)
 
             with open(output.name) as fff:
@@ -621,4 +597,4 @@ END_DATA
         lines = [
             "Merging on keys composed of: ('EXPOCODE', 'STNNBR', 'CASTNO', 'SAMPNO', 'BTLNBR')",
         ]
-        self.assertTrue(ensure_lines(lines, self.logstream))
+        self.assertTrue(self.ensure_lines(lines))

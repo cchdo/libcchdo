@@ -5,7 +5,9 @@ from re import compile as re_compile, match as re_match
 
 from libcchdo.config import stamp as user_stamp
 from libcchdo.log import LOG
-from libcchdo.fns import Decimal, decimal_to_str
+from libcchdo.fns import Decimal, decimal_to_str, _decimal, out_of_band
+from libcchdo.db.model.std import session
+from libcchdo.db.model.convert import find_parameter
 from libcchdo.formats.stamped import read_stamp
 
 
@@ -64,6 +66,7 @@ def read_identifier_line(dfile, fileobj, ftype):
         LOG.warn(u'{0!r} does not match stamp format YYYYMMDDdivINSwho.'.format(
             stamp))
 
+
 def read_comments(dfile, fileobj):
     """Read the Exchange header comments.
 
@@ -80,6 +83,97 @@ def read_comments(dfile, fileobj):
         line = fileobj.readline()
     dfile.globals['header'] = u''.join(headers)
     return line
+
+
+def _prepare_to_read_exchange_data(dfile, columns):
+    """Return preparatory information about the columns to be read.
+
+    columns - list of WOCE names of parameters
+
+    Returns:
+        A list of tuples, each containing the list to which to append the next
+        value as well as, depending on whether the column is:
+        1. data column
+        a standard Parameter that has been loaded from the database with
+        format string
+        2. flag column
+        a tuple including the flag name, the attribute of the Column for the
+        flag column, and the parameter name
+
+    """
+    infos = []
+    ssesh = session()
+    for column in columns:
+        flag_info = None
+        if column.endswith(FLAG_ENDING_WOCE):
+            colname = column[:column.index(FLAG_ENDING_WOCE)]
+            flag_info = ('WOCE', 'flags_woce', colname)
+        elif column.endswith(FLAG_ENDING_IGOSS):
+            colname = column[:column.index(FLAG_ENDING_IGOSS)]
+            flag_info = ('IGOSS', 'flags_igoss', colname)
+        else:
+            colname = column
+        try:
+            col = dfile[colname]
+        except KeyError, err:
+            if flag_info:
+                LOG.error(u'Flag column {0} exists without parameter '
+                    'column {1}'.format(column, colname))
+            raise err
+
+        if flag_info:
+            col = getattr(col, flag_info[1])
+            infos.append((col, flag_info))
+        else:
+            infos.append((col, find_parameter(ssesh, column)))
+    return infos
+
+
+def _read_data_row(dfile, row_i, info, raw):
+    raw_value = raw.strip()
+    col, param = info
+    if type(param) is tuple:
+        try:
+            value = int(raw_value)
+        except (ValueError, TypeError):
+            LOG.warn(
+                u'Bad {0} flag {1!r} for {2} on data row {3}'.format(
+                param[0], raw_value, param[2], row_i))
+            value = None
+    else:
+        if param is None or param.format.endswith('s'):
+            value = raw_value
+        else:
+            if out_of_band(raw_value):
+                value = None
+            else:
+                try:
+                    value = _decimal(raw_value)
+                except:
+                    value = raw_value
+    col.append(value)
+
+
+def read_data(dfile, fileobj, columns):
+    """Read Exchange data rows."""
+    row_i = 0
+    infos = _prepare_to_read_exchange_data(dfile, columns)
+    l = fileobj.readline().strip()
+    while l:
+        if l.startswith(END_DATA):
+            break
+        values = l.split(',')
+        
+        # Check columns and values to match length
+        if len(columns) != len(values):
+            raise ValueError(
+                'Expected as many columns as values in file ({0}). Found {1} '
+                'columns and {2} values at data line {3}'.format(
+                    fileobj.name, len(columns), len(values), len(dfile) + 1))
+        for info, raw in zip(infos, values):
+            _read_data_row(dfile, row_i, info, raw)
+        l = fileobj.readline().strip()
+        row_i += 1
 
 
 def get_flagged_format_parameter_values(dfile):

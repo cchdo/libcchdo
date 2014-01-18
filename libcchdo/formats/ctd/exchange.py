@@ -8,8 +8,8 @@ from libcchdo.formats import pre_write
 from libcchdo.formats import woce
 from libcchdo.formats.exchange import (
     FLAG_ENDING_WOCE, FLAG_ENDING_IGOSS,
-    read_identifier_line, read_comments, write_identifier, write_data,
-    write_flagged_format_parameter_values, FILL_VALUE, END_DATA)
+    read_identifier_line, read_comments, read_data, write_identifier,
+    write_data, write_flagged_format_parameter_values, FILL_VALUE, END_DATA)
 from libcchdo.formats.formats import (
     get_filename_fnameexts, is_filename_recognized_fnameexts,
     is_file_recognized_fnameexts)
@@ -122,38 +122,7 @@ def read(self, handle, retain_order=False, header_only=False):
 
     self.create_columns(columns, units, retain_order)
 
-    # Read data
-    numberlike = re_compile('-?\d+(.\d+)?([eE]-?\d+)?')
-    l = handle.readline().strip()
-    while l:
-        if l == END_DATA:
-            break
-        values = l.split(',')
-        
-        # Check columns and values to match length
-        if len(columns) is not len(values):
-            raise ValueError(
-                ("Expected as many columns as values in file (%s). Found %d "
-                 "columns and %d values at data line %d") % \
-                 (handle.name, len(columns), len(values), len(self) + 1))
-
-        for column, value in zip(columns, values):
-            value = value.strip()
-            if column.endswith(FLAG_ENDING_WOCE):
-                self.columns[column[:-7]].flags_woce.append(int(value))
-                continue
-            elif column.endswith(FLAG_ENDING_IGOSS):
-                self.columns[column[:-7]].flags_igoss.append(int(value))
-                continue
-            if out_of_band(float(value)):
-                self.columns[column].append(None)
-                continue
-
-            if numberlike.match(value):
-                value = Decimal(str(value))
-            col = self.columns[column]
-            col.append(value)
-        l = handle.readline().strip()
+    read_data(self, handle, columns)
 
     self.check_and_replace_parameters()
 
