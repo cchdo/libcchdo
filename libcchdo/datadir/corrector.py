@@ -11,7 +11,7 @@ from sqlalchemy.exc import ProgrammingError
 from libcchdo import LOG
 from libcchdo.config import get_merger_initials, get_merger_name
 from libcchdo.datadir.processing import (
-    mkdir_working, DirName, DSTORE)
+    mkdir_working, DirName, FetchCommitter)
 from libcchdo.datadir.readme import Readme
 from libcchdo.datadir.filenames import (
     EXPOCODE_FILENAME, README_FILENAME, CRUISE_META_FILENAME,
@@ -438,7 +438,8 @@ class ExpoCodeAliasCorrector(dict):
             with open(readme_path, 'w') as fff:
                 fff.write(readme_text)
 
-            note_id = DSTORE.add_readme_history_note(
+            fc = FetchCommitter()
+            note_id = fc.dstore.add_readme_history_note(
                 session, readme_text, self.expocode_new, 'ExpoCode',
                 'ExpoCode changed')
 

@@ -32,7 +32,7 @@ from libcchdo.datadir.util import (
 from libcchdo.datadir.filenames import (
     EXPOCODE_FILENAME, README_FILENAME, PROCESSING_EMAIL_FILENAME,
     UOW_CFG_FILENAME, README_TEMPLATE_FILENAME)
-from libcchdo.datadir.store import LegacyDatastore, _get_file_manifest
+from libcchdo.datadir.store import LegacyDatastore, PycchdoDatastore
 
 
 DSTORE = LegacyDatastore()
@@ -172,97 +172,6 @@ def write_uow_cfg(path, uow_cfg):
         LOG.error(u'Unable to write {0}'.format(UOW_CFG_FILENAME))
         LOG.info(
             u'You can write your own using this dict {0!r}'.format(uow_cfg))
-
-
-def mkdir_uow(basepath, title, summary, ids, separator='_',
-              processing_subdirs=False, dl_originals=True):
-    """Create a Unit of Work directory for data work.
-
-    This directory includes the currently online files, submission files, and
-    places to put processing, and final files.
-
-    processing_subdirs - (optional) whether to generate subdirectories in the
-        processing directory.
-    dl_originals - (optional) whether to download the originals directory.
-
-    """
-    from libcchdo.datadir.readme import ProcessingReadme
-
-    # Check that all files referenced have the same cruise.
-    qfis = DSTORE.as_received_infos(*ids)
-    if not qfis:
-        LOG.error(u'None of the ids given refer to Queue files.')
-        # fall back to ExpoCode mode
-        if len(ids) != 1:
-            return
-        LOG.error(u'Using id as ExpoCode')
-        expocodes = ids
-    else:
-        expocodes = uniquify([qf['expocode'] for qf in qfis])
-    if len(expocodes) > 1:
-        LOG.warn(
-            u'As-received files do not have the same cruise.\n{0}'.format(
-            ', '.join(expocodes)))
-        expocode = expocodes[0]
-        LOG.info(u'Picked the first cruise as the UOW cruise: {0}'.format(
-            expocode))
-    elif len(expocodes) == 1:
-        expocode = expocodes[0]
-    else:
-        LOG.error(
-            u'None of the as-received files are attached to a cruise. This '
-            'must be corrected in the database.')
-        return
-
-    dirname = separator.join(
-        ['uow', expocode, str_to_fs_slug(title), '-'.join(map(str, ids))])
-    dirpath = os.path.join(basepath, dirname)
-
-    dir_perms = 0770
-    file_perms = 0660
-
-    mkdir_ensure(dirpath, dir_perms)
-
-    files = [README_FILENAME]
-    subdirs = [
-        UOWDirName.online,
-        UOWDirName.original,
-        UOWDirName.submission,
-        UOWDirName.tgo,
-    ]
-    subdirs.append(processing_subdir(UOWDirName.processing, processing_subdirs))
-    populate_dir(dirpath, files, subdirs, dir_perms, file_perms)
-
-    if expocode != ids[0]:
-        qfis = DSTORE.fetch_as_received(
-            os.path.join(dirpath, UOWDirName.submission), *ids)
-    DSTORE.fetch_online(os.path.join(dirpath, UOWDirName.online), expocode)
-    if dl_originals:
-        DSTORE.fetch_originals(
-            os.path.join(dirpath, UOWDirName.original), expocode)
-
-    # Write UOW configuration
-    uow_cfg = OrderedDict([
-        ['alias', ''],
-        ['expocode', expocode],
-        ['data_types_summary', ''],
-        ['params', ''],
-        ['title', title],
-        ['q_infos', qfis],
-        ['summary', summary],
-        ['conversions', []],
-        ['conversions_checked', False],
-    ])
-    write_uow_cfg(os.path.join(dirpath, UOW_CFG_FILENAME), uow_cfg)
-
-    write_readme_template(os.path.join(dirpath, README_TEMPLATE_FILENAME))
-
-    # Generate a preliminary readme file using the UOW configuration.
-    readme = ProcessingReadme(dirpath)
-    with open(os.path.join(dirpath, README_FILENAME), 'w') as fff:
-        fff.write(unicode(readme))
-
-    return dirpath
 
 
 def is_processing_readme_render_ok(readme_path, confirm_html=True):
@@ -417,97 +326,198 @@ def _q_from_uow_cfg(uow_cfg):
     return q_infos, q_ids
 
 
-def uow_commit_postflight(readme_path, email_path, uow_cfg, dryrun=True):
-    """Perform UOW commit postflight actions.
+class FetchCommitter(object):
+    def __init__(self, dstore=None):
+        """Create a UOW fetch/committer that operates on the data store."""
+        if dstore == 'pycchdo':
+            dstore = PycchdoDatastore()
+        else:
+            dstore = LegacyDatastore()
+        self.dstore = dstore
 
-    This includes writing history event, marking queue files merged, general
-    bookkeeping and notifying the CCHDO community.
+    def mkdir_uow(self, basepath, title, summary, ids, separator='_',
+                  processing_subdirs=False, dl_originals=True):
+        """Create a Unit of Work directory for data work.
 
-    """
-    try:
-        with open(readme_path) as fff:
-            readme = fff.read()
-    except IOError:
-        LOG.error(u'Cannot continue without {0}'.format(README_FILENAME))
-        return
+        This directory includes the currently online files, submission files,
+        and places to put processing, and final files.
 
-    try:
-        _check_uow_cfg(uow_cfg)
-    except ValueError:
-        return
-    expocode = uow_cfg['expocode']
-    title = uow_cfg['title']
-    summary = uow_cfg['summary']
+        processing_subdirs - (optional) whether to generate subdirectories in
+            the processing directory.
+        dl_originals - (optional) whether to download the originals directory.
 
-    q_infos, q_ids = _q_from_uow_cfg(uow_cfg)
+        """
+        from libcchdo.datadir.readme import ProcessingReadme
 
-    note_id = DSTORE.add_processing_note(
-        readme, expocode, title, summary, q_ids, dryrun)
+        # Check that all files referenced have the same cruise.
+        qfis = self.dstore.as_received_infos(*ids)
+        if not qfis:
+            LOG.error(u'None of the ids given refer to Queue files.')
+            # fall back to ExpoCode mode
+            if len(ids) != 1:
+                return
+            LOG.error(u'Using id as ExpoCode')
+            expocodes = ids
+        else:
+            expocodes = uniquify([qf['expocode'] for qf in qfis])
+        if len(expocodes) > 1:
+            LOG.warn(
+                u'As-received files do not have the same cruise.\n{0}'.format(
+                ', '.join(expocodes)))
+            expocode = expocodes[0]
+            LOG.info(u'Picked the first cruise as the UOW cruise: {0}'.format(
+                expocode))
+        elif len(expocodes) == 1:
+            expocode = expocodes[0]
+        else:
+            LOG.error(
+                u'None of the as-received files are attached to a cruise. This '
+                'must be corrected in the database.')
+            return
 
-    try:
-        pemail = create_processing_email(
-            readme, expocode, q_infos, note_id, q_ids, dryrun)
-        pemail.send(email_path)
-    except (KeyboardInterrupt, Exception), err:
-        LOG.error(u'Could not send email: {0}'.format(format_exc(3)))
-        LOG.info(u'Retry sending email with hydro datadir email {0}'.format(
-            email_path))
+        dirname = separator.join(
+            ['uow', expocode, str_to_fs_slug(title), '-'.join(map(str, ids))])
+        dirpath = os.path.join(basepath, dirname)
 
+        dir_perms = 0770
+        file_perms = 0660
 
-def uow_commit(uow_dir, person=None, confirm_html=True, dryrun=True):
-    """Commit a UOW directory to the cruise data history.
+        mkdir_ensure(dirpath, dir_perms)
 
-    write 00_README.txt header, submissions, parameter list, conversion,
-    directories, and updated manifest
+        files = [README_FILENAME]
+        subdirs = [
+            UOWDirName.online,
+            UOWDirName.original,
+            UOWDirName.submission,
+            UOWDirName.tgo,
+        ]
+        subdirs.append(processing_subdir(
+            UOWDirName.processing, processing_subdirs))
+        populate_dir(dirpath, files, subdirs, dir_perms, file_perms)
 
-    """
-    from libcchdo.datadir.readme import ProcessingReadme
-    dryrun_log_info(u'Comitting UOW directory {0}'.format(uow_dir), dryrun)
+        if expocode != ids[0]:
+            qfis = self.dstore.fetch_as_received(
+                os.path.join(dirpath, UOWDirName.submission), *ids)
+        self.dstore.fetch_online(
+            os.path.join(dirpath, UOWDirName.online), expocode)
+        if dl_originals:
+            self.dstore.fetch_originals(
+                os.path.join(dirpath, UOWDirName.original), expocode)
 
-    dir_perms = 0770
+        # Write UOW configuration
+        uow_cfg = OrderedDict([
+            ['alias', ''],
+            ['expocode', expocode],
+            ['data_types_summary', ''],
+            ['params', ''],
+            ['title', title],
+            ['q_infos', qfis],
+            ['summary', summary],
+            ['conversions', []],
+            ['conversions_checked', False],
+        ])
+        write_uow_cfg(os.path.join(dirpath, UOW_CFG_FILENAME), uow_cfg)
 
-    # pre-flight checks
-    # Make sure merger likes readme rendering
-    readme_path = os.path.join(uow_dir, README_FILENAME)
-    if not is_processing_readme_render_ok(
-            readme_path, confirm_html=confirm_html):
-        LOG.error(u'README is not valid reST or merger rejected. Stop.')
-        return
+        write_readme_template(os.path.join(dirpath, README_TEMPLATE_FILENAME))
 
-    # Check UOW configuration
-    try:
-        readme = ProcessingReadme(uow_dir)
-        uow_cfg = readme.uow_cfg
-    except IOError:
-        LOG.error(
-            u'Cannot continue without {0}. (Are you sure {1} is a UOW '
-            'directory?)'.format(UOW_CFG_FILENAME, uow_dir))
-        return
-    except ValueError, err:
-        LOG.error(
-            u'Unable to read {0}. The JSON is invalid. Abort.\n{1!r}'.format(
-            UOW_CFG_FILENAME, err))
-        return
-    try:
-        _check_uow_cfg(uow_cfg)
-    except ValueError:
-        return
-    expocode = uow_cfg['expocode']
+        # Generate a preliminary readme file using the UOW configuration.
+        readme = ProcessingReadme(dirpath)
+        with open(os.path.join(dirpath, README_FILENAME), 'w') as fff:
+            fff.write(unicode(readme))
 
-    try:
-        # Pre-flight checks
-        DSTORE.check_cruise_exists(expocode, dir_perms, dryrun)
-        DSTORE.check_fetched_online_unchanged(readme)
+        return dirpath
 
-        finalized_readme_path = DSTORE.commit(readme, person, dir_perms)
-    except ValueError:
-        return
+    def uow_commit_postflight(self, readme_path, email_path, uow_cfg,
+                              dryrun=True):
+        """Perform UOW commit postflight actions.
 
-    # Flight complete
-    dryrun_log_info(
-        u'Data file commit completed successfully. Writing history and '
-       'notifications.', dryrun)
-    uow_commit_postflight(
-        finalized_readme_path,
-        os.path.join(uow_dir, PROCESSING_EMAIL_FILENAME), uow_cfg, dryrun)
-    dryrun_log_info(u'UOW commit completed successfully.', dryrun)
+        This includes writing history event, marking queue files merged, general
+        bookkeeping and notifying the CCHDO community.
+
+        """
+        try:
+            with open(readme_path) as fff:
+                readme = fff.read()
+        except IOError:
+            LOG.error(u'Cannot continue without {0}'.format(README_FILENAME))
+            return
+
+        try:
+            _check_uow_cfg(uow_cfg)
+        except ValueError:
+            return
+        expocode = uow_cfg['expocode']
+        title = uow_cfg['title']
+        summary = uow_cfg['summary']
+
+        q_infos, q_ids = _q_from_uow_cfg(uow_cfg)
+
+        note_id = self.dstore.add_processing_note(
+            readme, expocode, title, summary, q_ids, dryrun)
+
+        try:
+            pemail = create_processing_email(
+                readme, expocode, q_infos, note_id, q_ids, dryrun)
+            pemail.send(email_path)
+        except (KeyboardInterrupt, Exception), err:
+            LOG.error(u'Could not send email: {0}'.format(format_exc(3)))
+            LOG.info(u'Retry sending email with hydro datadir email {0}'.format(
+                email_path))
+
+    def uow_commit(self, uow_dir, person=None, confirm_html=True, dryrun=True):
+        """Commit a UOW directory to the cruise data history.
+
+        write 00_README.txt header, submissions, parameter list, conversion,
+        directories, and updated manifest
+
+        """
+        from libcchdo.datadir.readme import ProcessingReadme
+        dryrun_log_info(u'Comitting UOW directory {0}'.format(uow_dir), dryrun)
+
+        dir_perms = 0770
+
+        # pre-flight checks
+        # Make sure merger likes readme rendering
+        readme_path = os.path.join(uow_dir, README_FILENAME)
+        if not is_processing_readme_render_ok(
+                readme_path, confirm_html=confirm_html):
+            LOG.error(u'README is not valid reST or merger rejected. Stop.')
+            return
+
+        # Check UOW configuration
+        try:
+            readme = ProcessingReadme(uow_dir)
+            uow_cfg = readme.uow_cfg
+        except IOError:
+            LOG.error(
+                u'Cannot continue without {0}. (Are you sure {1} is a UOW '
+                'directory?)'.format(UOW_CFG_FILENAME, uow_dir))
+            return
+        except ValueError, err:
+            LOG.error(
+                u'Unable to read invalid JSON from {0}. Abort.\n{1!r}'.format(
+                UOW_CFG_FILENAME, err))
+            return
+        try:
+            _check_uow_cfg(uow_cfg)
+        except ValueError:
+            return
+        expocode = uow_cfg['expocode']
+
+        try:
+            # Pre-flight checks
+            self.dstore.check_cruise_exists(expocode, dir_perms, dryrun)
+            self.dstore.check_fetched_online_unchanged(readme)
+
+            finalized_readme_path = self.dstore.commit(readme, person, dir_perms)
+        except ValueError:
+            return
+
+        # Flight complete
+        dryrun_log_info(
+            u'Data file commit completed successfully. Writing history and '
+           'notifications.', dryrun)
+        self.uow_commit_postflight(
+            finalized_readme_path,
+            os.path.join(uow_dir, PROCESSING_EMAIL_FILENAME), uow_cfg, dryrun)
+        dryrun_log_info(u'UOW commit completed successfully.', dryrun)

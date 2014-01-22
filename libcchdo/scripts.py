@@ -1394,10 +1394,11 @@ def datadir_fetch(args):
     """Create a CCHDO Unit Of Work directory.
 
     """
-    from libcchdo.datadir.processing import mkdir_uow, DSTORE
+    from libcchdo.datadir.processing import FetchCommitter
     fetch_requirements = [args.title, args.summary, args.ids]
+    fc = FetchCommitter()
     if not any(fetch_requirements):
-        for f in DSTORE.as_received_unmerged_list():
+        for f in fc.dstore.as_received_unmerged_list():
             print '\t'.join(map(str, 
                 [f['q_id'], f['data_type'], f['submitted_by'], f['filename']]))
         return
@@ -1406,12 +1407,12 @@ def datadir_fetch(args):
             u'Please provide a title and summary for your UOW.\n'
             'hydro datadir fetch "title" "summary"')
         LOG.info(u'List of as-received files specified:')
-        for info in DSTORE.as_received_infos(*args.ids):
+        for info in fc.dstore.as_received_infos(*args.ids):
             LOG.info(u'{0}\t{1}'.format(info['data_type'], info['filename']))
         return
     if not args.ids:
         LOG.info(u'Creating a UOW without queue files to work on.')
-    uow_path = mkdir_uow(args.basepath, args.title, args.summary, args.ids,
+    uow_path = fc.mkdir_uow(args.basepath, args.title, args.summary, args.ids,
                     dl_originals=(not args.skip_dl_original))
     if uow_path:
         print uow_path
@@ -1475,8 +1476,9 @@ with subcommand(datadir_parsers, 'param_list', datadir_parameter_listing) as p:
 
 def datadir_commit(args):
     """Commit a CCHDO Unit of Work."""
-    from libcchdo.datadir.processing import uow_commit
-    uow_commit(args.uow_dir, person=args.person,
+    from libcchdo.datadir.processing import FetchCommitter
+    fc = FetchCommitter()
+    fc.uow_commit(args.uow_dir, person=args.person,
         confirm_html=(not args.readme_html_ok), dryrun=args.dry_run)
 
 
@@ -1576,11 +1578,12 @@ with subcommand(datadir_parsers, 'create_processing_email',
 def datadir_add_processing_note(args):
     """Record processing history note, mark merged, and notify."""
     from libcchdo.datadir.processing import (
-        uow_commit_postflight, is_processing_readme_render_ok, read_uow_cfg)
+        FetchCommitter, is_processing_readme_render_ok, read_uow_cfg)
     if is_processing_readme_render_ok(
             args.readme_path, confirm_html=(not args.readme_html_ok)):
         uow_cfg = read_uow_cfg(args.uow_cfg_path)
-        uow_commit_postflight(
+        fc = FetchCommitter()
+        fc.uow_commit_postflight(
             args.readme_path, args.email_path, uow_cfg, args.dry_run)
     else:
         LOG.error(u'README is not valid reST or merger rejected. Stop.')
