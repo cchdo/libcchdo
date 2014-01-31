@@ -37,6 +37,7 @@ if __name__ == "__main__":
     extras_require['all'] = extras_require.values()
 
     install_requires = [
+        'SQLalchemy<=0.8.4',
         'geoalchemy',
     ]
     if sys.version_info[:3] < (2,5,0):
