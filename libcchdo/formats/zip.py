@@ -161,15 +161,10 @@ def generate_files(fileobj, is_fname_ok=None):
 
 def read(self, fileobj, is_fname_ok, reader, *args, **kwargs):
     """Generic zip file reader for zip files with multiple datafiles inside."""
-    try:
-        for tempfile in generate_files(fileobj, is_fname_ok):
-            dfile = DataFile()
-            reader(dfile, tempfile, *args, **kwargs)
-            self.append(dfile)
-    except ValueError, err:
-        raise ValueError(
-            u'Unable to read {0} in {1}: {2}'.format(
-                fname, fileobj, format_exc(err)))
+    for tempfile in generate_files(fileobj, is_fname_ok):
+        dfile = DataFile()
+        reader(dfile, tempfile, *args, **kwargs)
+        self.append(dfile)
 
 
 def write(self, handle, writer, get_filename, **kwargs):
