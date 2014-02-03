@@ -3,6 +3,11 @@ from datetime import datetime, date
 from contextlib import closing, contextmanager
 from urllib2 import HTTPError
 from shutil import copy2
+from traceback import format_exc
+
+import transaction
+
+from sqlalchemy.exc import DataError
 
 from libcchdo import LOG
 from libcchdo.db.model import legacy
@@ -16,18 +21,6 @@ from libcchdo.datadir.util import (
     checksum_diff_summary)
 from libcchdo.datadir.dl import AFTP, SFTP
 from libcchdo.datadir.filenames import README_FILENAME
-
-
-def _queuefile_info(qfile):
-    return {
-        'filename': qfile.unprocessed_input,
-        'submitted_by': qfile.contact,
-        'date': qfile.date_received,
-        'data_type': qfile.parameters,
-        'q_id': qfile.id,
-        'submission_id': qfile.submission_id,
-        'expocode': qfile.expocode,
-    }
 
 
 def write_cruise_dir_expocode(cruise_dir, expocode):
@@ -148,11 +141,398 @@ def _copy_uow_dirs_into_work_dir(uow_dir, work_dir):
 
 class Datastore(object):
     """Abstraction of datafile storage model."""
-    pass
+
+    def _as_received(self, *ids):
+        """Generate the currently As-Received queue files."""
+        return []
+
+    def _queuefile_info(self, qfile):
+        return {
+            'filename': qfile.unprocessed_input,
+            'submitted_by': qfile.contact,
+            'date': qfile.date_received,
+            'data_type': qfile.parameters,
+            'q_id': qfile.id,
+            'submission_id': qfile.submission_id,
+            'expocode': qfile.expocode,
+        }
+
+    def as_received_infos(self, *ids):
+        """Return queue file information for each queue id."""
+        qfis = []
+        for qfile in self._as_received(*ids):
+            qfis.append(self._queuefile_info(qfile))
+        return qfis
 
 
 class LegacyDatastore(Datastore):
     """Implementation of /data datafile storage model."""
+    def __init__(self):
+        self.sftp_host = get_legacy_datadir_host()
+        self.sftp = SFTP()
+        self._aftp = None
+        self.cruise_original_dir = None
+
+    @property
+    def aftp(self):
+        if self._aftp:
+            return self._aftp
+        self.sftp.connect(self.sftp_host)
+        self._aftp = AFTP(self.sftp)
+        return self._aftp
+
+    def _queuefile_info(self, qfile):
+        return {
+            'filename': qfile.unprocessed_input,
+            'submitted_by': qfile.contact,
+            'date': qfile.date_received,
+            'data_type': qfile.parameters,
+            'q_id': qfile.id,
+            'submission_id': qfile.submission_id,
+            'expocode': qfile.expocode,
+        }
+
+    def as_received_unmerged_list(self):
+        """Return a list of dictionaries representing files that are not merged.
+
+        """
+        with closing(legacy.session()) as sesh:
+            unmerged_qfs = sesh.query(QueueFile).\
+                filter(QueueFile.merged == 0).all()
+            qfis = []
+            for qf in unmerged_qfs:
+                qfi = self._queuefile_info(qf)
+                del qfi['date']
+                qfi['filename'] = os.path.basename(qfi['filename'])
+                qfis.append(qfi)
+            return qfis
+
+    def _as_received(self, *ids):
+        with closing(legacy.session()) as sesh:
+            try:
+                ids = map(int, ids)
+            except ValueError:
+                ids = []
+            qfs = sesh.query(QueueFile).filter(QueueFile.id.in_(ids)).all()
+            for qf in qfs:
+                yield qf
+
+    def fetch_as_received(self, local_path, *ids):
+        """Copy the referenced as-received files into the directory.
+
+        """
+        qf_info = []
+        for qf in self._as_received(*ids):
+            if qf.is_merged():
+                LOG.info(
+                    u'QueueFile {0} is marked already merged'.format(qf.id))
+            elif qf.is_hidden():
+                LOG.info(u'QueueFile {0} is marked hidden'.format(qf.id))
+            path = qf.unprocessed_input
+            filename = os.path.basename(path)
+
+            submission_subdir = os.path.join(local_path, str(qf.id))
+            mkdir_ensure(submission_subdir, 0775)
+            submission_path = os.path.join(submission_subdir, filename)
+
+            with self.aftp.dl(path) as fff:
+                if fff is None:
+                    LOG.error(u'Unable to download {0}'.format(path))
+                    continue
+                with open(submission_path, 'w') as ooo:
+                    copy_chunked(fff, ooo)
+
+            qfi = self._queuefile_info(qf)
+            qfi['id'] = qfi['submission_id']
+            qfi['filename'] = filename
+            qf_info.append(qfi)
+        return qf_info
+
+    @contextmanager
+    def _cruise_directory(self, expocode):
+        with closing(legacy.session()) as sesh:
+            q_docs = sesh.query(legacy.Document).\
+                filter(legacy.Document.ExpoCode == expocode).\
+                filter(legacy.Document.FileType == 'Directory')
+            num_docs = q_docs.count()
+            if num_docs < 1:
+                LOG.error(
+                    u'{0} does not have a directory entry.'.format(expocode))
+                raise ValueError()
+            elif num_docs > 1:
+                LOG.error(
+                    u'{0} has more than one directory entry.'.format(expocode))
+                raise ValueError()
+            yield q_docs.first()
+
+    def _cruise_dir(self, expocode):
+        with self._cruise_directory(expocode) as doc:
+            return doc.FileName
+                
+    IGNORED_FILES = ['Queue', 'original']
+
+    def fetch_online(self, path, expocode):
+        """Copy the referenced cruise's current datafiles into the directory.
+
+        Download the cruise's online files into path.
+
+        """
+        try:
+            with self._cruise_directory(expocode) as doc:
+                cruise_dir = doc.FileName
+
+            for fname in self.aftp.listdir(cruise_dir):
+                online_path = os.path.join(cruise_dir, fname)
+                local_path = os.path.join(path, fname)
+                try:
+                    if self.aftp.isdir(online_path):
+                        continue
+                    with self.aftp.dl(online_path) as fff:
+                        if not fff:
+                            LOG.error(
+                                u'Could not download {0}'.format(online_path))
+                            continue
+                        with open(local_path, 'w') as ooo:
+                            copy_chunked(fff, ooo)
+                except HTTPError, e:
+                    os.unlink(local_path)
+                    if fname in self.IGNORED_FILES:
+                        continue
+                    LOG.error(
+                        u'Could not download {0}:\n{1!r}'.format(fname, e))
+        except IOError, err:
+            LOG.error(
+                u'Unable to list cruise directory {0}'.format(cruise_dir))
+        except ValueError:
+            pass
+
+    def fetch_originals(self, path, expocode):
+        """Copy the referenced cruise's original datafiles into the directory.
+        Download the cruise's original files into path.
+
+        """
+        try:
+            with self._cruise_directory(expocode) as doc:
+                cruise_dir = doc.FileName
+        except ValueError:
+            return
+        originals_dir = os.path.join(cruise_dir, 'original')
+        LOG.info(u'Downloading {0}'.format(originals_dir))
+
+        try:
+            self.aftp.dl_dir(originals_dir, path)
+        except IOError:
+            LOG.error(
+                u'Unable to download originals directory {0}'.format(path))
+
+    def mark_merged(self, session, q_ids):
+        for qid in q_ids:
+            qf = session.query(QueueFile).filter(QueueFile.id == qid).first()
+            if qf.is_merged():
+                LOG.warn(u'QueueFile {0} is already merged.'.format(qf.id))
+            qf.date_merged = date.today()
+            qf.set_merged()
+
+    def add_readme_history_note(self, session, readme, expocode, title, summary,
+                                action='Website Update'):
+        """Add history note for the given readme notes."""
+        cruise = session.query(legacy.Cruise).\
+            filter(legacy.Cruise.ExpoCode == expocode).first()
+        if not cruise:
+            LOG.error(
+                u'{0} does not refer to a cruise that exists.'.format(expocode))
+            return
+
+        event = legacy.Event()
+        event.ExpoCode = cruise.ExpoCode
+        event.First_Name = get_merger_name_first()
+        event.LastName = get_merger_name_last()
+        event.Data_Type = title
+        event.Action = action
+        event.Date_Entered = datetime.now().date()
+        event.Summary = summary
+        event.Note = readme
+
+        session.add(event)
+        session.flush()
+        return event.ID
+
+    def check_online_checksums(self, uow_dir, expocode):
+        """A crude check that no online files have changed since UOW fetch.
+
+        This is performed before comitting a UOW in case of multiple mergers
+        working on the same cruise.
+
+        """
+        
+        saved_dryrun = self.aftp.dryrun
+        self.aftp.dryrun = False
+        try:
+            fetch_dir = os.path.join(uow_dir, UOWDirName.online)
+            fetch_checksum, fetch_file_checksums = checksum_dir(fetch_dir)
+            with tempdir() as temp_dir:
+                self.fetch_online(temp_dir, expocode)
+                current_checksum, current_file_checksums = \
+                    checksum_dir(temp_dir)
+                if fetch_checksum != current_checksum:
+                    checksum_diff_summary(
+                        fetch_file_checksums, current_file_checksums)
+                    raise ValueError(
+                        u'Cruise online files have changed since the last UOW '
+                        'fetch!')
+        finally:
+            self.aftp.dryrun = saved_dryrun
+
+    def check_cruise_exists(self, expocode, dir_perms, dryrun):
+        """Ensure remote cruise original directory exists."""
+        self.aftp.dryrun = dryrun
+        cruise_dir = self._cruise_dir(expocode)
+        self.cruise_original_dir = os.path.join(cruise_dir, 'original')
+        if not self.aftp.isdir(self.cruise_original_dir):
+            try:
+                LOG.info(u'Cruise original directory did not exist. Creating. '
+                    '{0}'.format(self.cruise_original_dir))
+                self.aftp.mkdir(self.cruise_original_dir, dir_perms)
+            except (IOError, OSError), err:
+                LOG.error(
+                    u'Could not ensure original directory {0} exists: '
+                    '{1!r}'.format(self.cruise_original_dir, err))
+                raise ValueError()
+
+    def check_fetched_online_unchanged(self, readme):
+        """Ensure fetched online files have not changed since fetch."""
+        # XXX Datadir specific (Make sure online files have not changed...how?)
+        try:
+            self.check_online_checksums(
+                readme.uow_dir, readme.uow_cfg['expocode'])
+        except ValueError, err:
+            LOG.error(u'{0} Abort.'.format(err))
+            raise err
+
+    def commit(self, readme, person, dir_perms):
+        """Perform actions needed to put files in work dir and online."""
+        # XXX Datadir specific (Work directory is not used in pycchdo. instead
+        # need to do a lot of moving files around)
+        cruise_dir = self._cruise_dir(readme.uow_cfg['expocode'])
+
+        # Prepare a working directory locally to be uploaded
+        # Make sure the UOW doesn't already exist.
+        work_dir_base = working_dir_name(person, title=readme.uow_cfg['title'])
+        try:
+            assert self.cruise_original_dir is not None
+        except AssertionError:
+            raise AssertionError(
+                u'check_cruise_exists should be called before committing')
+        remote_work_path = os.path.join(self.cruise_original_dir, work_dir_base)
+        try:
+            if self.aftp.isdir(remote_work_path):
+                LOG.error(u'Work directory {work_dir} already exists on '
+                          '{host}. Abort.'.format(
+                    work_dir=remote_work_path, host=self.sftp_host))
+                raise ValueError()
+        except IOError:
+            pass
+
+        with tempdir(dir='/tmp') as temp_dir:
+            work_dir = os.path.join(temp_dir, work_dir_base)
+            mkdir_ensure(work_dir, dir_perms)
+
+            # Copy UOW contents into the local working directory
+            _copy_uow_dirs_into_work_dir(readme.uow_dir, work_dir)
+            try:
+                file_sets = _get_file_manifest(readme.uow_dir, work_dir)
+                (new_files, removed_files, overwritten_files, unchanged_files,
+                 missing_tgo_files) = _copy_uow_online_into_work_dir(
+                    readme.uow_dir, work_dir, dir_perms, *file_sets)
+                updated_files = new_files | overwritten_files
+            except ValueError, err:
+                LOG.error(format_exc(err))
+                raise err
+
+            # Finalize the readme file. This means adding the conversion,
+            # directories, and updated manifests
+
+            # Calculate remote work path to use in README
+            try:
+                finalize_sections = u'\n'.join(
+                    readme.finalize_sections(
+                        remote_work_path, cruise_dir, list(updated_files)))
+            except ValueError, err:
+                LOG.error(u'{0} Abort.\n{1}'.format(err, format_exc(err)))
+                raise err
+            LOG.debug(u'{0} final sections:\n{1}'.format(
+                README_FILENAME, finalize_sections))
+
+            # Clean out -UOW- replacement lines from README
+            work_readme_path = os.path.join(work_dir, README_FILENAME)
+            uow_readme_path = os.path.join(readme.uow_dir, README_FILENAME)
+            with open(uow_readme_path) as iii:
+                with open(work_readme_path, 'w') as ooo:
+                    for line in iii:
+                        if line.startswith('.. -UOW-'):
+                            continue
+                        ooo.write(line)
+                    ooo.write(finalize_sections)
+            finalized_readme_path = os.path.join(
+                readme.uow_dir, '00_README.finalized.txt')
+            copy2(work_readme_path, finalized_readme_path)
+
+            # All green. Go!
+            LOG.info(u'Committing to {0}:{1}'.format(
+                self.sftp_host, remote_work_path))
+
+            # upload the working directory
+            self.aftp.up_dir(work_dir, remote_work_path)
+
+        # Update the online files. It is ok to overwrite/delete at this point as
+        # those affected have already been written to originals.
+        for fname in removed_files:
+            self.aftp.remove(os.path.join(cruise_dir, fname))
+        LOG.info('unchanged:')
+        for fname in unchanged_files:
+            try:
+                self.aftp.up(
+                    os.path.join(readme.uow_dir, UOWDirName.online, fname),
+                    os.path.join(cruise_dir, fname), suppress_errors=False)
+            except IOError, err:
+                # It doesn't matter, the file hasn't changed.
+                pass
+                
+        LOG.info('updated/new:')
+        for fname in updated_files:
+            try:
+                self.aftp.up(
+                    os.path.join(readme.uow_dir, UOWDirName.tgo, fname),
+                    os.path.join(cruise_dir, fname), suppress_errors=False)
+            except IOError, err:
+                LOG.critical(
+                    u'Unable to put {0} online: {1!r}'.format(fname, err))
+# TODO Is there any way we can recover at this point? Some updated files may
+# have been overwritten by now
+# Other than making this loop atomic, I don't see how.
+        return finalized_readme_path
+
+    def add_processing_note(self, readme, expocode, title, summary, q_ids,
+                            dryrun=True):
+        """Record processing history note and mark queue files merged.
+
+        """
+        with closing(legacy.session()) as session:
+            note_id = self.add_readme_history_note(
+                session, readme, expocode, title, summary)
+            self.mark_merged(session, q_ids)
+
+            if dryrun:
+                dryrun_log_info(
+                    u'rolled back history note and merged statuses', dryrun)
+                session.rollback()
+            else:
+                session.commit()
+        return note_id
+
+
+class PycchdoDatastore(Datastore):
+    """Implementation of pycchdo datafile storage model."""
     def __init__(self):
         self.sftp_host = get_legacy_datadir_host()
         self.sftp = SFTP()
@@ -493,20 +873,347 @@ class LegacyDatastore(Datastore):
 # Other than making this loop atomic, I don't see how.
         return finalized_readme_path
 
-    def add_processing_note(self, readme, expocode, title, summary, q_ids,
-                            dryrun=True):
+    def add_processing_note(self, session, readme, expocode, title, summary,
+                            q_ids):
         """Record processing history note and mark queue files merged.
 
         """
-        with closing(legacy.session()) as session:
-            note_id = self.add_readme_history_note(
-                session, readme, expocode, title, summary)
-            self.mark_merged(session, q_ids)
+        note_id = self.add_readme_history_note(
+            session, readme, expocode, title, summary)
+        self.mark_merged(session, q_ids)
+        return note_id
 
-            if dryrun:
-                dryrun_log_info(
-                    u'rolled back history note and merged statuses', dryrun)
-                session.rollback()
-            else:
-                session.commit()
+
+from sqlalchemy import engine_from_config
+from pyramid.compat import configparser
+from pycchdo import main as pycchdo
+from pycchdo.models.models import DBSession, _Attr, Cruise
+from libcchdo.config import _CONFIG
+
+
+class CCHDODatastore(Datastore):
+    """Implementation of pycchdo data storage model."""
+
+    def __init__(self):
+        self._cruiseobj = None
+        try:
+            pasteini = _CONFIG.get('pycchdo', 'pasteini')
+        except configparser.NoSectionError, err:
+            LOG.error(
+                u'A pycchdo configuration path must be specified.')
+            raise err
+        config = configparser.ConfigParser({'here': os.path.dirname(pasteini)})
+        config.read(pasteini)
+        settings = dict(config.items('app:pycchdo'))
+        pycchdo(None, **settings)
+
+    def as_received_unmerged_list(self):
+        """Return a list of dictionaries representing files that are not merged.
+
+        """
+        qfiles = []
+        for avf in _Attr.pending_data():
+            if avf.attr.accepted:
+                continue
+            info = {
+                'q_id': avf.attr.id,
+                'data_type': avf.attr.key,
+                'submitted_by': avf.attr.creation_person.name,
+                'filename': avf.value.name,
+            }
+            qfiles.append(info)
+        return qfiles
+
+    def _queuefile_info(self, qfile):
+        return {
+            'filename': qfile.value.name,
+            'submitted_by': qfile.creation_person.name,
+            'date': qfile.creation_timestamp,
+            'data_type': qfile.key,
+            'q_id': qfile.id,
+            'submission_id': qfile.id,
+            'expocode': str(qfile.obj.id),
+        }
+
+    def _as_received(self, *ids):
+        for aid in ids:
+            try:
+                yield _Attr.query().filter(_Attr.id == aid).first()
+            except DataError:
+                transaction.begin()
+
+    def fetch_as_received(self, local_path, *ids):
+        """Copy the referenced as-received files into the directory.
+
+        """
+        qf_info = []
+        for qfile in self._as_received(*ids):
+            if qfile.accepted:
+                LOG.info(
+                    u'QueueFile {0} is marked already merged'.format(qfile.id))
+            elif qfile.is_hidden():
+                LOG.info(u'QueueFile {0} is marked hidden'.format(qfile.id))
+
+            filename = qfile.value.name
+
+            submission_subdir = os.path.join(local_path, str(qfile.id))
+            mkdir_ensure(submission_subdir, 0775)
+            submission_path = os.path.join(submission_subdir, filename)
+
+            with open(submission_path, 'w') as ooo:
+                copy_chunked(qfile.value, ooo)
+
+            qfi = self._queuefile_info(qfile)
+            qfi['id'] = qfi['submission_id']
+            qf_info.append(qfi)
+        return qf_info
+
+    #@contextmanager
+    #def _cruise_directory(self, expocode):
+    #    with closing(legacy.session()) as sesh:
+    #        q_docs = sesh.query(legacy.Document).\
+    #            filter(legacy.Document.ExpoCode == expocode).\
+    #            filter(legacy.Document.FileType == 'Directory')
+    #        num_docs = q_docs.count()
+    #        if num_docs < 1:
+    #            LOG.error(
+    #                u'{0} does not have a directory entry.'.format(expocode))
+    #            raise ValueError()
+    #        elif num_docs > 1:
+    #            LOG.error(
+    #                u'{0} has more than one directory entry.'.format(expocode))
+    #            raise ValueError()
+    #        yield q_docs.first()
+
+    #def _cruise_dir(self, expocode):
+    #    with self._cruise_directory(expocode) as doc:
+    #        return doc.FileName
+
+    def _cruise(self, cid):
+        if self._cruiseobj is None:
+            self._cruiseobj = Cruise.get_by_id(cid)
+            if not self._cruiseobj:
+                raise ValueError(u'Unable to find cruise for {0}'.format(cid))
+        return self._cruiseobj
+
+    def fetch_online(self, path, cid):
+        """Copy the referenced cruise's current datafiles into the directory.
+
+        Download the cruise's online files into path.
+
+        """
+        try:
+            cruise = self._cruise(cid)
+            for key, fff in cruise.files.items():
+                fname = fff.name
+                local_path = os.path.join(path, fname)
+                try:
+                    with open(local_path, 'w') as ooo:
+                        copy_chunked(fff, ooo)
+                except OSError, err:
+                    os.unlink(local_path)
+                    LOG.error(
+                        u'Could not download {0}:\n{1!r}'.format(fname, err))
+        except IOError, err:
+            LOG.error(
+                u'Unable to get cruise {0} files'.format(cid))
+        except ValueError:
+            pass
+
+    def fetch_originals(self, path, expocode):
+        """Copy the referenced cruise's original datafiles into the directory.
+        Download the cruise's original files into path.
+
+        """
+        # TODO what are this?
+# This are files in history.
+# This means 
+# 1. dump the archived tar into here
+# 2. any additional "pending" but changed should be written out here as well.
+# 2a. group them into directories by date?
+        return
+
+    def mark_merged(self, session, q_ids):
+        for qid in q_ids:
+            qf = session.query(QueueFile).filter(QueueFile.id == qid).first()
+            if qf.is_merged():
+                LOG.warn(u'QueueFile {0} is already merged.'.format(qf.id))
+            qf.date_merged = date.today()
+            qf.set_merged()
+
+    def add_readme_history_note(self, session, readme, expocode, title, summary,
+                                action='Website Update'):
+        """Add history note for the given readme notes."""
+        cruise = session.query(legacy.Cruise).\
+            filter(legacy.Cruise.ExpoCode == expocode).first()
+        if not cruise:
+            LOG.error(
+                u'{0} does not refer to a cruise that exists.'.format(expocode))
+            return
+
+        event = legacy.Event()
+        event.ExpoCode = cruise.ExpoCode
+        event.First_Name = get_merger_name_first()
+        event.LastName = get_merger_name_last()
+        event.Data_Type = title
+        event.Action = action
+        event.Date_Entered = datetime.now().date()
+        event.Summary = summary
+        event.Note = readme
+
+        session.add(event)
+        session.flush()
+        return event.ID
+
+    def check_online_checksums(self, uow_dir, expocode):
+        """A crude check that no online files have changed since UOW fetch.
+
+        This is performed before comitting a UOW in case of multiple mergers
+        working on the same cruise.
+
+        """
+        
+        saved_dryrun = self.aftp.dryrun
+        self.aftp.dryrun = False
+        try:
+            fetch_dir = os.path.join(uow_dir, UOWDirName.online)
+            fetch_checksum, fetch_file_checksums = checksum_dir(fetch_dir)
+            with tempdir() as temp_dir:
+                self.fetch_online(temp_dir, expocode)
+                current_checksum, current_file_checksums = \
+                    checksum_dir(temp_dir)
+                if fetch_checksum != current_checksum:
+                    checksum_diff_summary(
+                        fetch_file_checksums, current_file_checksums)
+                    raise ValueError(
+                        u'Cruise online files have changed since the last UOW '
+                        'fetch!')
+        finally:
+            self.aftp.dryrun = saved_dryrun
+
+    def check_cruise_exists(self, expocode, dir_perms, dryrun):
+        """Ensure remote cruise original directory exists."""
+        if not self._cruise(expocode):
+            LOG.error(
+                u'Could not find Cruise {0}: {1!r}'.format(expocode, err))
+            raise ValueError()
+
+    def check_fetched_online_unchanged(self, readme):
+        """Ensure fetched online files have not changed since fetch."""
+        # XXX Datadir specific (Make sure online files have not changed...how?)
+        try:
+            self.check_online_checksums(
+                readme.uow_dir, readme.uow_cfg['expocode'])
+        except ValueError, err:
+            LOG.error(u'{0} Abort.'.format(err))
+            raise err
+
+    def commit(self, readme, person, dir_perms):
+        """Perform actions needed to put files in work dir and online."""
+        # XXX Datadir specific (Work directory is not used in pycchdo. instead
+        # need to do a lot of moving files around)
+        cruise_dir = self._cruise_dir(readme.uow_cfg['expocode'])
+
+        # Prepare a working directory locally to be uploaded
+        # Make sure the UOW doesn't already exist.
+        work_dir_base = working_dir_name(person, title=readme.uow_cfg['title'])
+        try:
+            assert self.cruise_original_dir is not None
+        except AssertionError:
+            raise AssertionError(
+                u'check_cruise_exists should be called before committing')
+        remote_work_path = os.path.join(self.cruise_original_dir, work_dir_base)
+        if self.aftp.isdir(remote_work_path):
+            LOG.error(u'Work directory {work_dir} already exists on '
+                      '{host}. Abort.'.format(
+                work_dir=remote_work_path, host=self.sftp_host))
+            raise ValueError()
+
+        with tempdir(dir='/tmp') as temp_dir:
+            work_dir = os.path.join(temp_dir, work_dir_base)
+            mkdir_ensure(work_dir, dir_perms)
+
+            # Copy UOW contents into the local working directory
+            _copy_uow_dirs_into_work_dir(readme.uow_dir, work_dir)
+            try:
+                file_sets = _get_file_manifest(readme.uow_dir, work_dir)
+                (new_files, removed_files, overwritten_files, unchanged_files,
+                 missing_tgo_files) = _copy_uow_online_into_work_dir(
+                    readme.uow_dir, work_dir, dir_perms, *file_sets)
+                updated_files = new_files | overwritten_files
+            except ValueError, err:
+                LOG.error(err)
+                raise err
+
+            # Finalize the readme file. This means adding the conversion,
+            # directories, and updated manifests
+
+            # Calculate remote work path to use in README
+            try:
+                finalize_sections = u'\n'.join(
+                    readme.finalize_sections(
+                        remote_work_path, cruise_dir, list(updated_files)))
+            except ValueError, err:
+                LOG.error(u'{0} Abort.'.format(err))
+                return
+            LOG.debug(u'{0} final sections:\n{1}'.format(
+                README_FILENAME, finalize_sections))
+
+            # Clean out -UOW- replacement lines from README
+            work_readme_path = os.path.join(work_dir, README_FILENAME)
+            uow_readme_path = os.path.join(readme.uow_dir, README_FILENAME)
+            with open(uow_readme_path) as iii:
+                with open(work_readme_path, 'w') as ooo:
+                    for line in iii:
+                        if line.startswith('.. -UOW-'):
+                            continue
+                        ooo.write(line)
+                    ooo.write(finalize_sections)
+            finalized_readme_path = os.path.join(
+                readme.uow_dir, '00_README.finalized.txt')
+            copy2(work_readme_path, finalized_readme_path)
+
+            # All green. Go!
+            LOG.info(u'Committing to {0}:{1}'.format(
+                self.sftp_host, remote_work_path))
+
+            # upload the working directory
+            self.aftp.up_dir(work_dir, remote_work_path)
+
+        # Update the online files. It is ok to overwrite/delete at this point as
+        # those affected have already been written to originals.
+        for fname in removed_files:
+            self.aftp.remove(os.path.join(cruise_dir, fname))
+        LOG.info('unchanged:')
+        for fname in unchanged_files:
+            try:
+                self.aftp.up(
+                    os.path.join(readme.uow_dir, UOWDirName.online, fname),
+                    os.path.join(cruise_dir, fname), suppress_errors=False)
+            except IOError, err:
+                # It doesn't matter, the file hasn't changed.
+                pass
+                
+        LOG.info('updated/new:')
+        for fname in updated_files:
+            try:
+                self.aftp.up(
+                    os.path.join(readme.uow_dir, UOWDirName.tgo, fname),
+                    os.path.join(cruise_dir, fname), suppress_errors=False)
+            except IOError, err:
+                LOG.critical(
+                    u'Unable to put {0} online: {1!r}'.format(fname, err))
+# TODO Is there any way we can recover at this point? Some updated files may
+# have been overwritten by now
+# Other than making this loop atomic, I don't see how.
+        return finalized_readme_path
+
+    def add_processing_note(self, session, readme, expocode, title, summary,
+                            q_ids):
+        """Record processing history note and mark queue files merged.
+
+        """
+        note_id = self.add_readme_history_note(
+            session, readme, expocode, title, summary)
+        self.mark_merged(session, q_ids)
         return note_id
