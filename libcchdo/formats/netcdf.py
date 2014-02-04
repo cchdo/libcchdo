@@ -14,6 +14,7 @@ except ImportError, e:
 from libcchdo import LOG, fns
 from libcchdo.fns import Decimal
 from libcchdo.formats import woce
+from libcchdo.formats.exchange import parse_type_and_stamp_line
 from libcchdo.formats.stamped import read_stamp
 
 
@@ -51,8 +52,9 @@ def read_type_and_stamp(fileobj):
             fff.flush()
             nc_file = Dataset(fff.name, 'r')
             try:
-                return nc_file.ORIGINAL_HEADER.split('\n')[0].split(',')
-            except AttributeError:
+                first_line = nc_file.ORIGINAL_HEADER.split('\n', 1)[0]
+                return parse_type_and_stamp_line(first_line)
+            except (AttributeError):
                 return ('', '')
     return read_stamp(fileobj, reader)
 

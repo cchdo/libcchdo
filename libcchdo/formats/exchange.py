@@ -26,6 +26,21 @@ r_idstamp = re_compile('(\w+)')
 r_stamp = re_compile('\d{8}\w+')
 
 
+def parse_type_and_stamp_line(line):
+    """Return a tuple containing the file data type and stamp."""
+    # Catching the ValueError ensures that empty line doesn't result in a 1-ple.
+    try:
+        dtype, stamp = line.split(',', 1)
+        return (dtype, stamp)
+    except ValueError:
+        return ('', '')
+
+
+def read_type_and_stamp_line(fobj):
+    first_line = fobj.readline().rstrip()
+    return parse_type_and_stamp_line(first_line)
+
+
 def read_type_and_stamp(fileobj):
     """Only get the file type and stamp line.
 
@@ -33,9 +48,7 @@ def read_type_and_stamp(fileobj):
     one.
 
     """
-    def reader(fobj):
-        return fobj.readline().rstrip().split(',', 1)
-    return read_stamp(fileobj, reader)
+    return read_stamp(fileobj, read_type_and_stamp_line)
 
 
 def read_identifier_line(dfile, fileobj, ftype):

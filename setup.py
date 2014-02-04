@@ -24,7 +24,7 @@ if __name__ == "__main__":
     extras_require = {
         'csv_view': ['lxml', ],
         'db': ['MySQL-python', ],
-        'datadir': ['oauth2', 'paramiko', 'docutils', ],
+        'datadir': ['oauth2', 'paramiko', 'docutils', 'pycchdo'],
         'speed': ['cdecimal', ],
         'kml': ['pykml', ],
         'coverage': ['coverage', ],
@@ -47,6 +47,7 @@ if __name__ == "__main__":
 
     dependency_links = [
         'https://github.com/matplotlib/basemap/archive/v1.0.6rel.zip#egg=basemap-1.0.6',
+        'https://bitbucket.org/ghdc/pycchdo/get/master.zip#egg=pycchdo',
     ]
 
     packages = find_packages(exclude=['libcchdo.tests'])

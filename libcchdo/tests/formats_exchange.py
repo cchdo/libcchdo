@@ -46,3 +46,12 @@ class TestFormatsExchange(BaseTestCase):
             self.assertEqual(dfile['BTLNBR'].values, ['SIO1', '01'])
             self.assertEqual(
                 dfile['CTDSAL'].values, [Decimal('33.24'), Decimal('32.10')])
+
+    def test_empty_header_gives_correct_stamp(self):
+        """If a file is empty, the stamp reader should still return a tuple."""
+        type_stamp = exchange.parse_type_and_stamp_line('')
+        self.assertEqual(type_stamp, ('', ''))
+
+    def test_parse_type_and_stamp_line(self):
+        type_stamp = exchange.parse_type_and_stamp_line('BOTTLE,20090101XXXXXX')
+        self.assertEqual(type_stamp, ('BOTTLE', '20090101XXXXXX'))

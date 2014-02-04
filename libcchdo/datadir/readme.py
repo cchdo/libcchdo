@@ -193,33 +193,18 @@ class Readme(object):
             ftype = guess_file_type(fname)
             fpath = os.path.join(UOWDirName.tgo, fname)
             if ftype in ['btl.ex', 'ctd.ex', 'ctd.zip.ex']:
-                with open(fpath, 'r') as fff:
-                    dtype_stamp = ex_read_type_and_stamp(fff)
-                    # FIXME pick the most common stamp
-                    if type(dtype_stamp) is list:
-                        dtype_stamp = dtype_stamp[0]
-                    if len(dtype_stamp) < 2:
-                        stamp = ''
-                    else:
-                        stamp = dtype_stamp[1]
-                    rows.append([fname, stamp])
+                type_stamp_reader = ex_read_type_and_stamp
             elif ftype in ['btl.nc', 'ctd.nc', 'btl.zip.nc', 'ctd.zip.nc']:
-                with open(fpath, 'r') as fff:
-                    dtype_stamp = nc_read_type_and_stamp(fff)
-                    # FIXME pick the most common stamp, handle when there are no stamps.
-                    if type(dtype_stamp) is list:
-                        dtype_stamp = dtype_stamp[0]
-                    if len(dtype_stamp) < 2:
-                        stamp = ''
-                    else:
-                        stamp = dtype_stamp[1]
-                    rows.append([fname, stamp])
+                type_stamp_reader = nc_read_type_and_stamp
             else:
-                LOG.debug(
-                    u'Unrecognized file type {0} for filename {1}'.format(
-                    ftype, fname))
+                LOG.info(
+                    u'Unrecognized file type {0} for filename {1}. Stamp will '
+                    'not be included in manifest.'.format(ftype, fname))
                 rows.append([fname, ''])
                 continue
+            with open(fpath, 'r') as fff:
+                dtype, stamp = type_stamp_reader(fff)
+                rows.append([fname, stamp])
         return [
             ReST.title('Updated Files Manifest', '='),
             ReST.table(Table(
