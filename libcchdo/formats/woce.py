@@ -663,10 +663,16 @@ def write_data(self, handle, columns, base_format):
         flags = []
         for column in columns:
             format = column.parameter.format
-            if column[i]:
-                formatted_value = format % column[i]
-            else:
-                formatted_value = format % FILL_VALUE
+            try:
+                if column[i]:
+                    formatted_value = format % column[i]
+                else:
+                    formatted_value = format % FILL_VALUE
+            except TypeError:
+                formatted_value = column[i]
+                LOG.warn(u'Invalid WOCE format for {0} to {1!r}. '
+                    'Treating as string.'.format(
+                    column.parameter, formatted_value))
 
             if len(formatted_value) > COLUMN_WIDTH:
                 extra = len(formatted_value) - COLUMN_WIDTH
