@@ -47,7 +47,7 @@ if __name__ == "__main__":
 
     dependency_links = [
         'https://github.com/matplotlib/basemap/archive/v1.0.6rel.zip#egg=basemap-1.0.6',
-        'https://bitbucket.org/ghdc/pycchdo/get/master.zip#egg=pycchdo',
+        'git+ssh://git@bitbucket.org/ghdc/pycchdo.git#egg=pycchdo-0.8',
     ]
 
     packages = find_packages(exclude=['libcchdo.tests'])
