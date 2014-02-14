@@ -24,9 +24,12 @@ def session():
 
 def str_list_add(str_list, item, separator=','):
     """Add item to a string representing a list."""
-    list = str_list.split(separator)
-    if item not in list:
-        return separator.join(list + [item])
+    if str_list is None:
+        strs = []
+    else:
+        strs = str_list.split(separator)
+    if item not in strs:
+        return separator.join(strs + [item])
     return str_list
 
 
@@ -614,11 +617,12 @@ class SpatialGroup(Base):
 class Internal(Base):
     __tablename__ = 'internal'
 
-    Line = Column(String, primary_key=True)
-    File = Column(String, primary_key=True)
-    expocode = Column('ExpoCode', String, primary_key=True)
+    id = Column(Integer, primary_key=True)
+    Line = Column(String)
+    File = Column(String)
+    expocode = Column('ExpoCode', String)
     ExpoCode = column_property(expocode)
-    Basin = Column(String, primary_key=True)
+    Basin = Column(String)
 
 
 class NewTrack(Base):

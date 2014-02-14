@@ -140,9 +140,14 @@ class ExpoCodeAliasCorrector(dict):
                 continue
             for item in items:
                 try:
-                    LOG.info(u'Change {0} {1} expocode'.format(model.__name__, item.id))
+                    LOG.info(u'Change {0} {1} expocode'.format(
+                        model.__name__, item.id))
                 except AttributeError:
-                    LOG.info(u'Change {0} {1} expocode'.format(model.__name__, item.ID))
+                    try:
+                        LOG.info(u'Change {0} {1} expocode'.format(
+                            model.__name__, item.ID))
+                    except AttributeError:
+                        LOG.info(u'Change {0} expocode'.format(model.__name__))
                 item.ExpoCode = self.expocode_new
 
         # Replace expocode in a list of cruises.
