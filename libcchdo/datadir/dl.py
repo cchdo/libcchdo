@@ -476,7 +476,10 @@ class AFTP(object):
         if self.local_rewriter:
             return os.path.isdir(self.local_rewriter(path))
         else:
-            return S_ISDIR(self.sftp.lstat(path).st_mode)
+            try:
+                return S_ISDIR(self.sftp.lstat(path).st_mode)
+            except IOError:
+                return False
 
     def lstat(self, path):
         if self.local_rewriter:

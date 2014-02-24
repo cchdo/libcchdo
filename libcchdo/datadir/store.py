@@ -328,6 +328,10 @@ class LegacyDatastore(Datastore):
     def mark_merged(self, session, q_ids):
         for qid in q_ids:
             qf = session.query(QueueFile).filter(QueueFile.id == qid).first()
+            if not qf:
+                LOG.error(u'Missing QueueFile {0}'.format(qid))
+                raise ValueError(u'Unable to mark QueueFile {0} as merged.'.format(
+                    qid))
             if qf.is_merged():
                 LOG.warn(u'QueueFile {0} is already merged.'.format(qf.id))
             qf.date_merged = date.today()
@@ -689,6 +693,10 @@ class PycchdoDatastore(Datastore):
     def mark_merged(self, session, q_ids):
         for qid in q_ids:
             qf = session.query(QueueFile).filter(QueueFile.id == qid).first()
+            if not qf:
+                LOG.error(u'Missing QueueFile {0}'.format(qid))
+                raise ValueError(u'Unable to mark QueueFile {0} as merged.'.format(
+                    qid))
             if qf.is_merged():
                 LOG.warn(u'QueueFile {0} is already merged.'.format(qf.id))
             qf.date_merged = date.today()
@@ -1036,6 +1044,10 @@ class CCHDODatastore(Datastore):
     def mark_merged(self, session, q_ids):
         for qid in q_ids:
             qf = session.query(QueueFile).filter(QueueFile.id == qid).first()
+            if not qf:
+                LOG.error(u'Missing QueueFile {0}'.format(qid))
+                raise ValueError(u'Unable to mark QueueFile {0} as merged.'.format(
+                    qid))
             if qf.is_merged():
                 LOG.warn(u'QueueFile {0} is already merged.'.format(qf.id))
             qf.date_merged = date.today()
