@@ -214,7 +214,7 @@ def read_arbitrary(handle, file_type=None, file_name=None):
     if file_type is None:
         raise ValueError('Unrecognized file type for %s' % handle)
 
-    if 'zip' in file_type:
+    if 'zip' in file_type or file_type.startswith('archive'):
         dfile = DataFileCollection()
     elif file_type.startswith('sum'):
         dfile = SummaryFile()
