@@ -8,6 +8,7 @@ from libcchdo.log import LOG
 from libcchdo.fns import Decimal, decimal_to_str, _decimal, out_of_band
 from libcchdo.db.model.std import session
 from libcchdo.db.model.convert import find_parameter
+from libcchdo.model.datafile import Column
 from libcchdo.formats.stamped import read_stamp
 
 
@@ -132,7 +133,7 @@ def _prepare_to_read_exchange_data(dfile, columns):
             if flag_info:
                 LOG.error(u'Flag column {0} exists without parameter '
                     'column {1}'.format(column, colname))
-            raise err
+            col = dfile[colname] = Column(colname)
 
         if flag_info:
             col = getattr(col, flag_info[1])
@@ -145,6 +146,7 @@ def _prepare_to_read_exchange_data(dfile, columns):
 def _read_data_row(dfile, row_i, info, raw):
     raw_value = raw.strip()
     col, param = info
+    # tuple indicates flag column
     if type(param) is tuple:
         try:
             value = int(raw_value)
@@ -154,11 +156,11 @@ def _read_data_row(dfile, row_i, info, raw):
                 param[0], raw_value, param[2], row_i))
             value = None
     else:
-        if param is None or param.format.endswith('s'):
-            value = raw_value
+        if out_of_band(raw_value):
+            value = None
         else:
-            if out_of_band(raw_value):
-                value = None
+            if param is None or param.format.endswith('s'):
+                value = raw_value
             else:
                 try:
                     value = _decimal(raw_value)

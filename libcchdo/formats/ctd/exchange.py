@@ -144,7 +144,6 @@ def write(self, handle):
         try:
             headers[key] = self.globals[key]
         except KeyError:
-            headers[key] = ''
             LOG.error('Missing required header %s' % key)
     keys_less_required = OrderedSet(self.globals.keys()) - \
                          set(['stamp', 'header']) - \

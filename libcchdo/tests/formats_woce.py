@@ -11,6 +11,16 @@ class TestFormatsExchange(BaseTestCase):
 
     def test_read_data_btlnbr_as_string(self):
         with closing(StringIO()) as fff:
-            fff.write('SIO1\n')
-            fff.write('01\n')
-        exchange.read_data()
+            fff.write('BTLNBR\n')
+            fff.write('\n')
+            fff.write('12\n')
+
+            fff.flush()
+            fff.seek(0)
+
+            dfile = DataFile()
+            columns = ['BTLNBR']
+            exchange.read_data(dfile, fff, columns)
+
+            self.assertTrue(isinstance(dfile['BTLNBR'].values[0], basestring))
+
