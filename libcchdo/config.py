@@ -283,7 +283,7 @@ def get_merger_institution():
 def get_merger_smtp():
     def input_smtp():
         return get_input('What is your SMTP server [smtp.ucsd.edu]? %s ' % \
-                          _storage_notice() or 'smtp.ucsd.edu')
+                          _storage_notice()) or 'smtp.ucsd.edu'
     return get_option('Merger', 'smtp', input_smtp)
 
 
