@@ -1515,7 +1515,12 @@ with subcommand(datadir_parsers, 'commit', datadir_commit) as p:
 
 
 def datadir_email(args):
-    """Resend an email that was written out as a file from a commit."""
+    """Resend an email that was written out as a file from a commit.
+
+    IMPORTANT: Use datadir processing_note if your commit failed after updating
+    files. This command does not perform some database book keeping.
+
+    """
     from libcchdo.datadir.util import send_email
     from email.parser import FeedParser
 
@@ -1537,7 +1542,7 @@ with subcommand(datadir_parsers, 'email', datadir_email) as p:
 
 
 def datadir_create_processing_email(args):
-    """Record processing history note, mark merged, and notify."""
+    """Create a processing email from the given UOW"""
     from libcchdo.datadir.processing import (
         create_processing_email, _q_from_uow_cfg, read_uow_cfg)
     with open(args.readme_path) as fff:
