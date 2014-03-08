@@ -163,6 +163,12 @@ def define_attributes(nc_file, expocode, sect_id, data_type, stnnbr, castno,
     nc_file.CAST_NUMBER = castno
     nc_file.BOTTOM_DEPTH_METERS = bottom_depth
     nc_file.Creation_Time = fns.strftime_iso(datetime.datetime.utcnow())
+
+
+def set_original_header(nc_file, dfile, datatype):
+    nc_file.ORIGINAL_HEADER = '\n'.join([
+        '{0},{1}'.format(datatype, dfile.globals.get('stamp', '')),
+        dfile.globals.get('header', '')])
     
 
 def create_common_variables(nc_file, latitude, longitude, woce_datetime,

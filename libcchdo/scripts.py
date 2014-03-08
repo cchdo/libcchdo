@@ -1541,6 +1541,25 @@ with subcommand(datadir_parsers, 'email', datadir_email) as p:
          help='email file')
 
 
+def datadir_finalize_readme(args):
+    """Generate a final copy of the README with manifests and conversions."""
+    from libcchdo.datadir.readme import ProcessingReadme
+    from libcchdo.datadir.processing import finalize_readme
+
+    readme = ProcessingReadme(args.uow_dir)
+    with closing(args.readme) as fff:
+        finalize_readme(readme, fff)
+
+
+with subcommand(datadir_parsers, 'finalize_readme',
+                datadir_finalize_readme) as p:
+    p.add_argument(
+        'uow_dir', default='.', nargs='?', help='unit-of-work directory')
+    p.add_argument(
+        '--readme', default=sys.stdout, nargs='?',
+        help='Where to write the README file')
+
+
 def datadir_create_processing_email(args):
     """Create a processing email from the given UOW"""
     from libcchdo.datadir.processing import (

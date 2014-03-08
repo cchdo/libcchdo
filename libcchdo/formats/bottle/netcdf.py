@@ -216,7 +216,7 @@ def write(self, handle):
         _nc_bottom_depth(self),
         )
 
-    header = 'BOTTLE,%s\n' % self.globals['stamp'] + self.globals['header']
+    nc.set_original_header(nc_file, self, 'BOTTLE')
     nc_file.ORIGINAL_HEADER = header
 
     try:

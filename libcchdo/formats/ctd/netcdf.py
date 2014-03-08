@@ -179,7 +179,7 @@ def write(self, handle):
         int(self.globals.get('DEPTH', FILL_VALUE)),
         )
 
-    nc_file.ORIGINAL_HEADER = self.globals.get('header', '')
+    nc.set_original_header(nc_file, self, 'CTD')
     nc_file.WOCE_CTD_FLAG_DESCRIPTION = woce.CTD_FLAG_DESCRIPTION
 
     nc.create_and_fill_data_variables(self, nc_file)

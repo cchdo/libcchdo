@@ -32,7 +32,7 @@ from libcchdo.datadir.util import (
 from libcchdo.datadir.filenames import (
     EXPOCODE_FILENAME, README_FILENAME, PROCESSING_EMAIL_FILENAME,
     UOW_CFG_FILENAME, README_TEMPLATE_FILENAME)
-from libcchdo.datadir.store import LegacyDatastore
+from libcchdo.datadir.store import LegacyDatastore, _get_file_manifest
 
 
 DSTORE = LegacyDatastore()
@@ -361,6 +361,13 @@ class ProcessingEmail(ReadmeEmail):
         return PROCESSING_EMAIL_TEMPLATE.format(
             expo=expocode, merger=merger, process_summary=process_summary,
             note_id=note_id)
+
+
+def finalize_readme(readme, fileobj):
+    """Generate a final copy of the README with manifests and conversions."""
+    tgo_files = os.listdir(os.path.join(readme.uow_dir, UOWDirName.tgo))
+    DSTORE.finalize_readme(
+        readme, '<remote_work_path>', '<cruise_dir>', tgo_files, fileobj)
 
 
 def create_processing_email(readme, expocode, q_infos, note_id, q_ids,

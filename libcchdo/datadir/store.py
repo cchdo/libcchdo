@@ -413,11 +413,37 @@ class LegacyDatastore(Datastore):
             LOG.error(u'{0} Abort.'.format(err))
             raise err
 
+    def finalize_readme(self, readme, remote_work_path, cruise_dir,
+                        updated_files, outputfileobj):
+        """Finalize the readme file.
+
+        Clean out -UOW- replacement lines from README and add the conversion,
+        directories, and updated manifests sections.
+
+        """
+        # Calculate remote work path to use in README
+        try:
+            finalize_sections = u'\n'.join(
+                readme.finalize_sections(
+                    remote_work_path, cruise_dir, list(updated_files)))
+        except ValueError, err:
+            LOG.error(u'{0} Abort.\n{1}'.format(err, format_exc(err)))
+            raise err
+
+        LOG.debug(u'{0} final sections:\n{1}'.format(
+            README_FILENAME, finalize_sections))
+        uow_readme_path = os.path.join(readme.uow_dir, README_FILENAME)
+        with open(uow_readme_path) as iii:
+            for line in iii:
+                if line.startswith('.. -UOW-'):
+                    continue
+                outputfileobj.write(line)
+            outputfileobj.write(finalize_sections)
+
     def commit(self, readme, person, dir_perms):
         """Perform actions needed to put files in work dir and online."""
         # XXX Datadir specific (Work directory is not used in pycchdo. instead
         # need to do a lot of moving files around)
-        cruise_dir = self._cruise_dir(readme.uow_cfg['expocode'])
 
         # Prepare a working directory locally to be uploaded
         # Make sure the UOW doesn't already exist.
@@ -437,6 +463,7 @@ class LegacyDatastore(Datastore):
         except IOError:
             pass
 
+        cruise_dir = self._cruise_dir(readme.uow_cfg['expocode'])
         with tempdir(dir='/tmp') as temp_dir:
             work_dir = os.path.join(temp_dir, work_dir_base)
             mkdir_ensure(work_dir, dir_perms)
@@ -453,30 +480,10 @@ class LegacyDatastore(Datastore):
                 LOG.error(format_exc(err))
                 raise err
 
-            # Finalize the readme file. This means adding the conversion,
-            # directories, and updated manifests
-
-            # Calculate remote work path to use in README
-            try:
-                finalize_sections = u'\n'.join(
-                    readme.finalize_sections(
-                        remote_work_path, cruise_dir, list(updated_files)))
-            except ValueError, err:
-                LOG.error(u'{0} Abort.\n{1}'.format(err, format_exc(err)))
-                raise err
-            LOG.debug(u'{0} final sections:\n{1}'.format(
-                README_FILENAME, finalize_sections))
-
-            # Clean out -UOW- replacement lines from README
             work_readme_path = os.path.join(work_dir, README_FILENAME)
-            uow_readme_path = os.path.join(readme.uow_dir, README_FILENAME)
-            with open(uow_readme_path) as iii:
-                with open(work_readme_path, 'w') as ooo:
-                    for line in iii:
-                        if line.startswith('.. -UOW-'):
-                            continue
-                        ooo.write(line)
-                    ooo.write(finalize_sections)
+            with open(work_readme_path, 'w') as ooo:
+                self.finalize_readme(
+                    readme, remote_work_path, cruise_dir, updated_files, ooo)
             finalized_readme_path = os.path.join(
                 readme.uow_dir, '00_README.finalized.txt')
             copy2(work_readme_path, finalized_readme_path)
