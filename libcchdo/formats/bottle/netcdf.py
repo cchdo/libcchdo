@@ -217,7 +217,6 @@ def write(self, handle):
         )
 
     nc.set_original_header(nc_file, self, 'BOTTLE')
-    nc_file.ORIGINAL_HEADER = header
 
     try:
         bottle_column = self['BTLNBR']
