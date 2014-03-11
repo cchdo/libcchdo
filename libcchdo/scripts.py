@@ -2248,22 +2248,37 @@ def reorder_columns(args):
 
     """
     from libcchdo.formats.formats import guess_ftype_dftype_format
+    from libcchdo.fns import uniquify
     with closing(args.input_file) as in_file:
         _, dfile, format_module = guess_ftype_dftype_format(
             in_file, args.input_type)
         format_module.read(dfile, in_file)
 
-    if args.order is not None:
-        mnemonics = args.order.split(',')
+    def reorder_columns(dfile):
         missing = set(dfile.parameter_mnemonics_woce()) - set(mnemonics)
         for iii, param in enumerate(mnemonics):
             dfile[param].parameter.display_order = iii - len(mnemonics)
         for param in missing:
             del dfile[param]
+
+    if args.order is not None:
+        mnemonics = args.order.split(',')
+        try:
+            for df in dfile.files:
+                reorder_columns(df)
+        except AttributeError:
+            reorder_columns(dfile)
         with closing(args.output_file) as out_file:
             format_module.write(dfile, out_file)
     else:
-        print ','.join(dfile.parameter_mnemonics_woce())
+        try:
+            params = []
+            for df in dfile.files:
+                params.extend(df.parameter_mnemonics_woce())
+            params = uniquify(params)
+        except AttributeError:
+            params = dfile.parameter_mnemonics_woce()
+        print ','.join(params)
 
 
 with subcommand(misc_parsers, 'reorder_columns', reorder_columns) as p:
