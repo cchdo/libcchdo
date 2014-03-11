@@ -184,8 +184,54 @@ def guess_file_type(filename, file_type=None):
         return sorted(matches, key=lambda x: len(x[1]), reverse=True)[0][0]
     else:
         # TODO use is_filename_recognized and is_file_recognized
+        LOG.error(u'Unable to guess file type')
         return None
 
+
+def guess_file_type_from_file(fileobj, file_type=None, file_name=None):
+    try:
+        fileobj.read
+    except AttributeError:
+        raise ValueError(u'read_arbitrary must be called with a file object')
+    if not file_name:
+        try:
+            file_name = fileobj.name
+        except AttributeError:
+            pass
+
+    file_type = guess_file_type(file_name, file_type)
+    if file_type is None:
+        raise ValueError('Unrecognized file type for %s' % fileobj)
+    if file_type == 'sd2':
+        file_type = 'nodc_sd2'
+    return file_type
+
+
+def guess_format_module(fileobj, file_type=None, file_name=None):
+    file_type = guess_file_type_from_file(fileobj, file_type, file_name)
+    try:
+        return all_formats[file_type]
+    except KeyError:
+        raise ValueError('Unrecognized file type for %s' % fileobj.name)
+
+
+def guess_ftype_dftype_format(fileobj, file_type=None, file_name=None):
+    """Return a tuple of guessed file type, Datafile or DatafileCollection, and 
+    the format module.
+
+    """
+    from libcchdo.model.datafile import (
+        DataFile, SummaryFile, DataFileCollection)
+    file_type = guess_file_type_from_file(fileobj, file_type, file_name)
+    if 'zip' in file_type or file_type.startswith('archive'):
+        dfile = DataFileCollection()
+    elif file_type.startswith('sum'):
+        dfile = SummaryFile()
+    else:
+        dfile = DataFile()
+    format_module = guess_format_module(fileobj, file_type)
+    return (file_type, dfile, format_module)
+    
 
 def read_arbitrary(handle, file_type=None, file_name=None):
     '''Takes any CCHDO recognized file and tries to open it.
@@ -196,38 +242,7 @@ def read_arbitrary(handle, file_type=None, file_name=None):
        Returns:
            a DataFile(Collection) or *SummaryFile that matches the file type.
     '''
-    try:
-        handle.read
-    except AttributeError:
-        raise ValueError(u'read_arbitrary must be called with a file object')
-    from libcchdo.model.datafile import (
-        DataFile, SummaryFile, DataFileCollection)
-
-    if not file_name:
-        try:
-            file_name = handle.name
-        except AttributeError:
-            pass
-
-    file_type = guess_file_type(file_name, file_type)
-
-    if file_type is None:
-        raise ValueError('Unrecognized file type for %s' % handle)
-
-    if 'zip' in file_type or file_type.startswith('archive'):
-        dfile = DataFileCollection()
-    elif file_type.startswith('sum'):
-        dfile = SummaryFile()
-    else:
-        dfile = DataFile()
-    
-    if file_type == 'sd2':
-        file_type = 'nodc_sd2'
-
-    try:
-        format_module = all_formats[file_type]
-    except KeyError:
-        raise ValueError('Unrecognized file type for %s' % handle.name)
+    _, dfile, format_module = guess_ftype_dftype_format(
+        handle, file_type, file_name)
     format_module.read(dfile, handle)
-
     return dfile
