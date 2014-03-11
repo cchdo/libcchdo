@@ -2217,20 +2217,76 @@ with subcommand(misc_parsers, 'any_to_legacy_parameter_statuses',
         help='output file (default: stdout)')
 
 
+def canon(args):
+    """Rewrite a file with all parameters converted to canon.
+
+    """
+    from libcchdo.formats.formats import guess_ftype_dftype_format
+    with closing(args.input_file) as in_file:
+        _, dfile, format_module = guess_ftype_dftype_format(
+            in_file, args.input_type)
+        format_module.read(dfile, in_file)
+
+    with closing(args.output_file) as out_file:
+        format_module.write(dfile, out_file)
+
+
+with subcommand(misc_parsers, 'canon', canon) as p:
+    p.add_argument('-i', '--input-type',
+        choices=known_formats,
+        help='force the input file to be read as the specified type')
+    p.add_argument(
+        'input_file', type=FileType('r'),
+        help='input file')
+    p.add_argument(
+        'output_file', type=FileType('w'), nargs='?', default=sys.stdout,
+        help='output (default: stdout)')
+
+
+def reorder_columns(args):
+    """Rewrite a file with columns reordered.
+
+    """
+    from libcchdo.formats.formats import guess_ftype_dftype_format
+    with closing(args.input_file) as in_file:
+        _, dfile, format_module = guess_ftype_dftype_format(
+            in_file, args.input_type)
+        format_module.read(dfile, in_file)
+
+    if args.order is not None:
+        mnemonics = args.order.split(',')
+        missing = set(dfile.parameter_mnemonics_woce()) - set(mnemonics)
+        for iii, param in enumerate(mnemonics):
+            dfile[param].parameter.display_order = iii - len(mnemonics)
+        for param in missing:
+            del dfile[param]
+        with closing(args.output_file) as out_file:
+            format_module.write(dfile, out_file)
+    else:
+        print ','.join(dfile.parameter_mnemonics_woce())
+
+
+with subcommand(misc_parsers, 'reorder_columns', reorder_columns) as p:
+    p.add_argument('-i', '--input-type',
+        choices=known_formats,
+        help='force the input file to be read as the specified type')
+    p.add_argument('-o', '--order', default=None,
+        help='comma separated list of parameter mnemonics in order they should '
+            'appear. If not listed, will not appear. (default: print '
+            'column parameter order)')
+    p.add_argument(
+        'input_file', type=FileType('r'),
+        help='input file')
+    p.add_argument(
+        'output_file', type=FileType('w'), nargs='?', default=sys.stdout,
+        help='output (default: stdout)')
+
+
 def bottle_exchange_canon(args):
     """Rewrite a bottle exchange file with all parameters converted to canon.
 
     """
-    from libcchdo.model.datafile import DataFile
-    import libcchdo.formats.bottle.exchange as botex
-
-    df = DataFile(allow_contrived=True)
-
-    with closing(args.input_botex) as in_file:
-        botex.read(df, in_file)
-
-    with closing(args.output_botex) as out_file:
-        botex.write(df, out_file)
+    LOG.critical(u'DEPRECATED use hydro convert misc canon instead')
 
 
 with subcommand(misc_parsers, 'bottle_exchange_canon',
