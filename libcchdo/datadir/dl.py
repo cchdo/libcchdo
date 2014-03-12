@@ -183,11 +183,11 @@ class AFTP(object):
                 LOG.info('dryrun downloading %s' % filepath)
                 downloaded = None
             else:
-                LOG.info('downloading %s' % filepath)
+                LOG.info('downloading {0!r}'.format(filepath))
                 sftp.get(filepath, temp.name)
         except IOError, e:
             LOG.warn(
-                u'Unable to locate file on remote {0}\n{1!r}'.format(
+                u'Unable to locate file on remote {0!r}\n{1!r}'.format(
                 filepath, e))
             downloaded = None
 
