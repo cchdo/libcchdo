@@ -908,43 +908,22 @@ to_kml_converter_parsers = to_kml_converter_parser.add_subparsers(
 
 
 def db_to_kml(args):
-    from libcchdo.model.datafile import DataFile
-    import libcchdo.formats.bottle.exchange as botex
-    from libcchdo.kml import db_to_kml, db_to_kml_full
-
-    df = DataFile()
-    
-    with closing(args.input_botex) as in_file:
-        botex.read(df, in_file)
+    """Dump CCHDO holdings tracks to KML ."""
+    from libcchdo.kml import db_to_kml
 
     with closing(args.output) as out_file:
-        if args.full:
-            db_to_kml_full(df, out_file)
-        else:
-            db_to_kml(df, out_file)
+        db_to_kml(out_file, args.expocode, args.full)
 
 
 with subcommand(to_kml_converter_parsers, 'db', db_to_kml) as p:
     p.add_argument(
-        'input_botex', type=FileType('r'),
-        help='input Bottle Exchange file')
-    p.add_argument(
         '--full', type=bool, default=False,
         help='full with dates')
     p.add_argument(
+        'expocode', type=str, nargs='?', help='the cruise to plot')
+    p.add_argument(
         'output', type=FileType('w'), nargs='?', default=sys.stdout,
         help='output file (default: stdout)')
-
-
-def db_track_lines_to_kml(args):
-    from libcchdo.kml import db_track_lines_to_kml
-
-    db_track_lines_to_kml_parser()
-
-
-with subcommand(
-        to_kml_converter_parsers, 'db_track_lines', db_track_lines_to_kml) as p:
-    pass
 
 
 misc_converter_parser = converter_parsers.add_parser(

@@ -41,6 +41,13 @@ def _lon_lats(self):
 
 def coordinate(lon, lat, z=0.0):
     return ','.join(map(str, [lon, lat, z]))
+
+
+def get_attribute(obj, attribute, default=''):
+    try:
+        return __getattr__(cruise, attribute) or default
+    except AttributeError:
+        return default
     
 
 def any_to_kml(self, output):
@@ -61,46 +68,21 @@ def any_to_kml(self, output):
 
     sesh = session()
     cruise = sesh.query(Cruise).filter(Cruise.ExpoCode == expo).first()
-    try:
-        info['line'] = cruise.Line or ''
-    except AttributeError:
-        info['line'] = ''
-    try:
-        info['country'] = cruise.Country or ''
-    except AttributeError:
-        info['country'] = ''
-    try:
-        info['chisci'] = cruise.Chief_Scientist or ''
-    except AttributeError:
-        info['chisci'] = ''
-    try:
-        info['date_start'] = cruise.Begin_Date or ''
-    except AttributeError:
-        info['date_start'] = ''
-    try:
-        info['date_end'] = cruise.EndDate or ''
-    except AttributeError:
-        info['date_end'] = ''
-    try:
-        info['ship'] = cruise.Ship_Name or ''
-    except AttributeError:
-        info['ship'] = ''
-    try:
-        info['alias'] = cruise.Alias or ''
-    except AttributeError:
-        info['alias'] = ''
-    try:
-        info['group'] = cruise.Group or ''
-    except AttributeError:
-        info['group'] = ''
-    try:
-        info['program'] = cruise.Program or ''
-    except AttributeError:
-        info['program'] = ''
-    try:
-        info['link'] = cruise.link or ''
-    except AttributeError:
-        info['link'] = ''
+
+    keymap = [
+        ['line', 'Line'],
+        ['country', 'Country'],
+        ['chisci', 'Chief_Scientist'],
+        ['date_start', 'Begin_Date'],
+        ['date_end', 'EndDate'],
+        ['ship', 'Ship_Name'],
+        ['alias', 'Alias'],
+        ['group', 'Group'],
+        ['program', 'Program'],
+        ['link', 'link'],
+    ]
+    for key, attr in keymap:
+        info[key] = get_attribute(cruise, attr)
     sesh.close()
 
     infos = []
@@ -272,252 +254,61 @@ def bottle_exchange_to_parameter_kml(self, output):
   </Point>
 </Placemark>""" % (i, colorstr, i, lng, lat, depth))
     
-    print """\
+    print KMLWriter.wrap("<name>Test</name>%s" % ''.join(placemarks))
+
+
+def linestring_to_coords(linestring):
+    """Convert an SQL LINESTRING into a list of tuple coordinates."""
+    coordstr = string.translate(linestring[11:-1], string.maketrans(', ', ' ,'))
+    return [tuple(x.split(',')) for x in coordstr.split(' ')]
+
+
+class KMLWriter(object):
+    @classmethod
+    def header(cls):
+        return """\
 <?xml version="1.0" encoding="UTF-8"?>
 <kml xmlns="http://www.opengis.net/kml/2.2"
      xmlns:gx="http://www.google.com/kml/ext/2.2"
      xmlns:kml="http://www.opengis.net/kml/2.2"
      xmlns:atom="http://www.w3.org/2005/Atom">
-<Document>
-<name>Test</name>
-%s
-</Document></kml>""" % ''.join(placemarks)
+  <Document>"""
+
+    @classmethod
+    def footer(cls):
+        return "</Document></kml>"
+
+    @classmethod
+    def wrap(cls, string):
+        return cls.header() + string + cls.footer()
 
 
-def db_to_kml(self, output):
-    kml_header = """\
-    <?xml version="1.0" encoding="UTF-8"?>
-    <kml xmlns="http://www.opengis.net/kml/2.2"
-         xmlns:gx="http://www.google.com/kml/ext/2.2"
-         xmlns:kml="http://www.opengis.net/kml/2.2"
-         xmlns:atom="http://www.w3.org/2005/Atom"><Document>"""
-    kml_footer = """</Document></kml>"""
-
-    directory = './KML_CCHDO_holdings_'+string.translate(
-        str(datetime.utcnow()), string.maketrans(' :.', '___'))
-    if not os.path.exists(directory):
-        makedirs(directory)
-
+class GenericCCHDOKML(KMLWriter):
     cycle_colors = map(
         _color_arr_to_str,
         [[255, 0, 0], [0, 255, 0], [0, 0, 255], [255, 255, 0]])
 
-    connection = connect.cchdo()
-    cursor = connection.cursor()
-    cursor.execute('SELECT ExpoCode,ASTEXT(track) FROM track_lines')
-    rows = cursor.fetchall()
-    for i, row in enumerate(rows):
-        expocode = row[0]
-        placemarks = []
-        coordstr = string.translate(row[1][11:], string.maketrans(', ', ' ,'))
-        coords = map(lambda x: x.split(','), coordstr.split(' '))
-        placemarks.append("""
-    <Style id="linestyle">
-      <LineStyle>
-        <width>4</width>
-        <color>%s</color>
-      </LineStyle>
-    </Style>""" % cycle_colors[i%len(cycle_colors)])
-        placemarks.append("""
-    <Placemark>
-      <name>%s</name>
-      <styleUrl>#linestyle</styleUrl>
-      <LineString>
-        <tessellate>1</tessellate>
-        <coordinates>%s</coordinates>
-      </LineString>
-    </Placemark>""" % (expocode, coordstr))
-        placemarks.append("""
-    <Placemark>
-      <styleUrl>#start</styleUrl>
-      <name>%s</name>
-      <description>http://cchdo.ucsd.edu/data_access/show_cruise?ExpoCode=%s</description>
-      <Point><coordinates>%s,%s</coordinates></Point>
-    </Placemark>""" % (expocode, expocode, coords[0][0], coords[0][1]))
-        for coord in coords:
-            placemarks.append("""
-    <Placemark>
-      <styleUrl>#pt</styleUrl>
-      <Point><coordinates>%s,%s</coordinates></Point>
-    </Placemark>""" % (coord[0], coord[1]))
-
-        with open(directory+'/track_'+expocode+'.kml', 'w') as f:
-            f.write("""%s<name>%s</name>
-    <Style id="start">
-      <IconStyle>
-        <scale>1.5</scale>
-        <Icon>
-          <href>http://maps.google.com/mapfiles/kml/shapes/flag.png</href>
-        </Icon>
-      </IconStyle>
-    </Style>
-    <Style id="pt">
-      <IconStyle>
-        <scale>0.7</scale>
-        <color>ff0000ff</color>
-        <Icon>
-          <href>http://maps.google.com/mapfiles/kml/shapes/shaded_dot.png</href>
-        </Icon>
-      </IconStyle>
-    </Style>
-    %s%s""" % (kml_header, expocode, ''.join(placemarks), kml_footer))
-
-    cursor.close()
-    connection.close()
-
-
-def db_to_kml_full(self, output):
-    """
-    With dates 2010-04-26.
-
-    """
-    kml_header = ('<?xml version="1.0" encoding="UTF-8"?>'
-    '<kml xmlns="http://www.opengis.net/kml/2.2" '
-    'xmlns:gx="http://www.google.com/kml/ext/2.2" '
-    'xmlns:kml="http://www.opengis.net/kml/2.2" '
-    'xmlns:atom="http://www.w3.org/2005/Atom"><Document>'
-    '<name>2010 CCHDO Holdings</name>'
-    '''<Style id="start">
-      <IconStyle>
-        <scale>1.5</scale>
-        <Icon>'''
-    #'      <href>http://maps.google.com/mapfiles/kml/shapes/flag.png</href>'
-    '<href>http://cchdo.ucsd.edu/images/map_search/cruise_start_icon.png</href>'
-    '''    </Icon>
-      </IconStyle>
-    </Style>
-    <Style id="linestyle">
-      <LineStyle>
-        <width>4</width>
-        <color>ffff0000</color>
-      </LineStyle>
-    </Style>
-    <Style id="pt">
-      <IconStyle>
-        <scale>0.7</scale>
-        <color>ff0000ff</color>
-        <Icon>
-          <href>http://maps.google.com/mapfiles/kml/shapes/shaded_dot.png</href>
-        </Icon>
-      </IconStyle>
-    </Style>'''
-    )
-    kml_footer = """</Document></kml>"""
-
-    directory = './KML_CCHDO_holdings'
-
-    connection = connect.cchdo()
-    cursor = connection.cursor()
-    cursor.execute((
-        'SELECT track_lines.ExpoCode,'
-        'ASTEXT(track_lines.track),'
-        'cruises.Begin_Date,cruises.EndDate '
-        'FROM track_lines, cruises WHERE cruises.ExpoCode = track_lines.ExpoCode'))
-    rows = cursor.fetchall()
-    with open(directory+'.kml', 'w') as f:
-        f.write(kml_header)
-        for i, row in enumerate(rows):
-            expocode = row[0]
-            placemarks = []
-            coordstr = string.translate(row[1][11:], string.maketrans(', ', ' ,'))
-            coords = map(lambda x: x.split(','), coordstr.split(' '))
-            begin = row[2]
-            end = row[3]
-            placemarks.append('<Folder><name>%s</name>' % expocode)
-            placemarks.append("""
-    <Placemark>
-      <name>%s</name>
-      <styleUrl>#linestyle</styleUrl>
-      <LineString>
-        <tessellate>1</tessellate>
-        <coordinates>%s</coordinates>
-      </LineString>
-    </Placemark>""" % (expocode, coordstr))
-            placemarks.append((
-    '<Placemark><styleUrl>#start</styleUrl><name>%s</name>'
-    '<description>http://cchdo.ucsd.edu/data_access/show_cruise?ExpoCode=%s</description>'
-    '<Point><coordinates>%s,%s</coordinates></Point>'
-    '</Placemark>') % (expocode, expocode, coords[0][0], coords[0][1]))
-            placemarks.append('<Folder>')
-            for coord in coords:
-                placemarks.append((
-    '<Placemark><styleUrl>#pt</styleUrl>'
-    '<Point><coordinates>%s,%s</coordinates></Point>'
-    '</Placemark>') % (coord[0], coord[1]))
-            placemarks.append('</Folder>')
-            placemarks.append('<TimeSpan><begin>%s</begin><end>%s</end></TimeSpan></Folder>' % (begin, end))
-            f.write(''.join(placemarks))
-        f.write(kml_footer)
-
-    cursor.close()
-    connection.close()
-
-
-def db_track_lines_to_kml():
-    kml_header = """\
-<?xml version="1.0" encoding="UTF-8"?>
-<kml xmlns="http://www.opengis.net/kml/2.2"
-     xmlns:gx="http://www.google.com/kml/ext/2.2"
-     xmlns:kml="http://www.opengis.net/kml/2.2"
-     xmlns:atom="http://www.w3.org/2005/Atom"><Document>"""
-    kml_footer = """</Document></kml>"""
-
-    directory = './KML_CCHDO_holdings_'+string.translate(
-         str(datetime.datetime.utcnow()), string.maketrans(' :.', '___'))
-    if not os.path.exists(directory):
-        makedirs(directory)
-
-    cycle_colors = map(
-        _color_arr_to_str,
-        [[255, 0, 0], [0, 255, 0], [0, 0, 255], [255, 255, 0]])
-
-    connection = connect.cchdo()
-    cursor = connection.cursor()
-    cursor.execute('SELECT ExpoCode,ASTEXT(track) FROM track_lines')
-    rows = cursor.fetchall()
-    for i, row in enumerate(rows):
-        expocode = row[0]
-        placemarks = []
-        coordstr = string.translate(row[1][11:], string.maketrans(', ', ' ,'))
-        coords = map(lambda x: x.split(','), coordstr.split(' '))
-        placemarks.append("""\
+    @classmethod
+    def styles(cls, starticon='flag'):
+        xml = ""
+        for i, color in enumerate(cls.cycle_colors):
+            xml += """\
 <Style id="linestyle">
   <LineStyle>
     <width>4</width>
-    <color>%s</color>
+    <color>{0}</color>
   </LineStyle>
-</Style>""" % cycle_colors[i%len(cycle_colors)])
-    placemarks.append("""\
-<Placemark>
-  <name>%s</name>
-  <styleUrl>#linestyle</styleUrl>
-  <LineString>
-    <tessellate>1</tessellate>
-    <coordinates>%s</coordinates>
-  </LineString>
-</Placemark>""" % (expocode, coordstr))
-    placemarks.append("""\
-<Placemark>
-  <styleUrl>#start</styleUrl>
-  <name>%s</name>
-  <description>http://cchdo.ucsd.edu/data_access/show_cruise?ExpoCode=%s</description>
-  <Point><coordinates>%s,%s</coordinates></Point>
-</Placemark>""" % (expocode, expocode, coords[0][0], coords[0][1]))
-    for coord in coords:
-        placemarks.append("""\
-<Placemark>
-  <styleUrl>#pt</styleUrl>
-  <Point><coordinates>%s,%s</coordinates></Point>
-</Placemark>""" % (coord[0], coord[1]))
-
-    with open(directory+'/track_'+expocode+'.kml', 'w') as f:
-        f.write("""\
-%s<name>%s</name>
+</Style>""".format(color)
+        if starticon == 'ship':
+            starticon = "http://cchdo.ucsd.edu/images/map_search/cruise_start_icon.png"
+        else:
+            starticon = "http://maps.google.com/mapfiles/kml/shapes/flag.png"
+        return xml + """\
 <Style id="start">
   <IconStyle>
     <scale>1.5</scale>
     <Icon>
-      <href>http://maps.google.com/mapfiles/kml/shapes/flag.png</href>
+      <href>{starticon}</href>
     </Icon>
   </IconStyle>
 </Style>
@@ -529,33 +320,92 @@ def db_track_lines_to_kml():
       <href>http://maps.google.com/mapfiles/kml/shapes/shaded_dot.png</href>
     </Icon>
   </IconStyle>
-</Style>
-%s%s""" % (kml_header, expocode, ''.join(placemarks), kml_footer))
+</Style>""".format(starticon=starticon)
 
+    @classmethod
+    def _lsid(cls, iii):
+        return iii % len(cls.cycle_colors)
+
+    @classmethod
+    def folder_for_cruise(cls, expocode, counter, coords, extra=''):
+        points = []
+        for coord in coords:
+            points.append("<Point><coordinates>{0}</coordinates></Point>".format(
+                ','.join(coord)))
+        coordstr = ' '.join([','.join(ccc) for ccc in coords])
+        return """\
+<Folder>
+  <name>{expo}</name>
+  <Placemark>
+    <styleUrl>#linestyle{lsid}</styleUrl>
+    <LineString>
+      <tessellate>1</tessellate>
+      <coordinates>{coordstr}</coordinates>
+    </LineString>
+  </Placemark>
+  <Placemark>
+    <styleUrl>#start</styleUrl>
+    <name>{expo}</name>
+    <description>http://cchdo.ucsd.edu/cruise/{expo}</description>
+    <Point><coordinates>{startcoord}</coordinates></Point>
+  </Placemark>
+  <Placemark>
+  <styleUrl>#pt</styleUrl>
+    <MultiGeometry>
+      {multi}
+    </MultiGeometry>
+  </Placemark>
+  {extra}
+</Folder>
+""".format(expo=expocode, lsid=cls._lsid(counter), coordstr=coordstr,
+           startcoord=','.join(coords[0]), multi=''.join(points), extra=extra)
+
+
+def db_to_kml(output, expocode=None, full=False):
+    """Output kml of all CCHDO holdings
+
+    """
+    if expocode:
+        kmldoc = "<name>CCHDO holdings for {0}</name>".format(expocode)
+        kmldoc += GenericCCHDOKML.styles()
+    else:
+        kmldoc = "<name>CCHDO holdings</name>"
+        kmldoc += GenericCCHDOKML.styles(starticon="ship")
+    folders = []
+
+    connection = connect.cchdo().connect()
+    cursor = connection.connection.cursor()
+    if full:
+        sql = """SELECT track_lines.ExpoCode,
+ASTEXT(track_lines.track),
+cruises.Begin_Date,cruises.EndDate
+FROM track_lines, cruises WHERE cruises.ExpoCode = track_lines.ExpoCode"""
+    else:
+        sql = 'SELECT ExpoCode,ASTEXT(track) FROM track_lines'
+        if expocode:
+            sql += ' WHERE ExpoCode = {0!r}'.format(expocode)
+    cursor.execute(sql)
+    rows = cursor.fetchall()
+    counter = 2
+    extra = ''
+    for i, row in enumerate(rows):
+        if full:
+            expocode, coordstr, begin, end = row
+            extra = '<TimeSpan><begin>%s</begin><end>%s</end></TimeSpan>' % (begin, end)
+        else:
+            expocode, coordstr = row
+            counter = i
+        coords = uniquify(linestring_to_coords(coordstr))
+        folders.append(GenericCCHDOKML.folder_for_cruise(expocode, counter, coords, extra))
     cursor.close()
     connection.close()
+
+    kmldoc += ''.join(folders)
+    output.write(GenericCCHDOKML.wrap(kmldoc))
 
 
 def nav_to_kml():
     from libcchdo.datadir.util import do_for_cruise_directories
-
-    kml_header = """\
-<?xml version="1.0" encoding="UTF-8"?>
-<kml xmlns="http://www.opengis.net/kml/2.2"
-     xmlns:gx="http://www.google.com/kml/ext/2.2"
-     xmlns:kml="http://www.opengis.net/kml/2.2"
-     xmlns:atom="http://www.w3.org/2005/Atom"><Document>"""
-    kml_footer = """</Document></kml>"""
-
-    cwd=getcwd()
-    directory = cwd + '/KML_CCHDO_holdings_' + \
-        translate(str(datetime.utcnow()), maketrans(' :.', '___'))
-    if not os.path.exists(directory):
-        makedirs(directory)
-
-    cycle_colors = map(
-        _color_arr_to_str,
-        [[255, 0, 0], [0, 255, 0], [0, 0, 255], [255, 255, 0]])
 
     def generate_kml_from_nav(root, dirs, files, outputdir):
         try:
@@ -570,70 +420,26 @@ def nav_to_kml():
             expocode = f.read()[:-1]
         # use nav file to gen kml
         with open(os.path.join(root, navfile), 'r') as f:
-            coords = map(lambda l: l.split(), f.readlines())
-        if not coords: return False
-        placemarks = []
-        placemarks.append("""\
-<Style id="linestyle">
-  <LineStyle>
-    <width>4</width>
-    <color>%s</color>
-  </LineStyle>
-</Style>""" % cycle_colors[generate_kml_from_nav.i%len(cycle_colors)])
-        placemarks.append("""\
-<Placemark>
-  <name>%s</name>
-  <styleUrl>#linestyle</styleUrl>
-  <LineString>
-    <tessellate>1</tessellate>
-    <coordinates>%s</coordinates>
-  </LineString>
-</Placemark>""" % (expocode, ' '.join(map(lambda c: ','.join(c[:2]), coords))))
-        placemarks.append("""\
-<Placemark>
-  <styleUrl>#start</styleUrl>
-  <name>%s</name>
-  <description>http://cchdo.ucsd.edu/data_access/show_cruise?ExpoCode=%s</description>
-  <Point><coordinates>%s,%s</coordinates></Point>
-</Placemark>""" % (expocode, expocode, coords[0][0], coords[0][1]))
-        placemarks.append('<Folder>')
-        for coord in coords:
-            placemarks.append("""\
-<Placemark>
-  <styleUrl>#pt</styleUrl>
-  <description>%s,%s</description>
-  <Point><coordinates>%s,%s</coordinates></Point>
-</Placemark>""" % (coord[0], coord[1], coord[0], coord[1]))
-        placemarks.append('</Folder>')
+            coords = [line.split() for line in f.readlines()]
+        if not coords:
+            return False
+
+        kmldoc = GenericCCHDOKML.styles()
+        kmldoc +=  GenericCCHDOKML.folder_for_cruise(expocode, generate_kml_from_nav.i, coords)
 
         with open(outputdir+'/track_'+expocode+'.kml', 'w') as f:
-            f.write("""\
-%s<name>%s</name>
-<Style id="start">
-  <IconStyle>
-    <scale>1.5</scale>
-    <Icon>
-      <href>http://maps.google.com/mapfiles/kml/shapes/flag.png</href>
-    </Icon>
-  </IconStyle>
-</Style>
-<Style id="pt">
-  <IconStyle>
-    <scale>0.7</scale>
-    <color>ff0000ff</color>
-    <Icon>
-      <href>http://maps.google.com/mapfiles/kml/shapes/shaded_dot.png</href>
-    </Icon>
-  </IconStyle>
-</Style>
-%s%s""" % (kml_header, expocode, ''.join(placemarks), kml_footer))
+            f.write(GenericCCHDOKML.wrap(kmldoc))
         print 'Generated KML for %s.' % root
         generate_kml_from_nav.i += 1
-
     generate_kml_from_nav.i = 0
 
     def generate_kml_from_nav_into(dir):
         return lambda root, dirs, files: generate_kml_from_nav(
                                              root, dirs, files, dir)
 
+    cwd=getcwd()
+    directory = cwd + '/KML_CCHDO_holdings_' + \
+        translate(str(datetime.utcnow()), maketrans(' :.', '___'))
+    if not os.path.exists(directory):
+        makedirs(directory)
     do_for_cruise_directories(generate_kml_from_nav_into(directory))
