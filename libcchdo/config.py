@@ -341,3 +341,6 @@ def stamp():
          'division': get_merger_division(),
          'initials': get_merger_initials(),
         }
+
+def get_cchdo_email():
+    return 'cchdo@ucsd.edu'

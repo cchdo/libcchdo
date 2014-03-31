@@ -18,7 +18,8 @@ from subprocess import call as subproc_call
 from libcchdo import LOG
 from libcchdo.fns import get_editor
 from libcchdo.config import (
-    get_merger_email, is_env_production, get_merger_initials, get_merger_smtp)
+    get_merger_email, is_env_production, get_merger_initials, get_merger_smtp,
+    get_cchdo_email)
 from libcchdo.datadir.filenames import (
     README_FILENAME, EXPOCODE_FILENAME, FILE_MANIFEST_FILENAME)
 
@@ -218,7 +219,7 @@ class ReadmeEmail(object):
     """"Readme email."""
     def __init__(self, dryrun=True):
         self._email = MIMEMultipart()
-        self._email['From'] = get_merger_email()
+        self._email['From'] = get_cchdo_email()
         self.dryrun = dryrun
         if self.dryrun:
             recipients = [get_merger_email()]
@@ -268,12 +269,6 @@ def send_email(email_str, from_addr, to_addr, email_path):
     """
     smtp = SMTP_SSL(get_merger_smtp())
     try:
-        smtp_pass = ''
-        while not smtp_pass:
-            smtp_pass = getpass(
-                u'Please enter your email password for {0} to send '
-                'notification email to {1}: '.format(get_merger_smtp(), to_addr))
-        smtp.login(get_merger_email(), smtp_pass)
         smtp.sendmail(from_addr, to_addr, email_str)
         LOG.info(u'Sent email.')
     except (KeyboardInterrupt, Exception), err:
@@ -283,7 +278,8 @@ def send_email(email_str, from_addr, to_addr, email_path):
         LOG.info(u'Wrote email to {0} to send manually. '
                  'Use hydro datadir email {0}.'.format(email_path))
         raise err
-    smtp.quit()
+    finally:
+        smtp.quit()
 
 
 IGNORED_FILES_CHECKSUM = ['.DS_Store']

@@ -9,10 +9,12 @@ from zipfile import ZipFile
 from StringIO import StringIO
 
 from libcchdo.formats.netcdf import nc_dataset_to_stream
+from libcchdo.config import get_merger_email
 from libcchdo.datadir import processing
 from libcchdo.datadir.filenames import README_FILENAME, EXPOCODE_FILENAME
 from libcchdo.datadir.util import (
-    find_data_directory, is_cruise_dir, is_working_dir, is_data_dir)
+    ReadmeEmail, find_data_directory, is_cruise_dir, is_working_dir,
+    is_data_dir)
 from libcchdo.datadir.readme import Readme
 
 
@@ -124,3 +126,9 @@ class TestReadme(TestCase):
             self.assertEqual('hy1.nc     YYYYMMDDCCHSIOXXX', rows[6])
             self.assertEqual('nc_hyd.zip YYYYMMDDCCHSIOXXX', rows[7])
             self.assertEqual('ctd.nc                      ', rows[8])
+
+    def test_email_from_cchdo(self):
+        """All emails should be sent with from address cchdo@ucsd.edu"""
+        email = ReadmeEmail(dryrun=True)
+        self.assertEqual('cchdo@ucsd.edu', email._email['From'])
+        self.assertEqual(get_merger_email(), email._email['To'])
