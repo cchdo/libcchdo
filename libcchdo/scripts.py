@@ -1611,7 +1611,7 @@ def datadir_history_note(args):
     from libcchdo.datadir.processing import DSTORE
     with closing(legacy.session()) as session:
         DSTORE.add_history_note(
-            session, args.body, args.expocode, args.title, args.summary,
+            session, args.body.read(), args.expocode, args.title, args.summary,
             args.action)
         session.commit()
 
