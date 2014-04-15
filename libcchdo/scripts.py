@@ -1610,7 +1610,9 @@ def datadir_history_note(args):
     from libcchdo.db.model import legacy
     from libcchdo.datadir.processing import DSTORE
     with closing(legacy.session()) as session:
-        DSTORE.add_history_note(session, body, expocode, title, summary, action)
+        DSTORE.add_history_note(
+            session, args.body, args.expocode, args.title, args.summary,
+            args.action)
         session.commit()
 
 
@@ -1625,7 +1627,8 @@ with subcommand(datadir_parsers, 'history_note',
     p.add_argument(
         'action', default="Website Update", nargs="?", help='The note action.')
     p.add_argument(
-        'body', type=FileType('r'), default=sys.stdin, help='The history note')
+        'body', type=FileType('r'), default=sys.stdin, nargs="?",
+        help='The history note')
 
 
 def datadir_mkdir_working(args):

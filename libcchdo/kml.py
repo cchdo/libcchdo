@@ -72,7 +72,7 @@ def any_to_kml(self, output):
     keymap = [
         ['line', 'Line'],
         ['country', 'Country'],
-        ['chisci', 'Chief_Scientist'],
+        # TODO chief scientist
         ['date_start', 'Begin_Date'],
         ['date_end', 'EndDate'],
         ['ship', 'Ship_Name'],

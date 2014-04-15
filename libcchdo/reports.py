@@ -509,6 +509,6 @@ def report_profiles_available(args):
         for cruise in cruises:
             args.output.write(','.join(map(str, [
                 cruise.Country, cruise.Begin_Date, cruise.Ship_Name,
-                cruise.Line, cruise.ExpoCode, cruise.Chief_Scientist])))
+                cruise.Line, cruise.ExpoCode])))
             args.output.write('\n')
 

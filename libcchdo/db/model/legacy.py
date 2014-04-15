@@ -394,7 +394,6 @@ class Cruise(Base):
     ExpoCode = Column(String)
     Line = Column(String)
     Country = Column(String)
-    Chief_Scientist = Column(String)
     Begin_Date = Column(Date)
     EndDate = Column(Date)
     Ship_Name = Column(String)
