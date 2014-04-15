@@ -270,7 +270,7 @@ def send_email(email_str, from_addr, to_addr, email_path):
     smtp = SMTP_SSL(get_merger_smtp())
     try:
         smtp.sendmail(from_addr, to_addr, email_str)
-        LOG.info(u'Sent email.')
+        LOG.info(u'Sent email from {0} to {1}'.format(from_addr, to_addr))
     except (KeyboardInterrupt, Exception), err:
         LOG.error(u'Unable to send email.')
         with open(email_path, 'w') as fff:

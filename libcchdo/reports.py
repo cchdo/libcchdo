@@ -167,12 +167,12 @@ def report_submission_and_queue(args):
         date_start = args.date_start
         args.output.write('/'.join(map(str, [date_start, date_end])) + '\n')
 
-        submissions = session.query(Submission).\
+        submissions_query = session.query(Submission).\
             filter(
                 between(
                     Submission.submission_date, date_start, date_end)).\
-            filter(Submission.email != 'tooz@oceanatlas.com').\
-            count()
+            filter(Submission.email != 'tooz@oceanatlas.com')
+        submissions = submissions_query.count()
 
         submissions_assimilated = session.query(Submission).\
             filter(
@@ -181,6 +181,9 @@ def report_submission_and_queue(args):
             filter(Submission.email != 'tooz@oceanatlas.com').\
             filter(Submission.assimilated == True).\
             count()
+
+        submission_cruises = session.query(distinct(QueueFile.ExpoCode)).filter(
+            QueueFile.submission_id.in_([x.id for x in submissions_query.all()])).all()
 
         queued = session.query(QueueFile).\
             filter(
@@ -202,6 +205,8 @@ def report_submission_and_queue(args):
             '# submissions: {0}\n'.format(submissions))
         args.output.write(
             '# submissions assimilated: {0}\n'.format(submissions_assimilated))
+        args.output.write(
+            '# cruises with submitted files: {0}\n'.format(len(submission_cruises)))
         args.output.write(
             '# queued: {0}\n'.format(queued))
         args.output.write(

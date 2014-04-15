@@ -337,7 +337,7 @@ class LegacyDatastore(Datastore):
             qf.date_merged = date.today()
             qf.set_merged()
 
-    def add_readme_history_note(self, session, readme, expocode, title, summary,
+    def add_history_note(self, session, readme, expocode, title, summary,
                                 action='Website Update'):
         """Add history note for the given readme notes."""
         cruise = session.query(legacy.Cruise).\
@@ -529,7 +529,7 @@ class LegacyDatastore(Datastore):
 
         """
         with closing(legacy.session()) as session:
-            note_id = self.add_readme_history_note(
+            note_id = self.add_history_note(
                 session, readme, expocode, title, summary)
             self.mark_merged(session, q_ids)
 
@@ -709,7 +709,7 @@ class PycchdoDatastore(Datastore):
             qf.date_merged = date.today()
             qf.set_merged()
 
-    def add_readme_history_note(self, session, readme, expocode, title, summary,
+    def add_history_note(self, session, body, expocode, title, summary,
                                 action='Website Update'):
         """Add history note for the given readme notes."""
         cruise = session.query(legacy.Cruise).\
@@ -727,7 +727,7 @@ class PycchdoDatastore(Datastore):
         event.Action = action
         event.Date_Entered = datetime.now().date()
         event.Summary = summary
-        event.Note = readme
+        event.Note = body
 
         session.add(event)
         session.flush()
@@ -893,7 +893,7 @@ class PycchdoDatastore(Datastore):
         """Record processing history note and mark queue files merged.
 
         """
-        note_id = self.add_readme_history_note(
+        note_id = self.add_history_note(
             session, readme, expocode, title, summary)
         self.mark_merged(session, q_ids)
         return note_id
@@ -1060,7 +1060,7 @@ class CCHDODatastore(Datastore):
             qf.date_merged = date.today()
             qf.set_merged()
 
-    def add_readme_history_note(self, session, readme, expocode, title, summary,
+    def add_history_note(self, session, body, expocode, title, summary,
                                 action='Website Update'):
         """Add history note for the given readme notes."""
         cruise = session.query(legacy.Cruise).\
@@ -1078,7 +1078,7 @@ class CCHDODatastore(Datastore):
         event.Action = action
         event.Date_Entered = datetime.now().date()
         event.Summary = summary
-        event.Note = readme
+        event.Note = body
 
         session.add(event)
         session.flush()
@@ -1232,7 +1232,7 @@ class CCHDODatastore(Datastore):
         """Record processing history note and mark queue files merged.
 
         """
-        note_id = self.add_readme_history_note(
+        note_id = self.add_history_note(
             session, readme, expocode, title, summary)
         self.mark_merged(session, q_ids)
         return note_id

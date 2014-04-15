@@ -1605,6 +1605,29 @@ with subcommand(datadir_parsers, 'processing_note',
         help='The path to the UOW configuration file.')
 
 
+def datadir_history_note(args):
+    """Record history note."""
+    from libcchdo.db.model import legacy
+    from libcchdo.datadir.processing import DSTORE
+    with closing(legacy.session()) as session:
+        DSTORE.add_history_note(session, body, expocode, title, summary, action)
+        session.commit()
+
+
+with subcommand(datadir_parsers, 'history_note',
+                datadir_history_note) as p:
+    p.add_argument(
+        'expocode', help="The note's cruise.")
+    p.add_argument(
+        'title', help='The note title.')
+    p.add_argument(
+        'summary', help='The note summary.')
+    p.add_argument(
+        'action', default="Website Update", nargs="?", help='The note action.')
+    p.add_argument(
+        'body', type=FileType('r'), default=sys.stdin, help='The history note')
+
+
 def datadir_mkdir_working(args):
     """Create a working directory for data work.
 
