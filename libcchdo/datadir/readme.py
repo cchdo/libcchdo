@@ -191,7 +191,7 @@ class Readme(object):
         rows = []
         for fname in files:
             ftype = guess_file_type(fname)
-            fpath = os.path.join(UOWDirName.tgo, fname)
+            fpath = os.path.join(self.uow_dir, UOWDirName.tgo, fname)
             if ftype in ['btl.ex', 'ctd.ex', 'ctd.zip.ex']:
                 type_stamp_reader = ex_read_type_and_stamp
             elif ftype in ['btl.nc', 'ctd.nc', 'btl.zip.nc', 'ctd.zip.nc']:
