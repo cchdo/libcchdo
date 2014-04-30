@@ -143,10 +143,11 @@ class Readme(object):
     This one is used for fixing Expocodes.
 
     """
-    def __init__(self, expocode, process_text):
+    def __init__(self, expocode, process_text, uow_dir='.'):
         """Initialize the readme document with just an ExpoCode."""
         self.expocode = expocode
         self.process_text = process_text
+        self.uow_dir = uow_dir
         self._title = self._gen_title()
 
     def _gen_title(self):
@@ -230,11 +231,11 @@ class ProcessingReadme(Readme):
     """
     def __init__(self, uow_dir):
         """Initialize the readme document with the UOW configuration."""
-        self.uow_dir = uow_dir
         self.uow_cfg = read_uow_cfg(
-            os.path.join(self.uow_dir, UOW_CFG_FILENAME))
+            os.path.join(uow_dir, UOW_CFG_FILENAME))
+        super(ProcessingReadme, self).__init__(
+            self.uow_cfg['expocode'], '', uow_dir)
         self.submission = self.uow_cfg['q_infos']
-        self._title = self._gen_title()
 
     def _gen_title(self):
         """Generate title."""

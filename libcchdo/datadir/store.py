@@ -902,7 +902,7 @@ class PycchdoDatastore(Datastore):
 from sqlalchemy import engine_from_config
 from pyramid.compat import configparser
 from pycchdo import main as pycchdo
-from pycchdo.models.models import DBSession, _Attr, Cruise
+from pycchdo.models.serial import DBSession, Cruise, Change
 from libcchdo.config import _CONFIG
 
 
@@ -927,7 +927,7 @@ class CCHDODatastore(Datastore):
 
         """
         qfiles = []
-        for avf in _Attr.pending_data():
+        for avf in Change.pending_data():
             if avf.attr.accepted:
                 continue
             info = {
