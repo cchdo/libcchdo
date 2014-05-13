@@ -30,7 +30,7 @@ if __name__ == "__main__":
         'coverage': ['coverage', ],
         'netcdf': ['numpy', 'netCDF4', ],
         'autocomplete': ['argcomplete'],
-        'merge': ['pandas', 'numpy>=1.6'],
+        'merge': ['numpy>=1.6'],
         'plot': ['numpy>=1.4', 'scipy', 'pillow', 'matplotlib', 'basemap', ],
         'dap_thredds': ['lxml', 'httplib2', 'pydap'],
     }
@@ -46,6 +46,7 @@ if __name__ == "__main__":
         install_requires.append('argparse')
 
     dependency_links = [
+        'http://www.bytereef.org/software/mpdecimal/releases/cdecimal-2.3.tar.gz#egg=cdecimal-2.3',
         'https://github.com/matplotlib/basemap/archive/v1.0.6rel.zip#egg=basemap-1.0.6',
         'git+ssh://git@bitbucket.org/ghdc/pycchdo.git#egg=pycchdo-0.8',
     ]

@@ -53,7 +53,6 @@ All nodes are python packages except those marked as libraries.
     + geos (library)
 
   - basemap (optional) needed for plotting maps
-  - pandas (optional) needed for merging
   - pykml (optional) used to write KML documents.
 
 External Libraries
