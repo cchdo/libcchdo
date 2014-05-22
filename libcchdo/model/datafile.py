@@ -857,6 +857,12 @@ class DataFileCollection(object):
             d['files'].append(file.to_dict())
         return d
 
+    def expocodes(self):
+        expocodes = list()
+        for data in self:
+            expocodes.extend(data.expocodes())
+        return uniquify(expocodes)
+
     def __len__(self):
         return len(self.files)
 
