@@ -3,7 +3,7 @@
 """
 import zipfile
 from datetime import datetime
-from tempfile import SpooledTemporaryFile
+from tempfile import SpooledTemporaryFile, NamedTemporaryFile
 from traceback import format_exc
 
 from libcchdo.log import LOG
@@ -146,8 +146,7 @@ def generate_files(fileobj, is_fname_ok=None):
         for fname in zfile.namelist():
             if is_fname_ok and not is_fname_ok(fname):
                 continue
-            with SpooledTemporaryFile(max_size=2 ** 13) as tempfile:
-                tempfile.name = fname
+            with NamedTemporaryFile() as tempfile:
                 tempfile.write(zfile.read(fname))
                 tempfile.flush()
                 tempfile.seek(0)
