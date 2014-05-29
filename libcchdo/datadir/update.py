@@ -11,6 +11,7 @@ from sqlalchemy import or_
 from libcchdo import LOG
 from libcchdo.db.model.legacy import Document, Cruise, session
 from libcchdo.config import get_datadir_hostname
+from libcchdo.datadir.util import full_datadir_path
 
 known_file_types = {
     'hy.txt'   : 'Woce Bottle',
@@ -162,7 +163,12 @@ def update(expo_or_ddir):
         if is_expo_in_cruises(sesh, expo_or_ddir):
             ddir = guess_path_from_expo(sesh, expo_or_ddir)
         elif ddir is None:
-            ddir = expo_or_ddir
+            ddir = full_datadir_path(expo_or_ddir)
+
+        if not ddir.startswith("/data/"):
+            # cause why not check to make sure things worked...?
+            raise ValueError("The cruise path must absolute and start with"\
+                    " /data/")
 
         base_dir, files = get_ddir_list(ddir)
 
