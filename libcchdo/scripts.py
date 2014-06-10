@@ -1400,7 +1400,8 @@ def datadir_fetch(args):
     if not any(fetch_requirements):
         for f in fc.dstore.as_received_unmerged_list():
             print '\t'.join(map(str, 
-                [f['q_id'], f['data_type'], f['submitted_by'], f['filename']]))
+                [f['q_id'], f['expocode'], f['data_type'], f['submitted_by'],
+                 f['filename']]))
         return
     if not args.title or not args.summary:
         LOG.error(
@@ -1578,13 +1579,26 @@ with subcommand(datadir_parsers, 'create_processing_email',
 def datadir_add_processing_note(args):
     """Record processing history note, mark merged, and notify."""
     from libcchdo.datadir.processing import (
-        FetchCommitter, is_processing_readme_render_ok, read_uow_cfg)
+        FetchCommitter, is_processing_readme_render_ok, read_uow_cfg,
+        check_uow_cfg
+        )
     if is_processing_readme_render_ok(
             args.readme_path, confirm_html=(not args.readme_html_ok)):
         uow_cfg = read_uow_cfg(args.uow_cfg_path)
+        try:
+            check_uow_cfg(uow_cfg)
+        except ValueError:
+            return
+
+        try:
+            with open(args.readme_path) as fff:
+                readme = fff.read()
+        except IOError:
+            LOG.error(u'Cannot continue without {0}'.format(README_FILENAME))
+            return
         fc = FetchCommitter()
         fc.uow_commit_postflight(
-            args.readme_path, args.email_path, uow_cfg, args.dry_run)
+            readme, args.email_path, uow_cfg, args.dry_run)
     else:
         LOG.error(u'README is not valid reST or merger rejected. Stop.')
         return

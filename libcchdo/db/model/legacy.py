@@ -18,8 +18,11 @@ Base = S.ext.declarative.declarative_base()
 metadata = Base.metadata
 
 
-def session():
-    return connect.session(connect.cchdo())
+def session(*args, **kwargs):
+    return connect.session(connect.cchdo(), *args, **kwargs)
+
+
+Session = connect.scoped(connect.cchdo())
 
 
 def str_list_add(str_list, item, separator=','):

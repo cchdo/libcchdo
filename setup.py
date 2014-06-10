@@ -39,6 +39,7 @@ if __name__ == "__main__":
     install_requires = [
         'SQLalchemy',
         'geoalchemy',
+        'zope.sqlalchemy',
     ]
     if sys.version_info[:3] < (2,5,0):
         install_requires.append('pysqlite')

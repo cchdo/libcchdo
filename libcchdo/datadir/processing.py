@@ -18,7 +18,9 @@ from traceback import format_exc
 from docutils.utils import SystemMessage
 from docutils.core import publish_string
 
-from libcchdo import LOG
+import transaction
+
+from libcchdo import LOG, config
 from libcchdo.serve import SimpleHTTPServer
 from libcchdo.bb import BB
 from libcchdo.fns import uniquify
@@ -291,7 +293,7 @@ def create_processing_email(readme, expocode, q_infos, note_id, q_ids,
     return pemail
 
 
-def _check_uow_cfg(uow_cfg):
+def check_uow_cfg(uow_cfg):
     """Make sure the UOW configuration has required fields."""
     cfg_ok = True
     try:
@@ -327,9 +329,9 @@ def _q_from_uow_cfg(uow_cfg):
 
 
 class FetchCommitter(object):
-    def __init__(self, dstore=None):
+    def __init__(self):
         """Create a UOW fetch/committer that operates on the data store."""
-        if dstore == 'pycchdo':
+        if config.get_option('db', 'dstore', lambda: '') == 'pycchdo':
             dstore = PycchdoDatastore()
         else:
             dstore = LegacyDatastore()
@@ -352,11 +354,11 @@ class FetchCommitter(object):
         # Check that all files referenced have the same cruise.
         qfis = self.dstore.as_received_infos(*ids)
         if not qfis:
-            LOG.error(u'None of the ids given refer to Queue files.')
+            LOG.warn(u'None of the ids given refer to Queue files.')
             # fall back to ExpoCode mode
             if len(ids) != 1:
                 return
-            LOG.error(u'Using id as ExpoCode')
+            LOG.info(u'Using id as ExpoCode')
             expocodes = ids
         else:
             expocodes = uniquify([qf['expocode'] for qf in qfis])
@@ -427,44 +429,8 @@ class FetchCommitter(object):
 
         return dirpath
 
-    def uow_commit_postflight(self, readme_path, email_path, uow_cfg,
-                              dryrun=True):
-        """Perform UOW commit postflight actions.
-
-        This includes writing history event, marking queue files merged, general
-        bookkeeping and notifying the CCHDO community.
-
-        """
-        try:
-            with open(readme_path) as fff:
-                readme = fff.read()
-        except IOError:
-            LOG.error(u'Cannot continue without {0}'.format(README_FILENAME))
-            return
-
-        try:
-            _check_uow_cfg(uow_cfg)
-        except ValueError:
-            return
-        expocode = uow_cfg['expocode']
-        title = uow_cfg['title']
-        summary = uow_cfg['summary']
-
-        q_infos, q_ids = _q_from_uow_cfg(uow_cfg)
-
-        note_id = self.dstore.add_processing_note(
-            readme, expocode, title, summary, q_ids, dryrun)
-
-        try:
-            pemail = create_processing_email(
-                readme, expocode, q_infos, note_id, q_ids, dryrun)
-            pemail.send(email_path)
-        except (KeyboardInterrupt, Exception), err:
-            LOG.error(u'Could not send email: {0}'.format(format_exc(3)))
-            LOG.info(u'Retry sending email with hydro datadir email {0}'.format(
-                email_path))
-
-    def uow_commit(self, uow_dir, person=None, confirm_html=True, dryrun=True):
+    def uow_commit(self, uow_dir, person=None, confirm_html=True,
+                   send_email=True, dryrun=True):
         """Commit a UOW directory to the cruise data history.
 
         write 00_README.txt header, submissions, parameter list, conversion,
@@ -499,7 +465,7 @@ class FetchCommitter(object):
                 UOW_CFG_FILENAME, err))
             return
         try:
-            _check_uow_cfg(uow_cfg)
+            check_uow_cfg(uow_cfg)
         except ValueError:
             return
         expocode = uow_cfg['expocode']
@@ -508,16 +474,49 @@ class FetchCommitter(object):
             # Pre-flight checks
             self.dstore.check_cruise_exists(expocode, dir_perms, dryrun)
             self.dstore.check_fetched_online_unchanged(readme)
-
-            finalized_readme_path = self.dstore.commit(readme, person, dir_perms)
-        except ValueError:
+            finalized_readme_path = os.path.join(
+                readme.uow_dir, README_FINALIZED_FILENAME)
+            self.dstore.commit(
+                readme, person, dir_perms, finalize_readme, dryrun)
+        except ValueError, err:
+            LOG.error(err)
             return
 
-        # Flight complete
-        dryrun_log_info(
-            u'Data file commit completed successfully. Writing history and '
-           'notifications.', dryrun)
         self.uow_commit_postflight(
-            finalized_readme_path,
-            os.path.join(uow_dir, PROCESSING_EMAIL_FILENAME), uow_cfg, dryrun)
+            readme, os.path.join(uow_dir, PROCESSING_EMAIL_FILENAME), uow_cfg,
+            send_email, dryrun)
+
         dryrun_log_info(u'UOW commit completed successfully.', dryrun)
+
+    def uow_commit_postflight(self, readme, email_path, uow_cfg,
+                              send_email=True, dryrun=True):
+        """Perform UOW commit postflight actions.
+
+        This includes writing history event, marking queue files merged, general
+        bookkeeping and notifying the CCHDO community.
+
+        """
+        expocode = uow_cfg['expocode']
+        title = uow_cfg['title']
+        summary = uow_cfg['summary']
+        q_infos, q_ids = _q_from_uow_cfg(uow_cfg)
+
+        note_id = self.dstore.commit_postflight(
+            readme, email_path, expocode, title, summary, q_ids,
+            finalized_readme_path, dryrun)
+
+        if send_email:
+            try:
+                pemail = create_processing_email(
+                    unicode(readme), expocode, q_infos, note_id, q_ids, dryrun)
+                pemail.send(email_path)
+            except (KeyboardInterrupt, Exception), err:
+                LOG.error(u'Could not send email: {0}'.format(format_exc(3)))
+                LOG.info(u'Retry with hydro datadir processing_note')
+                transaction.doom()
+
+        if dryrun:
+            dryrun_log_info(u'rolled back', dryrun)
+            transaction.abort()
+        else:
+            transaction.commit()
