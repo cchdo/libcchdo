@@ -33,7 +33,7 @@ from libcchdo.datadir.util import (
     UOWDirName, uow_copy, PERM_STAFF_ONLY_DIR, PERM_STAFF_ONLY_FILE)
 from libcchdo.datadir.filenames import (
     EXPOCODE_FILENAME, README_FILENAME, PROCESSING_EMAIL_FILENAME,
-    UOW_CFG_FILENAME, README_TEMPLATE_FILENAME)
+    UOW_CFG_FILENAME, README_TEMPLATE_FILENAME, README_FINALIZED_FILENAME)
 from libcchdo.datadir.store import LegacyDatastore, PycchdoDatastore
 
 
@@ -477,19 +477,19 @@ class FetchCommitter(object):
             finalized_readme_path = os.path.join(
                 readme.uow_dir, README_FINALIZED_FILENAME)
             self.dstore.commit(
-                readme, person, dir_perms, finalize_readme, dryrun)
+                readme, person, dir_perms, finalized_readme_path, dryrun)
         except ValueError, err:
             LOG.error(err)
             return
 
         self.uow_commit_postflight(
             readme, os.path.join(uow_dir, PROCESSING_EMAIL_FILENAME), uow_cfg,
-            send_email, dryrun)
+            finalized_readme_path, send_email, dryrun)
 
         dryrun_log_info(u'UOW commit completed successfully.', dryrun)
 
     def uow_commit_postflight(self, readme, email_path, uow_cfg,
-                              send_email=True, dryrun=True):
+            finalized_readme_path, send_email=True, dryrun=True):
         """Perform UOW commit postflight actions.
 
         This includes writing history event, marking queue files merged, general
