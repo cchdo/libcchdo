@@ -425,7 +425,8 @@ class Event(Base):
     __tablename__ = 'events'
 
     ID = Column(Integer, primary_key=True)
-    ExpoCode = Column(String)
+    ExpoCode = Column(String, ForeignKey('cruises.ExpoCode'))
+    contact = relationship(Cruise, backref='events')
     First_Name = Column(String)
     LastName = Column(String)
     Data_Type = Column(String)
@@ -527,7 +528,7 @@ class QueueFile(Base):
     documentation = Column(Integer)
     submission_id = Column(Integer, ForeignKey('submissions.id'))
     submission = relationship('Submission', backref=backref(
-        'queue_file', uselist=False))
+        'queue_files', uselist=True))
     
     def is_unmerged(self):
         """Return the unmerged status.

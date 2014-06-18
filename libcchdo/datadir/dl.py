@@ -76,9 +76,9 @@ def su(uid=0, gid=0, su_lock=None):
             sys.exit(1)
         try:
             yield
-        except Exception, e:
-            LOG.error(u'Error while su(%s, %s)' % (uid, gid))
-            raise e
+        except Exception, err:
+            LOG.error(u'Error while su({0}, {1}): {2}'.format(uid, gid, err))
+            raise
         finally:
             if uid != 0:
                 seteuid(0)
