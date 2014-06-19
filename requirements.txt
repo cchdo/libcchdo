@@ -1,1 +1,2 @@
 numpy>=1.6
+-e git+https://github.com/myshen/geoalchemy.git@fix_sa_0_9_func#egg=geoalchemy
