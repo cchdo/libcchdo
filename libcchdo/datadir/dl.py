@@ -31,9 +31,8 @@ def pushd(dir):
     chdir(dir)
     try:
         yield
-    except Exception, e:
-        LOG.error('Error in pushd')
-        LOG.error(e)
+    except Exception, err:
+        LOG.error('Error in pushd: {0}'.format(err))
     finally:
         chdir(cwd)
 

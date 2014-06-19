@@ -506,9 +506,10 @@ class FetchCommitter(object):
             finalized_readme_path, dryrun)
 
         if send_email:
+            readme_str = open(finalized_readme_path, 'r').read()
             try:
                 pemail = create_processing_email(
-                    unicode(readme), expocode, q_infos, note_id, q_ids, dryrun)
+                    readme_str, expocode, q_infos, note_id, q_ids, dryrun)
                 pemail.send(email_path)
             except (KeyboardInterrupt, Exception), err:
                 LOG.error(u'Could not send email: {0}'.format(format_exc(3)))
