@@ -443,9 +443,8 @@ class ExpoCodeAliasCorrector(dict):
                 fff.write(readme_text)
 
             fc = FetchCommitter()
-            note_id = fc.dstore.add_readme_history_note(
-                session, readme_text, self.expocode_new, 'ExpoCode',
-                'ExpoCode changed')
+            note_id = fc.dstore.add_history_note(
+                readme_text, self.expocode_new, 'ExpoCode', 'ExpoCode changed')
 
             try:
                 session.commit()
