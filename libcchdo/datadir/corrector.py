@@ -126,15 +126,26 @@ class ExpoCodeAliasCorrector(dict):
 
     def fix_expocode_in_db(self, session):
         """Correct the expocode all over the database."""
+        # Change cruise entries' ExpoCodes and add old ExpoCode to aliases.
+        cruises = session.query(Cruise).\
+            filter(Cruise.ExpoCode == self.expocode_old).all()
+        for cruise in cruises:
+            cruise.ExpoCode = self.expocode_new
+            cruise.Alias = str_list_add(cruise.Alias, self.expocode_old)
+
         models_to_fix_expocode_for = [
             ArcticAssignment, BottleDB, ArgoFile, ArgoSubmission, TrackLine,
             Event, CruiseParameterInfo, QueueFile, Submission,
-            SpatialGroup, Internal, UnusedTrack, NewTrack, SupportFile, 
+            Internal, UnusedTrack, NewTrack, SupportFile, 
             ]
         for model in models_to_fix_expocode_for:
             try:
+                try:
+                    col = model.ExpoCode
+                except AttributeError:
+                    col = model.expocode
                 items = session.query(model).\
-                    filter(model.ExpoCode == self.expocode_old).all()
+                    filter(col == self.expocode_old).all()
             except ProgrammingError, err:
                 LOG.error(err)
                 continue
@@ -311,13 +322,6 @@ class ExpoCodeAliasCorrector(dict):
             u'Changing ExpoCode for cruise directory {dir} from {old!r} to '
             '{new!r}'.format(
                 dir=cruisedir, old=self.expocode_old, new=self.expocode_new))
-
-        # Change cruise entries' ExpoCodes and add old ExpoCode to aliases.
-        cruises = session.query(Cruise).\
-            filter(Cruise.ExpoCode == self.expocode_old).all()
-        for cruise in cruises:
-            cruise.ExpoCode = self.expocode_new
-            cruise.Alias = str_list_add(cruise.Alias, self.expocode_old)
 
         # Rewrite expocodes in database
         self.fix_expocode_in_db(session)

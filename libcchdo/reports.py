@@ -182,7 +182,7 @@ def report_submission_and_queue(args):
             filter(Submission.assimilated == True).\
             count()
 
-        submission_cruises = session.query(distinct(QueueFile.ExpoCode)).filter(
+        submission_cruises = session.query(distinct(QueueFile.expocode)).filter(
             QueueFile.submission_id.in_([x.id for x in submissions_query.all()])).all()
 
         queued = session.query(QueueFile).\

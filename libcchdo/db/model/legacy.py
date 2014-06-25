@@ -602,7 +602,8 @@ class SpatialGroup(Base):
 
     id = Column(Integer, primary_key=True)
     area = Column(String)
-    expocode = Column('ExpoCode', String)
+    expocode = Column('ExpoCode', ForeignKey('cruises.ExpoCode', onupdate='cascade'))
+    cruise = relationship(Cruise)
 
     atlantic = Column(BINARY)
     arctic = Column(BINARY)
