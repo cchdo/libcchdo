@@ -167,7 +167,7 @@ function hydro_vm__install_hydro() {
         fi
 
         echo -n "...installing dependencies" >&2;
-        pip install numpy &> /dev/null;
+        pip install -r requirements.txt &> /dev/null;
         pip install -e ".[all]" &> /dev/null;
         echo -n "...installing..." >&2;
         pip uninstall . &> /dev/null;
