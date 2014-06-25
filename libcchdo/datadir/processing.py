@@ -20,7 +20,7 @@ from docutils.core import publish_string
 
 import transaction
 
-from libcchdo import LOG, config
+from libcchdo import LOG
 from libcchdo.serve import SimpleHTTPServer
 from libcchdo.bb import BB
 from libcchdo.fns import uniquify
@@ -34,10 +34,7 @@ from libcchdo.datadir.util import (
 from libcchdo.datadir.filenames import (
     EXPOCODE_FILENAME, README_FILENAME, PROCESSING_EMAIL_FILENAME,
     UOW_CFG_FILENAME, README_TEMPLATE_FILENAME, README_FINALIZED_FILENAME)
-from libcchdo.datadir.store import LegacyDatastore, PycchdoDatastore
-
-
-DSTORE = LegacyDatastore()
+from libcchdo.datadir.store import get_datastore
 
 
 def copy_replaced(filename, curr_date, separator='_'):
@@ -277,7 +274,7 @@ class ProcessingEmail(ReadmeEmail):
 def finalize_readme(readme, fileobj):
     """Generate a final copy of the README with manifests and conversions."""
     tgo_files = os.listdir(os.path.join(readme.uow_dir, UOWDirName.tgo))
-    DSTORE.finalize_readme(
+    get_datastore('legacy').finalize_readme(
         readme, '<remote_work_path>', '<cruise_dir>', tgo_files, fileobj)
 
 
@@ -331,11 +328,7 @@ def _q_from_uow_cfg(uow_cfg):
 class FetchCommitter(object):
     def __init__(self):
         """Create a UOW fetch/committer that operates on the data store."""
-        if config.get_option('db', 'dstore', lambda: '') == 'pycchdo':
-            dstore = PycchdoDatastore()
-        else:
-            dstore = LegacyDatastore()
-        self.dstore = dstore
+        self.dstore = get_datastore()
 
     def mkdir_uow(self, basepath, title, summary, ids, separator='_',
                   processing_subdirs=False, dl_originals=True):

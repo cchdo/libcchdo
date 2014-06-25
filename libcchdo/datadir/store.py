@@ -19,7 +19,7 @@ from libcchdo.db.model import legacy
 from libcchdo.db.model.legacy import QueueFile, Session as Lsesh
 from libcchdo.config import (
     get_pycchdo_person_id, get_legacy_datadir_host, get_merger_name_first,
-    get_merger_name_last)
+    get_merger_name_last, get_option)
 from libcchdo.datadir.util import (
     working_dir_name, dryrun_log_info, mkdir_ensure, checksum_dir, DirName,
     UOWDirName, uow_copy, tempdir, read_file_manifest, regenerate_file_manifest,
@@ -158,6 +158,15 @@ class Datastore(object):
             output_fileobj.write(final_sections)
 
 
+def get_datastore(dstore_id=None):
+    if dstore_id is None:
+        dstore_id = get_option('db', 'dstore', lambda: '')
+    if dstore_id == 'pycchdo':
+        return PycchdoDatastore()
+    else:
+        return LegacyDatastore()
+
+
 class LegacyDatastore(Datastore):
     """Implementation of /data datafile storage model."""
     def __init__(self):
@@ -261,6 +270,11 @@ class LegacyDatastore(Datastore):
     def _cruise_dir(self, expocode):
         with self._cruise_directory(expocode) as doc:
             return doc.FileName
+
+    def cruise_dir(self, expocode):
+        """Return a fully-qualified path to the cruise directory."""
+        return '{0}:{1}'.format(
+            get_legacy_datadir_host(), self._cruise_dir(expocode))
                 
     IGNORED_FILES = ['Queue', 'original']
 
@@ -577,6 +591,11 @@ class PycchdoDatastore(Datastore):
         config.read(pasteini)
         settings = dict(config.items('app:pycchdo'))
         pycchdo(None, **settings)
+
+    def cruise_dir(self, expocode):
+        """Return a fully-qualified path to the cruise directory."""
+        LOG.info(u'pycchdo does not use the concept of cruise directories.')
+        return ''
 
     def as_received_unmerged_list(self):
         """Return a list of dictionaries representing files that are not merged.
