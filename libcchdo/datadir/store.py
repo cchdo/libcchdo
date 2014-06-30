@@ -142,6 +142,60 @@ class Datastore(object):
             qfis.append(self._queuefile_info(qfile))
         return qfis
 
+    def check_online_checksums(self, uow_dir, cid):
+        """A crude check that no online files have changed since UOW fetch.
+
+        This is performed before comitting a UOW in case of multiple mergers
+        working on the same cruise.
+
+        """
+        fetch_dir = os.path.join(uow_dir, UOWDirName.online)
+        fetch_checksum, fetch_file_checksums = checksum_dir(fetch_dir)
+        with tempdir() as temp_dir:
+            self.fetch_online(temp_dir, cid)
+            current_checksum, current_file_checksums = checksum_dir(temp_dir)
+            if fetch_checksum != current_checksum:
+                checksum_diff_summary(
+                    fetch_file_checksums, current_file_checksums)
+                raise ValueError(
+                    u'Cruise online files have changed since the last UOW '
+                    'fetch!')
+
+    def check_fetched_online_unchanged(self, readme):
+        """Ensure fetched online files have not changed since fetch."""
+        try:
+            self.check_online_checksums(
+                readme.uow_dir, readme.uow_cfg['expocode'])
+        except ValueError, err:
+            LOG.error(u'{0} Abort.'.format(err))
+            raise
+
+    def _get_file_manifest(self, uow_dir, tgo_files):
+        """Read or regenerate the file manifest to put online for a UOW.
+
+        file_manifest is the list of all files that should be online. It is
+        composed of those files that are already online, minus those that should
+        not be online, plus the files that are new.
+
+        Return: tuple of sets of::
+            * all files to be online
+            * currently online files (current/to be removed)
+            * files ready to go online (new/updated)
+
+        """
+        online_files = os.listdir(os.path.join(uow_dir, UOWDirName.online))
+        try:
+            file_manifest = read_file_manifest(uow_dir)
+            if not file_manifest:
+                file_manifest = regenerate_file_manifest(
+                    uow_dir, online_files, tgo_files)
+        except (IOError, OSError):
+            file_manifest = regenerate_file_manifest(
+                uow_dir, online_files, tgo_files)
+        if not file_manifest:
+            raise ValueError(u'Empty file manifest. Abort.')
+        return set(file_manifest), set(online_files), set(tgo_files)
+
     def finalize_readme(self, readme, final_sections, output_fileobj):
         """Write a finalized readme to the UOW dir.
 
@@ -380,22 +434,11 @@ class LegacyDatastore(Datastore):
         working on the same cruise.
 
         """
-        
         saved_dryrun = self.aftp.dryrun
         self.aftp.dryrun = False
         try:
-            fetch_dir = os.path.join(uow_dir, UOWDirName.online)
-            fetch_checksum, fetch_file_checksums = checksum_dir(fetch_dir)
-            with tempdir() as temp_dir:
-                self.fetch_online(temp_dir, expocode)
-                current_checksum, current_file_checksums = \
-                    checksum_dir(temp_dir)
-                if fetch_checksum != current_checksum:
-                    checksum_diff_summary(
-                        fetch_file_checksums, current_file_checksums)
-                    raise ValueError(
-                        u'Cruise online files have changed since the last UOW '
-                        'fetch!')
+            super(LegacyDatastore, self).check_online_checksums(uow_dir,
+                                                                expocode)
         finally:
             self.aftp.dryrun = saved_dryrun
 
@@ -414,43 +457,6 @@ class LegacyDatastore(Datastore):
                     u'Could not ensure original directory {0} exists: '
                     '{1!r}'.format(self.cruise_original_dir, err))
                 raise ValueError()
-
-    def check_fetched_online_unchanged(self, readme):
-        """Ensure fetched online files have not changed since fetch."""
-        # XXX Datadir specific (Make sure online files have not changed...how?)
-        try:
-            self.check_online_checksums(
-                readme.uow_dir, readme.uow_cfg['expocode'])
-        except ValueError, err:
-            LOG.error(u'{0} Abort.'.format(err))
-            raise err
-
-    def _get_file_manifest(self, uow_dir, work_dir):
-        """Read or regenerate the file manifest to put online for a UOW.
-
-        file_manifest is the list of all files that should be online. It is
-        composed of those files that are already online, minus those that should
-        not be online, plus the files that are new.
-
-        Return: tuple of sets of::
-            * all files to be online
-            * currently online files (current/to be removed)
-            * files ready to go online (new/updated)
-
-        """
-        online_files = os.listdir(os.path.join(uow_dir, UOWDirName.online))
-        tgo_files = os.listdir(os.path.join(work_dir, DirName.tgo))
-        try:
-            file_manifest = read_file_manifest(uow_dir)
-            if not file_manifest:
-                file_manifest = regenerate_file_manifest(
-                    uow_dir, online_files, tgo_files)
-        except (IOError, OSError):
-            file_manifest = regenerate_file_manifest(
-                uow_dir, online_files, tgo_files)
-        if not file_manifest:
-            raise ValueError(u'Empty file manifest. Abort.')
-        return set(file_manifest), set(online_files), set(tgo_files)
 
     def commit(self, readme, person, dir_perms, finalized_readme_path, dryrun):
         """Perform actions needed to put files in work dir and online."""
@@ -482,7 +488,8 @@ class LegacyDatastore(Datastore):
             # Copy UOW contents into the local working directory
             _copy_uow_dirs_into_work_dir(readme.uow_dir, work_dir)
             try:
-                file_sets = self._get_file_manifest(readme.uow_dir, work_dir)
+                tgo_files = os.listdir(os.path.join(work_dir, DirName.tgo))
+                file_sets = self._get_file_manifest(readme.uow_dir, tgo_files)
                 (new_files, removed_files, overwritten_files, unchanged_files,
                  missing_tgo_files) = _copy_uow_online_into_work_dir(
                     readme.uow_dir, work_dir, dir_perms, *file_sets)
@@ -701,33 +708,9 @@ class PycchdoDatastore(Datastore):
         # files that have been accepted.
         # 2a. group them into directories by date?
 
-    def check_online_checksums(self, uow_dir, cid):
-        """A crude check that no online files have changed since UOW fetch.
-
-        This is performed before comitting a UOW in case of multiple mergers
-        working on the same cruise.
-
-        """
-        fetch_dir = os.path.join(uow_dir, UOWDirName.online)
-        fetch_checksum, fetch_file_checksums = checksum_dir(fetch_dir)
-        with tempdir() as temp_dir:
-            self.fetch_online(temp_dir, cid)
-            current_checksum, current_file_checksums = checksum_dir(temp_dir)
-            if fetch_checksum != current_checksum:
-                checksum_diff_summary(
-                    fetch_file_checksums, current_file_checksums)
-                raise ValueError(
-                    u'Cruise online files have changed since the last UOW '
-                    'fetch!')
-
     def check_cruise_exists(self, expocode, dir_perms, dryrun):
         """Ensure remote cruise original directory exists."""
         self._cruise(expocode)
-
-    def check_fetched_online_unchanged(self, readme):
-        """Ensure fetched online files have not changed since fetch."""
-        self.check_online_checksums(
-            readme.uow_dir, readme.uow_cfg['expocode'])
 
     def _get_file_key(self, fname, known_fkeys={}):
         """Return the Cruise key that should be used to store the file.
@@ -752,31 +735,6 @@ class PycchdoDatastore(Datastore):
         ftype = ftype.replace('.nc', '.netcdf')
         ftype = ftype.replace('.', '_')
         return ftype
-
-    def _get_file_manifest(self, uow_dir, tgo_files):
-        """Read or regenerate the file manifest to put online for a UOW.
-
-        file_manifest is the list of all files that should be online. It is
-        composed of those files that are already online, minus those that should
-        not be online, plus the files that are new.
-
-        Return: tuple of sets of::
-            * all files to be online
-            * currently online files (current/to be removed)
-            * files ready to go online (new/updated)
-
-        """
-        online_files = os.listdir(os.path.join(uow_dir, UOWDirName.online))
-        try:
-            file_manifest = read_file_manifest(uow_dir)
-        except (IOError, OSError):
-            file_manifest = None
-        if not file_manifest:
-            file_manifest = regenerate_file_manifest(
-                uow_dir, online_files, tgo_files)
-        if not file_manifest:
-            raise ValueError(u'Empty file manifest. Abort.')
-        return set(file_manifest), set(online_files), set(tgo_files)
 
     def commit(self, readme, person, dir_perms, finalized_readme_path, dryrun):
         """Perform actions needed to store the history and put files online.
