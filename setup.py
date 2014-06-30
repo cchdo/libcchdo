@@ -46,12 +46,6 @@ if __name__ == "__main__":
     if sys.version_info[:3] < (2,7,0):
         install_requires.append('argparse')
 
-    dependency_links = [
-        'http://www.bytereef.org/software/mpdecimal/releases/cdecimal-2.3.tar.gz#egg=cdecimal-2.3',
-        'https://github.com/matplotlib/basemap/archive/v1.0.6rel.zip#egg=basemap-1.0.6',
-        'git+ssh://git@bitbucket.org/ghdc/pycchdo.git#egg=pycchdo-0.8',
-    ]
-
     packages = find_packages(exclude=['libcchdo.tests'])
 
     resources = [os.path.join('resources', fname) for fname in
@@ -70,7 +64,6 @@ if __name__ == "__main__":
         },
         test_suite='libcchdo.tests',
         install_requires=install_requires,
-        dependency_links=dependency_links,
         extras_require=extras_require,
         entry_points={
             'console_scripts': [
