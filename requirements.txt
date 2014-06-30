@@ -6,6 +6,3 @@ numpy>=1.6
 --allow-external cdecimal
 --allow-external basemap
 --allow-unverified basemap
--e git+ssh://git@bitbucket.org/ghdc/pycchdo.git#egg=pycchdo
---allow-external pycchdo
---allow-external libcchdo

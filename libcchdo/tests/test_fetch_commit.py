@@ -8,8 +8,6 @@ from libcchdo.datadir.util import tempdir, UOWDirName, write_file_manifest
 from libcchdo.datadir.filenames import README_FILENAME, UOW_CFG_FILENAME
 from libcchdo.datadir.processing import FetchCommitter
 
-from pycchdo.models.serial import Person, Cruise
-
 
 class TestFetchCommit(TestCase):
 

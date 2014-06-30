@@ -24,7 +24,7 @@ if __name__ == "__main__":
     extras_require = {
         'csv_view': ['lxml', ],
         'db': ['MySQL-python', ],
-        'datadir': ['oauth2', 'paramiko', 'docutils', 'pycchdo', 'requests'],
+        'datadir': ['oauth2', 'paramiko', 'docutils', 'requests'],
         'speed': ['cdecimal', ],
         'kml': ['pykml', ],
         'coverage': ['coverage', ],

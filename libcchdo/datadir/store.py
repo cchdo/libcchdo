@@ -1,5 +1,7 @@
 import os
 import os.path
+import stat
+from ConfigParser import SafeConfigParser
 from datetime import datetime, date
 from contextlib import closing, contextmanager
 from urllib2 import HTTPError
@@ -13,6 +15,7 @@ from urlparse import urlparse, parse_qsl
 from webbrowser import open as webopen
 import urllib
 from cookielib import LWPCookieJar
+from json import dumps as json_dumps
 
 import transaction
 
@@ -26,7 +29,7 @@ from libcchdo.db import connect
 from libcchdo.db.model import legacy
 from libcchdo.db.model.legacy import QueueFile, Session as Lsesh
 from libcchdo.config import (
-    get_config_dir, get_pycchdo_person_id, get_legacy_datadir_host,
+    get_config_dir, get_legacy_datadir_host,
     get_merger_name_first, get_merger_name_last, get_option)
 from libcchdo.util import get_library_abspath
 from libcchdo.datadir.util import (
@@ -584,21 +587,12 @@ class LegacyDatastore(Datastore):
         return note_id
 
 
-from sqlalchemy import engine_from_config
-from pyramid.compat import configparser
-from pycchdo import main as pycchdo
-from pycchdo.models.serial import (
-    DBSession, Change, Cruise, Person, UOW, FSFile, Note
-    )
-from libcchdo.config import get_option
-
-
 class PycchdoCallbackHTTPServer(SimpleHTTPRequestHandler):
     def __init__(self, *args, **kwargs):
         SimpleHTTPRequestHandler.__init__(self, *args, **kwargs)
         cfg_path = os.path.join(
             get_library_abspath(), 'resources', 'janrain', 'janrain.cfg')
-        config = configparser.ConfigParser()
+        config = SafeConfigParser()
         config.read(cfg_path)
         self.api_key = config.get('janrain', 'api_key')
         
@@ -646,18 +640,6 @@ class PycchdoDatastore(Datastore):
     """Implementation of pycchdo data storage model."""
 
     def __init__(self):
-        self._cruiseobj = None
-        try:
-            pasteini = get_option('pycchdo', 'pasteini')
-        except configparser.NoSectionError, err:
-            LOG.error(
-                u'A pycchdo configuration path must be specified.')
-            raise err
-        config = configparser.ConfigParser({'here': os.path.dirname(pasteini)})
-        config.read(pasteini)
-        settings = dict(config.items('app:pycchdo'))
-        pycchdo(None, **settings)
-
         self.session = requests.Session()
         cookie_file = os.path.join(get_config_dir(), 'pycchdo.cookie_jar')
         self.session.cookies = LWPCookieJar(cookie_file)
@@ -681,6 +663,7 @@ class PycchdoDatastore(Datastore):
         while not httpd.posted:
             httpd.handle_request()
         self.session.cookies.save(ignore_discard=True)
+        os.chmod(self.session.cookies.filename, stat.S_IR_USR | stat.S_IW_USR)
 
     def request(self, *args, **kwargs):
         resp = self.session.request(*args, **kwargs)
@@ -689,6 +672,10 @@ class PycchdoDatastore(Datastore):
             self.authenticate()
             resp = self.session.request(*args, **kwargs)
         return resp
+
+    def api(self, path, method='GET', **kwargs):
+        url = "http://{0}{1}".format(get_option('pycchdo', 'host'), path)
+        return self.request(method, url, **kwargs)
 
     def cruise_dir(self, expocode):
         """Return a fully-qualified path to the cruise directory."""
@@ -699,64 +686,57 @@ class PycchdoDatastore(Datastore):
         """Return a list of dictionaries representing files that are not merged.
 
         """
-        qfiles = []
-        for avf in Change.filtered_data('pending'):
-            qfiles.append(self._queuefile_info(avf))
-        return qfiles
+        resp = self.api('/staff/moderation.json')
+        asrs = resp.json()
+        asrs = map(self._queuefile_info, asrs)
+        return asrs
 
-    def _queuefile_info(self, qfile):
+    def _queuefile_info(self, asr):
         return {
-            'filename': qfile.value.name,
-            'submitted_by': qfile.p_c.name,
-            'date': qfile.ts_c,
-            'data_type': qfile.attr,
-            'q_id': qfile.id,
-            'submission_id': qfile.submission.id,
-            'expocode': str(qfile.obj.id),
+            'filename': asr['value']['filename'],
+            'submitted_by': asr['p_c'],
+            'date': asr['ts_c'],
+            'data_type': asr['attr'],
+            'q_id': asr['id'],
+            'submission_id': asr['submission_id'],
+            'expocode': asr['obj_id'],
         }
 
     def _as_received(self, *ids):
-        for aid in ids:
-            try:
-                yield Change.query().get(aid)
-            except DataError:
-                transaction.begin()
+        resp = self.api('/staff/moderation.json?ids={0}'.format(','.join(ids)))
+        return resp.json()
 
     def fetch_as_received(self, local_path, *ids):
         """Copy the referenced as-received files into the directory.
 
         """
         qf_info = []
-        for qfile in self._as_received(*ids):
-            if qfile.accepted:
-                LOG.info(
-                    u'QueueFile {0} is marked already merged'.format(qfile.id))
-            elif qfile.is_rejected():
-                LOG.info(u'QueueFile {0} is marked hidden'.format(qfile.id))
+        for asr in self._as_received(*ids):
+            if asr['state'].startswith('acc'):
+                LOG.info(u'ASR {0} is already merged'.format(asr['id']))
+            elif asr['state'].startswith('rej'):
+                LOG.info(u'ASR {0} is hidden'.format(asr['id']))
 
-            filename = qfile.value.name
+            filename = asr['value']['filename']
 
-            submission_subdir = os.path.join(local_path, str(qfile.id))
+            submission_subdir = os.path.join(local_path, str(asr['id']))
             mkdir_ensure(submission_subdir, 0775)
             submission_path = os.path.join(submission_subdir, filename)
 
             with open(submission_path, 'w') as ooo:
-                copyfileobj(qfile.value.open_file(), ooo)
+                resp = self.api('/data/b/c{0}'.format(asr['id']))
+                ooo.write(resp.content)
 
-            qfi = self._queuefile_info(qfile)
+            qfi = self._queuefile_info(asr)
             qfi['id'] = qfi['submission_id']
             qf_info.append(qfi)
         return qf_info
 
     def _cruise(self, cid):
-        if self._cruiseobj is None:
-            try:
-                self._cruiseobj = Cruise.get_by_id(cid)
-            except ValueError:
-                pass
-            if not self._cruiseobj:
-                raise ValueError(u'Unable to find cruise for {0}'.format(cid))
-        return self._cruiseobj
+        resp = self.api('/cruise/{0}.json'.format(cid))
+        if resp.history and resp.url.endswith('new'):
+            raise ValueError(u'Unable to find cruise for {0}'.format(cid))
+        return resp.json()
 
     def fetch_online(self, path, cid):
         """Copy the referenced cruise's current datafiles into the directory.
@@ -765,14 +745,16 @@ class PycchdoDatastore(Datastore):
 
         """
         cruise = self._cruise(cid)
-        for key, cfile in cruise.files.items():
-            fff = cfile.file
-            fname = fff.name
+        for key, asr in cruise['data'].items():
+            if key == 'archive' or key == 'data_suggestion':
+                continue
+            fname = asr['value']['filename']
             local_path = os.path.join(path, fname)
             
             try:
                 with open(local_path, 'w') as ooo:
-                    copyfileobj(fff.open_file(), ooo)
+                    resp = self.api('/data/b/c{0}'.format(asr['id']))
+                    ooo.write(resp.content)
             except (IOError, OSError), err:
                 os.unlink(local_path)
                 LOG.error(u'Could not download {0}:\n{1}'.format(fname, err))
@@ -786,14 +768,18 @@ class PycchdoDatastore(Datastore):
 
         """
         cruise = self._cruise(cid)
-        archive = cruise.get('archive')
+        archive = cruise['data'].get('archive')
         if not archive:
             return
-        ua_tar = tarfile.open(mode='r', fileobj=archive.open_file())
-        try:
-            ua_tar.extractall(path)
-        finally:
-            ua_tar.close()
+        resp = self.api('/data/b/c{0}'.format(archive['id']))
+        with SpooledTemporaryFile() as fff:
+            fff.write(resp.content)
+            fff.seek(0)
+            ua_tar = tarfile.open(mode='r', fileobj=fff)
+            try:
+                ua_tar.extractall(path)
+            finally:
+                ua_tar.close()
 
         # TODO Also maybe include any changes to data files. These are
         # files that have been accepted.
@@ -818,7 +804,7 @@ class PycchdoDatastore(Datastore):
         ftype = guess_file_type(fname)
         if not ftype:
             LOG.warn(u'Unable to determine file type for file to go '
-                'online: {0}. Omitted.'.format(fname))
+                'online: {0}.'.format(fname))
             return None
 
         ftype = ftype.replace('btl.', 'bottle.')
@@ -835,20 +821,10 @@ class PycchdoDatastore(Datastore):
 
         """
         uow_cfg = readme.uow_cfg
-        uow = UOW()
-        DBSession.add(uow)
-        cruise = Cruise.get_by_id(uow_cfg['expocode'])
 
-        pid = get_pycchdo_person_id()
-        try:
-            person = Person.query().get(pid)
-        except DataError:
-            person = None
-        if not person:
-            raise ValueError(u'Unable to find or create signer.')
-
+        results = []
+        result_types = []
         tgo_path = os.path.join(readme.uow_dir, UOWDirName.tgo)
-        uow.results = []
         known_fkeys = uow_cfg.get('tgo_keys', {})
         for fname in os.listdir(tgo_path):
             ftype = self._get_file_key(fname, known_fkeys)
@@ -856,31 +832,16 @@ class PycchdoDatastore(Datastore):
                 fsf = FieldStorage()
                 fsf.file = open(os.path.join(tgo_path, fname), 'r')
                 fsf.filename = fname
-                uow.results.append(cruise.set(person, ftype, fsf))
-
-        # tar up the processing dir
-        proc_path = os.path.join(readme.uow_dir, UOWDirName.processing)
-        with SpooledTemporaryFile() as fff, pushd(proc_path):
-            ua_tar = tarfile.open(mode='w', fileobj=fff)
-            try:
-                ua_tar.add('.')
-            finally:
-                ua_tar.close()
-            fsf = FieldStorage()
-            fsf.file = fff
-            fsf.filename = 'processing.tar'
-            fsf.type = 'application/x-tar'
-            uow.support = FSFile.from_fieldstorage(fsf)
-
-        uow.suggestions = []
-        for qinfo in uow_cfg['q_infos']:
-            change = Change.query().get(qinfo['q_id'])
-            change.accept(person)
-            uow.suggestions.append(change)
+                results.append(fsf)
+                result_types.append(ftype)
+            else:
+                LOG.info(u'Add file type to configuration under tgo_keys '
+                         'or remove the file from to go online directory.')
+                raise ValueError('Aborted.')
 
         # Finalize the readme file. This means adding the conversion and updated
         # manifests.
-        tgo_files = [result.file.name for result in uow.results]
+        tgo_files = [result.filename for result in results]
         file_sets = self._get_file_manifest(readme.uow_dir, tgo_files)
         updated_files = tgo_files
         try:
@@ -896,17 +857,40 @@ class PycchdoDatastore(Datastore):
         with open(finalized_readme_path, 'w') as fff:
             self.finalize_readme(readme, final_sections, fff)
 
-        title = uow_cfg['title']
-        summary = uow_cfg['summary']
-        action = 'Website Update'
+        data = {}
+        files = {}
 
-        readme_str = open(finalized_readme_path, 'r').read()
-        note = Note(person, readme_str, action, title, summary)
-        cruise.change._notes.append(note)
-        uow.note = note
+        for iii, result in enumerate(results):
+            files['result[{0}]'.format(iii)] = (result.filename, result.file)
+        data['result_types'] = json_dumps(result_types)
 
-        # All green. Go!
-        LOG.info(u'Committing.'.format())
+        readme_str = open(finalized_readme_path, 'r')
+
+        # tar up the processing dir
+        proc_path = os.path.join(readme.uow_dir, UOWDirName.processing)
+        with SpooledTemporaryFile() as fff:
+            ua_tar = tarfile.open(mode='w', fileobj=fff)
+            try:
+                with pushd(proc_path):
+                    ua_tar.add('.')
+            finally:
+                ua_tar.close()
+            fsf = FieldStorage()
+            fsf.file = fff
+            fsf.filename = 'processing.tar'
+            fsf.type = 'application/x-tar'
+
+            files['support'] = (fsf.filename, fsf.file, fsf.type)
+            data['uow_cfg'] = json_dumps(uow_cfg)
+            files['readme'] = ('00_README.txt', readme_str)
+
+            LOG.info(u'Committing.')
+            resp = self.api('/staff/uow', method='POST', data=data, files=files)
+            if resp.status_code != 200:
+                try:
+                    LOG.error(resp.json()['error'])
+                finally:
+                    raise ValueError('Commit failed.')
 
     def commit_postflight(self, readme, email_path, expocode, title, summary,
                           q_ids, finalized_readme_path, dryrun):
@@ -914,5 +898,14 @@ class PycchdoDatastore(Datastore):
 
         """
         readme_str = open(finalized_readme_path, 'r').read()
-        note = Note.query().filter(Note.body == readme_str).first()
-        return note.id
+        resp = self.api('/cruise/{0}.json'.format(expocode))
+        cruise = resp.json()
+        resp = self.api('/obj/{0}/notes.json'.format(cruise['id']))
+        notes = resp.json()
+
+        for note in notes:
+            if note['body'] == readme_str:
+                return note['id']
+        # No note found, that's a bad sign.
+        LOG.error(u'Unable to find UOW note.')
+        raise ValueError()

@@ -344,9 +344,3 @@ def stamp():
 
 def get_cchdo_email():
     return 'cchdo@ucsd.edu'
-
-
-def get_pycchdo_person_id():
-    def input_person_id():
-        return get_input('Please enter your pycchdo person id. %s ' % _storage_notice())
-    return get_option('pycchdo', 'person_id', input_person_id)
