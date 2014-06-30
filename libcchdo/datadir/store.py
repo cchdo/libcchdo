@@ -1,4 +1,5 @@
 import os
+import os.path
 from datetime import datetime, date
 from contextlib import closing, contextmanager
 from urllib2 import HTTPError
@@ -7,8 +8,15 @@ from traceback import format_exc
 from tempfile import SpooledTemporaryFile
 from cgi import FieldStorage
 import tarfile
+from SimpleHTTPServer import SimpleHTTPRequestHandler
+from urlparse import urlparse, parse_qsl
+from webbrowser import open as webopen
+import urllib
+from cookielib import LWPCookieJar
 
 import transaction
+
+import requests
 
 from sqlalchemy.exc import DataError
 
@@ -18,8 +26,9 @@ from libcchdo.db import connect
 from libcchdo.db.model import legacy
 from libcchdo.db.model.legacy import QueueFile, Session as Lsesh
 from libcchdo.config import (
-    get_pycchdo_person_id, get_legacy_datadir_host, get_merger_name_first,
-    get_merger_name_last, get_option)
+    get_config_dir, get_pycchdo_person_id, get_legacy_datadir_host,
+    get_merger_name_first, get_merger_name_last, get_option)
+from libcchdo.util import get_library_abspath
 from libcchdo.datadir.util import (
     working_dir_name, dryrun_log_info, mkdir_ensure, checksum_dir, DirName,
     UOWDirName, uow_copy, tempdir, read_file_manifest, regenerate_file_manifest,
@@ -27,6 +36,7 @@ from libcchdo.datadir.util import (
 from libcchdo.datadir.dl import AFTP, SFTP, pushd
 from libcchdo.datadir.filenames import (
     README_FILENAME, README_FINALIZED_FILENAME)
+from libcchdo.serve import get_local_host, open_server_on_high_port
 
 
 def write_cruise_dir_expocode(cruise_dir, expocode):
@@ -580,7 +590,56 @@ from pycchdo import main as pycchdo
 from pycchdo.models.serial import (
     DBSession, Change, Cruise, Person, UOW, FSFile, Note
     )
-from libcchdo.config import _CONFIG
+from libcchdo.config import get_option
+
+
+class PycchdoCallbackHTTPServer(SimpleHTTPRequestHandler):
+    def __init__(self, *args, **kwargs):
+        SimpleHTTPRequestHandler.__init__(self, *args, **kwargs)
+        cfg_path = os.path.join(
+            get_library_abspath(), 'resources', 'janrain', 'janrain.cfg')
+        config = configparser.ConfigParser()
+        config.read(cfg_path)
+        self.api_key = config.get('janrain', 'api_key')
+        
+    def do_GET(self):
+        self.send_response(200, 'OK')
+        self.send_header('Content-type', 'text/html')
+        self.send_header('Connection', 'close')
+        self.end_headers()
+
+        tokenUrl = "http://{0}".format(self.headers['HOST'])
+        script = open(os.path.join(get_library_abspath(), 'resources',
+                                   'janrain', 'widget.js')).read()
+        self.wfile.write("""\
+<title>Sign in to CCHDO</title>
+<h1>Sign in to CCHDO</h1>
+<div id="janrainEngageEmbed"></div>
+<script type="text/javascript">
+window.janrain = {{settings: {{tokenUrl: "{0}"}}}};
+{1}
+</script>
+""".format(tokenUrl, script))
+
+    def do_POST(self):
+        """Expect a call back from CCHDO containing session information."""
+        self.send_response(200, 'OK')
+        self.send_header('Content-type', 'text/html')
+        self.send_header('Connection', 'close')
+        self.end_headers()
+
+        clen = int(self.headers['Content-Length'])
+        data = self.rfile.read(clen)
+        session_url = "http://{0}/session/new?{1}".format(
+            get_option('pycchdo', 'host'), data)
+        resp = self.server.session.get(session_url, allow_redirects=False)
+
+        self.wfile.write("""\
+<title>Signed in to CCHDO</title>
+<h1>Signed in to CCHDO</h1>
+<p>Close this window at any time.</p>
+""")
+        self.server.posted = True
 
 
 class PycchdoDatastore(Datastore):
@@ -589,7 +648,7 @@ class PycchdoDatastore(Datastore):
     def __init__(self):
         self._cruiseobj = None
         try:
-            pasteini = _CONFIG.get('pycchdo', 'pasteini')
+            pasteini = get_option('pycchdo', 'pasteini')
         except configparser.NoSectionError, err:
             LOG.error(
                 u'A pycchdo configuration path must be specified.')
@@ -598,6 +657,38 @@ class PycchdoDatastore(Datastore):
         config.read(pasteini)
         settings = dict(config.items('app:pycchdo'))
         pycchdo(None, **settings)
+
+        self.session = requests.Session()
+        cookie_file = os.path.join(get_config_dir(), 'pycchdo.cookie_jar')
+        self.session.cookies = LWPCookieJar(cookie_file)
+        try:
+            self.session.cookies.load(ignore_discard=True)
+        except IOError:
+            pass
+
+    def authenticate(self):
+        host = get_local_host('janrain.com')
+        httpd, port = open_server_on_high_port(PycchdoCallbackHTTPServer)
+
+        authenticate_url = "{0}:{1}".format(host, port)
+        print "Visit in your browser and sign in:"
+        print authenticate_url
+        webopen(authenticate_url)
+
+        # Handle the POST callback from CCHDO
+        httpd.session = self.session
+        httpd.posted = False
+        while not httpd.posted:
+            httpd.handle_request()
+        self.session.cookies.save(ignore_discard=True)
+
+    def request(self, *args, **kwargs):
+        resp = self.session.request(*args, **kwargs)
+        if (    resp.history and resp.history[-1].status_code == 303 and
+                resp.url.endswith('/session/identify')):
+            self.authenticate()
+            resp = self.session.request(*args, **kwargs)
+        return resp
 
     def cruise_dir(self, expocode):
         """Return a fully-qualified path to the cruise directory."""
