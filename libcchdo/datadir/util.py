@@ -328,11 +328,16 @@ def checksum_diff_summary(sumsa, sumsb):
         LOG.info(u'Files were removed after last fetch:\n{0}'.format(
             list(filesa - filesb)))
     else:
-        files_changed = []
-        for fname in sorted(list(filesa)):
-            if sumsa[fname] != sumsb[fname]:
-                files_changed.append(fname)
-        LOG.info(u'File contents were changed for:\n{0}'.format(files_changed))
+        if filesa != filesb:
+            LOG.info(
+                u'Different files available:\n{0}'.format(filesa ^ filesb))
+        else:
+            files_changed = []
+            for fname in sorted(list(filesa)):
+                if sumsa[fname] != sumsb[fname]:
+                    files_changed.append(fname)
+            LOG.info(
+                u'File contents were changed for:\n{0}'.format(files_changed))
     LOG.info(u'If the changes do not affect data, you may choose to delete '
         '{0} and re-fetch the UOW before trying to commit again.'.format(
         UOWDirName.online))
