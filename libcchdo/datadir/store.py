@@ -663,7 +663,7 @@ class PycchdoDatastore(Datastore):
         while not httpd.posted:
             httpd.handle_request()
         self.session.cookies.save(ignore_discard=True)
-        os.chmod(self.session.cookies.filename, stat.S_IR_USR | stat.S_IW_USR)
+        os.chmod(self.session.cookies.filename, stat.S_IRUSR | stat.S_IWUSR)
 
     def request(self, *args, **kwargs):
         resp = self.session.request(*args, **kwargs)
