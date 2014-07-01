@@ -20,6 +20,7 @@ from json import dumps as json_dumps
 import transaction
 
 import requests
+from requests.exceptions import ConnectionError
 
 from sqlalchemy.exc import DataError
 
@@ -35,10 +36,12 @@ from libcchdo.util import get_library_abspath
 from libcchdo.datadir.util import (
     working_dir_name, dryrun_log_info, mkdir_ensure, checksum_dir, DirName,
     UOWDirName, uow_copy, tempdir, read_file_manifest, regenerate_file_manifest,
-    is_uowdir_effectively_empty, checksum_diff_summary)
+    is_uowdir_effectively_empty, checksum_diff_summary, q_from_uow_cfg,
+    )
 from libcchdo.datadir.dl import AFTP, SFTP, pushd
 from libcchdo.datadir.filenames import (
-    README_FILENAME, README_FINALIZED_FILENAME)
+    README_FILENAME, README_FINALIZED_FILENAME, PROCESSING_EMAIL_FILENAME,
+    )
 from libcchdo.serve import get_local_host, open_server_on_high_port
 
 
@@ -471,13 +474,19 @@ class LegacyDatastore(Datastore):
                     '{1!r}'.format(self.cruise_original_dir, err))
                 raise ValueError()
 
-    def commit(self, readme, person, dir_perms, finalized_readme_path, dryrun):
-        """Perform actions needed to put files in work dir and online."""
+    def commit(self, readme, person, dir_perms, send_email, dryrun):
+        """Perform actions needed to put files in work dir and online.
+
+        The filesystem work is called "flight". In the hope that it doesn't
+        crash.
+
+        """
         # Datadir specific 
 
         # Prepare a working directory locally to be uploaded
         # Make sure the UOW doesn't already exist.
-        work_dir_base = working_dir_name(person, title=readme.uow_cfg['title'])
+        uow_title = readme.uow_cfg['title']
+        work_dir_base = working_dir_name(person, title=uow_title)
         try:
             assert self.cruise_original_dir is not None
         except AssertionError:
@@ -493,7 +502,10 @@ class LegacyDatastore(Datastore):
         except IOError:
             pass
 
-        cruise_dir = self._cruise_dir(readme.uow_cfg['expocode'])
+        finalized_readme_path = os.path.join(
+            readme.uow_dir, README_FINALIZED_FILENAME)
+        expocode = readme.uow_cfg['expocode']
+        cruise_dir = self._cruise_dir(expocode)
         with tempdir(dir='/tmp') as temp_dir:
             work_dir = os.path.join(temp_dir, work_dir_base)
             mkdir_ensure(work_dir, dir_perms)
@@ -558,13 +570,16 @@ class LegacyDatastore(Datastore):
             except IOError, err:
                 LOG.critical(
                     u'Unable to put {0} online: {1!r}'.format(fname, err))
-        # TODO Is there any way we can recover at this point? Some updated files
-        # may have been overwritten by now Other than making this loop atomic, I
-        # don't see how.
+        # There isn't any way we can recover at this point. Some updated files
+        # may have been overwritten by now. There's no filesystem atomicity.
         dryrun_log_info(u'Data file commit completed successfully.', dryrun)
 
-    def commit_postflight(self, readme, email_path, expocode, title, summary,
-                          q_ids, finalized_readme_path, dryrun):
+        self.commit_postflight(
+            self, readme, expocode, uow_title, 
+            finalized_readme_path, send_email, dryrun)
+
+    def commit_postflight(self, readme, expocode, title, finalized_readme_path,
+                          send_email, dryrun):
         """Perform actions to put history online. This is done post-flight.
 
         This includes writing history event, marking queue files merged, general
@@ -573,9 +588,29 @@ class LegacyDatastore(Datastore):
         """
         dryrun_log_info('Writing history and notifications.', dryrun)
 
+        summary = readme.uow_cfg['summary']
+        q_infos, q_ids = q_from_uow_cfg(readme.uow_cfg)
         note_id = self.add_processing_note(
             readme, expocode, title, summary, q_ids, dryrun)
-        return note_id
+
+        if send_email:
+            readme_str = open(finalized_readme_path, 'r').read()
+            try:
+                pemail = create_processing_email(
+                    readme_str, expocode, q_infos, note_id, q_ids, dryrun)
+                email_path = os.path.join(
+                    readme.uow_dir, PROCESSING_EMAIL_FILENAME)
+                pemail.send(email_path)
+            except (KeyboardInterrupt, Exception), err:
+                LOG.error(u'Could not send email: {0}'.format(format_exc(3)))
+                LOG.info(u'Retry with hydro datadir processing_note')
+                transaction.doom()
+
+        if dryrun:
+            dryrun_log_info(u'rolled back', dryrun)
+            transaction.abort()
+        else:
+            transaction.commit()
 
     def add_processing_note(self, readme, expocode, title, summary, q_ids,
                             dryrun=True):
@@ -666,7 +701,11 @@ class PycchdoDatastore(Datastore):
         os.chmod(self.session.cookies.filename, stat.S_IRUSR | stat.S_IWUSR)
 
     def request(self, *args, **kwargs):
-        resp = self.session.request(*args, **kwargs)
+        try:
+            resp = self.session.request(*args, **kwargs)
+        except ConnectionError as err:
+            LOG.critical(u'Unable to connect to CCHDO.')
+            raise
         if (    resp.history and resp.history[-1].status_code == 303 and
                 resp.url.endswith('/session/identify')):
             self.authenticate()
@@ -813,7 +852,7 @@ class PycchdoDatastore(Datastore):
         ftype = ftype.replace('.', '_')
         return ftype
 
-    def commit(self, readme, person, dir_perms, finalized_readme_path, dryrun):
+    def commit(self, readme, person, dir_perms, send_email, dryrun):
         """Perform actions needed to store the history and put files online.
 
         The UOW configuration is optionally allowed to have a 'tgo_keys' key to
@@ -854,11 +893,16 @@ class PycchdoDatastore(Datastore):
         LOG.debug(u'{0} final sections:\n{1}'.format(
             README_FILENAME, final_sections))
 
+        finalized_readme_path = os.path.join(
+            readme.uow_dir, README_FINALIZED_FILENAME)
         with open(finalized_readme_path, 'w') as fff:
             self.finalize_readme(readme, final_sections, fff)
 
         data = {}
         files = {}
+
+        if not dryrun:
+            data['fly'] = '1'
 
         for iii, result in enumerate(results):
             files['result[{0}]'.format(iii)] = (result.filename, result.file)
@@ -882,7 +926,7 @@ class PycchdoDatastore(Datastore):
 
             files['support'] = (fsf.filename, fsf.file, fsf.type)
             data['uow_cfg'] = json_dumps(uow_cfg)
-            files['readme'] = ('00_README.txt', readme_str)
+            files['readme'] = (README_FILENAME, readme_str)
 
             LOG.info(u'Committing.')
             resp = self.api('/staff/uow', method='POST', data=data, files=files)
@@ -891,21 +935,3 @@ class PycchdoDatastore(Datastore):
                     LOG.error(resp.json()['error'])
                 finally:
                     raise ValueError('Commit failed.')
-
-    def commit_postflight(self, readme, email_path, expocode, title, summary,
-                          q_ids, finalized_readme_path, dryrun):
-        """Perform actions to notify the community. This is done post-flight.
-
-        """
-        readme_str = open(finalized_readme_path, 'r').read()
-        resp = self.api('/cruise/{0}.json'.format(expocode))
-        cruise = resp.json()
-        resp = self.api('/obj/{0}/notes.json'.format(cruise['id']))
-        notes = resp.json()
-
-        for note in notes:
-            if note['body'] == readme_str:
-                return note['id']
-        # No note found, that's a bad sign.
-        LOG.error(u'Unable to find UOW note.')
-        raise ValueError()

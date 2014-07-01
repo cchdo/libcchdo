@@ -16,7 +16,7 @@ from tempfile import mkdtemp
 from subprocess import call as subproc_call
 
 from libcchdo import LOG
-from libcchdo.fns import get_editor
+from libcchdo.fns import get_editor, uniquify
 from libcchdo.config import (
     get_merger_email, is_env_production, get_merger_initials, get_merger_smtp,
     get_cchdo_email)
@@ -238,7 +238,8 @@ class ReadmeEmail(object):
         else:
             self._email['Subject'] = subject
 
-    def generate_body(self):
+    @classmethod
+    def generate_body(cls):
         return ''
 
     def set_body(self, body):
@@ -254,14 +255,14 @@ class ReadmeEmail(object):
             'attachment; filename="{0}"'.format(README_FILENAME))
         self._email.attach(attachment)
 
-    def send(self, email_path):
+    def send(self, email_path=None):
         """Send the email."""
         email_str = self._email.as_string()
         send_email(
             email_str, self._email['From'], self._email['To'], email_path)
 
 
-def send_email(email_str, from_addr, to_addr, email_path):
+def send_email(email_str, from_addr, to_addr, email_path=None):
     """Attempt to send email using SMTP server.
 
     email_path - the path to write the email to in case of failure
@@ -273,10 +274,11 @@ def send_email(email_str, from_addr, to_addr, email_path):
         LOG.info(u'Sent email from {0} to {1}'.format(from_addr, to_addr))
     except (KeyboardInterrupt, Exception), err:
         LOG.error(u'Unable to send email.')
-        with open(email_path, 'w') as fff:
-            fff.write(email_str)
-        LOG.info(u'Wrote email to {0} to send manually. '
-                 'Use hydro datadir email {0}.'.format(email_path))
+        if email_path is not None:
+            with open(email_path, 'w') as fff:
+                fff.write(email_str)
+            LOG.info(u'Wrote email to {0} to send manually. '
+                     'Use hydro datadir email {0}.'.format(email_path))
         raise err
     finally:
         smtp.quit()
@@ -466,3 +468,14 @@ def is_uowdir_effectively_empty(path, subpath):
         return len(set(files) - set(IGNORED_FILES_CHECKSUM)) == 0
     else:
         return True
+
+
+def q_from_uow_cfg(uow_cfg):
+    """Retrieve the unique queue file infos and ids from the UOW configuration.
+
+    """
+    q_infos = uow_cfg.get('q_infos', [])
+    q_ids = uniquify([x['q_id'] for x in q_infos])
+    return q_infos, q_ids
+
+

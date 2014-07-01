@@ -32,8 +32,8 @@ from libcchdo.datadir.util import (
     str_to_fs_slug, working_dir_name, is_working_dir, copy_chunked, DirName,
     UOWDirName, uow_copy, PERM_STAFF_ONLY_DIR, PERM_STAFF_ONLY_FILE)
 from libcchdo.datadir.filenames import (
-    EXPOCODE_FILENAME, README_FILENAME, PROCESSING_EMAIL_FILENAME,
-    UOW_CFG_FILENAME, README_TEMPLATE_FILENAME, README_FINALIZED_FILENAME)
+    EXPOCODE_FILENAME, README_FILENAME, UOW_CFG_FILENAME,
+    README_TEMPLATE_FILENAME)
 from libcchdo.datadir.store import get_datastore
 
 
@@ -246,23 +246,21 @@ This update includes:
 {sub_plural}
 {submission_summary}
 
-{q_plural} {q_ids} marked as merged.\
+ASR {q_ids} merged.\
 """
 
 
 class ProcessingEmail(ReadmeEmail):
-    def generate_body(self, merger, expocode, q_infos, note_id, q_ids):
+    @classmethod
+    def generate_body(cls, merger, expocode, q_infos, note_id, q_ids):
         sub_ids = uniquify([x['submission_id'] for x in q_infos])
         sub_plural = 'Submissions'
         if len(sub_ids) == 1:
             sub_plural = 'Submission'
-        q_plural = 'Queue entries'
-        if len(q_ids) == 1:
-            q_plural = 'Queue entry'
         submission_summary = '\n'.join(map(summarize_submission, q_infos))
         if q_infos:
             process_summary = PROCESS_SUMMARY.format(sub_plural=sub_plural,
-                submission_summary=submission_summary, q_plural=q_plural,
+                submission_summary=submission_summary, 
                 q_ids=', '.join(map(str, q_ids)))
         else:
             process_summary = ''
@@ -279,12 +277,12 @@ def finalize_readme(readme, fileobj):
 
 
 def create_processing_email(readme, expocode, q_infos, note_id, q_ids,
-                          dryrun=True):
+                            dryrun=True):
     """Send processing completed notification email."""
     pemail = ProcessingEmail(dryrun=dryrun)
     title, merger, subject = parse_readme(readme)
     pemail.set_subject(subject)
-    pemail.set_body(pemail.generate_body(
+    pemail.set_body(ProcessingEmail.generate_body(
         merger, expocode, q_infos, note_id, q_ids))
     pemail.attach_readme(readme)
     return pemail
@@ -314,15 +312,6 @@ def check_uow_cfg(uow_cfg):
         cfg_ok = False
     if not cfg_ok:
         raise ValueError(u'UOW configuration is missing required fields.')
-
-
-def _q_from_uow_cfg(uow_cfg):
-    """Retrieve the unique queue file infos and ids from the UOW configuration.
-
-    """
-    q_infos = uow_cfg.get('q_infos', [])
-    q_ids = uniquify([x['q_id'] for x in q_infos])
-    return q_infos, q_ids
 
 
 class FetchCommitter(object):
@@ -438,8 +427,15 @@ class FetchCommitter(object):
         # pre-flight checks
         # Make sure merger likes readme rendering
         readme_path = os.path.join(uow_dir, README_FILENAME)
-        if not is_processing_readme_render_ok(
-                readme_path, confirm_html=confirm_html):
+        try:
+            readme_ok = is_processing_readme_render_ok(
+                    readme_path, confirm_html=confirm_html)
+        except IOError:
+            LOG.error(
+                u'Cannot continue without {0}. (Are you sure {1} is a UOW '
+                'directory?)'.format(README_FILENAME, uow_dir))
+            return
+        if not readme_ok:
             LOG.error(u'README is not valid reST or merger rejected. Stop.')
             return
 
@@ -461,56 +457,15 @@ class FetchCommitter(object):
             check_uow_cfg(uow_cfg)
         except ValueError:
             return
-        expocode = uow_cfg['expocode']
+        uid = uow_cfg['expocode']
 
         try:
             # Pre-flight checks
-            self.dstore.check_cruise_exists(expocode, dir_perms, dryrun)
+            self.dstore.check_cruise_exists(uid, dir_perms, dryrun)
             self.dstore.check_fetched_online_unchanged(readme)
-            finalized_readme_path = os.path.join(
-                readme.uow_dir, README_FINALIZED_FILENAME)
-            self.dstore.commit(
-                readme, person, dir_perms, finalized_readme_path, dryrun)
+            self.dstore.commit(readme, person, dir_perms, send_email, dryrun)
         except ValueError, err:
             LOG.error(err)
             return
 
-        self.uow_commit_postflight(
-            readme, os.path.join(uow_dir, PROCESSING_EMAIL_FILENAME), uow_cfg,
-            finalized_readme_path, send_email, dryrun)
-
         dryrun_log_info(u'UOW commit completed successfully.', dryrun)
-
-    def uow_commit_postflight(self, readme, email_path, uow_cfg,
-            finalized_readme_path, send_email=True, dryrun=True):
-        """Perform UOW commit postflight actions.
-
-        This includes writing history event, marking queue files merged, general
-        bookkeeping and notifying the CCHDO community.
-
-        """
-        expocode = uow_cfg['expocode']
-        title = uow_cfg['title']
-        summary = uow_cfg['summary']
-        q_infos, q_ids = _q_from_uow_cfg(uow_cfg)
-
-        note_id = self.dstore.commit_postflight(
-            readme, email_path, expocode, title, summary, q_ids,
-            finalized_readme_path, dryrun)
-
-        if send_email:
-            readme_str = open(finalized_readme_path, 'r').read()
-            try:
-                pemail = create_processing_email(
-                    readme_str, expocode, q_infos, note_id, q_ids, dryrun)
-                pemail.send(email_path)
-            except (KeyboardInterrupt, Exception), err:
-                LOG.error(u'Could not send email: {0}'.format(format_exc(3)))
-                LOG.info(u'Retry with hydro datadir processing_note')
-                transaction.doom()
-
-        if dryrun:
-            dryrun_log_info(u'rolled back', dryrun)
-            transaction.abort()
-        else:
-            transaction.commit()
