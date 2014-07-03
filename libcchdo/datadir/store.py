@@ -24,7 +24,7 @@ from requests.exceptions import ConnectionError
 
 from sqlalchemy.exc import DataError
 
-from libcchdo import LOG
+from libcchdo import LOG, __version__
 from libcchdo.formats.formats import guess_file_type
 from libcchdo.db import connect
 from libcchdo.db.model import legacy
@@ -637,6 +637,8 @@ class PycchdoCallbackHTTPServer(SimpleHTTPRequestHandler):
         self.send_header('Connection', 'close')
         self.end_headers()
 
+        # TODO it might be possible to put the signin page on main server and
+        # direct the user there with a call back url to get the one-time token.
         tokenUrl = "http://{0}".format(self.headers['HOST'])
         script = open(os.path.join(get_library_abspath(), 'resources',
                                    'janrain', 'widget.js')).read()
@@ -651,7 +653,7 @@ window.janrain = {{settings: {{tokenUrl: "{0}"}}}};
 """.format(tokenUrl, script))
 
     def do_POST(self):
-        """Expect a call back from CCHDO containing session information."""
+        """Expect a call back from Janrain with a one-time token."""
         self.send_response(200, 'OK')
         self.send_header('Content-type', 'text/html')
         self.send_header('Connection', 'close')
@@ -687,7 +689,7 @@ class PycchdoDatastore(Datastore):
         host = get_local_host('janrain.com')
         httpd, port = open_server_on_high_port(PycchdoCallbackHTTPServer)
 
-        authenticate_url = "{0}:{1}".format(host, port)
+        authenticate_url = "http://{0}:{1}".format(host, port)
         print "Visit in your browser and sign in:"
         print authenticate_url
         webopen(authenticate_url)
@@ -714,7 +716,15 @@ class PycchdoDatastore(Datastore):
 
     def api(self, path, method='GET', **kwargs):
         url = "http://{0}{1}".format(get_option('pycchdo', 'host'), path)
-        return self.request(method, url, **kwargs)
+        ua_str = 'libcchdo {0}'.format(__version__)
+        try:
+            kwargs['headers']['User-Agent'] = ua_str
+        except KeyError:
+            kwargs['headers'] = {'User-Agent': ua_str}
+        resp = self.request(method, url, **kwargs)
+        if resp.status_code == 401:
+            raise Exception(u'Access denied. Are you staff?')
+        return resp
 
     def cruise_dir(self, expocode):
         """Return a fully-qualified path to the cruise directory."""
