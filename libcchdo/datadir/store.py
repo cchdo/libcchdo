@@ -661,7 +661,8 @@ class PycchdoDatastore(Datastore):
 
     def authenticate(self):
         pycchdo_host = get_option('pycchdo', 'host')
-        host = get_local_host(pycchdo_host)
+        phost, pport = pycchdo_host.split(':')
+        host = get_local_host(phost, int(pport))
         httpd, port = open_server_on_high_port(PycchdoCallbackHTTPServer)
 
         token_url = quote("http://{0}:{1}".format(host, port))

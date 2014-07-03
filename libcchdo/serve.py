@@ -9,12 +9,12 @@ from libcchdo.log import LOG
 from libcchdo.util import StringIO
 
 
-def get_local_host(remote=None):
+def get_local_host(remote=None, port=80):
     if remote is None:
         remote = 'whatismyip.akamai.com'
 
     s = socket(AF_INET, SOCK_DGRAM)
-    s.connect((remote, 80))
+    s.connect((remote, port))
     sockname = s.getsockname()
     s.close()
     host = sockname[0]
