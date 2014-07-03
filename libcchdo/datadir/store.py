@@ -664,7 +664,7 @@ class PycchdoDatastore(Datastore):
         host = get_local_host(pycchdo_host)
         httpd, port = open_server_on_high_port(PycchdoCallbackHTTPServer)
 
-        token_url = quote("http://{1}:{2}".format(host, port))
+        token_url = quote("http://{0}:{1}".format(host, port))
         authenticate_url = "http://{0}/session/identify?token_url={1}".format(
             pycchdo_host, token_url)
         print "Visit in your browser and sign in:"
