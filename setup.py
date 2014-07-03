@@ -48,8 +48,12 @@ if __name__ == "__main__":
 
     packages = find_packages(exclude=['libcchdo.tests'])
 
-    resources = [os.path.join('resources', fname) for fname in
-                 os.listdir(os.path.join(PACKAGE_NAME, 'resources'))]
+    resources = []
+    resources_path = os.path.join(PACKAGE_NAME, 'resources')
+    for dirname, dirs, fnames in os.walk(resources_path):
+        dirname = dirname.replace(PACKAGE_NAME + '/', '')
+        for fname in fnames:
+            resources.append(os.path.join(dirname, fname))
 
     setup(
         name=PACKAGE_NAME,
