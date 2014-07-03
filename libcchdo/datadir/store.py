@@ -14,6 +14,7 @@ from SimpleHTTPServer import SimpleHTTPRequestHandler
 from urlparse import urlparse, parse_qsl
 from webbrowser import open as webopen
 import urllib
+from urllib import quote
 from cookielib import LWPCookieJar
 from json import dumps as json_dumps
 
@@ -623,37 +624,8 @@ class LegacyDatastore(Datastore):
 
 
 class PycchdoCallbackHTTPServer(SimpleHTTPRequestHandler):
-    def __init__(self, *args, **kwargs):
-        SimpleHTTPRequestHandler.__init__(self, *args, **kwargs)
-        cfg_path = os.path.join(
-            get_library_abspath(), 'resources', 'janrain', 'janrain.cfg')
-        config = SafeConfigParser()
-        config.read(cfg_path)
-        self.api_key = config.get('janrain', 'api_key')
-        
-    def do_GET(self):
-        self.send_response(200, 'OK')
-        self.send_header('Content-type', 'text/html')
-        self.send_header('Connection', 'close')
-        self.end_headers()
-
-        # TODO it might be possible to put the signin page on main server and
-        # direct the user there with a call back url to get the one-time token.
-        tokenUrl = "http://{0}".format(self.headers['HOST'])
-        script = open(os.path.join(get_library_abspath(), 'resources',
-                                   'janrain', 'widget.js')).read()
-        self.wfile.write("""\
-<title>Sign in to CCHDO</title>
-<h1>Sign in to CCHDO</h1>
-<div id="janrainEngageEmbed"></div>
-<script type="text/javascript">
-window.janrain = {{settings: {{tokenUrl: "{0}"}}}};
-{1}
-</script>
-""".format(tokenUrl, script))
-
     def do_POST(self):
-        """Expect a call back from Janrain with a one-time token."""
+        """Expect a call back with a one-time token."""
         self.send_response(200, 'OK')
         self.send_header('Content-type', 'text/html')
         self.send_header('Connection', 'close')
@@ -663,6 +635,8 @@ window.janrain = {{settings: {{tokenUrl: "{0}"}}}};
         data = self.rfile.read(clen)
         session_url = "http://{0}/session/new?{1}".format(
             get_option('pycchdo', 'host'), data)
+
+        # Consume the token to sign in to host
         resp = self.server.session.get(session_url, allow_redirects=False)
 
         self.wfile.write("""\
@@ -686,10 +660,13 @@ class PycchdoDatastore(Datastore):
             pass
 
     def authenticate(self):
-        host = get_local_host('janrain.com')
+        pycchdo_host = get_option('pycchdo', 'host')
+        host = get_local_host(pycchdo_host)
         httpd, port = open_server_on_high_port(PycchdoCallbackHTTPServer)
 
-        authenticate_url = "http://{0}:{1}".format(host, port)
+        token_url = quote("http://{1}:{2}".format(host, port))
+        authenticate_url = "http://{0}/session/identify?token_url={1}".format(
+            pycchdo_host, token_url)
         print "Visit in your browser and sign in:"
         print authenticate_url
         webopen(authenticate_url)
