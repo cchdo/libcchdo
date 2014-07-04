@@ -576,8 +576,8 @@ class LegacyDatastore(Datastore):
         dryrun_log_info(u'Data file commit completed successfully.', dryrun)
 
         self.commit_postflight(
-            self, readme, expocode, uow_title, 
-            finalized_readme_path, send_email, dryrun)
+            readme, expocode, uow_title, finalized_readme_path, send_email,
+            dryrun)
 
     def commit_postflight(self, readme, expocode, title, finalized_readme_path,
                           send_email, dryrun):
