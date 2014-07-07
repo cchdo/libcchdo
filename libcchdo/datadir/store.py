@@ -38,10 +38,13 @@ from libcchdo.datadir.util import (
     working_dir_name, dryrun_log_info, mkdir_ensure, checksum_dir, DirName,
     UOWDirName, uow_copy, tempdir, read_file_manifest, regenerate_file_manifest,
     is_uowdir_effectively_empty, checksum_diff_summary, q_from_uow_cfg,
+    is_working_dir, is_cruise_dir,
     )
 from libcchdo.datadir.dl import AFTP, SFTP, pushd
+from libcchdo.datadir.processing import create_processing_email
 from libcchdo.datadir.filenames import (
-    README_FILENAME, README_FINALIZED_FILENAME, PROCESSING_EMAIL_FILENAME,
+    EXPOCODE_FILENAME, README_FILENAME, README_FINALIZED_FILENAME,
+    PROCESSING_EMAIL_FILENAME,
     )
 from libcchdo.serve import get_local_host, open_server_on_high_port
 
