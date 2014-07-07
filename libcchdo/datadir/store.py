@@ -661,8 +661,11 @@ class PycchdoDatastore(Datastore):
 
     def authenticate(self):
         pycchdo_host = get_option('pycchdo', 'host')
-        phost, pport = pycchdo_host.split(':')
-        host = get_local_host(phost, int(pport))
+        try:
+            pycchdo_host, pport = pycchdo_host.split(':', 1)
+        except ValueError:
+            pport = 80
+        host = get_local_host(pycchdo_host, int(pport))
         httpd, port = open_server_on_high_port(PycchdoCallbackHTTPServer)
 
         token_url = quote("http://{0}:{1}".format(host, port))
@@ -920,6 +923,7 @@ class PycchdoDatastore(Datastore):
             resp = self.api('/staff/uow', method='POST', data=data, files=files)
             if resp.status_code != 200:
                 try:
+                    LOG.error("Status code: {0}".format(resp.status_code))
                     LOG.error(resp.json()['error'])
                 finally:
                     raise ValueError('Commit failed.')

@@ -464,8 +464,8 @@ class FetchCommitter(object):
             self.dstore.check_cruise_exists(uid, dir_perms, dryrun)
             self.dstore.check_fetched_online_unchanged(readme)
             self.dstore.commit(readme, person, dir_perms, send_email, dryrun)
-        except ValueError, err:
+        except ValueError as err:
             LOG.error(err)
-            return
+            raise
 
         dryrun_log_info(u'UOW commit completed successfully.', dryrun)
