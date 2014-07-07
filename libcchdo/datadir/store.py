@@ -23,8 +23,6 @@ import transaction
 import requests
 from requests.exceptions import ConnectionError
 
-from sqlalchemy.exc import DataError
-
 from libcchdo import LOG, __version__
 from libcchdo.formats.formats import guess_file_type
 from libcchdo.db import connect
@@ -41,7 +39,6 @@ from libcchdo.datadir.util import (
     is_working_dir, is_cruise_dir,
     )
 from libcchdo.datadir.dl import AFTP, SFTP, pushd
-from libcchdo.datadir.processing import create_processing_email
 from libcchdo.datadir.filenames import (
     EXPOCODE_FILENAME, README_FILENAME, README_FINALIZED_FILENAME,
     PROCESSING_EMAIL_FILENAME,
@@ -590,6 +587,7 @@ class LegacyDatastore(Datastore):
         bookkeeping and notifying the CCHDO community.
 
         """
+        from libcchdo.datadir.processing import create_processing_email
         dryrun_log_info('Writing history and notifications.', dryrun)
 
         summary = readme.uow_cfg['summary']
