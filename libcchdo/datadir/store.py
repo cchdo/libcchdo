@@ -439,7 +439,7 @@ class LegacyDatastore(Datastore):
                                 action='Website Update'):
         """Add history note for the given readme notes."""
         event = self.create_history_note(
-            readme, expocode, title, summary, action)
+            unicode(readme), expocode, title, summary, action)
         Lsesh.add(event)
         Lsesh.flush()
         return event.ID

@@ -8,6 +8,8 @@ from datetime import datetime
 from zipfile import ZipFile
 from StringIO import StringIO
 
+import transaction
+
 from libcchdo.formats.netcdf import nc_dataset_to_stream
 from libcchdo.config import get_merger_email
 from libcchdo.datadir import processing
@@ -15,7 +17,9 @@ from libcchdo.datadir.filenames import README_FILENAME, EXPOCODE_FILENAME
 from libcchdo.datadir.util import (
     ReadmeEmail, find_data_directory, is_cruise_dir, is_working_dir,
     is_data_dir)
-from libcchdo.datadir.readme import Readme
+from libcchdo.datadir.readme import Readme, ProcessingReadme
+from libcchdo.db.model.legacy import Event, Cruise, Session as Lsesh
+from libcchdo.datadir.store import LegacyDatastore
 
 
 @contextmanager
@@ -126,6 +130,33 @@ class TestReadme(TestCase):
             self.assertEqual('hy1.nc     YYYYMMDDCCHSIOXXX', rows[6])
             self.assertEqual('nc_hyd.zip YYYYMMDDCCHSIOXXX', rows[7])
             self.assertEqual('ctd.nc                      ', rows[8])
+
+    def test_add_processing_note(self):
+        transaction.doom()
+        dstore = LegacyDatastore()
+        cruise = Cruise()
+        cruise.ExpoCode = 'EXPO'
+        Lsesh.add(cruise)
+        tempdir = mkdtemp()
+        try:
+            with open(os.path.join(tempdir, 'uow.json'), 'w') as fff:
+                fff.write("""\
+{
+    "expocode": "EXPO",
+    "alias": "ALIAS",
+    "data_types_summary": "SUMMARY",
+    "params": "PARAMS",
+    "q_infos": []
+}
+""")
+            readme = ProcessingReadme(tempdir)
+            note_id = dstore.add_processing_note(
+                readme, 'EXPO', 'title', 'summary', [123], dryrun=True)
+            event = Lsesh.query(Event).get(note_id)
+            self.assertEqual(event.Note[0], '=')
+        finally:
+            rmtree(tempdir)
+
 
     def test_email_from_cchdo(self):
         """All emails should be sent with from address cchdo@ucsd.edu"""
