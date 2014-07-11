@@ -723,15 +723,18 @@ class PycchdoDatastore(Datastore):
         return asrs
 
     def _queuefile_info(self, asr):
-        return {
-            'filename': asr['value']['filename'],
-            'submitted_by': asr['p_c'],
-            'date': asr['ts_c'],
-            'data_type': asr['attr'],
-            'q_id': asr['id'],
-            'submission_id': asr['submission_id'],
-            'expocode': asr['obj_id'],
-        }
+        try:
+            return {
+                'filename': asr['value']['filename'],
+                'submitted_by': asr['p_c'],
+                'date': asr['ts_c'],
+                'data_type': asr['attr'],
+                'q_id': asr['id'],
+                'submission_id': asr['submission_id'],
+                'expocode': asr['obj_id'],
+            }
+        except (TypeError, KeyError) as err:
+            raise ValueError(u'{0} is not an ASR id'.format(asr['id']))
 
     def _as_received(self, *ids):
         resp = self.api('/staff/moderation.json?ids={0}'.format(','.join(ids)))
