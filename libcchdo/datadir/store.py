@@ -593,8 +593,8 @@ class LegacyDatastore(Datastore):
         summary = readme.uow_cfg['summary']
         q_infos, q_ids = q_from_uow_cfg(readme.uow_cfg)
         readme_str = open(finalized_readme_path, 'r').read()
-            note_id = self.add_processing_note(
-                readme_str, expocode, title, summary, q_ids, dryrun)
+        note_id = self.add_processing_note(
+            readme_str, expocode, title, summary, q_ids, dryrun)
 
         if send_email:
             try:
