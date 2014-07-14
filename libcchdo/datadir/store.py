@@ -439,7 +439,7 @@ class LegacyDatastore(Datastore):
                                 action='Website Update'):
         """Add history note for the given readme notes."""
         event = self.create_history_note(
-            unicode(readme), expocode, title, summary, action)
+            readme, expocode, title, summary, action)
         Lsesh.add(event)
         Lsesh.flush()
         return event.ID
@@ -592,11 +592,11 @@ class LegacyDatastore(Datastore):
 
         summary = readme.uow_cfg['summary']
         q_infos, q_ids = q_from_uow_cfg(readme.uow_cfg)
-        note_id = self.add_processing_note(
-            readme, expocode, title, summary, q_ids, dryrun)
+        readme_str = open(finalized_readme_path, 'r').read()
+            note_id = self.add_processing_note(
+                readme_str, expocode, title, summary, q_ids, dryrun)
 
         if send_email:
-            readme_str = open(finalized_readme_path, 'r').read()
             try:
                 pemail = create_processing_email(
                     readme_str, expocode, q_infos, note_id, q_ids, dryrun)
