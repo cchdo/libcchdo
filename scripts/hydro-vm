@@ -223,7 +223,7 @@ function hydro_vm__check_sourced {
                 propername="";
         fi
         local zero=$(basename -- "${1}");
-        if [ "X${zero}" != "X${propername}" ]; then
+        if [ "X${zero#-}" != "X${propername#-}" ]; then
                 echo "${zero} ${propername}";
                 echo "hydro-vm needs to be sourced, not run, for hydro activation"
                 return 0;
