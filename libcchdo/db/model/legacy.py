@@ -19,10 +19,18 @@ metadata = Base.metadata
 
 
 def session(*args, **kwargs):
-    return connect.session(connect.cchdo(), *args, **kwargs)
+    return connect.scoped(connect.cchdo(), *args, **kwargs)
 
 
-Session = connect.scoped(connect.cchdo())
+class _ModuleProperty(object):
+    def __init__(self):
+        self._instance = None
+
+    @property
+    def property(self):
+        if self._instance is None:
+            self._instance = connect.scoped(connect.cchdo())
+        return self._instance
 
 
 def str_list_add(str_list, item, separator=','):
