@@ -34,7 +34,7 @@ def _lon_lats(self):
         for f in self.files:
             yield (f.globals['LONGITUDE'], f.globals['LATITUDE'])
     else:
-        raise ArgumentError(
+        raise ValueError(
             u"Don't know how to get LATITUDE and LONGITUDE from {0}.".format(
                 type(self)))
 
@@ -45,34 +45,19 @@ def coordinate(lon, lat, z=0.0):
 
 def get_attribute(obj, attribute, default=''):
     try:
-        return __getattr__(cruise, attribute) or default
+        return getattr(obj, attribute) or default
     except AttributeError:
         return default
-    
 
-def any_to_kml(self, output):
-    expo = 'Unknown'
-    if (    isinstance(self, DataFile) or
-            isinstance(self, SummaryFile)):
-        try:
-            expo = self['EXPOCODE'].values[0]
-        except (AttributeError, KeyError, IndexError):
-            pass
-    elif isinstance(self, DataFileCollection):
-        try:
-            expo = self.files[0].globals['EXPOCODE']
-        except (AttributeError, KeyError):
-            pass
-
+def get_info(expocode):
     info = {}
 
     sesh = session()
-    cruise = sesh.query(Cruise).filter(Cruise.ExpoCode == expo).first()
+    cruise = sesh.query(Cruise).filter(Cruise.ExpoCode == expocode).first()
 
     keymap = [
         ['line', 'Line'],
         ['country', 'Country'],
-        # TODO chief scientist
         ['date_start', 'Begin_Date'],
         ['date_end', 'EndDate'],
         ['ship', 'Ship_Name'],
@@ -83,33 +68,34 @@ def any_to_kml(self, output):
     ]
     for key, attr in keymap:
         info[key] = get_attribute(cruise, attr)
-    sesh.close()
 
+    cs =[] 
+
+    chiefs = cruise.contacts_cruises
+   
+    for x in chiefs:
+        first = x.contact.FirstName 
+        last = x.contact.LastName
+        name = first + " " + last
+        cs.append(name)
+
+    
+    clist = ", ".join(cs)
+    info['chisci'] = clist
+    sesh.close()
     infos = []
     for k, v in info.items():
-        infos.append(KML.Data(
-            KML.value(v),
-            name=k,
-        ))
-
-    coords = uniquify(list(_lon_lats(self)))
-
-    stations = []
-
-    midlen = len(coords) / 2
-    midcoord = [0, 0, 0]
-
-    for i, coord in enumerate(coords):
-        if i == midlen:
-            midcoord = coord
-            midpoint = KML.Point(
-                KML.coordinates(coordinate(*coord))
-            )
-        else:
-            stations.append(KML.Point(
-                KML.coordinates(coordinate(*coord))
+        try:
+            infos.append(KML.Data(
+                KML.value(v),
+                name=k,
             ))
+        except ValueError:
+            pass
 
+    return info, cruise, infos
+
+def ballooning(info):
     balloon_text = """\
 <html>
 <head>
@@ -154,15 +140,56 @@ def any_to_kml(self, output):
         KML.textColor('ff000000'),
         KML.bgColor('ffebceb7'),
     )
+    
+    return balloon_style
 
+def extend(infos, expocode):
     extended = KML.ExtendedData(
         KML.Data(
-            KML.value(expo),
+            KML.value(expocode),
             name='expocode',
         ),
         *infos
     )
+    return extended
 
+
+def any_to_kml(self, output):
+    expo = 'Unknown'
+    if (    isinstance(self, DataFile) or
+            isinstance(self, SummaryFile)):
+        try:
+            expo = self['EXPOCODE'].values[0]
+        except (AttributeError, KeyError, IndexError):
+            pass
+    elif isinstance(self, DataFileCollection):
+        try:
+            expo = self.files[0].globals['EXPOCODE']
+        except (AttributeError, KeyError):
+            pass
+
+    coords = uniquify(list(_lon_lats(self)))
+    info, cruise, infos = get_info(expo)
+
+    stations = []
+
+    midlen = len(coords) / 2
+    midcoord = [0, 0, 0]
+
+    for i, coord in enumerate(coords):
+        if i == midlen:
+            midcoord = coord
+            midpoint = KML.Point(
+                KML.coordinates(coordinate(*coord))
+            )
+        else:
+            stations.append(KML.Point(
+                KML.coordinates(coordinate(*coord))
+            ))
+
+
+    balloon = ballooning(info)
+    extended = extend(infos, expo)
     kml = KML.Document(
         KML.name(expo),
         KML.LookAt(
@@ -181,7 +208,7 @@ def any_to_kml(self, output):
                 KML.color(_color_arr_to_str([64, 255, 96])),
                 KML.scale('2.5'),
             ),
-            copy(balloon_style),
+            copy(balloon),
             id='midpoint',
         ),
         KML.Style(
@@ -192,7 +219,7 @@ def any_to_kml(self, output):
                 KML.color(_color_arr_to_str([255, 128, 32])),
                 KML.scale('1'),
             ),
-            copy(balloon_style),
+            copy(balloon),
             id='stations',
         ),
         KML.Placemark(
@@ -208,9 +235,7 @@ def any_to_kml(self, output):
             copy(extended),
         ),
     )
-    
     output.write(etree.tostring(kml, pretty_print=True))
-
 
 def _color_arr_to_str(color):
     return 'ff'+''.join(map(lambda x: '%02x' % x, color[::-1]))
@@ -327,7 +352,7 @@ class GenericCCHDOKML(KMLWriter):
         return iii % len(cls.cycle_colors)
 
     @classmethod
-    def folder_for_cruise(cls, expocode, counter, coords, extra=''):
+    def folder_for_cruise(cls, expocode, counter, coords, extra='', balloon= ''):
         points = []
         for coord in coords:
             points.append("<Point><coordinates>{0}</coordinates></Point>".format(
@@ -336,6 +361,15 @@ class GenericCCHDOKML(KMLWriter):
         return """\
 <Folder>
   <name>{expo}</name>
+  <Style id="pt" >
+      {balloon}
+      <IconStyle>
+        <scale>0.7</scale>
+        <Icon>
+            <href>http://maps.google.com/mapfiles/kml/shapes/shaded_dot.png</href>
+        </Icon>
+      </IconStyle>
+  </Style>
   <Placemark>
     <styleUrl>#linestyle{lsid}</styleUrl>
     <LineString>
@@ -354,16 +388,17 @@ class GenericCCHDOKML(KMLWriter):
     <MultiGeometry>
       {multi}
     </MultiGeometry>
-  </Placemark>
   {extra}
+  </Placemark>
 </Folder>
 """.format(expo=expocode, lsid=cls._lsid(counter), coordstr=coordstr,
-           startcoord=','.join(coords[0]), multi=''.join(points), extra=extra)
+           startcoord=','.join(coords[0]), multi=''.join(points), extra=extra, balloon = balloon)
 
 
 def db_to_kml(output, expocode=None, full=False):
     """Output kml of all CCHDO holdings
 
+    output: an open filelike object
     """
     if expocode:
         kmldoc = "<name>CCHDO holdings for {0}</name>".format(expocode)
@@ -396,7 +431,10 @@ FROM track_lines, cruises WHERE cruises.ExpoCode = track_lines.ExpoCode"""
             expocode, coordstr = row
             counter = i
         coords = uniquify(linestring_to_coords(coordstr))
-        folders.append(GenericCCHDOKML.folder_for_cruise(expocode, counter, coords, extra))
+        info, cruise, infos = get_info(expocode)
+        balloon = etree.tostring(ballooning(info))
+        extra = etree.tostring(extend(infos, expocode))
+        folders.append(GenericCCHDOKML.folder_for_cruise(expocode, counter, coords, extra, balloon))
     cursor.close()
     connection.close()
 
