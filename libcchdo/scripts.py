@@ -2156,6 +2156,52 @@ misc_parser = hydro_subparsers.add_parser(
     'misc', help='Miscellaneous')
 misc_parsers = misc_parser.add_subparsers(title='miscellaneous')
 
+
+def get_ctdex_name(args):
+    """Get correct name of an Exchange CTD file."""
+    from libcchdo.model.datafile import DataFile
+    from libcchdo.formats.ctd.zip import exchange as ctdzipex
+
+    print ctdzipex.get_ctdex_name(args.input_file)
+
+
+with subcommand(misc_parsers, 'get_ctdex_name',
+                get_ctdex_name) as p:
+    p.add_argument(
+            'input_file', type=FileType('r'),
+            help='input CTD Exchange file')
+
+
+def rename_ctd_zipfiles(args):
+    from zipfile import ZipFile
+    from tempfile import SpooledTemporaryFile
+    from libcchdo.formats.ctd.zip.exchange import get_ctdex_name
+
+    with closing(args.input_file) as inputctdzip:
+        input_zip = ZipFile(inputctdzip, 'r')
+
+        # We must create a new zip and copy the original files in with new
+        # names because the python interface does not allow for renaming.
+        with ZipFile(args.output_file, 'w') as newzip:
+            for fname in input_zip.namelist():
+                # Assuming we have enough memory to keep ~4MB in memory
+                bytes = input_zip.read(fname)
+                with SpooledTemporaryFile() as spooledfile:
+                    spooledfile.write(bytes)
+                    new_name = get_ctdex_name(spooledfile)
+                newzip.writestr(new_name, bytes)
+
+
+with subcommand(misc_parsers, 'rename_ctd_zipfiles',
+                rename_ctd_zipfiles) as p:
+    p.add_argument(
+            'input_file', type=FileType('r'),
+            help='input CTD ZIP Exchange file')
+    p.add_argument(
+            'output_file', type=FileType('w'), nargs='?', default=sys.stdout,
+            help='output CTD ZIP Exchange file (default: stdout)')
+
+
 def get_bounds(args):
     """Take any readable file and output the bounding box"""
     from libcchdo.model.navcoord import iter_coords, NavCoords, print_bounds

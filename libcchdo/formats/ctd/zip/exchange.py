@@ -66,3 +66,9 @@ def read(self, handle, retain_order=False, header_only=False):
 def write(self, handle):
     """How to write CTD Exchange files to a Zip."""
     Zip.write(self, handle, ctdex, ctdex.get_datafile_filename)
+
+
+def get_ctdex_name(input_file):
+    dfile = DataFile()
+    ctdex.read(dfile, input_file, header_only=True)
+    return ctdex.get_datafile_filename(dfile)
