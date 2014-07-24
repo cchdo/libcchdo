@@ -27,7 +27,7 @@ from libcchdo import LOG, __version__
 from libcchdo.formats.formats import guess_file_type
 from libcchdo.db import connect
 from libcchdo.db.model import legacy
-from libcchdo.db.model.legacy import QueueFile, Session as Lsesh
+from libcchdo.db.model.legacy import QueueFile, session as lsesh
 from libcchdo.config import (
     get_config_dir, get_legacy_datadir_host,
     get_merger_name_first, get_merger_name_last, get_option)
@@ -405,7 +405,7 @@ class LegacyDatastore(Datastore):
 
     def mark_merged(self, q_ids):
         for qid in q_ids:
-            qf = Lsesh.query(QueueFile).filter(QueueFile.id == qid).first()
+            qf = lsesh().query(QueueFile).filter(QueueFile.id == qid).first()
             if not qf:
                 LOG.error(u'Missing QueueFile {0}'.format(qid))
                 raise ValueError(u'Unable to mark QueueFile {0} as merged.'.format(
@@ -417,7 +417,7 @@ class LegacyDatastore(Datastore):
 
     def create_history_note(self, readme, expocode, title, summary,
                                 action='Website Update'):
-        cruise = Lsesh.query(legacy.Cruise).\
+        cruise = lsesh().query(legacy.Cruise).\
             filter(legacy.Cruise.ExpoCode == expocode).first()
         if not cruise:
             LOG.error(
@@ -440,8 +440,8 @@ class LegacyDatastore(Datastore):
         """Add history note for the given readme notes."""
         event = self.create_history_note(
             readme, expocode, title, summary, action)
-        Lsesh.add(event)
-        Lsesh.flush()
+        lsesh().add(event)
+        lsesh().flush()
         return event.ID
 
     def check_online_checksums(self, uow_dir, expocode):

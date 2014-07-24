@@ -18,7 +18,7 @@ from libcchdo.datadir.util import (
     ReadmeEmail, find_data_directory, is_cruise_dir, is_working_dir,
     is_data_dir)
 from libcchdo.datadir.readme import Readme, ProcessingReadme
-from libcchdo.db.model.legacy import Event, Cruise, Session as Lsesh
+from libcchdo.db.model.legacy import Event, Cruise, Session as lsesh
 from libcchdo.datadir.store import LegacyDatastore
 
 
@@ -136,7 +136,7 @@ class TestReadme(TestCase):
         dstore = LegacyDatastore()
         cruise = Cruise()
         cruise.ExpoCode = 'EXPO'
-        Lsesh.add(cruise)
+        lsesh().add(cruise)
         tempdir = mkdtemp()
         try:
             with open(os.path.join(tempdir, 'uow.json'), 'w') as fff:
@@ -152,7 +152,7 @@ class TestReadme(TestCase):
             readme = ProcessingReadme(tempdir)
             note_id = dstore.add_processing_note(
                 readme, 'EXPO', 'title', 'summary', [123], dryrun=True)
-            event = Lsesh.query(Event).get(note_id)
+            event = lsesh().query(Event).get(note_id)
             self.assertEqual(event.Note[0], '=')
         finally:
             rmtree(tempdir)
