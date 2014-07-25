@@ -18,8 +18,14 @@ Base = S.ext.declarative.declarative_base()
 metadata = Base.metadata
 
 
+_scoped_session = None
+
+
 def session(*args, **kwargs):
-    return connect.scoped(connect.cchdo(), *args, **kwargs)
+    global _scoped_session
+    if _scoped_session is None:
+        _scoped_session = connect.scoped(connect.cchdo(), *args, **kwargs)
+    return _scoped_session
 
 
 class _ModuleProperty(object):
