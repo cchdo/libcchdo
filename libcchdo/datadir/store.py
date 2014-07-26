@@ -27,7 +27,7 @@ from libcchdo import LOG, __version__
 from libcchdo.formats.formats import guess_file_type
 from libcchdo.db import connect
 from libcchdo.db.model import legacy
-from libcchdo.db.model.legacy import QueueFile, session as lsesh
+from libcchdo.db.model.legacy import QueueFile
 from libcchdo.config import (
     get_config_dir, get_legacy_datadir_host,
     get_merger_name_first, get_merger_name_last, get_option)
@@ -245,6 +245,7 @@ class LegacyDatastore(Datastore):
         self.sftp = SFTP()
         self._aftp = None
         self.cruise_original_dir = None
+        self.Lsesh = legacy.session()
 
     @property
     def aftp(self):
@@ -269,26 +270,24 @@ class LegacyDatastore(Datastore):
         """Return a list of dictionaries representing files that are not merged.
 
         """
-        with closing(legacy.session()) as sesh:
-            unmerged_qfs = sesh.query(QueueFile).\
-                filter(QueueFile.merged == 0).all()
-            qfis = []
-            for qf in unmerged_qfs:
-                qfi = self._queuefile_info(qf)
-                del qfi['date']
-                qfi['filename'] = os.path.basename(qfi['filename'])
-                qfis.append(qfi)
-            return qfis
+        unmerged_qfs = self.Lsesh.query(QueueFile).\
+            filter(QueueFile.merged == 0).all()
+        qfis = []
+        for qf in unmerged_qfs:
+            qfi = self._queuefile_info(qf)
+            del qfi['date']
+            qfi['filename'] = os.path.basename(qfi['filename'])
+            qfis.append(qfi)
+        return qfis
 
     def _as_received(self, *ids):
-        with closing(legacy.session()) as sesh:
-            try:
-                ids = map(int, ids)
-            except ValueError:
-                ids = []
-            qfs = sesh.query(QueueFile).filter(QueueFile.id.in_(ids)).all()
-            for qf in qfs:
-                yield qf
+        try:
+            ids = map(int, ids)
+        except ValueError:
+            ids = []
+        qfs = self.Lsesh.query(QueueFile).filter(QueueFile.id.in_(ids)).all()
+        for qf in qfs:
+            yield qf
 
     def fetch_as_received(self, local_path, *ids):
         """Copy the referenced as-received files into the directory.
@@ -323,20 +322,19 @@ class LegacyDatastore(Datastore):
 
     @contextmanager
     def _cruise_directory(self, expocode):
-        with closing(legacy.session()) as sesh:
-            q_docs = sesh.query(legacy.Document).\
-                filter(legacy.Document.ExpoCode == expocode).\
-                filter(legacy.Document.FileType == 'Directory')
-            num_docs = q_docs.count()
-            if num_docs < 1:
-                LOG.error(
-                    u'{0} does not have a directory entry.'.format(expocode))
-                raise ValueError()
-            elif num_docs > 1:
-                LOG.error(
-                    u'{0} has more than one directory entry.'.format(expocode))
-                raise ValueError()
-            yield q_docs.first()
+        q_docs = self.Lsesh.query(legacy.Document).\
+            filter(legacy.Document.ExpoCode == expocode).\
+            filter(legacy.Document.FileType == 'Directory')
+        num_docs = q_docs.count()
+        if num_docs < 1:
+            LOG.error(
+                u'{0} does not have a directory entry.'.format(expocode))
+            raise ValueError()
+        elif num_docs > 1:
+            LOG.error(
+                u'{0} has more than one directory entry.'.format(expocode))
+            raise ValueError()
+        yield q_docs.first()
 
     def _cruise_dir(self, expocode):
         with self._cruise_directory(expocode) as doc:
@@ -405,7 +403,7 @@ class LegacyDatastore(Datastore):
 
     def mark_merged(self, q_ids):
         for qid in q_ids:
-            qf = lsesh().query(QueueFile).filter(QueueFile.id == qid).first()
+            qf = self.Lsesh.query(QueueFile).filter(QueueFile.id == qid).first()
             if not qf:
                 LOG.error(u'Missing QueueFile {0}'.format(qid))
                 raise ValueError(u'Unable to mark QueueFile {0} as merged.'.format(
@@ -417,7 +415,7 @@ class LegacyDatastore(Datastore):
 
     def create_history_note(self, readme, expocode, title, summary,
                                 action='Website Update'):
-        cruise = lsesh().query(legacy.Cruise).\
+        cruise = self.Lsesh.query(legacy.Cruise).\
             filter(legacy.Cruise.ExpoCode == expocode).first()
         if not cruise:
             LOG.error(
@@ -440,8 +438,8 @@ class LegacyDatastore(Datastore):
         """Add history note for the given readme notes."""
         event = self.create_history_note(
             readme, expocode, title, summary, action)
-        lsesh().add(event)
-        lsesh().flush()
+        self.Lsesh.add(event)
+        self.Lsesh.flush()
         return event.ID
 
     def check_online_checksums(self, uow_dir, expocode):
