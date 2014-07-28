@@ -132,6 +132,7 @@ check_parsers = check_parser.add_subparsers(
 
 def check_any(args):
     """Check the format for any recognized CCHDO file."""
+    import collections
     from libcchdo.formats import woce
 
     with closing(args.cchdo_file) as in_file:
@@ -187,6 +188,25 @@ def check_any(args):
         df.check_and_replace_parameters(convert=False)
         check_fill_value_has_flag_w_9(df)
         check_empty_columns(df)
+        if args.verify_unique:
+            check_cols = []
+            for col in args.verify_unique:
+                check_cols.append(df.columns[col].values)
+            check_cols = zip(*check_cols)
+            unique_pairs = set(check_cols)
+            # the integers can be large and will not satisfy 'is' conditions
+            # because they will not be the same object
+            if len(check_cols) != len(unique_pairs):
+                LOG.warn("Non unique values for columns ({0})".format(
+                                ",".join(args.verify_unique)
+                                ))
+                non_unique = [x for x, y in
+                        collections.Counter(check_cols).items()
+                        if y > 1]
+                LOG.warn("The following are duplicated")
+                for item in non_unique:
+                    item = zip(args.verify_unique, item)
+                    LOG.warn(", ".join(["{0}: {1}".format(*i) for i in item]))
 
     with closing(args.output) as out_file:
         try:
@@ -205,6 +225,9 @@ with subcommand(check_parsers, 'any', check_any) as p:
     p.add_argument(
         'output', type=FileType('w'), nargs='?', default=sys.stdout,
          help='output file (default: stdout)')
+    p.add_argument(
+        '--verify_unique', nargs='*',
+        help='list of columns used to form unique key')
 
 
 converter_parser = hydro_subparsers.add_parser(
