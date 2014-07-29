@@ -1,6 +1,8 @@
 import sys
 
 import sqlalchemy as S
+from sqlalchemy import func
+from sqlalchemy.types import UserDefinedType
 from sqlalchemy import (
     Column, Integer, String, Boolean, Unicode, DateTime, Date, ForeignKey
     )
@@ -8,7 +10,6 @@ import sqlalchemy.orm
 from sqlalchemy.orm import relationship, relation, column_property, backref
 from sqlalchemy.types import BINARY
 import sqlalchemy.ext.declarative
-from geoalchemy import GeometryColumn, LineString
 
 from libcchdo.log import LOG
 from libcchdo.db import connect, Enum
@@ -19,6 +20,16 @@ metadata = Base.metadata
 
 
 _scoped_session = None
+
+class LINESTRING(UserDefinedType):
+    def get_col_spec(self):
+        return "LINESTRING"
+
+    def bind_expression(self, bindvalue):
+        return func.GeomFromText(bindvalue)
+
+    def column_expression(self, col):
+        return func.AsText(col)
 
 
 def session(*args, **kwargs):
@@ -398,7 +409,7 @@ class TrackLine(Base):
 
     id = Column(Integer, primary_key=True)
     ExpoCode = Column(String)
-    Track = GeometryColumn(LineString(2))
+    Track = Column(LINESTRING)
     Basins = Column(String)
 
 
