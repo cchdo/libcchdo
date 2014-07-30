@@ -4,6 +4,7 @@ import re
 from datetime import datetime
 from contextlib import closing
 
+import transaction
 from sqlalchemy.orm.exc import NoResultFound
 from sqlalchemy.orm.exc import MultipleResultsFound
 from sqlalchemy import or_
@@ -267,7 +268,7 @@ def update(expo_or_ddir):
             d.ExpoCode = expocode
             sesh.add(d)
 
-        sesh.commit()
+        transaction.commit()
         if len(unchanged_files) > 0:
             LOG.info("The following files are unchanged: {0}".format(unchanged_files))
         if len(new_files) > 0:
@@ -277,7 +278,7 @@ def update(expo_or_ddir):
 
         LOG.info('Update done')
     except:
-        sesh.rollback()
+        transaction.rollback()
         raise
     finally:
         sesh.close()
