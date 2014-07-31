@@ -278,7 +278,7 @@ def update(expo_or_ddir):
 
         LOG.info('Update done')
     except:
-        transaction.rollback()
+        transaction.abort()
         raise
     finally:
         sesh.close()
