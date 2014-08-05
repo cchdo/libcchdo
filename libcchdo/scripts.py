@@ -2155,7 +2155,7 @@ def plot_woce_repr(args):
     """Plot WOCE lines with each represented by one or two ideal cruise tracks.
 
     """
-    from libcchdo.tools import plot_woce_representation
+    from libcchdo.plot.tools import plot_woce_representation
     from libcchdo.util import get_library_abspath
     default = os.path.join(
         get_library_abspath(), 'resources', 'woce_repr.csv')
