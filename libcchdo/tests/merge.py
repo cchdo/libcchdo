@@ -169,7 +169,7 @@ END_DATA
 
             # Make sure warning is printed regarding extra key in deriv file.
             lines = [
-                ['Key on', 'derivative file does not exist in origin', '600']
+                ['Key ', 'does not exist in origin from derivative rows', '600']
             ]
             self.assertTrue(self.ensure_lines(lines))
 
@@ -215,6 +215,52 @@ END_DATA
             lines = [
                 'No keys matched',
                 'No keys provided to map on.',
+            ]
+            self.assertTrue(self.ensure_lines(lines))
+
+    def test_merge_btl_non_unique_keys(self):
+        """Warn if there are non-unique keys in origin.
+        
+        Map to the first occurrence in derivative.
+
+        """
+        with    TemporaryFile() as origin, \
+                TemporaryFile() as deriv:
+            origin.write("""\
+BOTTLE,19700101CCHSIOYYY
+# header 1
+EXPOCODE,SECT_ID,STNNBR,CASTNO,SAMPNO,BTLNBR,BTLNBR_FLAG_W,DEPTH,TDN,DELC14,DELC14_FLAG_W
+,,,,,,,METERS,UMOL/KG,/MILLE,
+ 316N145_9, TRNS1, 574, 1, 16, 36,2,1000,5,-999.000,9
+ 316N145_9, TRNS1, 574, 1, 15, 35,2,1000,5,-999.000,9
+END_DATA
+""")
+            origin.flush()
+            origin.seek(0)
+            deriv.write("""\
+BOTTLE,19700101CCHSIOYYY
+# header 2
+EXPOCODE,SECT_ID,STNNBR,CASTNO,SAMPNO,BTLNBR,BTLNBR_FLAG_W,DEPTH,TDN,DELC14,DELC14_FLAG_W
+,,,,,,,METERS,UMOL/KG,/MILLE,
+ 316N145_9, TRNS1, 574, 1, 36, 36,2,1000,5,  10.000,9
+ 316N145_9, TRNS1, 574, 1, 35, 35,2,1000,5,-999.000,1
+END_DATA
+""")
+            deriv.flush()
+            deriv.seek(0)
+
+            dfo = DataFile()
+            dfd = DataFile()
+            btlex.read(dfo, origin)
+            btlex.read(dfd, deriv)
+            parameters = ['DELC14']
+            keys = ['STNNBR']
+            mdf = merge_datafiles(dfo, dfd, keys, parameters)
+
+            # Make sure warning is printed regarding extra key in deriv file.
+            lines = [
+                'Picked the first row of occurrence in derivative data for non'
+                ' unique keys: ',
             ]
             self.assertTrue(self.ensure_lines(lines))
 
@@ -295,7 +341,7 @@ END_DATA
 
         lines = [
             # df1 has an different CTDPRS record (3)
-            'Key on row 1 of derivative file does not exist in origin: (3,)',
+            'Key (3,) does not exist in origin from derivative rows',
             # NITRIT columns are the same
             "Instructed to merge parameters that are not different: ['NITRIT']"
         ]

@@ -29,6 +29,7 @@ from libcchdo.formats.exchange import (
     END_DATA, FILL_VALUE, FLAG_ENDING_WOCE, FLAG_ENDING_IGOSS)
 from libcchdo.fns import equal_with_epsilon, set_list
 from libcchdo.recipes.orderedset import OrderedSet
+from libcchdo.recipes.defaultordereddict import DefaultOrderedDict
 from libcchdo.model.datafile import (
     DataFile, DataFileCollection, Column, PRESSURE_PARAMETERS)
 
@@ -196,11 +197,11 @@ def overwrite_list(origin_col, derivative_col, keymap):
     """
     for ocoli, dcoli, key in keymap:
         try:
-            dvvv = derivative_col[dcoli]
+            dval = derivative_col[dcoli]
             try:
-                origin_col[ocoli] = dvvv
+                origin_col[ocoli] = dval
             except IndexError:
-                set_list(origin_col, ocoli, dvvv)
+                set_list(origin_col, ocoli, dval)
         except IndexError:
             pass
     return origin_col
@@ -255,30 +256,53 @@ def map_keys(origin, deriv, keys):
             zip(derivcols, collens)))
 
     # TODO similar to map_collections
-    originkeys = OrderedDict()
-    derivkeys = OrderedDict()
+    originkeys = DefaultOrderedDict(list)
+    derivkeys = DefaultOrderedDict(list)
     for i in range(origin_collen):
         key = tuple([col[i] for col in origincols])
-        originkeys[key] = i
+        originkeys[key].append(i)
     for i in range(deriv_collen):
         key = tuple([col[i] for col in derivcols])
-        derivkeys[key] = i
+        derivkeys[key].append(i)
 
     keymap = []
-    for key in derivkeys:
-        ideriv = derivkeys[key]
-        try:
-            iorigin = originkeys[key]
-            keymap.append((iorigin, ideriv, key))
-        except KeyError:
-            LOG.warn(u'Key on row {0} of derivative file does not exist in '
-                     'origin: {1!r}'.format(ideriv, key))
+    # Map the origin rows to the derivative rows by key (these are the only ones
+    # that will be overwritten so we only need to warn about unmatched
+    # derivative keys.)
+    non_unique_keys = OrderedSet()
+    missing_in_derivative = DefaultOrderedDict(list)
     for key in originkeys:
-        iorigin = originkeys[key]
-        if key in derivkeys:
-            continue
-        LOG.warn(u'Key on row {0} of origin file does not exist in derivative: '
-                 '{1!r}'.format(iorigin, key))
+        for iorigin in originkeys[key]:
+            try:
+                iderivs = derivkeys[key]
+                # Map to the first origin key that matches
+                if iderivs:
+                    if len(iderivs) > 1:
+                        non_unique_keys.add(key)
+                    ideriv = iderivs[0]
+                    keymap.append((iorigin, ideriv, key))
+                else:
+                    raise KeyError()
+            except KeyError:
+                missing_in_derivative[key].append(iorigin)
+    if non_unique_keys:
+        LOG.warn(u'Picked the first row of occurrence in derivative data for '
+                 'non unique keys: {0!r}'.format(non_unique_keys))
+    for key, rows in missing_in_derivative.items():
+        LOG.warn(u'Key {0!r} does not exist in derivative from origin rows '
+                 '{1!r}'.format(key, rows))
+    missing_in_origin = DefaultOrderedDict(list)
+    for key in derivkeys:
+        for ideriv in derivkeys[key]:
+            try:
+                iorigins = originkeys[key]
+                if not iorigins:
+                    raise KeyError()
+            except KeyError:
+                missing_in_origin[key].append(ideriv)
+    for key, rows in missing_in_origin.items():
+        LOG.warn(u'Key {0!r} does not exist in origin from derivative rows '
+                 '{1!r}'.format(key, rows))
 
     if not keymap:
         LOG.error(u'No keys matched in origin and derivative files.')
