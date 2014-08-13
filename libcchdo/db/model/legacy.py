@@ -1,14 +1,15 @@
 import sys
 
 import sqlalchemy as S
+from sqlalchemy import func
+from sqlalchemy.types import UserDefinedType
 from sqlalchemy import (
     Column, Integer, String, Boolean, Unicode, DateTime, Date, ForeignKey
     )
 import sqlalchemy.orm
-from sqlalchemy.orm import relationship, relation, column_property
+from sqlalchemy.orm import relationship, relation, column_property, backref
 from sqlalchemy.types import BINARY
 import sqlalchemy.ext.declarative
-from geoalchemy import GeometryColumn, LineString
 
 from libcchdo.log import LOG
 from libcchdo.db import connect, Enum
@@ -18,15 +19,45 @@ Base = S.ext.declarative.declarative_base()
 metadata = Base.metadata
 
 
-def session():
-    return connect.session(connect.cchdo())
+_scoped_session = None
+
+class LINESTRING(UserDefinedType):
+    def get_col_spec(self):
+        return "LINESTRING"
+
+    def bind_expression(self, bindvalue):
+        return func.GeomFromText(bindvalue)
+
+    def column_expression(self, col):
+        return func.AsText(col)
+
+
+def session(*args, **kwargs):
+    global _scoped_session
+    if _scoped_session is None:
+        _scoped_session = connect.scoped(connect.cchdo(), *args, **kwargs)
+    return _scoped_session
+
+
+class _ModuleProperty(object):
+    def __init__(self):
+        self._instance = None
+
+    @property
+    def property(self):
+        if self._instance is None:
+            self._instance = connect.scoped(connect.cchdo())
+        return self._instance
 
 
 def str_list_add(str_list, item, separator=','):
     """Add item to a string representing a list."""
-    list = str_list.split(separator)
-    if item not in list:
-        return separator.join(list + [item])
+    if str_list is None:
+        strs = []
+    else:
+        strs = str_list.split(separator)
+    if item not in strs:
+        return separator.join(strs + [item])
     return str_list
 
 
@@ -102,9 +133,8 @@ MYSQL_PARAMETER_DISPLAY_ORDERS = None
 class ArcticAssignment(Base):
     __tablename__ = 'arctic_assignments'
 
-    id = Column(Integer(11), primary_key=True)
+    id = Column(Integer, primary_key=True)
     expocode = Column('ExpoCode', String(30))
-    ExpoCode = column_property(expocode)
     project = Column(String)
     current_status = Column(String)
     cchdo_contact = Column(String)
@@ -117,9 +147,9 @@ class ArcticAssignment(Base):
     priority = Column(Integer)
     deadline = Column(Date)
     manager = Column(String(255))
-    complete = Column(Integer(50))
+    complete = Column(Integer)
     task_group = Column(String(255))
-    visible = Column(Integer(50))
+    visible = Column(Integer)
 
 
 class BottleDB(Base):
@@ -137,7 +167,7 @@ class BottleDB(Base):
 
 class Codes(Base):
     """ Codes used by CruiseParameterInfos """
-    __tablename__ = 'codes'
+    __tablename__ = 'z_codes'
 
     Code = Column(Integer, primary_key=True)
     Status = Column(String, primary_key=True)
@@ -223,7 +253,7 @@ class Parameter(Base):
     unit_mnemonic = Column('Unit_Mnemonic', Unicode)
     precision = Column('Precision', Unicode, default=u'')
     ruby_precision = Column('RubyPrecision', Unicode, default=None)
-    private = Column('Private', Integer(11), default=0)
+    private = Column('Private', Integer, default=0)
     unit_mnemonic_woce = Column('WoceUnitMnemonic', String, nullable=False)
     added_by = Column('AddedBy', String)
     notes = Column('Notes', String)
@@ -314,10 +344,9 @@ class User(Base):
 class ArgoFile(Base):
     __tablename__ = 'argo_files'
 
-    id = Column(Integer(11), primary_key=True)
+    id = Column(Integer, primary_key=True)
     user_id = Column(ForeignKey('users.id'))
     expocode = Column('ExpoCode', String)
-    ExpoCode = column_property(expocode)
     description = Column(String)
     display = Column(Boolean)
     size = Column(Integer)
@@ -331,14 +360,13 @@ class ArgoFile(Base):
 class ArgoSubmission(Base):
     __tablename__ = 'argo_submissions'
 
-    id = Column(Integer(11), primary_key=True)
+    id = Column(Integer, primary_key=True)
     user_id = Column('user', ForeignKey('users.id'))
     expocode = Column('ExpoCode', String(30))
-    ExpoCode = column_property(expocode)
     filename = Column(String)
     location = Column(String)
-    display = Column(Integer(3))
-    link = Column(Integer(4))
+    display = Column(Integer)
+    link = Column(Integer)
     datetime_added = Column(DateTime)
     note = Column(String)
 
@@ -361,6 +389,7 @@ class ContactsCruise(Base):
     cruise_id = Column(Integer, ForeignKey('cruises.id'), primary_key=True)
     contact_id = Column(Integer, ForeignKey('contacts.id'), primary_key=True)
     function = Column(String)
+    institution = Column(String)
 
     contact = relationship('Contact', backref='contacts_cruises')
 
@@ -378,20 +407,19 @@ class CollectionsCruise(Base):
 class TrackLine(Base):
     __tablename__ = 'track_lines'
 
-    id = Column(Integer(11), primary_key=True)
+    id = Column(Integer, primary_key=True)
     ExpoCode = Column(String)
-    Track = GeometryColumn(LineString(2))
+    Track = Column(LINESTRING)
     Basins = Column(String)
 
 
 class Cruise(Base):
     __tablename__ = 'cruises'
 
-    id = Column(Integer(11), primary_key=True)
+    id = Column(Integer, primary_key=True)
     ExpoCode = Column(String)
     Line = Column(String)
     Country = Column(String)
-    Chief_Scientist = Column(String)
     Begin_Date = Column(Date)
     EndDate = Column(Date)
     Ship_Name = Column(String)
@@ -407,7 +435,7 @@ class Cruise(Base):
 class Contact(Base):
     __tablename__ = 'contacts'
 
-    id = Column(Integer(11), primary_key=True)
+    id = Column(Integer, primary_key=True)
     LastName = Column(String)
     FirstName = Column(String)
     Institute = Column(String)
@@ -421,8 +449,9 @@ class Contact(Base):
 class Event(Base):
     __tablename__ = 'events'
 
-    ID = Column(Integer(255), primary_key=True)
-    ExpoCode = Column(String)
+    ID = Column(Integer, primary_key=True)
+    ExpoCode = Column(String, ForeignKey('cruises.ExpoCode'))
+    contact = relationship(Cruise, backref='events')
     First_Name = Column(String)
     LastName = Column(String)
     Data_Type = Column(String)
@@ -453,15 +482,14 @@ class Document(Base):
 class Collection(Base):
     __tablename__ = 'collections'
 
-    id = Column(Integer(11), primary_key=True)
+    id = Column(Integer, primary_key=True)
     Name = Column(String)
 
 
 class ParameterStatus(Base):
-    __tablename__ = 'parameter_status'
+    __tablename__ = 'y_parameter_status'
 
-    expocode = Column('ExpoCode', Integer(11), primary_key=True)
-    ExpoCode = column_property(expocode)
+    expocode = Column('ExpoCode', Integer, primary_key=True)
     parameter_id = Column(ForeignKey('parameter_descriptions.id'),
                             primary_key=True)
     pi_id = Column(ForeignKey('contacts.id'), nullable=True)
@@ -494,7 +522,7 @@ class CruiseParameterInfo(Base):
     'BARIUM', 'DON', 'SF6', 'NI', 'CU', 'CALCIUM', 'PHSPER', 'NTRIER', 'NTRAER',
     'DELHE4', 'N2O', 'DMS', 'TRITUM', 'PHTEMP', ]
 
-    id = Column(Integer(11), primary_key=True)
+    id = Column(Integer, primary_key=True)
     ExpoCode = Column(String)
 
 
@@ -507,12 +535,11 @@ for cpi in CruiseParameterInfo._PARAMETERS:
 class QueueFile(Base):
     __tablename__ = 'queue_files'
 
-    id = Column(Integer(11), primary_key=True)
+    id = Column(Integer, primary_key=True)
     Name = Column(String)
     date_received = Column('DateRecieved', Date)
     date_merged = Column('DateMerged', Date)
     expocode = Column('ExpoCode', String)
-    ExpoCode = column_property(expocode)
     merged = Column('Merged', Integer)
     contact = Column('Contact', String)
     processed_input = Column('ProcessedInput', String)
@@ -525,7 +552,8 @@ class QueueFile(Base):
     hidden = Column(Integer)
     documentation = Column(Integer)
     submission_id = Column(Integer, ForeignKey('submissions.id'))
-    submission = relationship('Submission')
+    submission = relationship('Submission', backref=backref(
+        'queue_files', uselist=True))
     
     def is_unmerged(self):
         """Return the unmerged status.
@@ -558,14 +586,13 @@ class QueueFile(Base):
 class Submission(Base):
     __tablename__ = 'submissions'
 
-    id = Column(Integer(11), primary_key=True)
+    id = Column(Integer, primary_key=True)
     name = Column(String)
     institute = Column(String)
     country = Column('Country', String)
     email = Column(String)
     public = Column(String)
     expocode = Column('ExpoCode', String)
-    ExpoCode = column_property(expocode)
     ship_name = Column('Ship_Name', String)
     line = Column('Line', String)
     cruise_date = Column(Date)
@@ -582,7 +609,7 @@ class Submission(Base):
 class OldSubmission(Base):
     __tablename__ = 'old_submissions'
 
-    id = Column(Integer(11), primary_key=True)
+    id = Column(Integer, primary_key=True)
     Date = Column(Date)
     Stamp = Column(String)
     Name = Column(String)
@@ -600,8 +627,8 @@ class SpatialGroup(Base):
 
     id = Column(Integer, primary_key=True)
     area = Column(String)
-    expocode = Column('ExpoCode', String)
-    ExpoCode = column_property(expocode)
+    expocode = Column('ExpoCode', ForeignKey('cruises.ExpoCode', onupdate='cascade'))
+    cruise = relationship(Cruise)
 
     atlantic = Column(BINARY)
     arctic = Column(BINARY)
@@ -613,19 +640,18 @@ class SpatialGroup(Base):
 class Internal(Base):
     __tablename__ = 'internal'
 
-    Line = Column(String, primary_key=True)
-    File = Column(String, primary_key=True)
-    expocode = Column('ExpoCode', String, primary_key=True)
-    ExpoCode = column_property(expocode)
-    Basin = Column(String, primary_key=True)
+    id = Column(Integer, primary_key=True)
+    Line = Column(String)
+    File = Column(String)
+    expocode = Column('ExpoCode', String)
+    Basin = Column(String)
 
 
 class NewTrack(Base):
-    __tablename__ = 'new_tracks'
+    __tablename__ = 'z_new_tracks'
 
-    id = Column(Integer(11), primary_key=True)
+    id = Column(Integer, primary_key=True)
     expocode = Column('ExpoCode', String)
-    ExpoCode = column_property(expocode)
     filename = Column('FileName', String)
     basin = Column('Basin', String)
     track = Column('Track', String)
@@ -638,25 +664,23 @@ class SupportFile(Base):
     date_received = Column('DateRecieved', String)
     date_merged = Column('DateMerged', String)
     expocode = Column('ExpoCode', String)
-    ExpoCode = column_property(expocode)
     merged = Column('Merged', String)
     contact = Column('Contact', String)
     processed_input = Column('ProcessedInput', String)
     notes = Column('Notes', String)
     unprocessed_input = Column('UnprocessedInput', String)
     contact = Column('Contact', String)
-    id = Column(Integer(11), primary_key=True)
+    id = Column(Integer, primary_key=True)
     parameters = Column('Parameters', String)
     action = Column('Action', String)
     description = Column('Description', String)
 
 
 class UnusedTrack(Base):
-    __tablename__ = 'unused_tracks'
+    __tablename__ = 'z_unused_tracks'
 
-    id = Column(Integer(11), primary_key=True)
+    id = Column(Integer, primary_key=True)
     expocode = Column('ExpoCode', String)
-    ExpoCode = column_property(expocode)
     filename = Column('FileName', String)
     Basin = Column(String)
     Track = Column(String)

@@ -31,9 +31,8 @@ def pushd(dir):
     chdir(dir)
     try:
         yield
-    except Exception, e:
-        LOG.error('Error in pushd')
-        LOG.error(e)
+    except Exception, err:
+        LOG.error('Error in pushd: {0}'.format(err))
     finally:
         chdir(cwd)
 
@@ -76,9 +75,9 @@ def su(uid=0, gid=0, su_lock=None):
             sys.exit(1)
         try:
             yield
-        except Exception, e:
-            LOG.error(u'Error while su(%s, %s)' % (uid, gid))
-            raise e
+        except Exception, err:
+            LOG.error(u'Error while su({0}, {1}): {2}'.format(uid, gid, err))
+            raise
         finally:
             if uid != 0:
                 seteuid(0)
@@ -183,11 +182,11 @@ class AFTP(object):
                 LOG.info('dryrun downloading %s' % filepath)
                 downloaded = None
             else:
-                LOG.info('downloading %s' % filepath)
+                LOG.info('downloading {0!r}'.format(filepath))
                 sftp.get(filepath, temp.name)
         except IOError, e:
             LOG.warn(
-                u'Unable to locate file on remote {0}\n{1!r}'.format(
+                u'Unable to locate file on remote {0!r}\n{1!r}'.format(
                 filepath, e))
             downloaded = None
 
@@ -474,9 +473,12 @@ class AFTP(object):
 
     def isdir(self, path):
         if self.local_rewriter:
-            return os.isdir(self.local_rewriter(path))
+            return os.path.isdir(self.local_rewriter(path))
         else:
-            return S_ISDIR(self.sftp.lstat(path).st_mode)
+            try:
+                return S_ISDIR(self.sftp.lstat(path).st_mode)
+            except IOError:
+                return False
 
     def lstat(self, path):
         if self.local_rewriter:

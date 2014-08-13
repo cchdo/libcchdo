@@ -2,7 +2,7 @@
 
 
 import tempfile
-from contextlib import contextmanager
+from contextlib import contextmanager, closing
 import datetime
 
 try:
@@ -14,6 +14,8 @@ except ImportError, e:
 from libcchdo import LOG, fns
 from libcchdo.fns import Decimal
 from libcchdo.formats import woce
+from libcchdo.formats.exchange import parse_type_and_stamp_line
+from libcchdo.formats.stamped import read_stamp
 
 
 QC_SUFFIX = '_QC'
@@ -35,6 +37,26 @@ UNSPECIFIED_UNITS = 'unspecified'
 
 
 STRLEN = 40
+
+
+def read_type_and_stamp(fileobj):
+    """Only get the file type and stamp line.
+
+    For zipfiles, return the most common stamp and warn if there is more than
+    one.
+
+    """
+    def reader(fobj):
+        with closing(tempfile.NamedTemporaryFile()) as fff:
+            fff.write(fobj.read())
+            fff.flush()
+            nc_file = Dataset(fff.name, 'r')
+            try:
+                first_line = nc_file.ORIGINAL_HEADER.split('\n', 1)[0]
+                return parse_type_and_stamp_line(first_line)
+            except (AttributeError):
+                return ('', '')
+    return read_stamp(fileobj, reader)
 
 
 def ascii(x):
@@ -142,6 +164,12 @@ def define_attributes(nc_file, expocode, sect_id, data_type, stnnbr, castno,
     nc_file.CAST_NUMBER = castno
     nc_file.BOTTOM_DEPTH_METERS = bottom_depth
     nc_file.Creation_Time = fns.strftime_iso(datetime.datetime.utcnow())
+
+
+def set_original_header(nc_file, dfile, datatype):
+    nc_file.ORIGINAL_HEADER = '\n'.join([
+        '{0},{1}'.format(datatype, dfile.globals.get('stamp', '')),
+        dfile.globals.get('header', '')])
     
 
 def create_common_variables(nc_file, latitude, longitude, woce_datetime,

@@ -1,11 +1,52 @@
+import re
 from datetime import datetime
 from contextlib import closing
-
-from geoalchemy.utils import from_wkt
 
 from libcchdo import LOG
 from libcchdo.db.model import legacy
 from libcchdo.db.model.legacy import TrackLine, Cruise
+
+# This function is shamelessly stolen from geoalchemy which stole it from
+# FeatureServer
+def from_wkt (geom):
+    """wkt helper: converts from WKT to a GeoJSON-like geometry."""
+    wkt_linestring_match = re.compile(r'\(([^()]+)\)')
+    re_space             = re.compile(r"\s+")
+
+    coords = []
+    for line in wkt_linestring_match.findall(geom):
+        rings = [[]]
+        for pair in line.split(","):
+
+            if not pair.strip():
+                rings.append([])
+                continue
+            rings[-1].append(map(float, re.split(re_space, pair.strip())))
+
+        coords.append(rings[0])
+
+    if geom.startswith("MULTIPOINT"):
+        geomtype = "MultiPoint"
+        coords = coords[0]
+    elif geom.startswith("POINT"):
+        geomtype = "Point"
+        coords = coords[0][0]
+
+    elif geom.startswith("MULTILINESTRING"):
+        geomtype = "MultiLineString"
+    elif geom.startswith("LINESTRING"):
+        geomtype = "LineString"
+        coords = coords[0]
+
+    elif geom.startswith("MULTIPOLYGON"):
+        geomtype = "MultiPolygon"
+    elif geom.startswith("POLYGON"):
+        geomtype = "Polygon"
+    else:
+        geomtype = geom[:geom.index("(")]
+        raise Exception("Unsupported geometry type %s" % geomtype)
+
+    return {"type": geomtype, "coordinates": coords}
 
 
 def _grouped_cruises_with_data_modifications(
@@ -109,7 +150,7 @@ def _tracks(bin_callback, track_callback,
 
 def wkt_to_track(lsesh, track):
     """Convert WKT to a list of points."""
-    return from_wkt(lsesh.scalar(track.wkt))['coordinates']
+    return from_wkt(track)['coordinates']
 
 
 def tracks_for_cruises(*expocodes):

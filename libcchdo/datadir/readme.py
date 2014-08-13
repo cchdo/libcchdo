@@ -11,7 +11,15 @@ from libcchdo.datadir.filenames import (
 from libcchdo.config import get_merger_name_first, get_merger_name_last
 from libcchdo.datadir.processing import read_uow_cfg, UOWDirName
 from libcchdo.fns import equal_with_epsilon
-from libcchdo.formats.formats import read_arbitrary
+from libcchdo.formats.woce import get_exwoce_params
+from libcchdo.formats.bottle import exchange as btlex
+from libcchdo.formats.ctd import exchange as ctdex
+from libcchdo.formats.ctd.zip import exchange as ctdzipex
+from libcchdo.formats.formats import read_arbitrary, guess_file_type
+from libcchdo.formats.exchange import (
+    read_type_and_stamp as ex_read_type_and_stamp)
+from libcchdo.formats.netcdf import (
+    read_type_and_stamp as nc_read_type_and_stamp)
 
 
 class Table(object):
@@ -135,10 +143,11 @@ class Readme(object):
     This one is used for fixing Expocodes.
 
     """
-    def __init__(self, expocode, process_text):
+    def __init__(self, expocode, process_text, uow_dir='.'):
         """Initialize the readme document with just an ExpoCode."""
         self.expocode = expocode
         self.process_text = process_text
+        self.uow_dir = uow_dir
         self._title = self._gen_title()
 
     def _gen_title(self):
@@ -180,9 +189,27 @@ class Readme(object):
 
     def updated_files_manifest(self, files):
         """Updated files manifest."""
+        rows = []
+        for fname in files:
+            ftype = guess_file_type(fname)
+            fpath = os.path.join(self.uow_dir, UOWDirName.tgo, fname)
+            if ftype in ['btl.ex', 'ctd.ex', 'ctd.zip.ex']:
+                type_stamp_reader = ex_read_type_and_stamp
+            elif ftype in ['btl.nc', 'ctd.nc', 'btl.zip.nc', 'ctd.zip.nc']:
+                type_stamp_reader = nc_read_type_and_stamp
+            else:
+                LOG.info(
+                    u'Unrecognized file type {0} for filename {1}. Stamp will '
+                    'not be included in manifest.'.format(ftype, fname))
+                rows.append([fname, ''])
+                continue
+            with open(fpath, 'r') as fff:
+                dtype, stamp = type_stamp_reader(fff)
+                rows.append([fname, stamp])
         return [
             ReST.title('Updated Files Manifest', '='),
-            ReST.list(files),
+            ReST.table(Table(
+                ['file', 'stamp'], *rows)),
             ]
 
     def finalize_sections(self, workdir, cruisedir, updated_files):
@@ -204,11 +231,11 @@ class ProcessingReadme(Readme):
     """
     def __init__(self, uow_dir):
         """Initialize the readme document with the UOW configuration."""
-        self.uow_dir = uow_dir
         self.uow_cfg = read_uow_cfg(
-            os.path.join(self.uow_dir, UOW_CFG_FILENAME))
+            os.path.join(uow_dir, UOW_CFG_FILENAME))
+        super(ProcessingReadme, self).__init__(
+            self.uow_cfg['expocode'], '', uow_dir)
         self.submission = self.uow_cfg['q_infos']
-        self._title = self._gen_title()
 
     def _gen_title(self):
         """Generate title."""
@@ -244,7 +271,8 @@ class ProcessingReadme(Readme):
             ]
 
     @classmethod
-    def parameter_list(cls, path, qf_footnote_id, fill_footnote_id):
+    def parameter_list(cls, path, qf_footnote_id, fill_footnote_id,
+                       not_in_woce_id):
         """Return a parameter listing for the given file path.
 
         """
@@ -256,15 +284,19 @@ class ProcessingReadme(Readme):
             'EXPOCODE', 'SECT_ID', 'STNNBR', 'CASTNO', 'BTLNBR', 'SAMPNO',
             'DEPTH', 'LATITUDE', 'LONGITUDE', '_DATETIME']
 
+        woce_params = get_exwoce_params().keys()
         parameter_list = []
         for column in dfile.sorted_columns():
             if column.parameter.mnemonic_woce() in IGNORED_PARAMETERS:
                 continue
-            param = column.parameter.mnemonic_woce()
+            base_param = column.parameter.mnemonic_woce()
+            param = base_param
             if column.is_flagged_woce():
                 param += ' ' + ReST.footnote_note(qf_footnote_id)
             if (column.values[0] is None and column.is_global()):
                 param += ' ' + ReST.footnote_note(fill_footnote_id)
+            if base_param not in woce_params:
+                param += ' ' + ReST.footnote_note(not_in_woce_id)
             parameter_list.append(param)
         return parameter_list
 
@@ -279,6 +311,8 @@ class ProcessingReadme(Readme):
         fill_footnote = ReST.footnote(
             'parameter only has fill values/no reported measured data')
         fill_footnote_id = ReST.next_footnote_id - 1
+        not_in_woce_footnote = ReST.footnote('not in WOCE bottle file')
+        not_in_woce_id = ReST.next_footnote_id - 1
 
         for qinfo in self.submission:
             fname = qinfo['filename']
@@ -289,7 +323,8 @@ class ProcessingReadme(Readme):
             try:
                 file_summaries.append(
                     ReST.list(ProcessingReadme.parameter_list(
-                        path, qf_footnote_id, fill_footnote_id)))
+                        path, qf_footnote_id, fill_footnote_id,
+                        not_in_woce_id)))
             except Exception, err:
                 LOG.error(
                     u'Unable to read parameters for {0}:\n{1!r}'.format(
@@ -301,7 +336,7 @@ class ProcessingReadme(Readme):
             u'',
             qf_footnote,
             fill_footnote,
-            ReST.footnote('not in WOCE bottle file'),
+            not_in_woce_footnote,
             ReST.footnote('merged, see merge_'),
             u'',
             ]

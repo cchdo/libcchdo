@@ -6,10 +6,12 @@ from zipfile import ZipFile
 from json import load as jload, dump as jdump
 from contextlib import closing
 
+from sqlalchemy.exc import ProgrammingError
+
 from libcchdo import LOG
 from libcchdo.config import get_merger_initials, get_merger_name
 from libcchdo.datadir.processing import (
-    mkdir_working, DirName, add_readme_history_note)
+    mkdir_working, DirName, FetchCommitter)
 from libcchdo.datadir.readme import Readme
 from libcchdo.datadir.filenames import (
     EXPOCODE_FILENAME, README_FILENAME, CRUISE_META_FILENAME,
@@ -19,7 +21,7 @@ from libcchdo.datadir.util import ReadmeEmail, full_datadir_path
 from libcchdo.db.model.legacy import (
     session as lsesh, Document, Cruise, str_list_add,
     ArcticAssignment, BottleDB, ArgoFile, ArgoSubmission, TrackLine, Event,
-    ParameterStatus, CruiseParameterInfo, QueueFile, Submission, SpatialGroup,
+    CruiseParameterInfo, QueueFile, Submission, SpatialGroup,
     Internal, UnusedTrack, NewTrack, SupportFile, CruiseGroup)
 
 
@@ -106,9 +108,10 @@ class ExpoCodeAliasCorrector(dict):
         if dryrun:
             LOG.info(u'DRYRUN would rename {0} to {1}'.format(
                 cruise_dir_name, cruise_dir_name_new))
+            return cruisedir
         else:
-            os.rename(cruise_dir_name, cruise_dir_name_new)
-        return path_new
+            os.rename(cruisedir, path_new)
+            return path_new
 
     def fix_cruise_dir_db(self, session, oldpath, newpath, dryrun=True):
         documents = session.query(Document).filter(
@@ -123,19 +126,39 @@ class ExpoCodeAliasCorrector(dict):
 
     def fix_expocode_in_db(self, session):
         """Correct the expocode all over the database."""
+        # Change cruise entries' ExpoCodes and add old ExpoCode to aliases.
+        cruises = session.query(Cruise).\
+            filter(Cruise.ExpoCode == self.expocode_old).all()
+        for cruise in cruises:
+            cruise.ExpoCode = self.expocode_new
+            cruise.Alias = str_list_add(cruise.Alias, self.expocode_old)
+
         models_to_fix_expocode_for = [
             ArcticAssignment, BottleDB, ArgoFile, ArgoSubmission, TrackLine,
-            Event, ParameterStatus, CruiseParameterInfo, QueueFile, Submission,
-            SpatialGroup, Internal, UnusedTrack, NewTrack, SupportFile, 
+            Event, CruiseParameterInfo, QueueFile, Submission,
+            Internal, UnusedTrack, NewTrack, SupportFile, 
             ]
         for model in models_to_fix_expocode_for:
-            items = session.query(model).\
-                filter(model.ExpoCode == self.expocode_old).all()
+            try:
+                try:
+                    col = model.ExpoCode
+                except AttributeError:
+                    col = model.expocode
+                items = session.query(model).\
+                    filter(col == self.expocode_old).all()
+            except ProgrammingError, err:
+                LOG.error(err)
+                continue
             for item in items:
                 try:
-                    LOG.info(u'Change {0} {1} expocode'.format(model.__name__, item.id))
+                    LOG.info(u'Change {0} {1} expocode'.format(
+                        model.__name__, item.id))
                 except AttributeError:
-                    LOG.info(u'Change {0} {1} expocode'.format(model.__name__, item.ID))
+                    try:
+                        LOG.info(u'Change {0} {1} expocode'.format(
+                            model.__name__, item.ID))
+                    except AttributeError:
+                        LOG.info(u'Change {0} expocode'.format(model.__name__))
                 item.ExpoCode = self.expocode_new
 
         # Replace expocode in a list of cruises.
@@ -294,20 +317,18 @@ class ExpoCodeAliasCorrector(dict):
         """
         assert os.path.exists(cruisedir), \
            'Cruise directory {0} does not exist'.format(cruisedir)
+        cruisedir = os.path.abspath(cruisedir)
         LOG.info(
             u'Changing ExpoCode for cruise directory {dir} from {old!r} to '
             '{new!r}'.format(
                 dir=cruisedir, old=self.expocode_old, new=self.expocode_new))
 
+        # Rewrite expocodes in database
+        self.fix_expocode_in_db(session)
+
         newpath = self.fix_cruise_dir_name(cruisedir, dryrun)
         self.fix_cruise_dir_db(session, cruisedir, newpath, dryrun)
         self.fix_expocode(newpath, dryrun)
-        # Change cruise entries' ExpoCodes and add old ExpoCode to aliases.
-        cruises = session.query(Cruise).\
-            filter(Cruise.ExpoCode == self.expocode_old).all()
-        for cruise in cruises:
-            cruise.ExpoCode = self.expocode_new
-            cruise.Alias = str_list_add(cruise.Alias, self.expocode_old)
         self.fix_cruise_json(newpath, dryrun)
 
         # Edit all the files and put them in a working directory
@@ -396,9 +417,6 @@ class ExpoCodeAliasCorrector(dict):
             if doc:
                 doc.Files = '\n'.join(os.listdir(newpath))
 
-            # Rewrite expocodes in database
-            self.fix_expocode_in_db(session)
-
             # Write Readme
             readme_path = os.path.join(workdir, README_FILENAME)
             if self.all_map:
@@ -424,9 +442,14 @@ class ExpoCodeAliasCorrector(dict):
             with open(readme_path, 'w') as fff:
                 fff.write(readme_text)
 
-            note_id = add_readme_history_note(
-                session, readme_text, self.expocode_new, 'ExpoCode',
-                'ExpoCode changed')
+            fc = FetchCommitter()
+            note_id = fc.dstore.add_history_note(
+                readme_text, self.expocode_new, 'ExpoCode', 'ExpoCode changed')
+
+            try:
+                session.commit()
+            except Exception, err:
+                LOG.critical(u'Unable to commit! {0!r}'.format(err))
 
             # Send expocode change email
             try:
@@ -438,13 +461,10 @@ class ExpoCodeAliasCorrector(dict):
                     self.expocode_new, get_merger_name(), summary, note_id))
                 ecemail.attach_readme(readme_text)
                 ecemail.send(email_path)
-                session.commit()
                 LOG.info(u'Please check documents table for {0} to ensure no '
                          'duplicate Filename entries'.format(self.expocode_new))
             except Exception, err:
                 LOG.error(u'Could not send email: {0!r}'.format(err))
-                LOG.info(u'rolled back history note')
-                session.rollback()
         finally:
             if dryrun:
                 if debug:

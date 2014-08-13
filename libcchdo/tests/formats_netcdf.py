@@ -51,4 +51,3 @@ class TestFormatsNetCDF(unittest.TestCase):
 
         dtime = None
         self.assertEqual(-9, fnc.minutes_since_epoch(dtime))
-

@@ -132,6 +132,7 @@ check_parsers = check_parser.add_subparsers(
 
 def check_any(args):
     """Check the format for any recognized CCHDO file."""
+    import collections
     from libcchdo.formats import woce
 
     with closing(args.cchdo_file) as in_file:
@@ -187,6 +188,25 @@ def check_any(args):
         df.check_and_replace_parameters(convert=False)
         check_fill_value_has_flag_w_9(df)
         check_empty_columns(df)
+        if args.verify_unique:
+            check_cols = []
+            for col in args.verify_unique:
+                check_cols.append(df.columns[col].values)
+            check_cols = zip(*check_cols)
+            unique_pairs = set(check_cols)
+            # the integers can be large and will not satisfy 'is' conditions
+            # because they will not be the same object
+            if len(check_cols) != len(unique_pairs):
+                LOG.warn("Non unique values for columns ({0})".format(
+                                ",".join(args.verify_unique)
+                                ))
+                non_unique = [x for x, y in
+                        collections.Counter(check_cols).items()
+                        if y > 1]
+                LOG.warn("The following are duplicated")
+                for item in non_unique:
+                    item = zip(args.verify_unique, item)
+                    LOG.warn(", ".join(["{0}: {1}".format(*i) for i in item]))
 
     with closing(args.output) as out_file:
         try:
@@ -205,6 +225,9 @@ with subcommand(check_parsers, 'any', check_any) as p:
     p.add_argument(
         'output', type=FileType('w'), nargs='?', default=sys.stdout,
          help='output file (default: stdout)')
+    p.add_argument(
+        '--verify_unique', nargs='*',
+        help='list of columns used to form unique key')
 
 
 converter_parser = hydro_subparsers.add_parser(
@@ -428,16 +451,19 @@ with subcommand(bot_converter_parsers, 'exchange_to_parameter_kml',
 
 def btlex_to_btlwoce(args):
     from libcchdo.model.datafile import DataFile
+    from libcchdo.config import stamp
     import libcchdo.formats.bottle.exchange as btlex
     import libcchdo.formats.bottle.woce as btlwoce
 
-    df = DataFile()
+    dfile = DataFile()
 
     with closing(args.input_btlex) as in_file:
-        btlex.read(df, in_file)
+        btlex.read(dfile, in_file)
+
+    dfile.globals['stamp'] = stamp()
 
     with closing(args.output_btlwoce) as out_file:
-        btlwoce.write(df, out_file)
+        btlwoce.write(dfile, out_file)
 
 
 with subcommand(bot_converter_parsers, 'exchange_to_woce',
@@ -905,43 +931,22 @@ to_kml_converter_parsers = to_kml_converter_parser.add_subparsers(
 
 
 def db_to_kml(args):
-    from libcchdo.model.datafile import DataFile
-    import libcchdo.formats.bottle.exchange as botex
-    from libcchdo.kml import db_to_kml, db_to_kml_full
-
-    df = DataFile()
-    
-    with closing(args.input_botex) as in_file:
-        botex.read(df, in_file)
+    """Dump CCHDO holdings tracks to KML ."""
+    from libcchdo.kml import db_to_kml
 
     with closing(args.output) as out_file:
-        if args.full:
-            db_to_kml_full(df, out_file)
-        else:
-            db_to_kml(df, out_file)
+        db_to_kml(out_file, args.expocode, args.full)
 
 
 with subcommand(to_kml_converter_parsers, 'db', db_to_kml) as p:
     p.add_argument(
-        'input_botex', type=FileType('r'),
-        help='input Bottle Exchange file')
-    p.add_argument(
         '--full', type=bool, default=False,
         help='full with dates')
     p.add_argument(
+        'expocode', type=str, nargs='?', help='the cruise to plot')
+    p.add_argument(
         'output', type=FileType('w'), nargs='?', default=sys.stdout,
         help='output file (default: stdout)')
-
-
-def db_track_lines_to_kml(args):
-    from libcchdo.kml import db_track_lines_to_kml
-
-    db_track_lines_to_kml_parser()
-
-
-with subcommand(
-        to_kml_converter_parsers, 'db_track_lines', db_track_lines_to_kml) as p:
-    pass
 
 
 misc_converter_parser = converter_parsers.add_parser(
@@ -1243,9 +1248,10 @@ def _merge_ex_and_ex(args, file_format, key_determiner, collection=False):
         deriv_name = fderiv.name
         file_format.read(deriv, fderiv)
 
-    keycols = key_determiner(origin, deriv)
-    if args.on:
-        keycols = [xxx.strip() for xxx in args.on.split(',')]
+    if args.guess_key:
+        keycols = key_determiner(origin, deriv)
+    else:
+        keycols = [xxx.strip() for xxx in args.key.split(',')]
     LOG.info('Merging on keys composed of: {0!r}'.format(keycols))
 
     if args.parameters_to_merge:
@@ -1275,6 +1281,29 @@ def _merge_ex_and_ex(args, file_format, key_determiner, collection=False):
         file_format.write(dfout, out_file)
 
 
+def _add_merge_arguments(p):
+    key_group = p.add_mutually_exclusive_group(required=True)
+    key_group.add_argument(
+        '--guess-key', action='store_true', 
+        help='Whether to guess the key on which to merge the files.')
+    key_group.add_argument(
+        '--key', type=str, 
+        help='Comma separated columns to use as the key to merge on.')
+    p.add_argument(
+        '--merge-different', action='store_true',
+        help='Merge all different parameters')
+    p.add_argument(
+        'origin', type=FileType('r'),
+        help='file to merge onto')
+    p.add_argument(
+        'derivative', type=FileType('r'),
+        help='file to update first file with')
+    merge_group = p.add_argument_group(title='Merge parameters')
+    merge_group.add_argument(
+        'parameters_to_merge', type=str, nargs='*', default=[],
+        help='parameters to merge')
+
+
 def merge_btlex_and_btlex(args):
     """Merge Bottle Exchange files by overwriting the first with the second.
 
@@ -1291,22 +1320,7 @@ with subcommand(merge_parsers, 'botex_and_botex', merge_btlex_and_btlex) as p:
     p.add_argument(
         '--output', type=FileType('w'), nargs='?', default=sys.stdout,
         help='output Bottle Exchange file')
-    p.add_argument(
-        '--on', type=str, nargs='?',
-        help='Comma separated columns to use as the key to merge on.')
-    p.add_argument(
-        '--merge-different', action='store_true',
-        help='Merge all different parameters')
-    p.add_argument(
-        'origin', type=FileType('r'),
-        help='file to merge onto')
-    p.add_argument(
-        'derivative', type=FileType('r'),
-        help='file to update first file with')
-    merge_group = p.add_argument_group(title='Merge parameters')
-    merge_group.add_argument(
-        'parameters_to_merge', type=str, nargs='*', default=[],
-        help='parameters to merge')
+    _add_merge_arguments(p)
 
 
 def merge_ctdex_and_ctdex(args):
@@ -1325,22 +1339,7 @@ with subcommand(merge_parsers, 'ctdex_and_ctdex', merge_ctdex_and_ctdex) as p:
     p.add_argument(
         '--output', type=FileType('w'), nargs='+', default=sys.stdout,
         help='output CTD Exchange file')
-    p.add_argument(
-        '--on', type=str, nargs='?',
-        help='Comma separated columns to use as the key to merge on.')
-    p.add_argument(
-        '--merge-different', action='store_true',
-        help='Merge all different parameters')
-    p.add_argument(
-        'origin', type=FileType('r'),
-        help='file to merge onto')
-    p.add_argument(
-        'derivative', type=FileType('r'),
-        help='file to update first file with')
-    merge_group = p.add_argument_group(title='Merge parameters')
-    merge_group.add_argument(
-        'parameters_to_merge', type=str, nargs='*', default=[],
-        help='parameters to merge')
+    _add_merge_arguments(p)
 
 
 def merge_ctdzipex_and_ctdzipex(args):
@@ -1374,22 +1373,7 @@ with subcommand(merge_parsers, 'ctdzipex_and_ctdzipex',
     p.add_argument(
         '--output', type=FileType('w'), nargs='+', default=sys.stdout,
         help='output CTD ZIP Exchange file')
-    p.add_argument(
-        '--on', type=str, nargs='?',
-        help='Comma separated columns to use as the key to merge on.')
-    p.add_argument(
-        '--merge-different', action='store_true',
-        help='Merge all different parameters')
-    p.add_argument(
-        'origin', type=FileType('r'),
-        help='file to merge onto')
-    p.add_argument(
-        'derivative', type=FileType('r'),
-        help='file to update first file with')
-    merge_group = p.add_argument_group(title='Merge parameters')
-    merge_group.add_argument(
-        'parameters_to_merge', type=str, nargs='*', default=[],
-        help='parameters to merge')
+    _add_merge_arguments(p)
 
 
 datadir_parser = hydro_subparsers.add_parser(
@@ -1429,10 +1413,9 @@ def _args_mkdir_working(p):
 
 def datadir_get_cruise_dir(args):
     """Determine the cruise directory given an Expocode."""
-    from libcchdo.config import get_legacy_datadir_host
-    from libcchdo.datadir.processing import _legacy_cruise_directory
-    with _legacy_cruise_directory(args.expocode) as doc:
-        print '{0}:{1}'.format(get_legacy_datadir_host(), doc.FileName)
+    from libcchdo.datadir.store import get_datastore
+    dstore = get_datastore()
+    print dstore.cruise_dir(args.expocode)
 
 
 with subcommand(datadir_parsers, 'get_cruise_dir',
@@ -1440,6 +1423,16 @@ with subcommand(datadir_parsers, 'get_cruise_dir',
     p.add_argument(
         'expocode',
         help='the Expocode of the cruise to find the directory of')
+
+def cchdo_update(args):
+    """Python implementation of cchdo_update.rb"""
+    from libcchdo.datadir.update import update
+    update(args.expo_or_path)
+
+with subcommand(datadir_parsers, 'update', cchdo_update) as p:
+    p.add_argument(
+            'expo_or_path',
+            help="An Expocode or path to data directory of a cruise")
 
 
 def datadir_get_processing_template(args):
@@ -1459,25 +1452,26 @@ def datadir_fetch(args):
     """Create a CCHDO Unit Of Work directory.
 
     """
-    from libcchdo.datadir.processing import (
-        mkdir_uow, as_received_unmerged_list, as_received_infos)
+    from libcchdo.datadir.processing import FetchCommitter
     fetch_requirements = [args.title, args.summary, args.ids]
+    fc = FetchCommitter()
     if not any(fetch_requirements):
-        for f in as_received_unmerged_list():
+        for f in fc.dstore.as_received_unmerged_list():
             print '\t'.join(map(str, 
-                [f['q_id'], f['data_type'], f['submitted_by'], f['filename']]))
+                [f['q_id'], f['expocode'], f['data_type'], f['submitted_by'],
+                 f['filename']]))
         return
     if not args.title or not args.summary:
         LOG.error(
             u'Please provide a title and summary for your UOW.\n'
             'hydro datadir fetch "title" "summary"')
         LOG.info(u'List of as-received files specified:')
-        for info in as_received_infos(*args.ids):
+        for info in fc.dstore.as_received_infos(*args.ids):
             LOG.info(u'{0}\t{1}'.format(info['data_type'], info['filename']))
         return
     if not args.ids:
         LOG.info(u'Creating a UOW without queue files to work on.')
-    uow_path = mkdir_uow(args.basepath, args.title, args.summary, args.ids,
+    uow_path = fc.mkdir_uow(args.basepath, args.title, args.summary, args.ids,
                     dl_originals=(not args.skip_dl_original))
     if uow_path:
         print uow_path
@@ -1518,7 +1512,8 @@ def datadir_parameter_listing(args):
     """
     from libcchdo.datadir.readme import ProcessingReadme
     print u'\n'.join(ProcessingReadme.parameter_list(
-        args.filepath, args.footnote_id_flagged, args.footnote_id_empty))
+        args.filepath, args.footnote_id_flagged, args.footnote_id_empty,
+        args.footnote_id_not_in_woce))
 
 
 with subcommand(datadir_parsers, 'param_list', datadir_parameter_listing) as p:
@@ -1531,13 +1526,18 @@ with subcommand(datadir_parsers, 'param_list', datadir_parameter_listing) as p:
         help='the footnote id to use for whether the parameter only has fill '
             'values or has no reported measured data (default: 2)')
     p.add_argument(
+        '--footnote-id-not-in-woce', default=3,
+        help='the footnote id to use for whether the parameter is not in WOCE '
+            'files (default: 3)')
+    p.add_argument(
         'filepath', help='the path to a file to list the parameters for')
 
 
 def datadir_commit(args):
     """Commit a CCHDO Unit of Work."""
-    from libcchdo.datadir.processing import uow_commit
-    uow_commit(args.uow_dir, person=args.person,
+    from libcchdo.datadir.processing import FetchCommitter
+    fc = FetchCommitter()
+    fc.uow_commit(args.uow_dir, person=args.person,
         confirm_html=(not args.readme_html_ok), dryrun=args.dry_run)
 
 
@@ -1555,7 +1555,12 @@ with subcommand(datadir_parsers, 'commit', datadir_commit) as p:
 
 
 def datadir_email(args):
-    """Resend an email that was written out as a file from a commit."""
+    """Resend an email that was written out as a file from a commit.
+
+    IMPORTANT: Use datadir processing_note if your commit failed after updating
+    files. This command does not perform some database book keeping.
+
+    """
     from libcchdo.datadir.util import send_email
     from email.parser import FeedParser
 
@@ -1576,15 +1581,82 @@ with subcommand(datadir_parsers, 'email', datadir_email) as p:
          help='email file')
 
 
-def datadir_add_processing_note(args):
-    """Record processing history note."""
+def datadir_finalize_readme(args):
+    """Generate a final copy of the README with manifests and conversions."""
+    from libcchdo.datadir.readme import ProcessingReadme
+    from libcchdo.datadir.processing import finalize_readme
+
+    readme = ProcessingReadme(args.uow_dir)
+    with closing(args.readme) as fff:
+        finalize_readme(readme, fff)
+
+
+with subcommand(datadir_parsers, 'finalize_readme',
+                datadir_finalize_readme) as p:
+    p.add_argument(
+        'uow_dir', default='.', nargs='?', help='unit-of-work directory')
+    p.add_argument(
+        '--readme', default=sys.stdout, nargs='?',
+        help='Where to write the README file')
+
+
+def datadir_create_processing_email(args):
+    """Create a processing email from the given UOW"""
     from libcchdo.datadir.processing import (
-        add_processing_note, is_processing_readme_render_ok, read_uow_cfg)
+        create_processing_email, _q_from_uow_cfg, read_uow_cfg)
+    with open(args.readme_path) as fff:
+        readme = fff.read()
+    uow_cfg = read_uow_cfg(args.uow_cfg_path)
+    expocode = uow_cfg['expocode']
+    q_infos, q_ids = _q_from_uow_cfg(uow_cfg)
+
+    pemail = create_processing_email(
+        readme, expocode, q_infos, args.note_id, q_ids, args.dry_run)
+    with open(args.email_path, 'w') as fff:
+        fff.write(pemail._email.as_string())
+
+
+with subcommand(datadir_parsers, 'create_processing_email',
+                datadir_create_processing_email) as p:
+    p.add_argument(
+        '-n', '--dry-run', action='store_true')
+    p.add_argument(
+        '--uow-cfg-path', default=UOW_CFG_FILENAME, nargs='?',
+        help='The path to the UOW configuration file.')
+    p.add_argument(
+        '--readme-path', default=README_FILENAME, nargs='?',
+        help='The path to the processing note file.')
+    p.add_argument(
+        '--email-path', default=PROCESSING_EMAIL_FILENAME, nargs='?',
+        help='The path to write the processing note email to.')
+    p.add_argument(
+        'note_id', type=str,
+        help='The history note id to use')
+
+
+def datadir_add_processing_note(args):
+    """Record processing history note, mark merged, and notify."""
+    from libcchdo.datadir.processing import (
+        FetchCommitter, is_processing_readme_render_ok, read_uow_cfg,
+        check_uow_cfg
+        )
     if is_processing_readme_render_ok(
             args.readme_path, confirm_html=(not args.readme_html_ok)):
         uow_cfg = read_uow_cfg(args.uow_cfg_path)
-        add_processing_note(
-            args.readme_path, args.email_path, uow_cfg, args.dry_run)
+        try:
+            check_uow_cfg(uow_cfg)
+        except ValueError:
+            return
+
+        try:
+            with open(args.readme_path) as fff:
+                readme = fff.read()
+        except IOError:
+            LOG.error(u'Cannot continue without {0}'.format(README_FILENAME))
+            return
+        fc = FetchCommitter()
+        fc.uow_commit_postflight(
+            readme, args.email_path, uow_cfg, args.dry_run)
     else:
         LOG.error(u'README is not valid reST or merger rejected. Stop.')
         return
@@ -1606,6 +1678,32 @@ with subcommand(datadir_parsers, 'processing_note',
     p.add_argument(
         'uow_cfg_path', default=UOW_CFG_FILENAME, nargs='?',
         help='The path to the UOW configuration file.')
+
+
+def datadir_history_note(args):
+    """Record history note."""
+    from libcchdo.db.model import legacy
+    from libcchdo.datadir.processing import DSTORE
+    with closing(legacy.session()) as session:
+        DSTORE.add_history_note(
+            session, args.body.read(), args.expocode, args.title, args.summary,
+            args.action)
+        session.commit()
+
+
+with subcommand(datadir_parsers, 'history_note',
+                datadir_history_note) as p:
+    p.add_argument(
+        'expocode', help="The note's cruise.")
+    p.add_argument(
+        'title', help='The note title.')
+    p.add_argument(
+        'summary', help='The note summary.')
+    p.add_argument(
+        'action', default="Website Update", nargs="?", help='The note action.')
+    p.add_argument(
+        'body', type=FileType('r'), default=sys.stdin, nargs="?",
+        help='The history note')
 
 
 def datadir_mkdir_working(args):
@@ -2093,7 +2191,7 @@ def plot_woce_repr(args):
     """Plot WOCE lines with each represented by one or two ideal cruise tracks.
 
     """
-    from libcchdo.tools import plot_woce_representation
+    from libcchdo.plot.tools import plot_woce_representation
     from libcchdo.util import get_library_abspath
     default = os.path.join(
         get_library_abspath(), 'resources', 'woce_repr.csv')
@@ -2116,6 +2214,52 @@ with subcommand(plot_parsers, 'woce_repr',
 misc_parser = hydro_subparsers.add_parser(
     'misc', help='Miscellaneous')
 misc_parsers = misc_parser.add_subparsers(title='miscellaneous')
+
+
+def get_ctdex_name(args):
+    """Get correct name of an Exchange CTD file."""
+    from libcchdo.model.datafile import DataFile
+    from libcchdo.formats.ctd.zip import exchange as ctdzipex
+
+    print ctdzipex.get_ctdex_name(args.input_file)
+
+
+with subcommand(misc_parsers, 'get_ctdex_name',
+                get_ctdex_name) as p:
+    p.add_argument(
+            'input_file', type=FileType('r'),
+            help='input CTD Exchange file')
+
+
+def rename_ctd_zipfiles(args):
+    from zipfile import ZipFile
+    from tempfile import SpooledTemporaryFile
+    from libcchdo.formats.ctd.zip.exchange import get_ctdex_name
+
+    with closing(args.input_file) as inputctdzip:
+        input_zip = ZipFile(inputctdzip, 'r')
+
+        # We must create a new zip and copy the original files in with new
+        # names because the python interface does not allow for renaming.
+        with ZipFile(args.output_file, 'w') as newzip:
+            for fname in input_zip.namelist():
+                # Assuming we have enough memory to keep ~4MB in memory
+                bytes = input_zip.read(fname)
+                with SpooledTemporaryFile() as spooledfile:
+                    spooledfile.write(bytes)
+                    new_name = get_ctdex_name(spooledfile)
+                newzip.writestr(new_name, bytes)
+
+
+with subcommand(misc_parsers, 'rename_ctd_zipfiles',
+                rename_ctd_zipfiles) as p:
+    p.add_argument(
+            'input_file', type=FileType('r'),
+            help='input CTD ZIP Exchange file')
+    p.add_argument(
+            'output_file', type=FileType('w'), nargs='?', default=sys.stdout,
+            help='output CTD ZIP Exchange file (default: stdout)')
+
 
 def get_bounds(args):
     """Take any readable file and output the bounding box"""
@@ -2199,20 +2343,91 @@ with subcommand(misc_parsers, 'any_to_legacy_parameter_statuses',
         help='output file (default: stdout)')
 
 
+def canon(args):
+    """Rewrite a file with all parameters converted to canon.
+
+    """
+    from libcchdo.formats.formats import guess_ftype_dftype_format
+    with closing(args.input_file) as in_file:
+        _, dfile, format_module = guess_ftype_dftype_format(
+            in_file, args.input_type)
+        format_module.read(dfile, in_file)
+
+    with closing(args.output_file) as out_file:
+        format_module.write(dfile, out_file)
+
+
+with subcommand(misc_parsers, 'canon', canon) as p:
+    p.add_argument('-i', '--input-type',
+        choices=known_formats,
+        help='force the input file to be read as the specified type')
+    p.add_argument(
+        'input_file', type=FileType('r'),
+        help='input file')
+    p.add_argument(
+        'output_file', type=FileType('w'), nargs='?', default=sys.stdout,
+        help='output (default: stdout)')
+
+
+def reorder_columns(args):
+    """Rewrite a file with columns reordered.
+
+    """
+    from libcchdo.formats.formats import guess_ftype_dftype_format
+    from libcchdo.fns import uniquify
+    with closing(args.input_file) as in_file:
+        _, dfile, format_module = guess_ftype_dftype_format(
+            in_file, args.input_type)
+        format_module.read(dfile, in_file)
+
+    def reorder_columns(dfile):
+        missing = set(dfile.parameter_mnemonics_woce()) - set(mnemonics)
+        for iii, param in enumerate(mnemonics):
+            dfile[param].parameter.display_order = iii - len(mnemonics)
+        for param in missing:
+            del dfile[param]
+
+    if args.order is not None:
+        mnemonics = args.order.split(',')
+        try:
+            for df in dfile.files:
+                reorder_columns(df)
+        except AttributeError:
+            reorder_columns(dfile)
+        with closing(args.output_file) as out_file:
+            format_module.write(dfile, out_file)
+    else:
+        try:
+            params = []
+            for df in dfile.files:
+                params.extend(df.parameter_mnemonics_woce())
+            params = uniquify(params)
+        except AttributeError:
+            params = dfile.parameter_mnemonics_woce()
+        print ','.join(params)
+
+
+with subcommand(misc_parsers, 'reorder_columns', reorder_columns) as p:
+    p.add_argument('-i', '--input-type',
+        choices=known_formats,
+        help='force the input file to be read as the specified type')
+    p.add_argument('-o', '--order', default=None,
+        help='comma separated list of parameter mnemonics in order they should '
+            'appear. If not listed, will not appear. (default: print '
+            'column parameter order)')
+    p.add_argument(
+        'input_file', type=FileType('r'),
+        help='input file')
+    p.add_argument(
+        'output_file', type=FileType('w'), nargs='?', default=sys.stdout,
+        help='output (default: stdout)')
+
+
 def bottle_exchange_canon(args):
     """Rewrite a bottle exchange file with all parameters converted to canon.
 
     """
-    from libcchdo.model.datafile import DataFile
-    import libcchdo.formats.bottle.exchange as botex
-
-    df = DataFile(allow_contrived=True)
-
-    with closing(args.input_botex) as in_file:
-        botex.read(df, in_file)
-
-    with closing(args.output_botex) as out_file:
-        botex.write(df, out_file)
+    LOG.critical(u'DEPRECATED use hydro convert misc canon instead')
 
 
 with subcommand(misc_parsers, 'bottle_exchange_canon',
@@ -2326,13 +2541,12 @@ def _sanitize_report_dates(args):
     Defaults to the past fiscal year.
 
     """
-    if type(args.date_start) != datetime:
-        args.date_start = datetime.strptime(args.date_start, '%Y-%m-%d')
-    if args.date_end is None:
-        args.date_end = args.date_start - timedelta(366)
     if type(args.date_end) != datetime:
         args.date_end = datetime.strptime(args.date_end, '%Y-%m-%d')
-
+    if args.date_start is None:
+        args.date_start = args.date_end - timedelta(366)
+    if type(args.date_start) != datetime:
+        args.date_start = datetime.strptime(args.date_start, '%Y-%m-%d')
 
 def report_data_updates(args):
     """Generate report of number of data formats change in a time range.
@@ -2346,7 +2560,7 @@ def report_data_updates(args):
     report_data_updates(args)
 
 
-with subcommand(report_parsers, 'data_updates', report_data_updates):
+with subcommand(report_parsers, 'data_updates', report_data_updates) as p:
     p.add_argument(
         '--date-start', nargs='?', default=None,
         help='Day to end (default: a year before date-end)')
@@ -2399,7 +2613,7 @@ with subcommand(report_parsers, 'old_style_expocodes',
 
 
 def report_argo_ctd_index(args):
-    """Generate report of number of expocodes that are not new-style.
+    """Generates an Argo style index file of all CTD profiles.
 
     """
     from libcchdo.reports import report_argo_ctd_index
@@ -2408,6 +2622,21 @@ def report_argo_ctd_index(args):
 
 with subcommand(report_parsers, 'argo_ctd_index',
                 report_argo_ctd_index) as p:
+    p.add_argument(
+        'output', type=FileType('w'), nargs='?', default=sys.stdout,
+        help='output file')
+
+
+def report_profiles_available(args):
+    """Generate some inventory of all available profiles.
+
+    """
+    from libcchdo.reports import report_profiles_available
+    report_profiles_available(args)
+
+
+with subcommand(report_parsers, 'profiles_available',
+                report_profiles_available) as p:
     p.add_argument(
         'output', type=FileType('w'), nargs='?', default=sys.stdout,
         help='output file')

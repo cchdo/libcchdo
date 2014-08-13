@@ -280,6 +280,13 @@ def get_merger_institution():
     return get_option('Merger', 'institution', input_institution)
 
 
+def get_merger_smtp():
+    def input_smtp():
+        return get_input('What is your SMTP server [smtp.ucsd.edu]? %s ' % \
+                          _storage_notice()) or 'smtp.ucsd.edu'
+    return get_option('Merger', 'smtp', input_smtp)
+
+
 def get_merger_email():
     def input_email():
         return get_input('What is your email? %s ' % \
@@ -334,3 +341,6 @@ def stamp():
          'division': get_merger_division(),
          'initials': get_merger_initials(),
         }
+
+def get_cchdo_email():
+    return 'cchdo@ucsd.edu'

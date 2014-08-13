@@ -1,9 +1,11 @@
 import re
 from datetime import datetime, timedelta
 from contextlib import closing
+from zipfile import ZipFile
 import os.path
 
 from sqlalchemy.sql import not_, between
+from sqlalchemy import distinct
 
 from libcchdo.log import LOG, DEBUG, ERROR
 from libcchdo.db.model.legacy import (
@@ -21,6 +23,15 @@ types_to_ignore = [
     'Coord info', 'GMT info File', 'Large Plot', 'Postscript file',
     'Small Plot', 'Unrecognized', 'Directory', 'Coordinates?',
 ]
+
+
+class DateRange(object):
+    def __init__(self, dstart, dend):
+        self.dstart = dstart
+        self.dend = dend
+
+    def __contains__(self, dt):
+        return self.dstart < dt and dt < self.dend
 
 
 def report_data_updates(args):
@@ -44,40 +55,54 @@ def report_data_updates(args):
             all()
 
         # count modifications of file types
-        type_edit_counts = {}
-        type_add_counts = {}
+        type_edit_cruises = {}
+        type_add_cruises = {}
         cruises = set()
+        drange = DateRange(date_start, date_end)
         for doc in docs:
             if 'original' in doc.FileName or 'Queue' in doc.FileName:
                 continue
             details = [doc.LastModified, doc.ExpoCode, doc.FileName]
             LOG.info(' '.join(map(str, details)))
-            try:
-                type_add_counts[doc.FileType] += 1
-            except KeyError:
-                type_add_counts[doc.FileType] = 1
-            if not doc.Modified:
-                continue
-            for mtime in doc.Modified.split(','):
-                mtime = datetime.strptime(mtime, '%Y-%m-%d %H:%M:%S')
-                if date_start < mtime and mtime < date_end:
-                    LOG.info('\t{0}\n'.format(mtime))
-                    cruises.add(doc.ExpoCode)
-                    try:
-                        type_edit_counts[doc.FileType] += 1
-                    except KeyError:
-                        type_edit_counts[doc.FileType] = 1
-                else:
-                    pass
-                    LOG.info('\t{0} out of range\n'.format(mtime))
+
+            if not doc.Modified or len(doc.Modified.split(',')) == 1:
+                try:
+                    type_add_cruises[doc.FileType].append(doc.ExpoCode)
+                except KeyError:
+                    type_add_cruises[doc.FileType] = [doc.ExpoCode]
+            else:
+                for mtime in doc.Modified.split(','):
+                    mtime = datetime.strptime(mtime, '%Y-%m-%d %H:%M:%S')
+                    if mtime in drange:
+                        LOG.info('\t{0}\n'.format(mtime))
+                        cruises.add(doc.ExpoCode)
+                        try:
+                            type_edit_cruises[doc.FileType].append(doc.ExpoCode)
+                        except KeyError:
+                            type_edit_cruises[doc.FileType] = [doc.ExpoCode]
+                    else:
+                        pass
+                        LOG.info('\t{0} out of range\n'.format(mtime))
         args.output.write(
             'Data updates from {0}/{1}:\n'.format(date_start, date_end))
         args.output.write(
-            '# cruises supported: {0}\n'.format(session.query(Cruise).count()))
+            '# cruises supported: {0}\n'.format(session.query(distinct(Cruise.ExpoCode)).count()))
+        args.output.write(
+            '# cruises with data: {0}\n'.format(session.query(distinct(Document.ExpoCode)).count()))
         args.output.write(
             '# cruises with updated files: {0}\n'.format(len(cruises)))
+
+        type_add_counts = {}
+        for ftype, cruises in type_add_cruises.items():
+            type_add_counts[ftype] = len(cruises)
+
         args.output.write(
             '# files added: {0}\n'.format(sum(type_add_counts.values())))
+
+        type_edit_counts = {}
+        for ftype, cruises in type_edit_cruises.items():
+            type_edit_counts[ftype] = len(cruises)
+
         args.output.write(
             '# file updates: {0}\n'.format(sum(type_edit_counts.values())))
         args.output.write('File type add counts:\n')
@@ -86,6 +111,47 @@ def report_data_updates(args):
         args.output.write(repr(type_edit_counts) + '\n')
         args.output.write('Cruises with updated files:\n')
         args.output.write(repr(sorted(list(cruises))) + '\n')
+
+        cruise_type_adds = {}
+        for ftype, cruises in type_add_cruises.items():
+            for cruise in cruises:
+                try:
+                    cruise_type_adds[cruise].add(ftype)
+                except KeyError:
+                    cruise_type_adds[cruise] = set([ftype])
+        cruise_type_updates = {}
+        for ftype, cruises in type_edit_cruises.items():
+            for cruise in cruises:
+                try:
+                    cruise_type_updates[cruise].add(ftype)
+                except KeyError:
+                    cruise_type_updates[cruise] = set([ftype])
+
+        args.output.write('Cruise file adds:\n')
+        for cruise, types in cruise_type_adds.items():
+            args.output.write('{0},{1}\n'.format(cruise, types))
+        args.output.write('Cruise file updates:\n')
+        for cruise, types in cruise_type_updates.items():
+            args.output.write('{0},{1}\n'.format(cruise, types))
+
+        args.output.write('Cruises with CTD adds:\n')
+        for cruise, types in cruise_type_adds.items():
+            found = False
+            for ttt in types:
+                if 'CTD' in ttt:
+                    found = True
+            if not found:
+                continue
+            args.output.write('{0}\n'.format(cruise))
+        args.output.write('Cruises with CTD updates:\n')
+        for cruise, types in cruise_type_updates.items():
+            found = False
+            for ttt in types:
+                if 'CTD' in ttt:
+                    found = True
+            if not found:
+                continue
+            args.output.write('{0}\n'.format(cruise))
 
 
 def report_submission_and_queue(args):
@@ -101,12 +167,12 @@ def report_submission_and_queue(args):
         date_start = args.date_start
         args.output.write('/'.join(map(str, [date_start, date_end])) + '\n')
 
-        submissions = session.query(Submission).\
+        submissions_query = session.query(Submission).\
             filter(
                 between(
                     Submission.submission_date, date_start, date_end)).\
-            filter(Submission.email != 'tooz@oceanatlas.com').\
-            count()
+            filter(Submission.email != 'tooz@oceanatlas.com')
+        submissions = submissions_query.count()
 
         submissions_assimilated = session.query(Submission).\
             filter(
@@ -115,6 +181,9 @@ def report_submission_and_queue(args):
             filter(Submission.email != 'tooz@oceanatlas.com').\
             filter(Submission.assimilated == True).\
             count()
+
+        submission_cruises = session.query(distinct(QueueFile.expocode)).filter(
+            QueueFile.submission_id.in_([x.id for x in submissions_query.all()])).all()
 
         queued = session.query(QueueFile).\
             filter(
@@ -137,12 +206,13 @@ def report_submission_and_queue(args):
         args.output.write(
             '# submissions assimilated: {0}\n'.format(submissions_assimilated))
         args.output.write(
+            '# cruises with submitted files: {0}\n'.format(len(submission_cruises)))
+        args.output.write(
             '# queued: {0}\n'.format(queued))
         args.output.write(
             '# queued and merged: {0}\n'.format(queued_and_merged))
         args.output.write(
             '# queued and not merged: {0}\n'.format(queued - queued_and_merged))
-        args.output.write(str(len(cruises)) + '\n')
 
 
 def report_old_style_expocodes(args):
@@ -397,4 +467,48 @@ def report_argo_ctd_index(args):
             raise ValueError(u'Unknown format {0}'.format(precedent_format))
 
     args.output.write(str(argo_index))
+
+
+def report_ctd_profiles_cruise(args):
+    """Return the number of CTD profiles that a cruise has.
+
+    """
+    cruises = []
+    with closing(args.cruises) as fff:
+        for cruise in fff:
+            cruises.append(cruise.rstrip())
+
+    sftp = SFTP()
+    sftp.connect(get_datadir_hostname())
+    aftp = AFTP(sftp)
+
+    with closing(lsession()) as sesh:
+        for cruise in cruises:
+            if not cruise:
+                print ''
+                continue
+            ctdzipex = sesh.query(Document).filter(Document.ExpoCode == cruise).filter(
+                Document.FileType == 'Exchange CTD (Zipped)').first()
+            if ctdzipex is None:
+                print cruise, sesh.query(Document.FileType).filter(Document.ExpoCode == cruise).all()
+            else:
+                with aftp.dl(ctdzipex.FileName) as fff:
+                    zfile = ZipFile(fff, 'r')
+                    print cruise, ctdzipex.FileName, len(zfile.namelist())
+
+
+def report_profiles_available(args):
+    """
+    """
+    args.output.write('CCHDO Cruises inventory\n')
+    args.output.write(','.join([
+        'country', 'dtime', 'ship', 'area', 'expocode', 'pi',
+        'number of stations', 'data_types', 'param_list']) + '\n')
+    with closing(lsession()) as session:
+        cruises = session.query(Cruise).order_by(Cruise.Country.asc(), Cruise.Begin_Date.desc()).all()
+        for cruise in cruises:
+            args.output.write(','.join(map(str, [
+                cruise.Country, cruise.Begin_Date, cruise.Ship_Name,
+                cruise.Line, cruise.ExpoCode])))
+            args.output.write('\n')
 

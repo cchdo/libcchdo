@@ -1,5 +1,6 @@
 from operator import itemgetter
 from datetime import timedelta
+from collections import OrderedDict
 
 from libcchdo.fns import (
     InvalidOperation,
@@ -412,7 +413,7 @@ class DiffColumn(Column):
 class File(object):
 
     def __init__(self):
-        self.columns = {}
+        self.columns = OrderedDict()
         self.unit_converters = {}
         self.unit_converter_technique = {}
         # Allow files to override column sorting by parameter display order.
@@ -860,6 +861,12 @@ class DataFileCollection(object):
         for file in self.files:
             d['files'].append(file.to_dict())
         return d
+
+    def expocodes(self):
+        expocodes = list()
+        for data in self:
+            expocodes.extend(data.expocodes())
+        return uniquify(expocodes)
 
     def __len__(self):
         return len(self.files)

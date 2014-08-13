@@ -295,7 +295,7 @@ class Parameter(Base):
     unit_id = S.Column(S.ForeignKey('units.id'))
     bound_lower = S.Column(S.Numeric)
     bound_upper = S.Column(S.Numeric)
-    display_order = S.Column(S.Integer(10))
+    display_order = S.Column(S.Integer)
 
     units = S.orm.relation(Unit)
     aliases = S.orm.relation(
@@ -424,8 +424,8 @@ class DataCTD(Base):
     parameter_id = S.Column(S.ForeignKey('parameters.id', ondelete='CASCADE'),
                             primary_key=True)
     value = S.Column(S.Numeric)
-    flag_woce = S.Column(S.Integer(10))
-    flag_igoss = S.Column(S.Integer(10))
+    flag_woce = S.Column(S.Integer)
+    flag_igoss = S.Column(S.Integer)
 
     ctd = S.orm.relation(CTD,
                          backref=S.orm.backref('data_ctd', lazy='dynamic'))
@@ -454,8 +454,8 @@ class Bottle(Base):
     location_id = S.Column(S.ForeignKey('locations.id'))
     name = S.Column(S.String(10))
     sample = S.Column(S.String(10))
-    flag_woce = S.Column(S.Integer(10))
-    flag_igoss = S.Column(S.Integer(10))
+    flag_woce = S.Column(S.Integer)
+    flag_igoss = S.Column(S.Integer)
     latitude = S.Column(S.Numeric)
     longitude = S.Column(S.Numeric)
 
@@ -490,8 +490,8 @@ class DataBottle(Base):
     parameter_id = S.Column(S.ForeignKey('parameters.id', ondelete='CASCADE'),
                             primary_key=True)
     value = S.Column(S.Numeric)
-    flag_woce = S.Column(S.Integer(10))
-    flag_igoss = S.Column(S.Integer(10))
+    flag_woce = S.Column(S.Integer)
+    flag_igoss = S.Column(S.Integer)
 
     bottle = S.orm.relation(Bottle,
                             backref=S.orm.backref('data', lazy='dynamic'))

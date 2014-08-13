@@ -53,7 +53,6 @@ All nodes are python packages except those marked as libraries.
     + geos (library)
 
   - basemap (optional) needed for plotting maps
-  - pandas (optional) needed for merging
   - pykml (optional) used to write KML documents.
 
 External Libraries
@@ -109,3 +108,29 @@ If you do want extras, you can find them under `extras_require`. Only
 
     # Install extras with code in editable mode
     pip install -e .[all]
+
+Managed deployment
+------------------
+
+The included script libcchdo/scripts/hydro-vm is able to manage simultaneous
+deployment of multiple versions of libcchdo. Follow these steps to install
+hydro-vm properly
+
+::
+
+    # Install the script
+    $ SCRIPT_NAME="hydro-vm"
+    $ cp libcchdo/scripts/${SCRIPT_NAME} "${CCHDO_BINS}"
+    $ sudo chown admin "${CCHDO_BINS}/${SCRIPT_NAME}"
+    $ sudo chmod 755 "${CCHDO_BINS}/${SCRIPT_NAME}"
+
+    # Add the script to the path
+    $ CCHDO_BINS="/usr/local/cchdo/bin"
+    $ echo "${CCHDO_BINS}" >> /etc/paths.d/cchdo
+
+    # Automatically upgrade the main installation to the latest on git master
+    $ alias as="sudo -u"
+    $ as admin hydro-vm install
+
+    # Install specific git commits as deployment_name
+    # as admin hydro-vm install <commit> <deployment_name>

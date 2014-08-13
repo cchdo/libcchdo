@@ -31,6 +31,14 @@ hydro_vm__VENV_DIR_ALPHA="${hydro_vm__VENV_DIR_BASE}${hydro_vm__VENV_ALPHA}";
 hydro_vm__VENV_DIR_BETA="${hydro_vm__VENV_DIR_BASE}${hydro_vm__VENV_BETA}";
 
 
+function hydro_vm__owner_euid_test {
+        if [ $(stat -f "%u" $0) -ne $(id -u) ]; then
+                echo "This command needs to be run as $(stat -f '%Su' $0).";
+                exit 1;
+        fi
+}
+
+
 function hydro_vm__swap_alpha_beta {
         rm -rf ${hydro_vm__VENV_DIR_TEMP};
         virtualenv-clone ${hydro_vm__VENV_DIR_ALPHA} ${hydro_vm__VENV_DIR_TEMP};
@@ -143,6 +151,7 @@ function hydro_vm__install_hydro() {
 
         git fetch --all || true;
         git checkout "${commit}";
+        git pull;
 
         echo -n "Upgrading ";
         vfrom=$(hydro --version 2>&1 | tail -n 1 | tr -d "\n");
@@ -158,8 +167,7 @@ function hydro_vm__install_hydro() {
         fi
 
         echo -n "...installing dependencies" >&2;
-        pip install numpy &> /dev/null;
-        pip install -e ".[all]" &> /dev/null;
+        pip install -r requirements.txt -e ".[all]" &> /dev/null;
         echo -n "...installing..." >&2;
         pip uninstall . &> /dev/null;
         pip install --upgrade . &> /dev/null;
@@ -215,7 +223,7 @@ function hydro_vm__check_sourced {
                 propername="";
         fi
         local zero=$(basename -- "${1}");
-        if [ "X${zero}" != "X${propername}" ]; then
+        if [ "X${zero#-}" != "X${propername#-}" ]; then
                 echo "${zero} ${propername}";
                 echo "hydro-vm needs to be sourced, not run, for hydro activation"
                 return 0;
@@ -340,11 +348,14 @@ elif [[ $1 == "list" ]]; then
 elif [[ $1 == "deploy-dir" ]]; then
         echo "${hydro_vm__DEPLOY_DIR}";
 elif [[ $1 == "rollback" ]]; then
+        hydro_vm__owner_euid_test;
         echo "Rolling back by swapping alpha and beta installs.";
         hydro_vm__swap_alpha_beta;
 elif [[ $1 == "install" ]]; then
+        hydro_vm__owner_euid_test;
         hydro_vm__install_hydro $2 $3;
 elif [[ $1 == "uninstall" ]]; then
+        hydro_vm__owner_euid_test;
         hydro_vm__uninstall_hydro $2;
 elif [[ $1 == "deployment-dir" ]]; then
         hydro_vm__get_deployment_dir $2;

@@ -362,7 +362,7 @@ and the national programs that contribute to it.""",
     ]),
     'CELL_METHODS': ' '.join([
         'TIME: point',
-        'DEPTH: average',
+        'DEPTH: mean',
         'LATITUDE: point',
         'LONGITUDE: point',
     ]),
@@ -563,7 +563,9 @@ def _calculate_depth(self, nc_file):
         pass
 
 
-def write_columns(self, nc_file, converter=get_param_to_os()):
+def write_columns(self, nc_file, converter=None):
+    if converter is None:
+        converter = get_param_to_os()
     from libcchdo.formats import netcdf as nc
     LOG.debug(u'writing columns')
 

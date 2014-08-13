@@ -1,0 +1,5 @@
+--index-url https://pypi.python.org/simple/
+
+numpy>=1.6
+--allow-external cdecimal
+--allow-external basemap

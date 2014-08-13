@@ -627,7 +627,7 @@ class ETOPOBasemap(Basemap):
             LOG.debug("Terminal excoding not UTF-8, only ASCII titles supported")
 
         self.axes.set_title(
-            text, size=size, position=(0.5, 1), fontweight='bold')
+            text, size=size, position=(0.5, 1.03), fontweight='bold')
 
     def hide_axes_borders(self):
         """Hide and remove borders that have been added to the plot."""
@@ -816,9 +816,9 @@ class ETOPOBasemap(Basemap):
             projections and the default matches GMT's setting.
 
         """
-        line_dashes = [1, 1]
+        line_dashes = (1, 1)
         if line_solid:
-            line_dashes = [1, 0]
+            line_dashes = (None, None)
 
         xoffset, yoffset = self.gmt_label_offsets
         artists = {}

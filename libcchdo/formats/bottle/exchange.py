@@ -1,14 +1,11 @@
-import re
-import datetime
-
-from libcchdo.fns import _decimal, out_of_band
+from libcchdo.fns import _decimal
 from libcchdo.log import LOG
 from libcchdo.model.datafile import Column
 from libcchdo.formats import woce
 from libcchdo.formats.exchange import (
     FLAG_ENDING_WOCE, FLAG_ENDING_IGOSS,
-    read_identifier_line, read_comments, write_identifier, write_data,
-    write_flagged_format_parameter_values, FILL_VALUE, END_DATA)
+    read_identifier_line, read_comments, read_data, write_identifier,
+    write_data, write_flagged_format_parameter_values, FILL_VALUE, END_DATA)
 from libcchdo.formats.formats import (
     get_filename_fnameexts, is_filename_recognized_fnameexts,
     is_file_recognized_fnameexts)
@@ -44,7 +41,6 @@ def is_file_recognized(fileobj):
 
     """
     return is_file_recognized_fnameexts(fileobj, _fname_extensions)
-
 
 
 def read(self, handle):
@@ -83,63 +79,13 @@ def read(self, handle):
 
     self.create_columns(columns, units)
 
-    # Read data
-    row_i = 0
-    l = handle.readline().strip()
-    while l:
-        if l.startswith(END_DATA): break
-        values = l.split(',')
-        
-        # Check columns and values to match length
-        if len(columns) is not len(values):
-            raise ValueError(("Expected as many columns as values in file. "
-                              "Found %d columns and %d values at "
-                              "data line %d") % (len(columns), len(values),
-                                                len(self) + 1))
-
-        # TODO check if parameter exists but no flag & vice versa
-
-        for column, raw in zip(columns, values):
-            raw_value = raw.strip()
-            if out_of_band(raw_value):
-                value = None
-            else:
-                try:
-                    value = _decimal(raw_value)
-                except:
-                    value = raw_value
-
-            param_name = column[:-7]
-            flag_column = None
-            flag_type = None
-            if column.endswith(FLAG_ENDING_WOCE):
-                flag_column = self[param_name].flags_woce
-                flag_type = 'WOCE'
-            elif column.endswith(FLAG_ENDING_IGOSS):
-                flag_column = self[param_name].flags_igoss
-                flag_type = 'IGOSS'
-            else:
-                self[column].append(value)
-
-            if flag_column is not None:
-                try:
-                    flag_column.append(int(value))
-                except TypeError:
-                    LOG.warn(
-                        u'Flag {0} for parameter {1} has bad flag {2!r} on '
-                        'data line {3}'.format(
-                        flag_type, param_name, raw_value, row_i))
-                    flag_column.append(None)
-                except KeyError:
-                    LOG.warn(
-                        u'Flag {0} column exists for parameter {1} but '
-                        'parameter column does not exist.'.format(
-                        flag_type, param_name))
-                    flag_column.append(None)
-        l = handle.readline().strip()
-        row_i += 1
+    read_data(self, handle, columns)
 
     # Format all data to be what it is
+    try:
+        self['EXPOCODE'].values = map(str, self['EXPOCODE'].values)
+    except KeyError:
+        pass
     try:
         self['LATITUDE'].values = map(_decimal, self['LATITUDE'].values)
     except KeyError:

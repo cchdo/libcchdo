@@ -5,9 +5,10 @@
 import os
 
 import sqlalchemy as S
-from sqlalchemy.orm import sessionmaker
+from sqlalchemy.orm import scoped_session, sessionmaker
 from sqlalchemy.engine.url import URL
 
+from zope.sqlalchemy import ZopeTransactionExtension
 
 from libcchdo import config
 from libcchdo.util import memoize
@@ -61,8 +62,14 @@ def cchdo():
 
 @memoize
 def Sessionmaker(engine, **kwargs):
-    return sessionmaker(bind=engine)
+    return sessionmaker(bind=engine, **kwargs)
 
 
 def session(engine, **kwargs):
     return Sessionmaker(engine)(**kwargs)
+
+
+def scoped(engine, **kwargs):
+    """Create a scoped session that is bound to zope transaction."""
+    return scoped_session(sessionmaker(
+        engine, extension=ZopeTransactionExtension(), **kwargs))

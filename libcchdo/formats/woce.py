@@ -2,8 +2,11 @@ from datetime import datetime, date
 from collections import OrderedDict
 import re
 import struct
+import os.path
+from csv import reader as csv_reader
 
 from libcchdo.log import LOG
+from libcchdo.util import get_library_abspath
 from libcchdo.model.datafile import Column
 from libcchdo.fns import (
     Decimal, InvalidOperation, _decimal, in_band_or_none, IncreasedPrecision,
@@ -510,13 +513,87 @@ _UNWRITTEN_COLUMNS = [
     'EXPOCODE', 'SECT_ID', 'LATITUDE', 'LONGITUDE', 'DEPTH', '_DATETIME']
 
 
+WOCE_PARAMS_FOR_EXWOCE = os.path.join(
+    get_library_abspath(), 'resources', 'woce_params_for_exchange_to_woce.csv')
+
+
+def convert_fortran_format_to_c(ffmt):
+    """Simplistic conversion from Fortran format string to C format string.
+    This only operates on F formats.
+
+    """
+    if not ffmt:
+        return ffmt
+    if ffmt.startswith('F'):
+        return '%{0}f'.format(ffmt[1:])
+    elif ffmt.startswith('I'):
+        return '%{0}d'.format(ffmt[1:])
+    elif ffmt.startswith('A'):
+        return '%{0}s'.format(ffmt[1:])
+    elif ',' in ffmt:
+        # WOCE specifies things like 1X,A7, so only convert the last bit.
+        ffmt = ffmt.split(',')[1]
+        return convert_fortran_format_to_c(ffmt)
+    return ffmt
+
+
+def get_exwoce_params():
+    """Return a dictionary of WOCE parameters allowed for Exchange conversion.
+
+    Returns:
+        {'PMNEMON': {
+            'unit_mnemonic': 'WOCE', 'range': [0.0, 10.0], 'format': '%8.3f'}}
+
+    """
+    reader = csv_reader(open(WOCE_PARAMS_FOR_EXWOCE, 'r'))
+
+    # First line is header
+    reader.next()
+
+    params = {}
+    for order, row in enumerate(reader):
+        if row[-1] == 'x':
+            continue
+        if not row[1]:
+            row[1] = None
+        if row[2]:
+            prange = map(float, row[2].split(','))
+        else:
+            prange = None
+        if not row[3]:
+            row[3] = None
+        params[row[0]] = {
+            'unit_mnemonic': row[1],
+            'range': prange,
+            'format': convert_fortran_format_to_c(row[3]),
+            'order': order,
+        }
+    return params
+
+
+_EXWOCE_PARAMS = get_exwoce_params()
+
+
 def writeable_columns(dfile):
     """Return the columns that belong in a WOCE data file."""
-    columns = dfile.sorted_columns()
-    columns = filter(
-        lambda col: col.parameter.mnemonic_woce() not in _UNWRITTEN_COLUMNS,
-        columns)
-    return columns
+    columns = dfile.columns.values()
+
+    # Filter with whitelist and rewrite format strings to WOCE standard.
+    whitelisted_columns = []
+    for col in columns:
+        key = col.parameter.mnemonic_woce()
+        if key in _UNWRITTEN_COLUMNS:
+            continue
+        if key not in _EXWOCE_PARAMS:
+            continue
+        info = _EXWOCE_PARAMS[key]
+        fmt = info['format']
+        if fmt:
+            col.parameter.format = fmt
+        col.parameter.display_order = info['order']
+        whitelisted_columns.append(col)
+    return sorted(
+        whitelisted_columns, key=lambda col: col.parameter.display_order)
 
 
 def columns_and_base_format(dfile):
@@ -531,6 +608,23 @@ def columns_and_base_format(dfile):
     qualt_format = "{{0}}:>{0}".format(qualt_colsize)
     base_format += ' {' + qualt_format.format(len(columns)) + "}\n"
     return columns, base_format
+
+
+def truncate_row(lll):
+    """Return a new row where all items are less than or equal to column width.
+
+    Warnings will be given for any truncations.
+
+    """
+    truncated = []
+    for xxx in lll:
+        if len(xxx) > COLUMN_WIDTH:
+            trunc = xxx[:COLUMN_WIDTH]
+            LOG.warn(u'Truncated {0!r} to {1!r} because longer than {2} '
+                     'characters.'.format(xxx, trunc, COLUMN_WIDTH))
+            xxx = trunc
+        truncated.append(xxx)
+    return truncated
 
 
 def write_data(self, handle, columns, base_format):
@@ -560,20 +654,25 @@ def write_data(self, handle, columns, base_format):
     all_units.append("*")
     all_asters.append("*")
 
-    handle.write(base_format.format(*all_headers))
-    handle.write(base_format.format(*all_units))
-    handle.write(base_format.format(*all_asters))
+    handle.write(base_format.format(*truncate_row(all_headers)))
+    handle.write(base_format.format(*truncate_row(all_units)))
+    handle.write(base_format.format(*truncate_row(all_asters)))
 
     for i in range(len(self)):
         values = []
         flags = []
         for column in columns:
             format = column.parameter.format
-            LOG.debug('{0} {1}'.format(column.parameter, format))
-            if column[i]:
-                formatted_value = format % column[i]
-            else:
-                formatted_value = format % FILL_VALUE
+            try:
+                if column[i]:
+                    formatted_value = format % column[i]
+                else:
+                    formatted_value = format % FILL_VALUE
+            except TypeError:
+                formatted_value = column[i]
+                LOG.warn(u'Invalid WOCE format for {0} to {1!r}. '
+                    'Treating as string.'.format(
+                    column.parameter, formatted_value))
 
             if len(formatted_value) > COLUMN_WIDTH:
                 extra = len(formatted_value) - COLUMN_WIDTH
@@ -581,9 +680,11 @@ def write_data(self, handle, columns, base_format):
                 if len(leading_extra.strip()) == 0:
                     formatted_value = formatted_value[extra:]
                 else:
-                    LOG.warn(u'Formatted data value {0!r} for {1} row {2} was '
-                             'too long.'.format(formatted_value,
-                                                column.parameter.name, i))
+                    old_value = formatted_value
+                    formatted_value = formatted_value[:-extra]
+                    LOG.warn(u'Truncated {0!r} to {1} for {2} '
+                             'row {3}'.format(old_value, formatted_value,
+                                              column.parameter.name, i))
 
             values.append(formatted_value)
             if column.is_flagged_woce():

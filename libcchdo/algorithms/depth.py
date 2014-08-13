@@ -189,7 +189,7 @@ def depth_unesco(pres, lat):
         return None
     x = sin(lat / _decimal('57.29578')) ** _decimal(2)
     gr = _decimal('9.780318') * \
-        (_decimal(1) + (_decimal('5.2788e-3') + _decimal('2.36e-5') * x) * x) + \
+        (_decimal('1') + (_decimal('5.2788e-3') + _decimal('2.36e-5') * x) * x) + \
         _decimal('1.092e-6') * pres
     return ((((_decimal('-1.82e-15') * pres + _decimal('2.279e-10')) * pres - \
         _decimal('2.2512e-5')) * pres + _decimal('9.72659')) * pres) / gr
