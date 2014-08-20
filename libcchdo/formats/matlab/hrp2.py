@@ -202,8 +202,8 @@ def _read_oliver_sun(dfc, fileobj, cfg):
 def read(dfile, fileobj, cfg=DEFAULT_CFG):
     """Read a Matlab file that contains HRP2 data.
 
-    As of 2013-10-21, we know of two Matlab setups, one from Amy Waterhouse and
-    the other from Oliver Sun.
+    As of 2013-10-21, we know of three Matlab setups, one from Amy Waterhouse,
+    one for DIMES from Amy Waterhouse, and the other from Oliver Sun.
 
     """
     if cfg['data_type'] == 'HRP2 Oliver Sun':

@@ -48,8 +48,7 @@ def is_data_range_inside(drange, ref_range):
     return True
 
 
-def read(dfc, fileobj, cfg):
-    """Read generic HRP matlab file."""
+def load_mat_hrp(fileobj):
     mat = loadmat(fileobj)
 
     log.debug(u'matlab file header: {0}'.format(mat['__header__']))
@@ -71,6 +70,12 @@ def read(dfc, fileobj, cfg):
             log.error(u'Unable to determine key for matlab. Possible keys: '
                       '{0}'.format(possible_keys))
             raise
+    return mat, hrp
+
+
+def read(dfc, fileobj, cfg):
+    """Read generic HRP matlab file."""
+    mat, hrp = load_mat_hrp(fileobj)
     data = hrp_data_as_dict(hrp)
 
     coords = zip(data['lon'][0], data['lat'][0])
@@ -85,15 +90,23 @@ def read(dfc, fileobj, cfg):
 
         dfile.create_columns(data.keys())
 
-    log.info(u'keys in hrp: {0}'.format(data.keys()))
+    for key in data.keys():
+        log.info(u'parameter shape: {0} {1}'.format(key, data[key].shape))
 
+    param_map = cfg["parameter_mapping"]
     for param in data.keys():
-        if param not in cfg["parameter_mapping"]:
+        if param not in param_map:
             del data[param]
+        else:
+            new_key = param_map[param]
+            old_key = data[param]
+            if new_key != old_key:
+                data[new_key] = data[old_key]
+                del data[old_key]
 
     for dep, dfile in enumerate(dfc):
         dfile.globals['STNNBR'] = dep + 1
-        ref_range = ndarray_data_slice(data['pres'][:, dep])
+        ref_range = ndarray_data_slice(data['PRESSURE'][:, dep])
         for param, pdata in data.items():
             col = dfile[param]
             data_col = pdata[:, dep]
@@ -103,6 +116,9 @@ def read(dfc, fileobj, cfg):
                 ref_range = drange
                 determiner = param
             elif drange != ref_range:
+                if drange[0] == drange[1]:
+                    log.info(u'No data for {0}. Skip.'.format(param))
+                    continue
                 if not is_data_range_inside(drange, ref_range):
                     log.error(u'{0} has data range {1} outside {2}. '
                               'Skip.'.format(param, drange, ref_range))
