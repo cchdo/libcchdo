@@ -84,7 +84,7 @@ from libcchdo.model.datafile import DataFile, DataFileCollection, Column
 from libcchdo.formats import zip as Zip
 from libcchdo.formats import netcdf as nc
 from libcchdo.formats import woce
-from libcchdo.formats.matlab import loadmat, NOT_PARAMS, dimes
+from libcchdo.formats.matlab import loadmat, NOT_PARAMS, dimes, awaterhouse
 from libcchdo.formats.netcdf_oceansites import (
     write_columns, OSVar, ParamToOS, OS_TEXT)
 
@@ -121,14 +121,14 @@ def _real_data_type(cfg):
 
 def check_cfg(cfg):
     """Apply this check to the configuration before reading/writing."""
-    assert _real_data_type(cfg) in ['HRP2', 'DMS']
+    assert _real_data_type(cfg) in ['HRP2', 'DMS', 'HRP']
     assert isinstance(cfg['expocode'], basestring)
     assert isinstance(cfg['pi'], basestring)
     assert type(cfg['parameter_mapping']) == dict
 
 
-def _read_amy_waterhouse(dfile, fileobj, cfg):
-    """Read HRP2 format from Amy Waterhouse."""
+def _read_dimes(dfile, fileobj, cfg):
+    """Read HRP2 format from Amy Waterhouse for DIMES."""
     dfile.globals['header'] = ""
 
     global_params = {
@@ -146,6 +146,18 @@ def _read_amy_waterhouse(dfile, fileobj, cfg):
 
     # TODO
     dfile.globals['DEPTH'] = 0
+
+
+def _read_amy_waterhouse(dfc, fileobj, cfg):
+    """Read HRP format from Amy Waterhouse."""
+    awaterhouse.read(dfc, fileobj, cfg)
+
+    for dfile in dfc:
+        dfile.globals['_DATETIME'] = datetime.strptime(
+            cfg['datetime'], '%Y-%m-%dT%H:%M:%SZ')
+        dfile.globals['EXPOCODE'] = cfg['expocode']
+        # TODO
+        dfile.globals['DEPTH'] = 0
 
 
 def _read_oliver_sun(dfc, fileobj, cfg):
@@ -196,6 +208,8 @@ def read(dfile, fileobj, cfg=DEFAULT_CFG):
     """
     if cfg['data_type'] == 'HRP2 Oliver Sun':
         _read_oliver_sun(dfile, fileobj, cfg)
+    elif cfg['data_type'] == 'HRP2 DIMES':
+        _read_dimes(dfile, fileobj, cfg)
     else:
         _read_amy_waterhouse(dfile, fileobj, cfg)
 
@@ -241,8 +255,48 @@ def decimal_days_since(dtime, epoch=datetime(1950, 1, 1)):
     return delta.days + delta.seconds / 86400.0
 
 
+def _get_coordinate_bounds(dfile):
+    """Return ((min lon, min lat), (max lon, max lat))"""
+    try:
+        lng = dfile.globals['LONGITUDE']
+        lat = dfile.globals['LATITUDE']
+        return ((lng, lat), (lng, lat))
+    except KeyError:
+        lngs = dfile['LONGITUDE'].values
+        lats = dfile['LATITUDE'].values
+        return ((min(lngs), min(lats)), (max(lngs), max(lats)))
+
+
+def _write_depths(var_depth, dfile, cvt):
+    pres = None
+    salt = None
+    temp = None
+    for column in dfile.sorted_columns():
+        pname = column.parameter.name
+        try:
+            name, variable = cvt.convert(pname)
+        except KeyError:
+            continue
+        if name == 'PRESSURE':
+            pres = dfile[pname]
+        elif name == 'PSAL':
+            salt = dfile[pname]
+        elif name == 'TEMPERATURE':
+            temp = dfile[pname]
+        if pres and salt and temp:
+            break
+    depth_method, depths = dfile.calculate_depths(
+        pres=pres, salt=salt, temp=temp)
+    if depth_method == 'unesco1983':
+        var_depth.comment = OS_TEXT['DEPTH_CALCULATED_UNESCO_1983']
+    elif depth_method == 'sverdrup':
+        var_depth.comment = OS_TEXT['DEPTH_CALCULATED_SVERDRUP']
+    return depths
+
+
 def _write_dfile(dfile, fileobj, cfg=DEFAULT_CFG, cvt=None):
-    """Write DIMES microstructure COARDS compliant file."""
+    """Write microstructure COARDS compliant file."""
+    LOG.debug(dfile.globals)
     with nc.nc_dataset_to_stream(fileobj, format='NETCDF3_CLASSIC') as nc_file:
         nc_file.Conventions = 'CF-1.6'
         nc_file.netcdf_version = '3'
@@ -260,10 +314,12 @@ def _write_dfile(dfile, fileobj, cfg=DEFAULT_CFG, cvt=None):
         nc_file.format_version = '0.1-beta'
 
         nc_file.date_update = fns.strftime_iso(datetime.utcnow())
-        nc_file.geospatial_lat_min = str(dfile.globals['LATITUDE'])
-        nc_file.geospatial_lat_max = str(dfile.globals['LATITUDE'])
-        nc_file.geospatial_lon_min = str(dfile.globals['LONGITUDE'])
-        nc_file.geospatial_lon_max = str(dfile.globals['LONGITUDE'])
+
+        (minlng, minlat), (maxlng, maxlat) = _get_coordinate_bounds(dfile)
+        nc_file.geospatial_lat_min = str(minlat)
+        nc_file.geospatial_lat_max = str(maxlat)
+        nc_file.geospatial_lon_min = str(minlng)
+        nc_file.geospatial_lon_max = str(maxlng)
         nc_file.geospatial_vertical_min = 0
         nc_file.geospatial_vertical_max = int(dfile.globals['DEPTH'])
         nc_file.geospatial_vertical_positive = 'down'
@@ -342,33 +398,7 @@ def _write_dfile(dfile, fileobj, cfg=DEFAULT_CFG, cvt=None):
         var_latitude[:] = [dfile.globals['LATITUDE']]
         var_longitude[:] = [dfile.globals['LONGITUDE']]
 
-        pres = None
-        salt = None
-        temp = None
-        for column in dfile.sorted_columns():
-            pname = column.parameter.name
-            try:
-                name, variable = cvt.convert(pname)
-            except KeyError:
-                LOG.warn(
-                    u'Parameter name {0!r} is not mapped to an OceanSITES '
-                    'variable. Skipping.'.format(pname))
-                continue
-            if name == 'PRESSURE':
-                pres = dfile[pname]
-            elif name == 'PSAL':
-                salt = dfile[pname]
-            elif name == 'TEMPERATURE':
-                temp = dfile[pname]
-            if pres and salt and temp:
-                break
-        depth_method, depths = dfile.calculate_depths(
-            pres=pres, salt=salt, temp=temp)
-        if depth_method == 'unesco1983':
-            var_depth.comment = OS_TEXT['DEPTH_CALCULATED_UNESCO_1983']
-        elif depth_method == 'sverdrup':
-            var_depth.comment = OS_TEXT['DEPTH_CALCULATED_SVERDRUP']
-        var_depth[:] = depths
+        var_depth[:] = _write_depths(var_depth, dfile, cvt)
 
         write_columns(dfile, nc_file, cvt)
 
@@ -386,14 +416,11 @@ def get_filename(dfile):
 
 
 def write(dfile, fileobj, cfg=DEFAULT_CFG, cvt=None):
-    if not cvt:
+    if cvt is None:
         cvt = converter(cfg)
     if isinstance(dfile, DataFileCollection):
         Zip.write(
             dfile, fileobj, sys.modules[__name__], get_filename, cfg=cfg,
             cvt=cvt)
     else:
-        try:
-            _write_dfile(dfile, fileobj, cfg, cvt=cvt)
-        except Exception, err:
-            LOG.error(str(err))
+        _write_dfile(dfile, fileobj, cfg, cvt=cvt)

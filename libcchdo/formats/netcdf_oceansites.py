@@ -572,15 +572,14 @@ def write_columns(self, nc_file, converter=None):
     # Because it is possible for multiple parameter names to be mapped to the
     # same OceanSITES name, start in order so the less important ones are
     # ignored
+    warn_not_mapped = []
     for column in self.sorted_columns():
         # Determine the parameter's OceanSITES name and CF name
         pname = column.parameter.name
         try:
             name, variable = converter.convert(pname)
         except KeyError:
-            LOG.warn(
-                u'Parameter name {0!r} is not mapped to an OceanSITES '
-                'variable. Skipping.'.format(pname))
+            warn_not_mapped.append(pname)
             continue
         except ValueError:
             LOG.warn(
@@ -644,7 +643,9 @@ def write_columns(self, nc_file, converter=None):
                 flag[:] = [WOCE_to_OceanSITES_flag[f] for f in column.flags_woce]
             except IndexError, err:
                 LOG.error(u'Not enough flags in {0}'.format(column))
-                raise err
+                raise
+    LOG.warn(u'Skipped parameters not mapped to OceanSITES variables: '
+             '{0!r}'.format(warn_not_mapped))
     _calculate_depth(self, nc_file)
 
 

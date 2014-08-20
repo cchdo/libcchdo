@@ -999,7 +999,7 @@ def matlab_hrp_and_config_to_nc_hrp(args):
         cfg = loads(cfg)
         hrp2.check_cfg(cfg)
 
-    if cfg['data_type'] == 'HRP2 Oliver Sun':
+    if cfg['data_type'] in ('HRP', 'HRP2 Oliver Sun'):
         dfile = DataFileCollection()
     else:
         dfile = DataFile()
