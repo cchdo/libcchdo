@@ -44,7 +44,8 @@ def depth(grav, p, rho):
 
     num_intervals = len(p)
     assert num_intervals == len(rho), \
-           "The number of series intervals must be the same."
+        ("The number of series intervals must be the same.\n"
+         "pressure {0} != density {1}").format(num_intervals, len(rho))
 
     grav = _decimal(grav)
     p = _decimal(p)
