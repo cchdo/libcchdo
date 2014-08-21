@@ -16,8 +16,12 @@
 # Since alpha usually exists, it may be possible to clone the virtualenv to
 # avoid deployment overheads.
 
+# This script is made to be sourced.
+# Do not set -e or else errors will cause exit of shell.
 #set -e;
 
+hydro_vm__PROGRAM="$0";
+hydro_vm__PROGRAM_PATH="/usr/local/cchdo/bin/hydro-vm";
 hydro_vm__GIT_REPO="git@bitbucket.org:ghdc/libcchdo.git";
 hydro_vm__DEPLOY_DIR="/usr/local/cchdo/hydro-vm";
 
@@ -32,10 +36,13 @@ hydro_vm__VENV_DIR_BETA="${hydro_vm__VENV_DIR_BASE}${hydro_vm__VENV_BETA}";
 
 
 function hydro_vm__owner_euid_test {
-        if [ $(stat -f "%u" $0) -ne $(id -u) ]; then
-                echo "This command needs to be run as $(stat -f '%Su' $0).";
-                exit 1;
+        local ownerid=$(stat -f "%u" $hydro_vm__PROGRAM_PATH);
+        local owner=$(stat -f '%Su' $hydro_vm__PROGRAM_PATH);
+        if [ $ownerid -ne $(id -u) ]; then
+                echo "This command needs to be run as $owner.";
+                return 1;
         fi
+        return 0;
 }
 
 
@@ -167,10 +174,10 @@ function hydro_vm__install_hydro() {
         fi
 
         echo -n "...installing dependencies" >&2;
-        pip install -r requirements.txt -e ".[all]" &> /dev/null;
+        pip install -q -r requirements.txt -e ".[all]";
         echo -n "...installing..." >&2;
-        pip uninstall . &> /dev/null;
-        pip install --upgrade . &> /dev/null;
+        pip uninstall -q .;
+        pip install -q --upgrade .;
 
         popd &> /dev/null;
 
@@ -223,8 +230,8 @@ function hydro_vm__check_sourced {
                 propername="";
         fi
         local zero=$(basename -- "${1}");
-        if [ "X${zero#-}" != "X${propername#-}" ]; then
-                echo "${zero} ${propername}";
+        if [ "X${zero##-}" != "X${propername##-}" ]; then
+                echo "${zero##-} ${propername##-}";
                 echo "hydro-vm needs to be sourced, not run, for hydro activation"
                 return 0;
         fi
@@ -348,15 +355,18 @@ elif [[ $1 == "list" ]]; then
 elif [[ $1 == "deploy-dir" ]]; then
         echo "${hydro_vm__DEPLOY_DIR}";
 elif [[ $1 == "rollback" ]]; then
-        hydro_vm__owner_euid_test;
-        echo "Rolling back by swapping alpha and beta installs.";
-        hydro_vm__swap_alpha_beta;
+        if hydro_vm__owner_euid_test; then
+                echo "Rolling back by swapping alpha and beta installs.";
+                hydro_vm__swap_alpha_beta;
+        fi
 elif [[ $1 == "install" ]]; then
-        hydro_vm__owner_euid_test;
-        hydro_vm__install_hydro $2 $3;
+        if hydro_vm__owner_euid_test; then
+                hydro_vm__install_hydro $2 $3;
+        fi
 elif [[ $1 == "uninstall" ]]; then
-        hydro_vm__owner_euid_test;
-        hydro_vm__uninstall_hydro $2;
+        if hydro_vm__owner_euid_test; then
+                hydro_vm__uninstall_hydro $2;
+        fi
 elif [[ $1 == "deployment-dir" ]]; then
         hydro_vm__get_deployment_dir $2;
         echo ${hydro_vm__venv_dir};
