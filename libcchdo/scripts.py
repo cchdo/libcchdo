@@ -183,11 +183,22 @@ def check_any(args):
                 LOG.info(u'column {0} is empty (only has fill values)'.format(
                     c.parameter.name))
 
+    def check_flag_0(dfile):
+        """Data should not have flag 0."""
+        for col in dfile.columns.values():
+            try:
+                index = col.flags_woce.index(0)
+                LOG.warn(u'column {0} has flag 0 at row {1}'.format(
+                    col.parameter.name, index))
+            except ValueError:
+                pass
+
     def check_datafile(df):
         LOG.info(u'Checking datafile format')
         df.check_and_replace_parameters(convert=False)
         check_fill_value_has_flag_w_9(df)
         check_empty_columns(df)
+        check_flag_0(df)
         if args.verify_unique:
             check_cols = []
             for col in args.verify_unique:
