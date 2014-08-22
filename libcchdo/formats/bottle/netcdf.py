@@ -2,11 +2,15 @@ import datetime
 import os
 import re
 import tempfile
+from logging import getLogger
+
+
+log = getLogger(__name__)
+
 
 import numpy as np
 
 from libcchdo import fns
-from libcchdo.log import LOG
 from libcchdo.util import memoize
 from libcchdo.db.model import std
 from libcchdo.formats import netcdf as nc
@@ -87,18 +91,18 @@ def read(self, handle):
     if type(dtime) is datetime.date:
     	calculated_time = calculated_time.date()
     if dtime != calculated_time:
-        LOG.warn(('Datetime declarations in Bottle NetCDF file '
+        log.warn(('Datetime declarations in Bottle NetCDF file '
                   'do not match (%s, %s)') % (dtime, calculated_time))
 
     varstation = ''.join(filter(None, vars['station'][:].tolist())).strip()
     varcast = ''.join(filter(None, vars['cast'][:].tolist())).strip()
 
     if varstation != station:
-        LOG.warn(('Station declarations in Bottle NetCDF file '
+        log.warn(('Station declarations in Bottle NetCDF file '
                   'do not match (%s, %s)') % (station, varstation))
 
     if varcast != cast:
-        LOG.warn(('Cast declarations in Bottle NetCDF file '
+        log.warn(('Cast declarations in Bottle NetCDF file '
                   'do not match (%s, %s)') % (cast, varcast))
 
     # Create global columns if they do not exist

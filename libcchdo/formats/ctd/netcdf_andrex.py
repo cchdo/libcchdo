@@ -4,8 +4,12 @@ import math
 import os
 import sys
 import tempfile
+from logging import getLogger
 
-from libcchdo.log import LOG
+
+log = getLogger(__name__)
+
+
 from libcchdo.model.datafile import Column
 from libcchdo.formats import woce
 from libcchdo.formats import netcdf as nc
@@ -78,13 +82,13 @@ def read(self, handle):
         try:
             name = ANDREX_VAR_TO_WOCE_PARAM[name]
         except KeyError:
-            LOG.warn("Unable to convert Andrex variable %s" % name)
+            log.warn("Unable to convert Andrex variable %s" % name)
             continue
         unit = variable.units
         try:
             unit = ANDREX_UNIT_TO_WOCE_UNIT[unit]
         except KeyError:
-            LOG.warn("Unable to convert Andrex unit %s" % unit)
+            log.warn("Unable to convert Andrex unit %s" % unit)
         self.columns[name] = Column(name, unit)
         self.columns[name].values = variable[:].tolist()[0]
 

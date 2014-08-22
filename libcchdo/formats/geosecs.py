@@ -48,29 +48,29 @@ A.  ORIGINATOR IDENTIFICATION
 ********DATA FORMAT
 1.  RECORD TYPES
 MASTER INFORMATION (AS PER NODC STATION DATA II) - IDENTIFIED BY A 1 IN
-                   LAST CHARACTER OF LOGICAL RECORD OF 80 CHARACTERS
+                   LAST CHARACTER OF logICAL RECORD OF 80 CHARACTERS
 
 MASTER INFORMATION (AS PER NODC STATION DATA II) - IDENTIFIED BY A 2 IN
-                   LAST CHARACTER OF LOGICAL RECORD OF 80 CHARACTERS
+                   LAST CHARACTER OF logICAL RECORD OF 80 CHARACTERS
 
 DATA RECORD (MODIFIED VERSION OF NODC STATION DATA II)  - IDENTIFIED BY A 3
-              IN LAST CHARACTER OF LOGICAL RECORD OF 80 CHARACTERS
+              IN LAST CHARACTER OF logICAL RECORD OF 80 CHARACTERS
 
 DATA RECORD - IDENTIFIED BY A 4 IN
-              LAST CHARACTER OF LOGICAL RECORD OF 80 CHARACTERS
+              LAST CHARACTER OF logICAL RECORD OF 80 CHARACTERS
 
 DATA RECORD - IDENTIFIED BY A 5 IN
-              LAST CHARACTER OF LOGICAL RECORD OF 80 CHARACTERS
+              LAST CHARACTER OF logICAL RECORD OF 80 CHARACTERS
 
 DATA RECORD - IDENTIFIED BY A 6 IN
-              LAST CHARACTER OF LOGICAL RECORD OF 80 CHARACTERS
+              LAST CHARACTER OF logICAL RECORD OF 80 CHARACTERS
 
 DATA RECORD - IDENTIFIED BY A 7 IN
-              LAST CHARACTER OF LOGICAL RECORD OF 80 CHARACTERS
+              LAST CHARACTER OF logICAL RECORD OF 80 CHARACTERS
 
 2. DESCRIPTION OF FILE ORGANIZATION
 
-   LOGICAL RECORD LENGTH OF 80 CHARACTERS
+   logICAL RECORD LENGTH OF 80 CHARACTERS
    PHYSICAL RECORD LENGTH OF 3200 CHARACTERS
    FOR EACH STATION, TWO MASTER RECORD FOLLOWED BY AT LEAST ONE DATA
    RECORD (RECORD 3)FOR EACH LEVEL THEN MAXIMUM OF 4 DATA RECORDS FOR
@@ -158,20 +158,20 @@ STARTING FIELD  ATTRIBUTES
    26     (1)      A1      ALKALINITY QUALITY INDICATOR
    27     (5)      I5      PRESSURE,DECIBARS
    32     (1)      A1      SILICATE QUALITY INDICATOR
-   33     (4)      I4      OXYGEN, MICROMOLES/KILOGRAM
-   37     (4)      I4      ALKALINITY, MICROEQUIVALENTS/KILOGRAM
-   41     (4)      I4      TOTAL CO2, MICROMOLES/KILOGRAM
+   33     (4)      I4      OXYGEN, MICROMOLES/KIlogRAM
+   37     (4)      I4      ALKALINITY, MICROEQUIVALENTS/KIlogRAM
+   41     (4)      I4      TOTAL CO2, MICROMOLES/KIlogRAM
    45     (2)      I2      CAST NUMBER
    47     (2)      I2      BOTTLE NUMBER
-   49     (4)    F4.2      PHOSPHATE, MICROMOLES/KILOGRAM
+   49     (4)    F4.2      PHOSPHATE, MICROMOLES/KIlogRAM
    53     (1)      I1      PHOSPHATE PRECISION
-   54     (4)     F4.0     GC CO2, MICROMOLES/KILOGRAM
+   54     (4)     F4.0     GC CO2, MICROMOLES/KIlogRAM
    58     (1)      I1      GC CO2, QUALITY INDICATOR
-   59     (4)    F4.1      SILICATES, MICROMOLES/KILOGRAM
+   59     (4)    F4.1      SILICATES, MICROMOLES/KIlogRAM
    63     (1)      I1      SILICATES PRECISION
-   64     (3)    F3.2      NITRITES, MICROMOLES/KILOGRAM
+   64     (3)    F3.2      NITRITES, MICROMOLES/KIlogRAM
    67     (1)      I1      NITRITES PRECISION
-   68     (3)    F3.1      NITRATES, MICROMOLES/KILOGRAM
+   68     (3)    F3.1      NITRATES, MICROMOLES/KIlogRAM
    71     (1)      I1      NITRATE PRECISION
    72     (3)     F3.2     PH
    75     (1)      I1      PH, PRECISION
@@ -467,8 +467,13 @@ import sys
 import os
 import datetime
 import collections
+from logging import getLogger
 
-from libcchdo import LOG, config
+
+log = getLogger(__name__)
+
+
+from libcchdo import config
 from libcchdo.units import convert
 from libcchdo.fns import Decimal
 from libcchdo.formats.formats import (
@@ -1010,9 +1015,9 @@ def _read_gerard_shorebased_5(line, station):
 
 
 def print_line(line, ruler=True):
-    LOG.debug('line: %s' % line)
+    log.debug('line: %s' % line)
     if ruler:
-        LOG.debug('ruler:%s' % '_1_3_5_7_9' * 8)
+        log.debug('ruler:%s' % '_1_3_5_7_9' * 8)
 
 
 def read(self, handle):
@@ -1115,7 +1120,7 @@ def read(self, handle):
         try:
             record = line[79]
         except IndexError:
-            LOG.error('Record on line %d is too short. Skipping line.' % i)
+            log.error('Record on line %d is too short. Skipping line.' % i)
             continue
 
         # custom corrections
@@ -1160,7 +1165,7 @@ def read(self, handle):
                 # Unknown record
                 pass
         except Exception, e:
-            LOG.error('Failed to read line %d: %s' % (i, e))
+            log.error('Failed to read line %d: %s' % (i, e))
             import traceback
             traceback.print_exc()
             continue
@@ -1176,7 +1181,7 @@ def read(self, handle):
     try:
         expocode = expocodes[filename[:3]]
     except KeyError:
-        LOG.warning('unknown GEOSECS expocode')
+        log.warning('unknown GEOSECS expocode')
         expocode = 'UNKNOWN'
 
     def combine_measures(values, qcs):
@@ -1337,7 +1342,7 @@ def read(self, handle):
         if (    len(filter(None, column.values)) == 0 and 
                 len(filter(None, column.flags_woce)) == 0 and 
                 len(filter(None, column.flags_igoss)) == 0):
-            LOG.debug('Deleting empty column %s' % key)
+            log.debug('Deleting empty column %s' % key)
             del self.columns[key]
 
     self.globals['stamp'] = config.stamp()

@@ -17,13 +17,18 @@ import urllib
 from urllib import quote
 from cookielib import LWPCookieJar
 from json import dumps as json_dumps
+from logging import getLogger
+
+
+log = getLogger(__name__)
+
 
 import transaction
 
 import requests
 from requests.exceptions import ConnectionError
 
-from libcchdo import LOG, __version__
+from libcchdo import __version__
 from libcchdo.formats.formats import guess_file_type
 from libcchdo.db import connect
 from libcchdo.db.util import wkt_to_track
@@ -80,7 +85,7 @@ def working_dir_expocode(working_dir):
     while not is_cruise_dir(cwd):
         cwd = os.path.dirname(cwd)
     if not cwd or cwd == '/':
-        LOG.error(u'Unable to find cruise directory')
+        log.error(u'Unable to find cruise directory')
         return None
     return read_cruise_dir_expocode(cwd)
 
@@ -186,7 +191,7 @@ class Datastore(object):
             self.check_online_checksums(
                 readme.uow_dir, readme.uow_cfg['expocode'])
         except ValueError, err:
-            LOG.error(u'{0} Abort.'.format(err))
+            log.error(u'{0} Abort.'.format(err))
             raise
 
     def _get_file_manifest(self, uow_dir, tgo_files):
@@ -302,10 +307,10 @@ class LegacyDatastore(Datastore):
         qf_info = []
         for qf in self._as_received(*ids):
             if qf.is_merged():
-                LOG.info(
+                log.info(
                     u'QueueFile {0} is marked already merged'.format(qf.id))
             elif qf.is_hidden():
-                LOG.info(u'QueueFile {0} is marked hidden'.format(qf.id))
+                log.info(u'QueueFile {0} is marked hidden'.format(qf.id))
             path = qf.unprocessed_input
             filename = os.path.basename(path)
 
@@ -315,7 +320,7 @@ class LegacyDatastore(Datastore):
 
             with self.aftp.dl(path) as fff:
                 if fff is None:
-                    LOG.error(u'Unable to download {0}'.format(path))
+                    log.error(u'Unable to download {0}'.format(path))
                     continue
                 with open(submission_path, 'w') as ooo:
                     copyfileobj(fff, ooo)
@@ -333,11 +338,11 @@ class LegacyDatastore(Datastore):
             filter(legacy.Document.FileType == 'Directory')
         num_docs = q_docs.count()
         if num_docs < 1:
-            LOG.error(
+            log.error(
                 u'{0} does not have a directory entry.'.format(expocode))
             raise ValueError()
         elif num_docs > 1:
-            LOG.error(
+            log.error(
                 u'{0} has more than one directory entry.'.format(expocode))
             raise ValueError()
         yield q_docs.first()
@@ -371,7 +376,7 @@ class LegacyDatastore(Datastore):
                         continue
                     with self.aftp.dl(online_path) as fff:
                         if not fff:
-                            LOG.error(
+                            log.error(
                                 u'Could not download {0}'.format(online_path))
                             continue
                         with open(local_path, 'w') as ooo:
@@ -380,10 +385,10 @@ class LegacyDatastore(Datastore):
                     os.unlink(local_path)
                     if fname in self.IGNORED_FILES:
                         continue
-                    LOG.error(
+                    log.error(
                         u'Could not download {0}:\n{1!r}'.format(fname, e))
         except IOError, err:
-            LOG.error(
+            log.error(
                 u'Unable to list cruise directory {0}'.format(cruise_dir))
         except ValueError:
             pass
@@ -399,23 +404,23 @@ class LegacyDatastore(Datastore):
         except ValueError:
             return
         originals_dir = os.path.join(cruise_dir, 'original')
-        LOG.info(u'Downloading {0}'.format(originals_dir))
+        log.info(u'Downloading {0}'.format(originals_dir))
 
         try:
             self.aftp.dl_dir(originals_dir, path)
         except IOError:
-            LOG.error(
+            log.error(
                 u'Unable to download originals directory {0}'.format(path))
 
     def mark_merged(self, q_ids):
         for qid in q_ids:
             qf = self.Lsesh.query(QueueFile).filter(QueueFile.id == qid).first()
             if not qf:
-                LOG.error(u'Missing QueueFile {0}'.format(qid))
+                log.error(u'Missing QueueFile {0}'.format(qid))
                 raise ValueError(u'Unable to mark QueueFile {0} as merged.'.format(
                     qid))
             if qf.is_merged():
-                LOG.warn(u'QueueFile {0} is already merged.'.format(qf.id))
+                log.warn(u'QueueFile {0} is already merged.'.format(qf.id))
             qf.date_merged = date.today()
             qf.set_merged()
 
@@ -424,7 +429,7 @@ class LegacyDatastore(Datastore):
         cruise = self.Lsesh.query(legacy.Cruise).\
             filter(legacy.Cruise.ExpoCode == expocode).first()
         if not cruise:
-            LOG.error(
+            log.error(
                 u'{0} does not refer to a cruise that exists.'.format(expocode))
             return
 
@@ -470,11 +475,11 @@ class LegacyDatastore(Datastore):
         self.cruise_original_dir = os.path.join(cruise_dir, 'original')
         if not self.aftp.isdir(self.cruise_original_dir):
             try:
-                LOG.info(u'Cruise original directory did not exist. Creating. '
+                log.info(u'Cruise original directory did not exist. Creating. '
                     '{0}'.format(self.cruise_original_dir))
                 self.aftp.mkdir(self.cruise_original_dir, dir_perms)
             except (IOError, OSError), err:
-                LOG.error(
+                log.error(
                     u'Could not ensure original directory {0} exists: '
                     '{1!r}'.format(self.cruise_original_dir, err))
                 raise ValueError()
@@ -500,7 +505,7 @@ class LegacyDatastore(Datastore):
         remote_work_path = os.path.join(self.cruise_original_dir, work_dir_base)
         try:
             if self.aftp.isdir(remote_work_path):
-                LOG.error(u'Work directory {work_dir} already exists on '
+                log.error(u'Work directory {work_dir} already exists on '
                           '{host}. Abort.'.format(
                     work_dir=remote_work_path, host=self.sftp_host))
                 raise ValueError()
@@ -525,7 +530,7 @@ class LegacyDatastore(Datastore):
                     readme.uow_dir, work_dir, dir_perms, *file_sets)
                 updated_files = new_files | overwritten_files
             except ValueError, err:
-                LOG.error(format_exc(err))
+                log.error(format_exc(err))
                 raise err
 
             work_readme_path = os.path.join(work_dir, README_FILENAME)
@@ -535,10 +540,10 @@ class LegacyDatastore(Datastore):
                     readme.finalize_sections(
                         remote_work_path, cruise_dir, list(updated_files)))
             except ValueError, err:
-                LOG.error(u'{0} Abort.\n{1}'.format(err, format_exc(err)))
+                log.error(u'{0} Abort.\n{1}'.format(err, format_exc(err)))
                 raise err
 
-            LOG.debug(u'{0} final sections:\n{1}'.format(
+            log.debug(u'{0} final sections:\n{1}'.format(
                 README_FILENAME, final_sections))
 
             with open(work_readme_path, 'w') as ooo:
@@ -546,7 +551,7 @@ class LegacyDatastore(Datastore):
             copy2(work_readme_path, finalized_readme_path)
 
             # All green. Go!
-            LOG.info(u'Committing to {0}:{1}'.format(
+            log.info(u'Committing to {0}:{1}'.format(
                 self.sftp_host, remote_work_path))
 
             # upload the working directory
@@ -556,7 +561,7 @@ class LegacyDatastore(Datastore):
         # those affected have already been written to originals.
         for fname in removed_files:
             self.aftp.remove(os.path.join(cruise_dir, fname))
-        LOG.info('unchanged:')
+        log.info('unchanged:')
         for fname in unchanged_files:
             try:
                 self.aftp.up(
@@ -566,14 +571,14 @@ class LegacyDatastore(Datastore):
                 # It doesn't matter, the file hasn't changed.
                 pass
                 
-        LOG.info('updated/new:')
+        log.info('updated/new:')
         for fname in updated_files:
             try:
                 self.aftp.up(
                     os.path.join(readme.uow_dir, UOWDirName.tgo, fname),
                     os.path.join(cruise_dir, fname), suppress_errors=False)
             except IOError, err:
-                LOG.critical(
+                log.critical(
                     u'Unable to put {0} online: {1!r}'.format(fname, err))
         # There isn't any way we can recover at this point. Some updated files
         # may have been overwritten by now. There's no filesystem atomicity.
@@ -608,8 +613,8 @@ class LegacyDatastore(Datastore):
                     readme.uow_dir, PROCESSING_EMAIL_FILENAME)
                 pemail.send(email_path)
             except (KeyboardInterrupt, Exception), err:
-                LOG.error(u'Could not send email: {0}'.format(format_exc(3)))
-                LOG.info(u'Retry with hydro datadir processing_note')
+                log.error(u'Could not send email: {0}'.format(format_exc(3)))
+                log.info(u'Retry with hydro datadir processing_note')
                 transaction.doom()
 
         if dryrun:
@@ -680,7 +685,7 @@ FROM track_lines, cruises WHERE cruises.ExpoCode = track_lines.ExpoCode"""
                 
             tracks = query.all()
             for track, expocode, date_start in tracks:
-                LOG.info(expocode)
+                log.info(expocode)
                 track = wkt_to_track(track)
                 track_callback(track, expocode, date_start)
             bin_callback()
@@ -769,7 +774,7 @@ class PycchdoDatastore(Datastore):
         try:
             resp = self.session.request(*args, **kwargs)
         except ConnectionError as err:
-            LOG.critical(u'Unable to connect to CCHDO.')
+            log.critical(u'Unable to connect to CCHDO.')
             raise
         if (    resp.history and resp.history[-1].status_code == 303 and
                 resp.url.endswith('/session/identify')):
@@ -791,7 +796,7 @@ class PycchdoDatastore(Datastore):
 
     def cruise_dir(self, expocode):
         """Return a fully-qualified path to the cruise directory."""
-        LOG.info(u'pycchdo does not use the concept of cruise directories.')
+        log.info(u'pycchdo does not use the concept of cruise directories.')
         return ''
 
     def as_received_unmerged_list(self):
@@ -828,9 +833,9 @@ class PycchdoDatastore(Datastore):
         qf_info = []
         for asr in self._as_received(*ids):
             if asr['state'].startswith('acc'):
-                LOG.info(u'ASR {0} is already merged'.format(asr['id']))
+                log.info(u'ASR {0} is already merged'.format(asr['id']))
             elif asr['state'].startswith('rej'):
-                LOG.info(u'ASR {0} is hidden'.format(asr['id']))
+                log.info(u'ASR {0} is hidden'.format(asr['id']))
 
             filename = asr['value']['filename']
 
@@ -872,7 +877,7 @@ class PycchdoDatastore(Datastore):
                     ooo.write(resp.content)
             except (IOError, OSError), err:
                 os.unlink(local_path)
-                LOG.error(u'Could not download {0}:\n{1}'.format(fname, err))
+                log.error(u'Could not download {0}:\n{1}'.format(fname, err))
 
     def fetch_originals(self, path, cid):
         """Copy the referenced cruise's original datafiles into the directory.
@@ -922,7 +927,7 @@ class PycchdoDatastore(Datastore):
 
         ftype = guess_file_type(fname)
         if not ftype:
-            LOG.warn(u'Unable to determine file type for file to go '
+            log.warn(u'Unable to determine file type for file to go '
                 'online: {0}.'.format(fname))
             return None
 
@@ -954,7 +959,7 @@ class PycchdoDatastore(Datastore):
                 results.append(fsf)
                 result_types.append(ftype)
             else:
-                LOG.info(u'Add file type to configuration under tgo_keys '
+                log.info(u'Add file type to configuration under tgo_keys '
                          'or remove the file from to go online directory.')
                 raise ValueError('Aborted.')
 
@@ -968,9 +973,9 @@ class PycchdoDatastore(Datastore):
                 readme.conversions() + \
                 readme.updated_files_manifest(updated_files))
         except ValueError, err:
-            LOG.error(u'{0} Abort.'.format(err))
+            log.error(u'{0} Abort.'.format(err))
             return
-        LOG.debug(u'{0} final sections:\n{1}'.format(
+        log.debug(u'{0} final sections:\n{1}'.format(
             README_FILENAME, final_sections))
 
         finalized_readme_path = os.path.join(
@@ -1008,12 +1013,12 @@ class PycchdoDatastore(Datastore):
             data['uow_cfg'] = json_dumps(uow_cfg)
             files['readme'] = (README_FILENAME, readme_str)
 
-            LOG.info(u'Committing.')
+            log.info(u'Committing.')
             resp = self.api('/staff/uow', method='POST', data=data, files=files)
             if resp.status_code != 200:
                 try:
-                    LOG.error("Status code: {0}".format(resp.status_code))
-                    LOG.error(resp.json()['error'])
+                    log.error("Status code: {0}".format(resp.status_code))
+                    log.error(resp.json()['error'])
                 finally:
                     raise ValueError('Commit failed.')
 

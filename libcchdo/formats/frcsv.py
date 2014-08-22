@@ -4,8 +4,12 @@
 from datetime import datetime
 from re import compile as re_compile
 from csv import reader as csv_reader, excel
+from logging import getLogger
 
-from libcchdo.log import LOG
+
+log = getLogger(__name__)
+
+
 from libcchdo.fns import _decimal
 from libcchdo.formats.woce import (
     fuse_datetime, woce_lat_to_dec_lat, woce_lng_to_dec_lng)

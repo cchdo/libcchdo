@@ -1,3 +1,4 @@
+from logging import getLogger
 from socket import error as sockerr
 from SimpleHTTPServer import SimpleHTTPRequestHandler
 from urlparse import urlparse, parse_qsl
@@ -7,6 +8,9 @@ import oauth2 as oauth
 
 from libcchdo.serve import get_local_host, open_server_on_high_port
 from libcchdo.config import get_option, set_option, ConfigError
+
+
+log = getLogger(__name__)
 
 
 class AuthenticatorHTTPServer(SimpleHTTPRequestHandler):
@@ -76,15 +80,15 @@ class BBOAuth(object):
         try:
             token.set_verifier(httpd.oauth_verifier)
         except AttributeError:
-            LOG.error(u'Did not get OAuth verifier.')
+            log.error(u'Did not get OAuth verifier.')
             return
         client = oauth.Client(consumer, token)
 
         resp, content = client.request(access_token_url, "POST")
         if resp['status'] != '200':
-            LOG.error(u'Unable to get access token.')
-            LOG.debug(resp)
-            LOG.debug(content)
+            log.error(u'Unable to get access token.')
+            log.debug(resp)
+            log.debug(content)
             return
         access_token = dict(parse_qsl(content))
         return (access_token['oauth_token'],
@@ -102,7 +106,7 @@ class BBOAuth(object):
         try:
             token = oauth.Token(oauth_token, oauth_token_secret)
         except KeyError:
-            LOG.error(u'Unable to get access token.')
+            log.error(u'Unable to get access token.')
             return None
         return token
 

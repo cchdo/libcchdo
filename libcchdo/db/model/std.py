@@ -2,6 +2,11 @@ import sys
 import os.path
 from contextlib import contextmanager, closing
 from threading import Lock
+from logging import getLogger
+
+
+log = getLogger(__name__)
+
 
 import sqlalchemy as S
 import sqlalchemy.orm
@@ -10,7 +15,6 @@ from sqlalchemy.exc import OperationalError
 from sqlalchemy.sql.expression import exists
 
 from libcchdo import config, check_cache
-from libcchdo.log import LOG
 from libcchdo.fns import _decimal
 from libcchdo.db import connect
 from legacy import session as LegacySession
@@ -41,7 +45,7 @@ def session(no_global=False):
 
 
 def _populate_library_database_parameters(std_session):
-    LOG.info("Populating database with parameters.")
+    log.info("Populating database with parameters.")
 
     # TODO have multiple strategies to download parameter information
     # a JSON API will be provided by pycchdo so use that when it becomes
@@ -75,14 +79,14 @@ def _ensure_database_cache():
     with closing(session()) as std_session:
         db_cache_path = config.get_option('db', 'cache')
         if not os.path.isfile(db_cache_path):
-            LOG.info(u"Generating cache (%s)." % db_cache_path)
+            log.info(u"Generating cache (%s)." % db_cache_path)
             Base.metadata.create_all(std_session.get_bind())
 
         try:
             if not std_session.query(Parameter).count():
                 _populate_library_database_parameters(std_session)
         except OperationalError, e:
-            LOG.info(
+            log.info(
                 u'Database operational error possibly due to schema change.'
                 'Regenerating cache. Original error: %s' % e)
             _regenerate_database_cache(std_session)
@@ -533,8 +537,8 @@ def find_by_mnemonic(name):
             ParameterAlias.name == name).first()
         if alias:
             parameter = alias.parameter
-            LOG.info("%s is an alias for %s" % (name, parameter))
+            log.info("%s is an alias for %s" % (name, parameter))
         else:
             parameter = None
-            LOG.warn("%s is not a recognized parameter" % name)
+            log.warn("%s is not a recognized parameter" % name)
     return parameter

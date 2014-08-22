@@ -3,9 +3,10 @@
 NODC ship codes are used in the generation of CCHDO ExpoCodes.
 
 """
+from logging import getLogger
 
 
-from libcchdo import LOG
+log = getLogger(__name__)
 
 
 # TODO actually interface with NODC resource
@@ -39,10 +40,10 @@ def ship_code(ship_name, raise_on_unknown=True, default_to=None):
         if default_to is None and raise_on_unknown:
             raise ValueError(msg)
         else:
-            LOG.warn(msg)
+            log.warn(msg)
             if default_to is not None:
                 return default_to
-            LOG.warn(
+            log.warn(
                 u'Ship name {0!r} needs an NODC ship code defined.'.format(
                 ship_name))
             return SHIP_CODE_UNKNOWN

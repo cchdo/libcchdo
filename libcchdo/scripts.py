@@ -16,9 +16,15 @@ import sys
 import os
 import os.path
 from traceback import format_exc
+from logging import getLogger
+
+
+log = getLogger(__name__)
+
 
 import libcchdo
-from libcchdo.log import LOG
+from libcchdo.log import setup as setup_logging
+setup_logging()
 from libcchdo.formats.formats import all_formats, read_arbitrary
 from libcchdo.datadir.filenames import (
     README_FILENAME, PROCESSING_EMAIL_FILENAME, UOW_CFG_FILENAME)
@@ -84,10 +90,10 @@ def lazy_choices(parser):
 
 def _qualify_oceansites_type(args):
     if args.timeseries is None:
-        LOG.warn(
+        log.warn(
             u'Printing an AMBIGUOUS (read: INVALID) OceanSITES NetCDF Zip')
     else:
-        LOG.info(
+        log.info(
             u'Printing a {0} OceanSITES NetCDF Zip'.format(args.timeseries))
 
 
@@ -139,7 +145,7 @@ def check_any(args):
         try:
             file = read_arbitrary(in_file, args.input_type)
         except Exception, e:
-            LOG.error('Unable to read file {0}:\n{1}'.format(
+            log.error('Unable to read file {0}:\n{1}'.format(
                 args.cchdo_file, format_exc(e)))
             hydro_parser.exit(1) 
 
@@ -155,7 +161,7 @@ def check_any(args):
                 continue
 
             if len(c.flags_woce) != len(c.values):
-                LOG.error(u'column {0} has different number of values ({1}) '
+                log.error(u'column {0} has different number of values ({1}) '
                     'and flags ({2})'.format(
                         c.parameter.name, len(c.values), len(c.flags_woce)))
 
@@ -165,13 +171,13 @@ def check_any(args):
                 is_fill_value = value is None
                 require_fill_value = flag in flags_fill
                 if require_fill_value and not is_fill_value:
-                    LOG.warn(
+                    log.warn(
                         (u'column {0} row {1} has data {2!r} but expected '
                          'fill value for flag {3}: {4!r}').format(
                             c.parameter.name, i, value, flag,
                             woce.WATER_SAMPLE_FLAGS[flag]))
                 elif is_fill_value and not require_fill_value:
-                    LOG.warn(
+                    log.warn(
                         (u'column {0} row {1} has unexpected fill value for '
                          'flag {2}: {3!r}').format(
                             c.parameter.name, i, flag,
@@ -180,7 +186,7 @@ def check_any(args):
     def check_empty_columns(dfile):
         for c in dfile.columns.values():
             if c.values and c.values[0] is None and c.is_global():
-                LOG.info(u'column {0} is empty (only has fill values)'.format(
+                log.info(u'column {0} is empty (only has fill values)'.format(
                     c.parameter.name))
 
     def check_flag_0(dfile):
@@ -188,13 +194,13 @@ def check_any(args):
         for col in dfile.columns.values():
             try:
                 index = col.flags_woce.index(0)
-                LOG.warn(u'column {0} has flag 0 at row {1}'.format(
+                log.warn(u'column {0} has flag 0 at row {1}'.format(
                     col.parameter.name, index))
             except ValueError:
                 pass
 
     def check_datafile(df):
-        LOG.info(u'Checking datafile format')
+        log.info(u'Checking datafile format')
         df.check_and_replace_parameters(convert=False)
         check_fill_value_has_flag_w_9(df)
         check_empty_columns(df)
@@ -208,16 +214,16 @@ def check_any(args):
             # the integers can be large and will not satisfy 'is' conditions
             # because they will not be the same object
             if len(check_cols) != len(unique_pairs):
-                LOG.warn("Non unique values for columns ({0})".format(
+                log.warn("Non unique values for columns ({0})".format(
                                 ",".join(args.verify_unique)
                                 ))
                 non_unique = [x for x, y in
                         collections.Counter(check_cols).items()
                         if y > 1]
-                LOG.warn("The following are duplicated")
+                log.warn("The following are duplicated")
                 for item in non_unique:
                     item = zip(args.verify_unique, item)
-                    LOG.warn(", ".join(["{0}: {1}".format(*i) for i in item]))
+                    log.warn(", ".join(["{0}: {1}".format(*i) for i in item]))
 
     with closing(args.output) as out_file:
         try:
@@ -276,7 +282,7 @@ def any_to_type(args):
             try:
                 format = all_formats[args.output_type]
             except (KeyError, ImportError):
-                LOG.error('Unrecognized format %s' % args.output_type)
+                log.error('Unrecognized format %s' % args.output_type)
                 return 1
             format.write(file, out_file)
 
@@ -330,7 +336,7 @@ def any_to_db_track_lines(args):
     try:
         data.expocodes()
     except KeyError:
-        LOG.error(u'Please supply an ExpoCode using the --expocode flag.')
+        log.error(u'Please supply an ExpoCode using the --expocode flag.')
         return
     track_lines.write(data)
 
@@ -619,7 +625,7 @@ def ctd_polarstern_to_ctd_exchange(args):
     try:
         db = sqlite3.connect(args.database_file)
     except:
-        LOG.error(u"{0} is not a SQLite3 database.".format(args.database_file))
+        log.error(u"{0} is not a SQLite3 database.".format(args.database_file))
         return 1
 
     with closing(db) as db:
@@ -765,7 +771,7 @@ def ctdzip_exchange_to_ctdzip_netcdf(args):
     import libcchdo.formats.ctd.zip.netcdf as ctdzipnc
 
     dfc = DataFileCollection()
-    LOG.debug(repr(args))
+    log.debug(repr(args))
 
     with closing(args.ctdzipex) as in_file:
         ctdzipex.read(dfc, in_file)
@@ -1025,7 +1031,7 @@ def convert_per_litre_to_per_kg(args):
         format_module = ctdzipex
         df = DataFileCollection()
     else:
-        LOG.error(u'Unacceptable format name.')
+        log.error(u'Unacceptable format name.')
         return
 
     with closing(args.input) as in_file:
@@ -1239,7 +1245,7 @@ def _merge_ex_and_ex(args, file_format, key_determiner, collection=False):
         keycols = key_determiner(origin, deriv)
     else:
         keycols = [xxx.strip() for xxx in args.key.split(',')]
-    LOG.info('Merging on keys composed of: {0!r}'.format(keycols))
+    log.info('Merging on keys composed of: {0!r}'.format(keycols))
 
     if args.parameters_to_merge:
         parameters = args.parameters_to_merge
@@ -1247,10 +1253,10 @@ def _merge_ex_and_ex(args, file_format, key_determiner, collection=False):
         p_different, p_not_in_origin, p_not_in_derivative, p_common = \
             different_columns(origin, deriv, keycols)
         parameters = p_different + p_not_in_origin
-        LOG.info(u'The following parameters in {0} are different'.format(
+        log.info(u'The following parameters in {0} are different'.format(
             deriv_name))
         if args.merge_different:
-            LOG.info(u', '.join(parameters))
+            log.info(u', '.join(parameters))
         else:
             # Show parameters with differing data
             print u'\n'.join(parameters)
@@ -1450,15 +1456,15 @@ def datadir_fetch(args):
                  f['filename']]))
         return
     if not args.title or not args.summary:
-        LOG.error(
+        log.error(
             u'Please provide a title and summary for your UOW.\n'
             'hydro datadir fetch "title" "summary"')
-        LOG.info(u'List of as-received files specified:')
+        log.info(u'List of as-received files specified:')
         for info in fc.dstore.as_received_infos(*args.ids):
-            LOG.info(u'{0}\t{1}'.format(info['data_type'], info['filename']))
+            log.info(u'{0}\t{1}'.format(info['data_type'], info['filename']))
         return
     if not args.ids:
-        LOG.info(u'Creating a UOW without queue files to work on.')
+        log.info(u'Creating a UOW without queue files to work on.')
     uow_path = fc.mkdir_uow(args.basepath, args.title, args.summary, args.ids,
                     dl_originals=(not args.skip_dl_original))
     if uow_path:
@@ -1640,13 +1646,13 @@ def datadir_add_processing_note(args):
             with open(args.readme_path) as fff:
                 readme = fff.read()
         except IOError:
-            LOG.error(u'Cannot continue without {0}'.format(README_FILENAME))
+            log.error(u'Cannot continue without {0}'.format(README_FILENAME))
             return
         fc = FetchCommitter()
         fc.uow_commit_postflight(
             readme, args.email_path, uow_cfg, args.dry_run)
     else:
-        LOG.error(u'README is not valid reST or merger rejected. Stop.')
+        log.error(u'README is not valid reST or merger rejected. Stop.')
         return
 
 
@@ -1740,7 +1746,7 @@ def datadir_correct_expocode_alias(args):
     try:
         with open(args.alias_map) as fff:
             alias_map = json_load(fff)
-        LOG.info(u'Using alias map: {0!r}'.format(alias_map))
+        log.info(u'Using alias map: {0!r}'.format(alias_map))
     except (OSError, IOError), err:
         if args.alias_map == 'alias_map.json':
             alias_map = {}
@@ -2115,7 +2121,7 @@ def plot_data_holdings_around(args):
         # change color of dots
         gmt_style['c'] = colors.pop()
         gmt_style['s'] = sizes.pop()
-        LOG.debug(gmt_style)
+        log.debug(gmt_style)
 
     def track_points(track, expocode, date_start):
         lons = []
@@ -2415,7 +2421,7 @@ def bottle_exchange_canon(args):
     """Rewrite a bottle exchange file with all parameters converted to canon.
 
     """
-    LOG.critical(u'DEPRECATED use hydro convert misc canon instead')
+    log.critical(u'DEPRECATED use hydro convert misc canon instead')
 
 
 with subcommand(misc_parsers, 'bottle_exchange_canon',
@@ -2467,7 +2473,7 @@ def rebuild_hot_bats_oceansites(args):
     from libcchdo.tools import rebuild_hot_bats_oceansites as rebuilder
     from libcchdo.log import RebuildOceanSITESFilter
 
-    LOG.addFilter(RebuildOceanSITESFilter())
+    log.addFilter(RebuildOceanSITESFilter())
     do_for_cruise_directories(rebuilder)
 
 
@@ -2688,7 +2694,7 @@ def fix_perms(args):
     from pwd import getpwnam
 
     if os.getuid() != 0:
-        LOG.error(
+        log.error(
             u'Please run with elevated privileges to change permissions.')
         return
 
@@ -2820,4 +2826,4 @@ def main():
         try:
             hydro_parser.exit(args.main(args))
         except Exception, err:
-            LOG.critical(format_exc(err))
+            log.critical(format_exc(err))

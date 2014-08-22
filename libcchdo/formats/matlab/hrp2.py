@@ -77,9 +77,14 @@ from datetime import datetime
 from contextlib import contextmanager
 import tempfile
 import sys
+from logging import getLogger
+
+
+log = getLogger(__name__)
+
 
 from libcchdo.util import memoize
-from libcchdo import fns, LOG
+from libcchdo import fns
 from libcchdo.model.datafile import DataFile, DataFileCollection, Column
 from libcchdo.formats import zip as Zip
 from libcchdo.formats import netcdf as nc
@@ -296,7 +301,7 @@ def _write_depths(var_depth, dfile, cvt):
 
 def _write_dfile(dfile, fileobj, cfg=DEFAULT_CFG, cvt=None):
     """Write microstructure COARDS compliant file."""
-    LOG.debug(dfile.globals)
+    log.debug(dfile.globals)
     with nc.nc_dataset_to_stream(fileobj, format='NETCDF3_CLASSIC') as nc_file:
         nc_file.Conventions = 'CF-1.6'
         nc_file.netcdf_version = '3'

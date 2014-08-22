@@ -8,9 +8,13 @@ import os.path
 import sys
 from collections import OrderedDict
 from pkgutil import walk_packages, iter_modules
+from logging import getLogger
+
+
+log = getLogger(__name__)
+
 
 import libcchdo.formats
-from libcchdo.log import LOG
 
 
 def get_filename_fnameexts(basename, exts):
@@ -119,7 +123,7 @@ class FormatScanner(object):
             try:
                 loaded_module = module.load_module(name)
             except ImportError, err:
-                LOG.error(u'Unable to load format module {0}:\n{1!r}'.format(
+                log.error(u'Unable to load format module {0}:\n{1!r}'.format(
                     name, err))
                 continue
             sys.modules[name] = loaded_module
@@ -133,7 +137,7 @@ class FormatScanner(object):
 
                 self.file_extensions[shortname] = loaded_module._fname_extensions
             except AttributeError, err:
-                #LOG.info('Not a format module {0}: {1!r}'.format(name, err))
+                #log.info('Not a format module {0}: {1!r}'.format(name, err))
                 pass
 
             # A fully defined format module must have either a read or write
@@ -149,7 +153,7 @@ class FileExtensions(ShieldedDict):
 class FileTypeModule(ShieldedDict):
     def __getitem__(self, key):
         if type(key) is not str:
-            LOG.debug(repr(key))
+            log.debug(repr(key))
             return key
         module = super(FileTypeModule, self).__getitem__(key)
         if type(module) is not str:
@@ -184,7 +188,7 @@ def guess_file_type(filename, file_type=None):
         return sorted(matches, key=lambda x: len(x[1]), reverse=True)[0][0]
     else:
         # TODO use is_filename_recognized and is_file_recognized
-        LOG.error(u'Unable to guess file type')
+        log.error(u'Unable to guess file type')
         return None
 
 

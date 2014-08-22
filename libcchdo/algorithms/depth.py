@@ -1,4 +1,9 @@
-from libcchdo.log import LOG
+from logging import getLogger
+
+
+log = getLogger(__name__)
+
+
 from libcchdo.fns import _decimal, polynomial as polyn, sin
 
 from mpmath import sin as mpsin
@@ -105,7 +110,7 @@ def secant_bulk_modulus(salinity, temperature, pressure):
             return Kw + polyn(t, F) * s + \
                    polyn(t, G) * (s ** 3).sqrt()
         except InvalidOperation, e:
-            LOG.debug('Invalid operation probably caused by salinity = %r' % s)
+            log.debug('Invalid operation probably caused by salinity = %r' % s)
             raise e
 
     H = _decimal('3.239908', '1.43713e-3', '1.16092e-4', '-5.77905e-7')
@@ -115,7 +120,7 @@ def secant_bulk_modulus(salinity, temperature, pressure):
     try:
         A = Aw + polyn(t, I) * s + j0 * (s ** 3).sqrt()
     except InvalidOperation, e:
-        LOG.debug('Invalid operation probably caused by salinity = %r' % s)
+        log.debug('Invalid operation probably caused by salinity = %r' % s)
         raise e
 
     K = _decimal('8.50935e-5', '-6.12293e-6', '5.2787e-8')
@@ -154,7 +159,7 @@ def density(salinity, temperature, pressure):
                    polyn(t, C) * (s ** 3).sqrt() + \
                    d0 * (s ** _decimal(2))
         except InvalidOperation, e:
-            LOG.debug('Invalid operation probably caused by salinity = %r' % s)
+            log.debug('Invalid operation probably caused by salinity = %r' % s)
             raise e
 
     # Strange correction of one order of magnitude needed?

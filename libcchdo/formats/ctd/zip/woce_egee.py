@@ -1,6 +1,10 @@
 from traceback import print_exc
+from logging import getLogger
 
-from libcchdo.log import LOG
+
+log = getLogger(__name__)
+
+
 from libcchdo.util import StringIO
 from libcchdo.model.datafile import DataFile
 from libcchdo.formats import zip as Zip
@@ -50,7 +54,7 @@ def read(self, handle):
             try:
                 woce_egee.read(ctdfile, tempstream)
             except Exception, e:
-                LOG.info('Failed to read file %s in %s' % (file, handle))
+                log.info('Failed to read file %s in %s' % (file, handle))
                 print_exc()
                 raise e
             self.append(ctdfile)

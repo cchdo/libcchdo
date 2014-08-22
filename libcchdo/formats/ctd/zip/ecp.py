@@ -1,7 +1,11 @@
 import tarfile
 from contextlib import closing
+from logging import getLogger
 
-from libcchdo.log import LOG
+
+log = getLogger(__name__)
+
+
 from libcchdo.model.datafile import DataFile
 from libcchdo.formats.ctd import ecp
 
@@ -16,5 +20,5 @@ def read(self, handle):
             try:
                 ecp.read(ctdfile, ecp_file)
             except ValueError:
-                LOG.error(u'Failed on {0}'.format(member.name))
+                log.error(u'Failed on {0}'.format(member.name))
             self.files.append(ctdfile)

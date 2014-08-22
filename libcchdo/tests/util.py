@@ -1,7 +1,11 @@
 import unittest
+from logging import getLogger
+
+
+log = getLogger(__name__)
+
 
 from libcchdo.util import get_library_abspath, memoize
-from libcchdo.log import LOG
 
 class TestUtil(unittest.TestCase):
 
@@ -22,4 +26,4 @@ class TestUtil(unittest.TestCase):
         self.assertEqual(get_library_abspath(), path)
 
     def test_log_unknown_level(self):
-        LOG.log(11, 'test unknown log level')
+        log.log(11, 'test unknown log level')

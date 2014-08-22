@@ -5,6 +5,11 @@
 from copy import deepcopy
 import sys
 from datetime import datetime
+from logging import getLogger
+
+
+log = getLogger(__name__)
+
 
 from libcchdo.formats import netcdf as nc
 
@@ -492,12 +497,12 @@ def write(self, handle):
         #    try:
         #        name = column.parameter.name_netcdf
         #    except AttributeError:
-        #        LOG.warn('No netcdf name for parameter: %s' % column.parameter)
+        #        log.warn('No netcdf name for parameter: %s' % column.parameter)
         #        continue
         #    try:
         #        assert name
         #    except AssertionError:
-        #        LOG.warn('Netcdf name for parameter is not specified: %s' % \
+        #        log.warn('Netcdf name for parameter is not specified: %s' % \
         #                 column.parameter)
         #        continue
 
@@ -538,7 +543,7 @@ def write(self, handle):
         #            flag[:] = [
         #                WOCE_to_OceanSITES_flag[f] for f in column.flags_woce]
         #    else:
-        #        LOG.info(("Parameter '%s' is not mapped to an OceanSITES "
+        #        log.info(("Parameter '%s' is not mapped to an OceanSITES "
         #                  'variable. Skipping.') % name)
         #    if name is 'PRES':
         #        # Fun using Sverdrup's depth integration with density.

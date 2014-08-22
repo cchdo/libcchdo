@@ -22,8 +22,8 @@ style flags or '_FLAG_I' suffix for IGOSS style flags or another similar style.
 """
 from copy import copy
 from collections import OrderedDict
+from logging import getLogger
 
-from libcchdo import LOG
 from libcchdo.formats import woce
 from libcchdo.formats.exchange import (
     END_DATA, FILL_VALUE, FLAG_ENDING_WOCE, FLAG_ENDING_IGOSS)
@@ -32,6 +32,9 @@ from libcchdo.recipes.orderedset import OrderedSet
 from libcchdo.recipes.defaultordereddict import DefaultOrderedDict
 from libcchdo.model.datafile import (
     DataFile, DataFileCollection, Column, PRESSURE_PARAMETERS)
+
+
+log = getLogger(__name__)
 
 
 BOTTLE_KEY_COLS = ('EXPOCODE', 'STNNBR', 'CASTNO', 'SAMPNO', 'BTLNBR',)
@@ -51,7 +54,7 @@ def merge_ctd_bacp_xmiss_and_ctd_exchange(file, mergefile):
         except KeyError:
             pass
     if merge_pressure is None or pressure is None:
-        LOG.warn(
+        log.warn(
             'Unable to find a matching pressure column in both files. Could '
             'not merge.')
         return 1
@@ -74,7 +77,7 @@ def merge_ctd_bacp_xmiss_and_ctd_exchange(file, mergefile):
     except KeyError:
         pass
     if not merge_xmiss:
-        LOG.warn('Merge file has no {0} column to merge'.format(param))
+        log.warn('Merge file has no {0} column to merge'.format(param))
         return 1
 
     for i, p in enumerate(merge_pressure.values):
@@ -138,7 +141,7 @@ def different_columns(origin, deriv, keys, row_map=None):
         for i, diff in enumerate(difflist):
             if not diff:
                 continue
-            LOG.info(u'{0} differs at origin row {1}:\t{2!r}'.format(
+            log.info(u'{0} differs at origin row {1}:\t{2!r}'.format(
                 param, i, difftuples[i]))
         
     # check common columns for differing data
@@ -222,23 +225,23 @@ def filter_params_to_merge(diffcols, not_in_orig_cols, not_in_deriv_cols,
                 unknown_parameters.append(param)
                 notdiff_params.remove(param)
         if unknown_parameters:
-            LOG.warn(
+            log.warn(
                 u'Instructed to merge parameters that are not in either '
                 'datafile: {0!r}'.format(list(unknown_parameters)))
         if notdiff_params:
-            LOG.warn(u'Instructed to merge parameters that are not different: '
+            log.warn(u'Instructed to merge parameters that are not different: '
                      '{0!r}'.format(list(notdiff_params)))
 
     if not params_to_merge:
         raise ValueError(u'No columns selected to merge are different.')
-    LOG.info(u'Merging {0}'.format(list(params_to_merge)))
+    log.info(u'Merging {0}'.format(list(params_to_merge)))
     return params_to_merge
 
 
 def map_keys(origin, deriv, keys):
     """Return a map of rows in origin to rows in deriv based on key columns."""
     if not keys:
-        LOG.error(u'No keys provided to map on.')
+        log.error(u'No keys provided to map on.')
         return []
 
     # Map the deriv's rows onto the origin's rows based on the keys while
@@ -286,10 +289,10 @@ def map_keys(origin, deriv, keys):
             except KeyError:
                 missing_in_derivative[key].append(iorigin)
     if non_unique_keys:
-        LOG.warn(u'Picked the first row of occurrence in derivative data for '
+        log.warn(u'Picked the first row of occurrence in derivative data for '
                  'non unique keys: {0!r}'.format(non_unique_keys))
     for key, rows in missing_in_derivative.items():
-        LOG.warn(u'Key {0!r} does not exist in derivative from origin rows '
+        log.warn(u'Key {0!r} does not exist in derivative from origin rows '
                  '{1!r}'.format(key, rows))
     missing_in_origin = DefaultOrderedDict(list)
     for key in derivkeys:
@@ -301,11 +304,11 @@ def map_keys(origin, deriv, keys):
             except KeyError:
                 missing_in_origin[key].append(ideriv)
     for key, rows in missing_in_origin.items():
-        LOG.warn(u'Key {0!r} does not exist in origin from derivative rows '
+        log.warn(u'Key {0!r} does not exist in origin from derivative rows '
                  '{1!r}'.format(key, rows))
 
     if not keymap:
-        LOG.error(u'No keys matched in origin and derivative files.')
+        log.error(u'No keys matched in origin and derivative files.')
 
     return keymap
 
@@ -337,9 +340,9 @@ def determine_bottle_keys(origin, deriv):
     keys1 = _determine_available_bottle_keys(origin)
     keys2 = _determine_available_bottle_keys(deriv)
     if keys1 != keys2:
-        LOG.warn(u'Mismatched key composition to merge on:\norigin:\t\t{0!r}\n'
+        log.warn(u'Mismatched key composition to merge on:\norigin:\t\t{0!r}\n'
                   'derivative:\t{1!r}'.format(keys1, keys2))
-        LOG.warn(u'Using common subset.')
+        log.warn(u'Using common subset.')
         return list(OrderedSet(keys1) & OrderedSet(keys2))
     return keys1
 
@@ -446,7 +449,7 @@ def merge_datafiles(origin, deriv, keys, parameters):
                         deriv_units = derivcol.parameter.units.name
                     except AttributeError:
                         deriv_units = ''
-                    LOG.warn(u'Changed units for {0} from {1!r} to {2!r}'.format(
+                    log.warn(u'Changed units for {0} from {1!r} to {2!r}'.format(
                         param, orig_units, deriv_units))
                     col.parameter.units = derivcol.parameter.units
                 col.set_length(len(merged))
@@ -492,12 +495,12 @@ def map_collections(origin, deriv, dfkeys=DFILE_KEY_COLS):
             dfile_map.append((odfile, ddfile, dfkey))
         except KeyError:
             dfile_map.append((odfile, odfile, dfkey))
-            LOG.warn(u'Origin file key {0!r} is not present in '
+            log.warn(u'Origin file key {0!r} is not present in '
                      'derivative collection.'.format(dfkey))
     for dfkey in d_key_file:
         if dfkey in o_key_file:
             continue
-        LOG.warn(u'Derivative file key {0!r} is not present in '
+        log.warn(u'Derivative file key {0!r} is not present in '
                  'origin collection.'.format(dfkey))
     return dfile_map
 
@@ -509,10 +512,10 @@ def merge_collections(origin, deriv, merge, dfkeys=DFILE_KEY_COLS):
     merged_dfc = DataFileCollection()
     dfile_map = map_collections(origin, deriv)
     for odfile, ddfile, dfkey in dfile_map:
-        LOG.info(u'Merging files for key {0}'.format(dfkey))
+        log.info(u'Merging files for key {0}'.format(dfkey))
         try:
             merged_dfc.append(merge(odfile, ddfile))
         except ValueError, err:
-            LOG.error(
+            log.error(
                 u'Unable to merge datafiles for {0}: {1}'.format(dfkey, err))
     return merged_dfc

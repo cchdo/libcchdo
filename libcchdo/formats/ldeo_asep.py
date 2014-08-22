@@ -10,8 +10,12 @@ ftp://ftp.nodc.noaa.gov/nodc/archive/arc0061/0112105/1.1/data/0-data/lb01_format
 
 """
 from datetime import datetime
+from logging import getLogger
 
-from libcchdo.log import LOG
+
+log = getLogger(__name__)
+
+
 from libcchdo.algorithms.depth import depth_unesco
 from libcchdo.db.model.std import Parameter, Unit
 from libcchdo.fns import _decimal
@@ -94,7 +98,7 @@ def read(self, fileobj):
     dtype = dtype_shipcode[0]
 
     if not is_datatype_ctd(dtype):
-        LOG.error(u'Unable to read non-CTD ASEP files at the moment.')
+        log.error(u'Unable to read non-CTD ASEP files at the moment.')
         return
 
     shipcode = dtype_shipcode[1:]
@@ -111,14 +115,14 @@ def read(self, fileobj):
 
     line2 = _getline(fileobj)
     while line2[0] != '&':
-        LOG.warn(u'Ignoring line not preceded by &: {0!r}'.format(line2))
+        log.warn(u'Ignoring line not preceded by &: {0!r}'.format(line2))
         line2 = _getline(fileobj)
 
     self.globals['header'] += "\n#" + line2 + "\n"
 
     line3 = _getline(fileobj)
     while line3[0] != '@':
-        LOG.warn(u'Ignoring line not preceded by @: {0!r}'.format(line2))
+        log.warn(u'Ignoring line not preceded by @: {0!r}'.format(line2))
         line3 = _getline(fileobj)
 
     param_keys = line3[1:].split()

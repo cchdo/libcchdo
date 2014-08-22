@@ -1,8 +1,12 @@
 import re
 from datetime import datetime
+from logging import getLogger
+
+
+log = getLogger(__name__)
+
 
 from libcchdo import config
-from libcchdo.log import LOG
 from libcchdo.fns import int_or_none, uniquify
 from libcchdo.formats import woce
 from libcchdo.formats.formats import (
@@ -114,7 +118,7 @@ def read(self, handle):
                 self.globals['header'] += line
         else:
             if not line.strip():
-                LOG.warn(u'Illegal empty line in summary file, row {0}'.format(i))
+                log.warn(u'Illegal empty line in summary file, row {0}'.format(i))
                 continue
             tokens = []
             for s, w in zip(column_starts, column_widths):
@@ -130,7 +134,7 @@ def read(self, handle):
                 date = datetime.strptime(tokens[5], '%m%d%y')
                 date = date.strftime('%Y%m%d')
             except ValueError, e:
-                LOG.error(u'Expected date format %m%d%y. Got {0!r}.'.format(
+                log.error(u'Expected date format %m%d%y. Got {0!r}.'.format(
                     tokens[5]))
                 date = None
             self['DATE'].append(date)

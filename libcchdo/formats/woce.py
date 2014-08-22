@@ -4,8 +4,12 @@ import re
 import struct
 import os.path
 from csv import reader as csv_reader
+from logging import getLogger
 
-from libcchdo.log import LOG
+
+log = getLogger(__name__)
+
+
 from libcchdo.util import get_library_abspath
 from libcchdo.model.datafile import Column
 from libcchdo.fns import (
@@ -192,7 +196,7 @@ def strptime_woce_date(woce_date):
         i_woce_date = int(woce_date)
         return datetime.strptime('%08d' % i_woce_date, '%Y%m%d').date()
     except (TypeError, ValueError):
-        LOG.warn(u"Malformed date {0!r}. Omitting.".format(woce_date))
+        log.warn(u"Malformed date {0!r}. Omitting.".format(woce_date))
         return None
 
 
@@ -200,13 +204,13 @@ def strptime_woce_time(woce_time):
     try:
         i_woce_time = int(woce_time)
         if i_woce_time >= 2400:
-            LOG.warn(
+            log.warn(
                 u"Illegal time {0:04d} >= 2400. Setting to 0.".format(
                     i_woce_time))
             i_woce_time = 0
         return datetime.strptime('%04d' % i_woce_time, '%H%M').time()
     except (TypeError, ValueError):
-        LOG.warn(u"Illegal time {0}. Setting to 0.".format(woce_time))
+        log.warn(u"Illegal time {0}. Setting to 0.".format(woce_time))
         return datetime.strptime('0000', '%H%M').time()
 
 
@@ -258,7 +262,7 @@ def _remove_char_columns(cols, *lines):
 def _warn_broke_character_column_rule(headername, headers):
     for header in headers:
         if len(header) > SAFE_COLUMN_WIDTH:
-            LOG.warn("%s '%s' has too many characters (>%d)." % \
+            log.warn("%s '%s' has too many characters (>%d)." % \
                      (headername, header, SAFE_COLUMN_WIDTH))
 
 
@@ -297,7 +301,7 @@ def read_data_egee(self, handle, parameters_line, units_line, asterisk_line):
     num_quality_flags = len(re.findall('\*+', asterisk_line)) - 1
     num_quality_words = len(parameters_line.split('QUALT'))-1
 
-    LOG.debug(u'{0} quality flags, {1} quality words'.format(
+    log.debug(u'{0} quality flags, {1} quality words'.format(
         num_quality_flags, num_quality_words))
 
     # The extra 1 in quality_length is for spacing between the columns
@@ -383,7 +387,7 @@ def _build_columns_for_row(self, iii, row, num_quality_words, parameters,
             try:
                 datum = _decimal(datum)
             except Exception, e:
-                LOG.warning(
+                log.warning(
                     u'Expected numeric data for parameter %r, got %r' % (
                     parameter, datum))
 
@@ -393,7 +397,7 @@ def _build_columns_for_row(self, iii, row, num_quality_words, parameters,
             try:
                 woce_flag = int(quality_flags[0][flag_i])
             except ValueError, e:
-                LOG.error(
+                log.error(
                     u'Received bad flag "{}" for {} on record {}'.format(
                     quality_flags[0][flag_i], parameter, iii))
                 raise e
@@ -408,7 +412,7 @@ def read_data(self, handle, parameters_line, units_line, asterisk_line):
     num_quality_flags = len(re.findall('\*{7,8}', asterisk_line))
     num_quality_words = len(parameters_line.split('QUALT'))-1
 
-    LOG.debug(u'{0} quality flags, {1} quality words'.format(
+    log.debug(u'{0} quality flags, {1} quality words'.format(
         num_quality_flags, num_quality_words))
 
     # The extra 1 in quality_length is for spacing between the columns
@@ -426,7 +430,7 @@ def read_data(self, handle, parameters_line, units_line, asterisk_line):
         unpack_str, parameters_line, num_param_columns)
     while start_bad[0] > -1:
         bad_cols.append(start_bad[1])
-        LOG.error('Bad column alignment starting at character %d' % \
+        log.error('Bad column alignment starting at character %d' % \
                   start_bad[1])
         # Attempt recovery by removing that column.
         parameters_line, units_line, asterisk_line = \
@@ -475,10 +479,10 @@ def read_data(self, handle, parameters_line, units_line, asterisk_line):
             break
         except struct.error, e:
             expected_len = struct.calcsize(unpack_str)
-            LOG.warn(
+            log.warn(
                 'Data record 0 has length %d (expected %d).' % (
                     len(line), expected_len))
-            LOG.info('There is likely extra columns of space between data '
+            log.info('There is likely extra columns of space between data '
                      'and flags. Detecting whether this is the case.')
             quality_word_spacing += 1
             tries += 1
@@ -488,7 +492,7 @@ def read_data(self, handle, parameters_line, units_line, asterisk_line):
     if not determined_num_columns:
         unpack_str = original_unpack_str
     handle.seek(savepoint)
-    LOG.debug(u'Settled on unpack format: {0!r}'.format(unpack_str))
+    log.debug(u'Settled on unpack format: {0!r}'.format(unpack_str))
 
     for iii, line in enumerate(handle):
         line = _remove_char_columns(bad_cols, line.rstrip())[0]
@@ -499,7 +503,7 @@ def read_data(self, handle, parameters_line, units_line, asterisk_line):
             unpacked = struct.unpack(unpack_str, line)
         except struct.error, e:
             expected_len = struct.calcsize(unpack_str)
-            LOG.warn('Data record %d has length %d (expected %d).' % (
+            log.warn('Data record %d has length %d (expected %d).' % (
                 iii, len(line), expected_len))
             raise e
 
@@ -620,7 +624,7 @@ def truncate_row(lll):
     for xxx in lll:
         if len(xxx) > COLUMN_WIDTH:
             trunc = xxx[:COLUMN_WIDTH]
-            LOG.warn(u'Truncated {0!r} to {1!r} because longer than {2} '
+            log.warn(u'Truncated {0!r} to {1!r} because longer than {2} '
                      'characters.'.format(xxx, trunc, COLUMN_WIDTH))
             xxx = trunc
         truncated.append(xxx)
@@ -670,7 +674,7 @@ def write_data(self, handle, columns, base_format):
                     formatted_value = format % FILL_VALUE
             except TypeError:
                 formatted_value = column[i]
-                LOG.warn(u'Invalid WOCE format for {0} to {1!r}. '
+                log.warn(u'Invalid WOCE format for {0} to {1!r}. '
                     'Treating as string.'.format(
                     column.parameter, formatted_value))
 
@@ -682,7 +686,7 @@ def write_data(self, handle, columns, base_format):
                 else:
                     old_value = formatted_value
                     formatted_value = formatted_value[:-extra]
-                    LOG.warn(u'Truncated {0!r} to {1} for {2} '
+                    log.warn(u'Truncated {0!r} to {1} for {2} '
                              'row {3}'.format(old_value, formatted_value,
                                               column.parameter.name, i))
 
@@ -734,13 +738,13 @@ def fuse_datetime_columns(file):
     try:
         dates = file['DATE'].values
     except KeyError:
-        LOG.error(u'No DATE column is present.')
+        log.error(u'No DATE column is present.')
         return
 
     try:
         times = file['TIME'].values
     except KeyError:
-        LOG.warn(u'No TIME column is present.')
+        log.warn(u'No TIME column is present.')
 
     file['_DATETIME'] = Column('_DATETIME')
     file['_DATETIME'].values = [strptime_woce_date_time(*x) for x in zip(
@@ -814,7 +818,7 @@ def split_datetime(file):
         try:
             split_datetime_columns(file)
         except KeyError:
-            LOG.warn(u'Unable to split non-existant _DATETIME column')
+            log.warn(u'Unable to split non-existant _DATETIME column')
 
 
 _MSG_NO_STN_CAST_PAIR = (u'The station cast pair ({}, {}) was not found in '
@@ -839,7 +843,7 @@ def combine(woce_file, sum_file):
         try:
             sum_file_index = sum_file.index(station, cast)
         except ValueError, e:
-            LOG.error(_MSG_NO_STN_CAST_PAIR.format(station, cast))
+            log.error(_MSG_NO_STN_CAST_PAIR.format(station, cast))
             raise e
         values = sum_file.get_property_for_columns(lambda c: c[sum_file_index])
 
@@ -868,7 +872,7 @@ def combine(woce_file, sum_file):
             try:
                 sum_file_index = sum_file.index(station, cast)
             except ValueError, e:
-                LOG.error(_MSG_NO_STN_CAST_PAIR.format(station, cast))
+                log.error(_MSG_NO_STN_CAST_PAIR.format(station, cast))
                 raise e
             values = sum_file.get_property_for_columns(
                 lambda c: c[sum_file_index])

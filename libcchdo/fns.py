@@ -13,7 +13,6 @@ import sys
 from datetime import datetime, timedelta
 
 from libcchdo import RADIUS_EARTH
-from libcchdo.log import LOG
 
 
 # Define isnan for python <2.6

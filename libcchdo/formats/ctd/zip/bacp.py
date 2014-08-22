@@ -1,6 +1,5 @@
 from contextlib import closing
 
-from libcchdo.log import LOG
 from libcchdo.formats.ctd import bacp
 from libcchdo.formats.zip import read as zip_read
 

@@ -18,10 +18,14 @@ from shutil import copy2, copytree
 import stat
 from stat import S_ISDIR
 from errno import ENOENT
+from logging import getLogger
+
+
+log = getLogger(__name__)
+
 
 from paramiko import SSHException, SSHClient, AutoAddPolicy
 
-from libcchdo import LOG
 from libcchdo.datadir.util import mkdir_ensure
 
 
@@ -32,7 +36,7 @@ def pushd(dir):
     try:
         yield
     except Exception, err:
-        LOG.error('Error in pushd: {0}'.format(err))
+        log.error('Error in pushd: {0}'.format(err))
     finally:
         chdir(cwd)
 
@@ -41,14 +45,14 @@ def pushd(dir):
 def lock(lock=None):
     name = current_thread().name
     if lock:
-        #LOG.debug(u'{0} requested\t{1}'.format(name, lock))
+        #log.debug(u'{0} requested\t{1}'.format(name, lock))
         lock.acquire()
-        #LOG.debug(u'{0} acquired\t{1}'.format(name, lock))
+        #log.debug(u'{0} acquired\t{1}'.format(name, lock))
         try:
             yield
         finally:
             lock.release()
-            #LOG.debug(u'{0} released\t{1}'.format(name, lock))
+            #log.debug(u'{0} released\t{1}'.format(name, lock))
     else:
         yield
 
@@ -69,14 +73,14 @@ def su(uid=0, gid=0, su_lock=None):
             setegid(gid)
             seteuid(uid)
         except OSError, e:
-            LOG.error(
+            log.error(
                 u'You must run this program as root because file permissions '
                 'need to be set.')
             sys.exit(1)
         try:
             yield
         except Exception, err:
-            LOG.error(u'Error while su({0}, {1}): {2}'.format(uid, gid, err))
+            log.error(u'Error while su({0}, {1}): {2}'.format(uid, gid, err))
             raise
         finally:
             if uid != 0:
@@ -98,7 +102,7 @@ class SSH(object):
         return True
 
     def connect(self, host, username=None, known_hosts=None, key_file=None):
-        LOG.info(u"Connecting via SSH to {0}".format(host))
+        log.info(u"Connecting via SSH to {0}".format(host))
 
         if known_hosts is None:
             self.ssh.set_missing_host_key_policy(AutoAddPolicy())
@@ -106,14 +110,14 @@ class SSH(object):
             try:
                 self.ssh.load_host_keys(known_hosts)
             except IOError, e:
-                LOG.error(u'Could not load host keys.')
+                log.error(u'Could not load host keys.')
                 raise e
         try:
             self.ssh.connect(
                 host, username=username, key_filename=key_file)
         except IOError, e:
-            LOG.error(u'Need key file {0}'.format(key_file))
-            LOG.info(
+            log.error(u'Need key file {0}'.format(key_file))
+            log.info(
                 "Please generate an SSH key and put the public key in the "
                 "remote user's authorized keys. Remember that this will allow "
                 "anyone with the generated private key to log in as that user "
@@ -179,13 +183,13 @@ class AFTP(object):
         downloaded = temp
         try:
             if self.dryrun:
-                LOG.info('dryrun downloading %s' % filepath)
+                log.info('dryrun downloading %s' % filepath)
                 downloaded = None
             else:
-                LOG.info('downloading {0!r}'.format(filepath))
+                log.info('downloading {0!r}'.format(filepath))
                 sftp.get(filepath, temp.name)
         except IOError, e:
-            LOG.warn(
+            log.warn(
                 u'Unable to locate file on remote {0!r}\n{1!r}'.format(
                 filepath, e))
             downloaded = None
@@ -196,7 +200,7 @@ class AFTP(object):
             try:
                 unlink(temp.name)
             except OSError, e:
-                LOG.error('Unable to unlink tempfile: %s' % e)
+                log.error('Unable to unlink tempfile: %s' % e)
 
     @contextmanager
     def local_dl(self, filepath):
@@ -207,19 +211,19 @@ class AFTP(object):
 
         """
         rewritten_path = self.local_rewriter(filepath)
-        LOG.debug(u'rewrite {0} to {1}'.format(filepath, rewritten_path))
+        log.debug(u'rewrite {0} to {1}'.format(filepath, rewritten_path))
         filepath = rewritten_path
 
         if self.dryrun:
-            LOG.info('dryrun downloading {0}'.format(filepath))
+            log.info('dryrun downloading {0}'.format(filepath))
             yield None
         else:
-            LOG.info('downloading {0}'.format(filepath))
+            log.info('downloading {0}'.format(filepath))
             try:
                 with su(su_lock=self.su_lock):
                     downloaded = open(filepath, 'rb')
             except IOError, e:
-                LOG.warn(u"Unable to locate file on local {0}:\n{1!r}".format(
+                log.warn(u"Unable to locate file on local {0}:\n{1!r}".format(
                     filepath, e))
                 downloaded = None
             try:
@@ -232,7 +236,7 @@ class AFTP(object):
     def dl(self, file_path):
         if self.local_rewriter:
             if not self.su_lock:
-                LOG.error(
+                log.error(
                     u'Unable to find su lock when copying file. Cannot '
                     'continue without risk. Skipping.')
                 yield None
@@ -247,10 +251,10 @@ class AFTP(object):
         """Upload a filepath to the remote server."""
         sftp = self.sftp
         if self.dryrun:
-            LOG.info(u'dryrun uploading {0} to {1}'.format(
+            log.info(u'dryrun uploading {0} to {1}'.format(
                 local_file_path, filepath))
         else:
-            LOG.info(u'uploading {0} {1}'.format(local_file_path, filepath))
+            log.info(u'uploading {0} {1}'.format(local_file_path, filepath))
             sftp.put(local_file_path, filepath)
 
     def local_up(self, local_file_path, filepath):
@@ -261,14 +265,14 @@ class AFTP(object):
 
         """
         rewritten_path = self.local_rewriter(filepath)
-        LOG.debug(u'rewrite {0} to {1}'.format(filepath, rewritten_path))
+        log.debug(u'rewrite {0} to {1}'.format(filepath, rewritten_path))
         filepath = rewritten_path
 
         if self.dryrun:
-            LOG.info('dryrun uploading {0}'.format(filepath))
+            log.info('dryrun uploading {0}'.format(filepath))
             return
         else:
-            LOG.info('uploading {0}'.format(filepath))
+            log.info('uploading {0}'.format(filepath))
             with su(su_lock=self.su_lock):
                 copy2(local_file_path, filepath)
     
@@ -277,7 +281,7 @@ class AFTP(object):
             try:
                 self.local_up(local_file_path, file_path)
             except (OSError, IOError), err:
-                LOG.warn(u"Unable to copy to file on local {0}:\n{1!r}".format(
+                log.warn(u"Unable to copy to file on local {0}:\n{1!r}".format(
                     file_path, err))
                 if not suppress_errors:
                     raise err
@@ -285,7 +289,7 @@ class AFTP(object):
             try:
                 self.sftp_up(local_file_path, file_path)
             except (OSError, IOError), err:
-                LOG.warn(u'Unable to copy file to remote {0}:\n{1!r}'.format(
+                log.warn(u'Unable to copy file to remote {0}:\n{1!r}'.format(
                     file_path, err))
                 if not suppress_errors:
                     raise err
@@ -297,10 +301,10 @@ class AFTP(object):
 
         """
         if self.dryrun:
-            LOG.info(u'dryrun upload dir {0} to {1}'.format(
+            log.info(u'dryrun upload dir {0} to {1}'.format(
                 local_dir_path, dir_path))
         else:
-            LOG.info(u'upload dir {0} to {1}'.format(
+            log.info(u'upload dir {0} to {1}'.format(
                 local_dir_path, dir_path))
             copytree(local_dir_path, dir_path)
 
@@ -311,10 +315,10 @@ class AFTP(object):
 
         """
         if self.dryrun:
-            LOG.info(u'dryrun upload dir {0} to {1}'.format(
+            log.info(u'dryrun upload dir {0} to {1}'.format(
                 local_dir_path, dir_path))
         else:
-            LOG.info(u'upload dir {0} to {1}'.format(
+            log.info(u'upload dir {0} to {1}'.format(
                 local_dir_path, dir_path))
             self.sftp.mkdir(dir_path)
             dir_lstat = os.lstat(local_dir_path)
@@ -333,7 +337,7 @@ class AFTP(object):
                     if os.path.isdir(fpath):
                         continue
                     else:
-                        LOG.debug(u'uploading {0} to {1}'.format(fpath, rfpath))
+                        log.debug(u'uploading {0} to {1}'.format(fpath, rfpath))
                         self.sftp.put(fpath, rfpath)
                         self.sftp.chmod(rfpath, f_lstat.st_mode)
 
@@ -346,16 +350,16 @@ class AFTP(object):
 
     def local_remove(self, path):
         if self.dryrun:
-            LOG.info(u'dryrun remove {0}'.format(path))
+            log.info(u'dryrun remove {0}'.format(path))
         else:
-            LOG.info(u'remove {0}'.format(path))
+            log.info(u'remove {0}'.format(path))
             os.unlink(path)
 
     def sftp_remove(self, path):
         if self.dryrun:
-            LOG.info(u'dryrun remove {0}'.format(path))
+            log.info(u'dryrun remove {0}'.format(path))
         else:
-            LOG.info(u'remove {0}'.format(path))
+            log.info(u'remove {0}'.format(path))
             self.sftp.remove(path)
 
     def remove(self, path):
@@ -369,7 +373,7 @@ class AFTP(object):
         mkdir(remote_path, mode)
 
     def sftp_mkdir(self, remote_path, mode=0777):
-        LOG.debug('making directory {0}'.format(remote_path))
+        log.debug('making directory {0}'.format(remote_path))
         self.sftp.mkdir(remote_path, mode)
 
     def mkdir(self, remote_path, mode=0777):
@@ -385,14 +389,14 @@ class AFTP(object):
                 chown(path, stat.st_uid, self.dl_gid)
             utime(path, (stat.st_atime, stat.st_mtime))
         except (OSError, IOError), e:
-            LOG.error(u'unable to chmod {0!r}:\n{1!r}'.format(path, e))
+            log.error(u'unable to chmod {0!r}:\n{1!r}'.format(path, e))
 
     def _dl_dir(self, remotedir, localdir, copy):
         msg = u'dl dir\n\t{0}\n\t{1}'.format(remotedir, localdir)
         if self.dryrun:
-            LOG.info(u'dryrun {0}'.format(msg))
+            log.info(u'dryrun {0}'.format(msg))
         else:
-            LOG.info(msg)
+            log.info(msg)
 
         if not self.dryrun:
             remote_dir_stat = self.lstat(remotedir)
@@ -402,15 +406,15 @@ class AFTP(object):
                     self.set_stat(remote_dir_stat, localdir)
             except OSError, e:
                 if e.errno != EEXIST:
-                    LOG.debug(e.errno)
-                    LOG.error(u'Unable to create directory {0}:\n{1!r}'.format(
+                    log.debug(e.errno)
+                    log.error(u'Unable to create directory {0}:\n{1!r}'.format(
                         os.path.basename(remotedir), e))
                     return
 
         try:
             listing = self.listdir(remotedir)
         except OSError, e:
-            LOG.error(
+            log.error(
                 u'Unable to list directory {0}: {1!r}'.format(remotedir, e))
             return
         for entry in listing:
@@ -420,25 +424,25 @@ class AFTP(object):
             try:
                 remote_stat = self.lstat(remote_path)
             except OSError, e:
-                LOG.error(u'Unable to get stat for {0}'.format(remote_path))
+                log.error(u'Unable to get stat for {0}'.format(remote_path))
                 continue
 
             if stat.S_ISDIR(remote_stat.st_mode):
                 self._dl_dir(remote_path, local_path, copy)
             elif not self.dryrun:
-                LOG.info(u'dl {0}'.format(remote_path))
+                log.info(u'dl {0}'.format(remote_path))
                 try:
                     copy(remote_path, local_path)
                     with su(su_lock=self.su_lock):
                         self.set_stat(remote_stat, local_path)
                 except IOError, e:
-                    LOG.warning('unable to copy %s (%s)' % (remote_path, e))
+                    log.warning('unable to copy %s (%s)' % (remote_path, e))
 
     def sftp_copy_dir(self, remote_path, local_path):
         self.sftp.get(remote_path, local_path)
 
     def sftp_dl_dir(self, sftp, remotedir, localdir):
-        LOG.info(u'sftp copying {0}'.format(remotedir))
+        log.info(u'sftp copying {0}'.format(remotedir))
         self._dl_dir(remotedir, localdir, self.sftp_copy_dir)
 
     def local_copy_dir(self, remote_path, local_path, hardlink=False):
@@ -456,12 +460,12 @@ class AFTP(object):
             copying
 
         """
-        LOG.info(u'locally copying {0}'.format(remotedir))
+        log.info(u'locally copying {0}'.format(remotedir))
         self._dl_dir(remotedir, localdir, self.local_copy_dir)
 
     def dl_dir(self, remote_dir_path, local_dir_path):
 #        if not self.su_lock:
-#            LOG.error(
+#            log.error(
 #                u'Unable to find su lock when copying directory. Cannot '
 #                'continue without risk. Skipping.')
 #            return

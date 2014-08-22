@@ -75,13 +75,15 @@ LIBLOG_HANDLER.setFormatter(LibLogFormatter(
         '%(color_path)s%(pathname)s:%(lineno)d %(funcName)s', TERMCOLOR['CLEAR'],
         '\t%(message)s', TERMCOLOR['CLEAR'])), "%H%M:%S"))
 
-LOG = getLogger(__name__)
-LOG.setLevel(DEBUG)
-LOG.addHandler(LIBLOG_HANDLER)
+
+def setup():
+    log = getLogger(__name__.split('.')[0])
+    log.setLevel(DEBUG)
+    log.addHandler(LIBLOG_HANDLER)
 
 
 @contextmanager
-def log_above(level=ERROR, log=LOG):
+def log_above(level=ERROR, log=getLogger(__name__)):
     current_level = log.getEffectiveLevel()
     log.setLevel(level)
     try:

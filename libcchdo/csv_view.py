@@ -3,7 +3,7 @@ from csv import reader as csv_reader
 
 from lxml.html import builder as E, tostring, fromstring
 
-from libcchdo import LOG, get_library_abspath
+from libcchdo import get_library_abspath
 from libcchdo.formats.exchange import END_DATA
 from libcchdo.serve import SimpleHTTPServer
 

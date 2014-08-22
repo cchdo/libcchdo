@@ -3,8 +3,12 @@
 
 from __future__ import with_statement
 from decimal import localcontext
+from logging import getLogger
 
-from libcchdo.log import LOG
+
+log = getLogger(__name__)
+
+
 from libcchdo.fns import _decimal
 from libcchdo.algorithms import volume
 from libcchdo.db.model import std
@@ -35,7 +39,7 @@ def oxygen_method_is_whole_not_aliquot():
         if whole_or_aliquot == 'w':
             return True
         elif whole_or_aliquot == 'a':
-            LOG.warn('Will use temp=25. for oxygen conversion.')
+            log.warn('Will use temp=25. for oxygen conversion.')
             return False
         else:
             print 'Please enter W or A.'
@@ -54,7 +58,7 @@ def milliliter_per_liter_to_umol_per_kg(file, column, whole_not_aliquot=None):
         if salinity <= 0:
             salinity = APPROXIMATION_SALINITY
         elif salinity < 20 or salinity > 60:
-            LOG.warn('Salinity (%f) is ridiculous' % salinity)
+            log.warn('Salinity (%f) is ridiculous' % salinity)
 
         temperature = _get_first_value_of_parameters(
             file, ('CTDTMP', 'THETA', 'REVTMP'), i)
@@ -70,7 +74,7 @@ def milliliter_per_liter_to_umol_per_kg(file, column, whole_not_aliquot=None):
                 temperature = APPROXIMATION_TEMPERATURE
             elif temperature_missing:
                 temperature = APPROXIMATION_TEMPERATURE
-                LOG.warn(('Temperature is missing. Using %f at '
+                log.warn(('Temperature is missing. Using %f at '
                                    'record#%d') % (temperature, i))
             sigt = volume.sigma_r(
                 0.0, 0.0, temperature, salinity)
@@ -102,7 +106,7 @@ def mol_per_liter_to_mol_per_kg(file, column):
         if salinity <= 0:
             salinity = APPROXIMATION_SALINITY
         elif salinity < 20 or salinity > 60:
-            LOG.warn('Salinity (%f) is ridiculous' % salinity)
+            log.warn('Salinity (%f) is ridiculous' % salinity)
 
         temperature = _get_first_value_of_parameters(
             file, ('CTDTMP', 'THETA', 'REVTMP'), i)
@@ -125,7 +129,7 @@ def mol_per_liter_to_mol_per_kg(file, column):
 def ctdoxy_micromole_per_liter_to_micromole_per_kilogram(file, column):
     sigtheta = file['CTDSIGTH']
     if not sigtheta:
-    	LOG.warn('Unable to find sigma theta column. Cannot convert.')
+    	log.warn('Unable to find sigma theta column. Cannot convert.')
         return column
     for i, value in enumerate(column):
     	precision = len(str(column[i].to_integral())) + \

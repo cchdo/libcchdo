@@ -1,8 +1,12 @@
 from collections import OrderedDict
 from csv import reader as csv_reader
+from logging import getLogger
+
+
+log = getLogger(__name__)
+
 
 from libcchdo.db.util import wkt_to_track, tracks_for_cruises
-from libcchdo.log import LOG
 from libcchdo.plot.etopo import plot, plot_line_dots, plt, ETOPOBasemap
 from libcchdo.plot import presets_goship, gmt_color
 
@@ -74,8 +78,8 @@ def plot_woce_representation(args, file_path):
                 except KeyError:
                     basins[basin] = [rep]
     except (OSError, IOError), err:
-        LOG.error(u'Cannot plot without a WOCE representation spreadsheet.')
-        LOG.info(
+        log.error(u'Cannot plot without a WOCE representation spreadsheet.')
+        log.info(
             u'Download the spreadsheet as a CSV from {0} and put it at '
             '{1}'.format(woce_repr_sheet, file_path))
         return

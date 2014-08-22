@@ -1,6 +1,10 @@
 import numpy as np
+from logging import getLogger
 
-from libcchdo.log import LOG
+
+log = getLogger(__name__)
+
+
 from libcchdo.util import memoize
 from libcchdo.recipes.lru import lru_cache
 
@@ -102,6 +106,6 @@ class BicubicConvolution:
         """
         zs = []
         for y in ys:
-            LOG.debug('interp y: %f' % y)
+            log.debug('interp y: %f' % y)
             zs.append([self.get_value(x, y) for x in xs])
         return zs

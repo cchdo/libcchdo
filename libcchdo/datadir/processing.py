@@ -14,13 +14,17 @@ from urllib2 import urlopen, HTTPError
 from json import load as json_load, dump as json_dump, loads
 from collections import OrderedDict
 from traceback import format_exc
+from logging import getLogger
+
+
+log = getLogger(__name__)
+
 
 from docutils.utils import SystemMessage
 from docutils.core import publish_string
 
 import transaction
 
-from libcchdo import LOG
 from libcchdo.serve import SimpleHTTPServer
 from libcchdo.bb import BB
 from libcchdo.fns import uniquify
@@ -50,7 +54,7 @@ def copy_replaced(filename, curr_date, separator='_'):
     dirname = os.path.join(os.getcwd(), dirname)
     file_type = guess_file_type(filename)
     if file_type is None:
-        LOG.error(
+        log.error(
             u'File {0} does not have a recognizable file extension.'.format(
             filename))
         return 1
@@ -74,13 +78,13 @@ def copy_replaced(filename, curr_date, separator='_'):
     new_name = os.path.relpath(os.path.join(dirname, 'original', ''.join(
         [basename, extra_extension, replaced_str, extension])))
 
-    LOG.info('{0} -> {1}'.format(filename, new_name))
+    log.info('{0} -> {1}'.format(filename, new_name))
     accepted = raw_input('copy? (y/[n]) ')
     if accepted == 'y':
         try:
             copy2(filename, new_name)
         except OSError, e:
-            LOG.error(u'Could not move file: {0}'.format(e))
+            log.error(u'Could not move file: {0}'.format(e))
             return 1
 
 
@@ -88,7 +92,7 @@ def download_url(url, path):
     with open(path, 'w') as ooo:
         with closing(urlopen(url)) as fff:
             copy_chunked(fff, ooo)
-    LOG.info(u'downloaded {0}'.format(url))
+    log.info(u'downloaded {0}'.format(url))
 
 
 def populate_dir(dirpath, files, subdirs, dir_perms=0755, file_perms=0644):
@@ -168,8 +172,8 @@ def write_uow_cfg(path, uow_cfg):
         with open(path, 'w') as fff:
             json_dump(uow_cfg, fff, cls=DefaultJSONSerializer, indent=2)
     except IOError, e:
-        LOG.error(u'Unable to write {0}'.format(UOW_CFG_FILENAME))
-        LOG.info(
+        log.error(u'Unable to write {0}'.format(UOW_CFG_FILENAME))
+        log.info(
             u'You can write your own using this dict {0!r}'.format(uow_cfg))
 
 
@@ -187,7 +191,7 @@ def is_processing_readme_render_ok(readme_path, confirm_html=True):
     try:
         output = publish_string(readme, writer_name='html')
     except SystemMessage, err:
-        LOG.error(u'{0} failed test: {1!r}'.format(README_FILENAME, err))
+        log.error(u'{0} failed test: {1!r}'.format(README_FILENAME, err))
         return False
 
     if confirm_html:
@@ -294,18 +298,18 @@ def check_uow_cfg(uow_cfg):
     try:
         uow_cfg['expocode']
     except KeyError:
-        LOG.error(u'UOW configuration is missing "expocode". Abort.')
+        log.error(u'UOW configuration is missing "expocode". Abort.')
         cfg_ok = False
     try:
         uow_cfg['title']
     except KeyError:
-        LOG.error(u'UOW configuration is missing "title". Abort.')
+        log.error(u'UOW configuration is missing "title". Abort.')
         cfg_ok = False
     try:
         uow_cfg['summary']
     except KeyError:
-        LOG.error(u'UOW configuration is missing "summary". Abort.')
-        LOG.info(u'Typical entries contain file formats updated e.g.\n'
+        log.error(u'UOW configuration is missing "summary". Abort.')
+        log.info(u'Typical entries contain file formats updated e.g.\n'
             'Exchange, NetCDF, WOCE files online\n'
             'Exchange & NetCDF files updated\n'
         )
@@ -336,25 +340,25 @@ class FetchCommitter(object):
         # Check that all files referenced have the same cruise.
         qfis = self.dstore.as_received_infos(*ids)
         if not qfis:
-            LOG.warn(u'None of the ids given refer to Queue files.')
+            log.warn(u'None of the ids given refer to Queue files.')
             # fall back to ExpoCode mode
             if len(ids) != 1:
                 return
-            LOG.info(u'Using id as ExpoCode')
+            log.info(u'Using id as ExpoCode')
             expocodes = ids
         else:
             expocodes = uniquify([qf['expocode'] for qf in qfis])
         if len(expocodes) > 1:
-            LOG.warn(
+            log.warn(
                 u'As-received files do not have the same cruise.\n{0}'.format(
                 ', '.join(expocodes)))
             expocode = expocodes[0]
-            LOG.info(u'Picked the first cruise as the UOW cruise: {0}'.format(
+            log.info(u'Picked the first cruise as the UOW cruise: {0}'.format(
                 expocode))
         elif len(expocodes) == 1:
             expocode = expocodes[0]
         else:
-            LOG.error(
+            log.error(
                 u'None of the as-received files are attached to a cruise. This '
                 'must be corrected in the database.')
             return
@@ -431,12 +435,12 @@ class FetchCommitter(object):
             readme_ok = is_processing_readme_render_ok(
                     readme_path, confirm_html=confirm_html)
         except IOError:
-            LOG.error(
+            log.error(
                 u'Cannot continue without {0}. (Are you sure {1} is a UOW '
                 'directory?)'.format(README_FILENAME, uow_dir))
             return
         if not readme_ok:
-            LOG.error(u'README is not valid reST or merger rejected. Stop.')
+            log.error(u'README is not valid reST or merger rejected. Stop.')
             return
 
         # Check UOW configuration
@@ -444,12 +448,12 @@ class FetchCommitter(object):
             readme = ProcessingReadme(uow_dir)
             uow_cfg = readme.uow_cfg
         except IOError:
-            LOG.error(
+            log.error(
                 u'Cannot continue without {0}. (Are you sure {1} is a UOW '
                 'directory?)'.format(UOW_CFG_FILENAME, uow_dir))
             return
         except ValueError, err:
-            LOG.error(
+            log.error(
                 u'Unable to read invalid JSON from {0}. Abort.\n{1!r}'.format(
                 UOW_CFG_FILENAME, err))
             return
@@ -465,7 +469,7 @@ class FetchCommitter(object):
             self.dstore.check_fetched_online_unchanged(readme)
             self.dstore.commit(readme, person, dir_perms, send_email, dryrun)
         except ValueError as err:
-            LOG.error(err)
+            log.error(err)
             raise
 
         dryrun_log_info(u'UOW commit completed successfully.', dryrun)

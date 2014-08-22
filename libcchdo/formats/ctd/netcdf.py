@@ -1,8 +1,12 @@
 """Handler for CTD NetCDF files"""
 
 from tempfile import NamedTemporaryFile
+from logging import getLogger
 
-from libcchdo.log import LOG
+
+log = getLogger(__name__)
+
+
 from libcchdo.fns import equal_with_epsilon
 from libcchdo.model.datafile import Column
 from libcchdo.formats import woce
@@ -85,7 +89,7 @@ def read(self, handle):
             try:
                 qc_vars[NC_CTD_VAR_TO_WOCE_PARAM[pname]] = variable
             except KeyError:
-                LOG.warn(
+                log.warn(
                     'Missing NetCDF to WOCE parameter mapping for %s' % pname)
         elif name == 'sampno' or name == 'btlnbr': #XXX
             continue #XXX

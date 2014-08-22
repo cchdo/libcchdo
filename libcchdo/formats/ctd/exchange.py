@@ -1,7 +1,11 @@
 from re import compile as re_compile, sub as re_sub
 from collections import OrderedDict
+from logging import getLogger
 
-from libcchdo.log import LOG
+
+log = getLogger(__name__)
+
+
 from libcchdo.fns import Decimal, out_of_band, decimal_to_str
 from libcchdo.recipes.orderedset import OrderedSet
 from libcchdo.formats import pre_write
@@ -116,7 +120,7 @@ def read(self, handle, retain_order=False, header_only=False):
 
     # Check all parameters are non-trivial
     if not all(columns):
-        LOG.warn(("Stripped blank parameter from MALFORMED EXCHANGE FILE\n"
+        log.warn(("Stripped blank parameter from MALFORMED EXCHANGE FILE\n"
                   "This may be caused by an extra comma at the end of a line."))
         columns = filter(None, columns)
 
@@ -144,7 +148,7 @@ def write(self, handle):
         try:
             headers[key] = self.globals[key]
         except KeyError:
-            LOG.error('Missing required header %s' % key)
+            log.error('Missing required header %s' % key)
     keys_less_required = OrderedSet(self.globals.keys()) - \
                          set(['stamp', 'header']) - \
                          set(REQUIRED_HEADERS)

@@ -3,11 +3,11 @@ from datetime import datetime, timedelta
 from contextlib import closing
 from zipfile import ZipFile
 import os.path
+from logging import getLogger, DEBUG, ERROR
 
 from sqlalchemy.sql import not_, between
 from sqlalchemy import distinct
 
-from libcchdo.log import LOG, DEBUG, ERROR
 from libcchdo.db.model.legacy import (
     session as lsession, Document, Cruise, Submission, QueueFile,
     )
@@ -17,6 +17,9 @@ from libcchdo.datadir.dl import AFTP, SFTP
 from libcchdo.model.datafile import DataFileCollection, SummaryFile
 from libcchdo.formats.summary import woce as wocesum
 from libcchdo.formats.ctd.zip import exchange as ctdzipex
+
+
+log = getLogger(__name__)
 
 
 types_to_ignore = [
@@ -63,7 +66,7 @@ def report_data_updates(args):
             if 'original' in doc.FileName or 'Queue' in doc.FileName:
                 continue
             details = [doc.LastModified, doc.ExpoCode, doc.FileName]
-            LOG.info(' '.join(map(str, details)))
+            log.info(' '.join(map(str, details)))
 
             if not doc.Modified or len(doc.Modified.split(',')) == 1:
                 try:
@@ -74,7 +77,7 @@ def report_data_updates(args):
                 for mtime in doc.Modified.split(','):
                     mtime = datetime.strptime(mtime, '%Y-%m-%d %H:%M:%S')
                     if mtime in drange:
-                        LOG.info('\t{0}\n'.format(mtime))
+                        log.info('\t{0}\n'.format(mtime))
                         cruises.add(doc.ExpoCode)
                         try:
                             type_edit_cruises[doc.FileType].append(doc.ExpoCode)
@@ -82,7 +85,7 @@ def report_data_updates(args):
                             type_edit_cruises[doc.FileType] = [doc.ExpoCode]
                     else:
                         pass
-                        LOG.info('\t{0} out of range\n'.format(mtime))
+                        log.info('\t{0} out of range\n'.format(mtime))
         args.output.write(
             'Data updates from {0}/{1}:\n'.format(date_start, date_end))
         args.output.write(
@@ -400,24 +403,24 @@ def report_argo_ctd_index(args):
         ctd_file = ctd_files[precedent_format]
         path = os.path.join(cruise_dir, ctd_file)
 
-        LOG.debug(path)
+        log.debug(path)
         try:
             mtime = aftp.mtime(path)
             mtime = mtime.strftime('%Y%m%d%H%M%S')
         except IOError:
-            LOG.error(u'Could not open file {0}'.format(path))
+            log.error(u'Could not open file {0}'.format(path))
         if precedent_format == 'exchange':
             files = DataFileCollection()
             with aftp.dl(path) as fff:
                 if fff is None:
-                    LOG.error(u'Could not find file {0}'.format(path))
+                    log.error(u'Could not find file {0}'.format(path))
                     continue
-                LOG.setLevel(ERROR)
+                log.setLevel(ERROR)
                 try:
                     ctdzipex.read(files, fff, header_only=True)
                 except (ValueError, InvalidOperation):
-                    LOG.error(u'Unable to read {0}'.format(path))
-                LOG.setLevel(DEBUG)
+                    log.error(u'Unable to read {0}'.format(path))
+                log.setLevel(DEBUG)
 
             for ctdfile in files:
                 fpath = path + '#' + ctdfile.globals['_FILENAME']
@@ -442,11 +445,11 @@ def report_argo_ctd_index(args):
             path = os.path.join(get_datadir_root(), path)
             with aftp.dl(path) as fff:
                 if fff is None:
-                    LOG.error(u'Could not find file {0}'.format(path))
+                    log.error(u'Could not find file {0}'.format(path))
                     continue
-                LOG.setLevel(ERROR)
+                log.setLevel(ERROR)
                 wocesum.read(sumfile, fff)
-                LOG.setLevel(DEBUG)
+                log.setLevel(DEBUG)
 
             for iii in range(len(sumfile)):
                 fpath = path + '#' + str(iii)

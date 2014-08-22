@@ -1,7 +1,11 @@
 from datetime import datetime, date
 from json import JSONEncoder, dump
+from logging import getLogger
 
-from libcchdo.log import LOG
+
+log = getLogger(__name__)
+
+
 from libcchdo.fns import Decimal, isnan
 from libcchdo.model.datafile import DataFileCollection
 
@@ -72,7 +76,7 @@ class GoogleWireJSONSerializer(DefaultJSONSerializer):
         if isinstance(o, datetime):
             return self.serialize_datetime(o)
         elif isinstance(o, date):
-            LOG.error(
+            log.error(
                 u"Date was provided when datetime expected. Please report "
                 "this issue.")
             return self.serialize_date(o)

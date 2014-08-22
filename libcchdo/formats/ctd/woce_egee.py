@@ -1,5 +1,10 @@
 import re
 from datetime import datetime
+from logging import getLogger
+
+
+log = getLogger(__name__)
+
 
 from libcchdo.fns import uniquify
 from libcchdo.algorithms.depth import depth_unesco
@@ -7,7 +12,6 @@ from libcchdo.formats import woce
 from libcchdo.formats.formats import (
     get_filename_fnameexts, is_filename_recognized_fnameexts,
     is_file_recognized_fnameexts)
-from libcchdo.log import LOG
 
 
 _fname_extensions = ['.ctd']
@@ -54,9 +58,9 @@ def read(self, handle):
         self.globals['CASTNO'] = cast_id[1]
         num_records = int(cast_id[2])
     except AttributeError:
-        LOG.error(u'Unable to read station cast and number of records.')
+        log.error(u'Unable to read station cast and number of records.')
     except TypeError:
-        LOG.warn(u'Unable to determine number of data records.')
+        log.warn(u'Unable to determine number of data records.')
     # DATE
     line_date = handle.readline()
     try:
@@ -64,7 +68,7 @@ def read(self, handle):
         dtime = datetime.strptime(line_date, '%b %d %Y %H:%M:%S')
         self.globals['_DATETIME'] = dtime
     except IndexError:
-        LOG.warn(u'Unable to determine date.')
+        log.warn(u'Unable to determine date.')
     # blank
     handle.readline()
     # LATITUDE LONGITUDE
@@ -78,7 +82,7 @@ def read(self, handle):
         self.globals['LATITUDE'] = woce.woce_lat_to_dec_lat(lat_coords)
         self.globals['LONGITUDE'] = woce.woce_lng_to_dec_lng(lng_coords)
     except AttributeError:
-        LOG.error(u'Unable to read coordinates')
+        log.error(u'Unable to read coordinates')
     
     parameters_line = handle.readline()
     units_line = handle.readline()

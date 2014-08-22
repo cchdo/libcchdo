@@ -7,7 +7,6 @@ from libcchdo.formats.formats import (
 from libcchdo.algorithms.depth import depth_unesco
 from libcchdo.model.datafile import DataFile
 from libcchdo.model.convert.datafile_to_datafilecollection import split_on_cast
-from libcchdo.log import LOG
 
 
 _fname_extensions = ['.csv']

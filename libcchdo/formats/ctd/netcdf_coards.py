@@ -2,6 +2,11 @@
 
 from datetime import datetime
 from tempfile import NamedTemporaryFile
+from logging import getLogger
+
+
+log = getLogger(__name__)
+
 
 from libcchdo.fns import strftime_iso, equal_with_epsilon
 from libcchdo.model.datafile import Column
@@ -100,7 +105,7 @@ def read(self, handle):
 
 def netcdf_variable_name_from_column(column):
     if not column.parameter.description:
-        libccho.LOG.warn('Bad parameter description %s' % column.parameter)
+        log.warn('Bad parameter description %s' % column.parameter)
         return None
     n = column.parameter.description.lower()
     n = n.replace('ctd ', '')

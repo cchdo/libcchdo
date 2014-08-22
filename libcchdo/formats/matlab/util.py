@@ -4,8 +4,11 @@
 
 from datetime import datetime
 import decimal
+from logging import getLogger
 
-from libcchdo.log import LOG
+
+log = getLogger(__name__)
+
 
 
 def convert_value(name, value, ):
@@ -81,7 +84,7 @@ def convert_value(name, value, ):
 
     else:
         # Huh?
-        LOG.error('%r: %r' % (name, value, ))
+        log.error('%r: %r' % (name, value, ))
         return None
 
 

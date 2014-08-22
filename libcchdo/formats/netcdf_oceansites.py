@@ -9,10 +9,14 @@ http://www.jcommops.org/FTPRoot/OceanSITES/documents/network_status/oceansites_s
 from datetime import datetime
 from collections import defaultdict
 from math import cos
+from logging import getLogger
+
+
+log = getLogger(__name__)
+
 
 import numpy as np
 
-from libcchdo.log import LOG
 from libcchdo.fns import strftime_iso
 from libcchdo.util import memoize
 from libcchdo.model.datafile import (
@@ -42,7 +46,7 @@ class WOCE_to_OceanSITES_flag_dict(defaultdict):
 
     def __missing__(self, key):
         self[key] = 6
-        LOG.warn(u'WOCE flag {0} was given that does not have translation into '
+        log.warn(u'WOCE flag {0} was given that does not have translation into '
                  'OceanSITES.'.format(key))
         return self[key]
 
@@ -203,7 +207,7 @@ class ParamToOS(dict):
             self.register_osvar(osvar)
             self._param_to_os[pname] = osvar.short_name
         except ValueError:
-            LOG.warn(
+            log.warn(
                 u'Cannot register {0} without standard name'.format(osvar))
         except AttributeError:
             try:
@@ -567,7 +571,7 @@ def write_columns(self, nc_file, converter=None):
     if converter is None:
         converter = get_param_to_os()
     from libcchdo.formats import netcdf as nc
-    LOG.debug(u'writing columns')
+    log.debug(u'writing columns')
 
     # Because it is possible for multiple parameter names to be mapped to the
     # same OceanSITES name, start in order so the less important ones are
@@ -582,12 +586,12 @@ def write_columns(self, nc_file, converter=None):
             warn_not_mapped.append(pname)
             continue
         except ValueError:
-            LOG.warn(
+            log.warn(
                 u'OceanSITES variable {0!r} does not have CF and OceanSITES '
                 'information. Skipping.'.format(name))
             continue
 
-        LOG.debug(
+        log.debug(
             u'{pname} mapped to {osname}'.format(pname=pname, osname=name))
 
         # Write variable
@@ -598,7 +602,7 @@ def write_columns(self, nc_file, converter=None):
             var = nc_file.createVariable(
                 name, 'f8', ('DEPTH',), fill_value=variable.fill_value)
         except RuntimeError:
-            LOG.warn(
+            log.warn(
                 u'{0!r} already present in netCDF file. Skipping.'.format(name))
             continue
         var.long_name = variable.long_name
@@ -609,12 +613,12 @@ def write_columns(self, nc_file, converter=None):
         try:
             var.valid_min = float(column.parameter.bound_lower)
         except TypeError:
-            LOG.warn(
+            log.warn(
                 u'No lower bound defined for {0!r}.'.format(column.parameter))
         try:
             var.valid_max = float(column.parameter.bound_upper)
         except TypeError:
-            LOG.warn(
+            log.warn(
                 u'No upper bound defined for {0!r}.'.format(column.parameter))
         # TODO nominal sensor depth in meters positive in direction of
         # DEPTH:positive
@@ -642,9 +646,9 @@ def write_columns(self, nc_file, converter=None):
             try:
                 flag[:] = [WOCE_to_OceanSITES_flag[f] for f in column.flags_woce]
             except IndexError, err:
-                LOG.error(u'Not enough flags in {0}'.format(column))
+                log.error(u'Not enough flags in {0}'.format(column))
                 raise
-    LOG.warn(u'Skipped parameters not mapped to OceanSITES variables: '
+    log.warn(u'Skipped parameters not mapped to OceanSITES variables: '
              '{0!r}'.format(warn_not_mapped))
     _calculate_depth(self, nc_file)
 

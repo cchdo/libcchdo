@@ -4,8 +4,12 @@ Formats such as Exchange and WHP netCDF have what are called "stamps".
 
 """
 from zipfile import is_zipfile, ZipFile
+from logging import getLogger
 
-from libcchdo.log import LOG
+
+log = getLogger(__name__)
+
+
 from libcchdo.formats.zip import generate_files as zip_gen_files
 
 
@@ -27,9 +31,9 @@ def read_stamp(fileobj, reader):
         if len(all_stamps) > 1:
             stamps = sorted(
                 all_stamps.items(), key=lambda x: x[1], reverse=True)
-            LOG.warn(u'Zip file has more than one stamp:\n{0!r}'.format(stamps))
+            log.warn(u'Zip file has more than one stamp:\n{0!r}'.format(stamps))
             stamp = stamps[0][0]
-            LOG.info(u'Picked stamp with most occurences: {0}'.format(stamp))
+            log.info(u'Picked stamp with most occurences: {0}'.format(stamp))
         elif len(all_stamps) == 0:
             stamp = (None, None)
         else:

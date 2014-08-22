@@ -1,8 +1,12 @@
 from StringIO import StringIO
 from contextlib import closing
+from logging import getLogger
+
+
+log = getLogger(__name__)
+
 
 from libcchdo.tests import BaseTestCase, sample_file
-from libcchdo.log import LOG
 from libcchdo.fns import Decimal
 from libcchdo.formats import exchange
 from libcchdo.model.datafile import DataFile, Column

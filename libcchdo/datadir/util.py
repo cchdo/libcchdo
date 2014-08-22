@@ -14,8 +14,12 @@ from smtplib import SMTP_SSL
 from getpass import getpass
 from tempfile import mkdtemp
 from subprocess import call as subproc_call
+from logging import getLogger
 
-from libcchdo import LOG
+
+log = getLogger(__name__)
+
+
 from libcchdo.fns import get_editor, uniquify
 from libcchdo.config import (
     get_merger_email, is_env_production, get_merger_initials, get_merger_smtp,
@@ -47,12 +51,12 @@ def find_data_directory():
     """
 
     for direc in DIRECTORIES_TO_TRY:
-        LOG.debug('Checking for data directory %s' % direc)
+        log.debug('Checking for data directory %s' % direc)
         os.chdir(direc)
         if is_data_dir(direc):
-            LOG.info('Selected data directory %s' % direc)
+            log.info('Selected data directory %s' % direc)
             return direc
-    LOG.error(
+    log.error(
         'Unable to find data directory with subdirectories: {0!r}'.format(
         MAIN_DATA_DIRECTORIES))
     return None
@@ -216,9 +220,9 @@ DRYRUN_PREFACE = 'DRYRUN'
 def dryrun_log_info(msg, dryrun=True):
     """Log info message with dryrun in front if this is a dryrun."""
     if dryrun:
-        LOG.info(u'{0} {1}'.format(DRYRUN_PREFACE, msg))
+        log.info(u'{0} {1}'.format(DRYRUN_PREFACE, msg))
     else:
-        LOG.info(msg)
+        log.info(msg)
 
 
 class ReadmeEmail(object):
@@ -231,7 +235,7 @@ class ReadmeEmail(object):
             recipients = [get_merger_email()]
         else:
             if not is_env_production():
-                LOG.warn(u'Environment is not production environment! '
+                log.warn(u'Environment is not production environment! '
                          'Switched email recipients to merger.')
                 recipients = [get_merger_email()]
             else:
@@ -277,13 +281,13 @@ def send_email(email_str, from_addr, to_addr, email_path=None):
     smtp = SMTP_SSL(get_merger_smtp())
     try:
         smtp.sendmail(from_addr, to_addr, email_str)
-        LOG.info(u'Sent email from {0} to {1}'.format(from_addr, to_addr))
+        log.info(u'Sent email from {0} to {1}'.format(from_addr, to_addr))
     except (KeyboardInterrupt, Exception), err:
-        LOG.error(u'Unable to send email.')
+        log.error(u'Unable to send email.')
         if email_path is not None:
             with open(email_path, 'w') as fff:
                 fff.write(email_str)
-            LOG.info(u'Wrote email to {0} to send manually. '
+            log.info(u'Wrote email to {0} to send manually. '
                      'Use hydro datadir email {0}.'.format(email_path))
         raise err
     finally:
@@ -330,23 +334,23 @@ def checksum_diff_summary(sumsa, sumsb):
     filesb = set(sumsb.keys())
 
     if len(filesa) < len(filesb):
-        LOG.info(u'Files were added after last fetch:\n{0}'.format(
+        log.info(u'Files were added after last fetch:\n{0}'.format(
             list(filesb - filesa)))
     elif len(filesa) > len(filesb):
-        LOG.info(u'Files were removed after last fetch:\n{0}'.format(
+        log.info(u'Files were removed after last fetch:\n{0}'.format(
             list(filesa - filesb)))
     else:
         if filesa != filesb:
-            LOG.info(
+            log.info(
                 u'Different files available:\n{0}'.format(filesa ^ filesb))
         else:
             files_changed = []
             for fname in sorted(list(filesa)):
                 if sumsa[fname] != sumsb[fname]:
                     files_changed.append(fname)
-            LOG.info(
+            log.info(
                 u'File contents were changed for:\n{0}'.format(files_changed))
-    LOG.info(u'If the changes do not affect data, you may choose to delete '
+    log.info(u'If the changes do not affect data, you may choose to delete '
         '{0} and re-fetch the UOW before trying to commit again.'.format(
         UOWDirName.online))
 

@@ -9,6 +9,9 @@ from tarfile import TarFile
 from contextlib import closing
 import readline
 import atexit
+from logging import getLogger
+
+log = getLogger(__name__)
 
 import filecmp
 
@@ -20,7 +23,6 @@ from sqlalchemy.sql import or_, distinct
 
 from libcchdo import config
 from libcchdo.util import StringIO
-from libcchdo.log import LOG
 from libcchdo.db import connect
 from libcchdo.db.model import legacy, std
 from libcchdo.db.model.legacy import Document
@@ -53,7 +55,7 @@ def df_to_legacy_parameter_statuses(self, output):
     # Get STD parameters from DataFile
     parameters = self.get_property_for_columns(lambda x: x.parameter)
 
-    LOG.info(u'Parameters for the data set are: {0!r}\n'.format(parameters))
+    log.info(u'Parameters for the data set are: {0!r}\n'.format(parameters))
 
     legacy_session = legacy.session()
     legacy_parameters = filter(
@@ -85,7 +87,7 @@ def collect_into_archive():
     expocodes_with_bottle.remove('NULL')
 
     tempdir = mkdtemp()
-    LOG.debug(tempdir)
+    log.debug(tempdir)
 
     # Get all required files for the cruises.
     for expocode in expocodes_with_bottle:
@@ -94,7 +96,7 @@ def collect_into_archive():
         cruise_dir = os.path.join(tempdir, _clean_for_filename(expocode))
         os.makedirs(cruise_dir)
 
-        #LOG.debug(expocode)
+        #log.debug(expocode)
         for doc in docs:
             datapath = doc.FileName
             tmppath = os.path.join(cruise_dir, os.path.basename(datapath))
@@ -102,7 +104,7 @@ def collect_into_archive():
             try:
                 shutil.copy(datapath, tmppath)
             except IOError:
-                LOG.warn(u'missing file: {}'.format(datapath))
+                log.warn(u'missing file: {}'.format(datapath))
     session.close()
 
     #for root, dirs, files in os.walk(path):
@@ -149,7 +151,7 @@ def _check_and_replace_parameters_convert(self, default_convert=False):
         std_parameter = std.find_by_mnemonic(parameter.name)
 
         if not std_parameter and not parameter.name.startswith('_'):
-            LOG.warn("Unknown parameter '%s'" % parameter.name)
+            log.warn("Unknown parameter '%s'" % parameter.name)
             continue
 
         given_units = parameter.units.mnemonic if parameter.units else None
@@ -158,7 +160,7 @@ def _check_and_replace_parameters_convert(self, default_convert=False):
         from_to = (given_units, expected_units)
 
         if given_units and expected_units and given_units != expected_units:
-            LOG.warn(("Mismatched units for '%s'. "
+            log.warn(("Mismatched units for '%s'. "
                       "Found '%s' but expected '%s'") % \
                       ((parameter.name,) + from_to))
             try:
@@ -174,14 +176,14 @@ def _check_and_replace_parameters_convert(self, default_convert=False):
                     except EOFError:
                         pass
                 if convert == 'y':
-                    LOG.info("Converting from '%s' -> '%s' for %s." % \
+                    log.info("Converting from '%s' -> '%s' for %s." % \
                              (from_to + (column.parameter.name,)))
                     column = unit_converter(self, column)
                 else:
                     # Skip conversion and unit change.
                     continue
             except KeyError:
-                LOG.info(("No unit converter registered with file for "
+                log.info(("No unit converter registered with file for "
                           "'%s' -> '%s'. Skipping conversion.") % from_to)
                 continue
 
@@ -227,7 +229,7 @@ def convert_per_litre_to_per_kg(
 
 
 def operate_healy_file(df):
-    LOG.info('Attaching unit converters')
+    log.info('Attaching unit converters')
     cvt = ucvt.ctdoxy_micromole_per_liter_to_micromole_per_kilogram
     df.unit_converters[('UMOL/L', 'UMOL/KG')] = cvt
     df.unit_converters[('MMOLE/M^3', 'UMOL/KG')] = cvt
@@ -248,7 +250,7 @@ def operate_healy_file(df):
     df.check_and_replace_parameters()
 
     # Remove columns
-    LOG.info('Removing unwanted columns')
+    log.info('Removing unwanted columns')
     unwanted = ('CTDDEP CTDPOTTMP CTDSIGTH CTDOXYV CTDOXPCSAT '
                 'CTDOXSAT CTDNOBS').split()
     deleted = []
@@ -262,13 +264,13 @@ def operate_healy_file(df):
         df.changes_to_report.append('Removed columns: %s' % ', '.join(deleted))
 
     # Change expocode
-    LOG.info('Changing expocode')
+    log.info('Changing expocode')
     expocode = '32H120030721'
     df.globals['EXPOCODE'] = expocode
     df.changes_to_report.append('Changed EXPOCODE from HLY031 to 32H120030721')
 
     # Add flag 2 to all columns
-    LOG.info('Adding QC flags')
+    log.info('Adding QC flags')
     for c in df.columns.values():
         c.flags_woce = [2] * len(c)
 
@@ -311,7 +313,7 @@ def rebuild_hot_bats_oceansites(root, dirs, files):
         if realedit:
             os.unlink(os.path.join(root, filename))
         else:
-            LOG.info('would unlink %s', os.path.join(root, filename))
+            log.info('would unlink %s', os.path.join(root, filename))
 
     ctdzipexs = filter(lambda f: f.endswith('ct1.zip'), files)
     if len(ctdzipexs) > 1:
@@ -321,13 +323,13 @@ def rebuild_hot_bats_oceansites(root, dirs, files):
             if filecmp.cmp(*paths):
                 ctdzipex_path = paths[0]
             else:
-                LOG.debug('cant determine which ctdzipex to use')
+                log.debug('cant determine which ctdzipex to use')
                 return
         else:
             # Use most recently modified ctdzipex
             ctdzipex_path = paths[mtimes.index(max(mtimes))]
     elif len(ctdzipexs) < 1:
-        LOG.warn('has no ctdzipexs')
+        log.warn('has no ctdzipexs')
         return
     else:
         ctdzipex_path = os.path.join(root, ctdzipexs[0])
@@ -374,9 +376,9 @@ def rebuild_hot_bats_oceansites(root, dirs, files):
 def ensure_navs(root, dirs, files):
     navfiles = filter(lambda f: f.endswith('na.txt'), files)
     if len(navfiles) > 0:
-        LOG.info('%s has nav files %s' % (root, ', '.join(navfiles)))
+        log.info('%s has nav files %s' % (root, ', '.join(navfiles)))
     else:
-        LOG.info(("%s is missing a nav file. "
+        log.info(("%s is missing a nav file. "
                       "Attempting to generate one.") % root)
     # Try to use easiest generation method first
     generation_methods = [
@@ -395,11 +397,11 @@ def ensure_navs(root, dirs, files):
     for methodname, extension, readfn in generation_methods:
         basefiles = filter(lambda f: f.endswith(extension), files)
         if len(basefiles) > 0:
-            LOG.info('  Found a %s file.' % methodname)
+            log.info('  Found a %s file.' % methodname)
             for file in basefiles:
                 try:
                     outputfile = '%sna.txt' % file[:-len(extension)]
-                    LOG.info('  Generating nav file %s from a %s file %s.' % \
+                    log.info('  Generating nav file %s from a %s file %s.' % \
                          (outputfile, methodname, file))
                     fh = readfn.im_class()
                     with open(os.path.join(root, file), 'r') as in_file:
@@ -411,25 +413,25 @@ def ensure_navs(root, dirs, files):
                     fh.write_nav(stdout)
                     return True
                 except NotImplementedError, e:
-                    LOG.info(("Unable to generate. The read function has not been "
+                    log.info(("Unable to generate. The read function has not been "
                               "implemented: %s") % e)
                 except struct.error, e1:
-                    LOG.info(("  Ignoring WOCE unpack error and continuing with "
+                    log.info(("  Ignoring WOCE unpack error and continuing with "
                               "different method: %s") % e1)
                 except NameError, e2:
                     if str(e2).endswith("not in CCHDO's parameter list."):
-                        LOG.info('  Ignoring parameter not in database error.')
+                        log.info('  Ignoring parameter not in database error.')
                     else:
-                        LOG.warning('  Ignoring exception: %s' % e2)
+                        log.warning('  Ignoring exception: %s' % e2)
                 except ValueError, e3:
                     if str(e3).startswith("time data did not match format"):
-                        LOG.info('  Ignoring time data format error: %s' % e3)
+                        log.info('  Ignoring time data format error: %s' % e3)
                     else:
-                        LOG.warning('  Ignoring exception: %s' % e3)
+                        log.warning('  Ignoring exception: %s' % e3)
                 except Exception, ee:
-                    LOG.warning('  Ignoring exception: %s' % ee)
-        LOG.info('  Unable to find a %s file.' % methodname)
-    LOG.warning('  Unable to generate a nav file for %s' % root)
+                    log.warning('  Ignoring exception: %s' % ee)
+        log.info('  Unable to find a %s file.' % methodname)
+    log.warning('  Unable to generate a nav file for %s' % root)
     return False
 
 
@@ -480,7 +482,7 @@ def ctd_polarstern_to_ctd_exchange(args, db):
     db.text_factory = str
 
     for input_filename in sys.files:
-        LOG.info(input_filename)
+        log.info(input_filename)
 
         meta = {}
         meta_cast = db.cursor().execute(
@@ -488,7 +490,7 @@ def ctd_polarstern_to_ctd_exchange(args, db):
                 (os.path.basename(input_filename), )).fetchone()
 
         if not meta_cast:
-            LOG.error(u"no metadata for {0}".format(input_filename))
+            log.error(u"no metadata for {0}".format(input_filename))
             continue
 
         meta["filename"] = meta_cast[1]
@@ -527,7 +529,7 @@ def ctd_polarstern_to_ctd_exchange(args, db):
                 try:
                     ctdex.write(datafile, out_file)
                 except TypeError:
-                    LOG.error(u'{0} {1!r}'.format(input_filename, 
+                    log.error(u'{0} {1!r}'.format(input_filename, 
                             map(lambda col: col.parameter.display_order,
                             datafile.columns.values())))
         else:
@@ -629,7 +631,7 @@ def australian_navy_ctd(args):
     for url in crawl(catalog):
         df = DataFile()
 
-        LOG.info(u'Reading %s', url)
+        log.info(u'Reading %s', url)
         dset = open_url(url)
         vars = dset.keys()
         for vname in vars:
@@ -670,7 +672,7 @@ def australian_navy_ctd(args):
                         qc_map = qc_conventions[qc_convention]
                         df[cparam].flags_woce = [qc_map[x] for x in var[:]]
                 else:
-                    LOG.debug('unhandled standard_name %s', std_name)
+                    log.debug('unhandled standard_name %s', std_name)
             elif (
                     'long_name' in attrs and
                     attrs['long_name'] == 'profile identifier'):
@@ -687,7 +689,7 @@ def australian_navy_ctd(args):
                     vname.endswith('sd_test')):
                 pass
             else:
-                LOG.debug('unhandled variable %s', vname)
+                log.debug('unhandled variable %s', vname)
 
         # attach new file to appropriate collection
         if dfc.files:

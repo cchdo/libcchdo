@@ -1,7 +1,11 @@
 import os.path
 from tarfile import open as tarfile_open
+from logging import getLogger
 
-from libcchdo.log import LOG
+
+log = getLogger(__name__)
+
+
 from libcchdo.model.datafile import DataFile
 from libcchdo.formats import ldeo_asep
 from libcchdo.formats.formats import (
@@ -70,7 +74,7 @@ def read(self, fileobj):
             if datapath is None:
                 if datadirname in member.name:
                     datapath = member.name.split(datadirname)[0] + datadirname + '/'
-                    LOG.info('NODC accession data path: {0}'.format(datapath))
+                    log.info('NODC accession data path: {0}'.format(datapath))
                 else:
                     continue
 
@@ -88,7 +92,7 @@ def read(self, fileobj):
             dfile = DataFile()
             ggg = fff.extractfile(member)
             if ggg is None:
-                LOG.error(u'Unable to extract file {0!r}'.format(member))
+                log.error(u'Unable to extract file {0!r}'.format(member))
             else:
                 ldeo_asep.read(dfile, ggg)
                 dfiles.append(dfile)

@@ -4,9 +4,12 @@ from SocketServer import TCPServer
 from socket import socket, AF_INET, SOCK_DGRAM, error as sockerr
 from SimpleHTTPServer import SimpleHTTPRequestHandler
 from webbrowser import open as webopen, Error as WebError
+from logging import getLogger
 
-from libcchdo.log import LOG
 from libcchdo.util import StringIO
+
+
+log = getLogger(__name__)
 
 
 def get_local_host(remote=None, port=80):
@@ -119,7 +122,7 @@ class SimpleHTTPServer():
             #webopen(self.host_port())
             raise WebError()
         except WebError:
-            LOG.info(u'Please open the following URL in your browser.')
+            log.info(u'Please open the following URL in your browser.')
             print self.host_port()
 
     def serve_forever(self):

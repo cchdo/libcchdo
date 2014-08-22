@@ -2,7 +2,7 @@
 
 """
 
-import logging
+from logging import getLogger
 from collections import OrderedDict
 
 from math import isnan
@@ -10,14 +10,11 @@ from math import isnan
 import numpy as np
 
 from libcchdo.fns import _decimal
-from libcchdo.log import LIBLOG_HANDLER
 from libcchdo.model.datafile import DataFile
 from . import *
 
 
-log = logging.getLogger(__name__)
-log.addHandler(LIBLOG_HANDLER)
-log.setLevel(logging.DEBUG)
+log = getLogger(__name__)
 
 
 def hrp_data_as_dict(hrp):

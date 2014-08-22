@@ -2,8 +2,10 @@ import os
 from unittest import TestCase
 from logging import StreamHandler
 from tempfile import TemporaryFile
+from logging import getLogger
 
-from libcchdo.log import LOG
+
+log = getLogger(__name__)
 
 
 def sample_file(*args):
@@ -15,23 +17,23 @@ class BaseTestCase(TestCase):
 
     def _unload_handlers(self):
         self.saved_handlers = []
-        for handler in LOG.handlers:
-            LOG.removeHandler(handler)
+        for handler in log.handlers:
+            log.removeHandler(handler)
             self.saved_handlers.append(handler)
 
     def _reload_handlers(self):
         for handler in self.saved_handlers:
-            LOG.addHandler(handler)
+            log.addHandler(handler)
         self.saved_handlers = []
         
     def setUp(self):
         self._unload_handlers()
         self.logstream = TemporaryFile()
         self.loghandler = StreamHandler(self.logstream)
-        LOG.addHandler(self.loghandler)
+        getLogger('libcchdo').addHandler(self.loghandler)
 
     def tearDown(self):
-        LOG.removeHandler(self.loghandler)
+        log.removeHandler(self.loghandler)
         self._reload_handlers()
 
     def ensure_lines(self, lines):

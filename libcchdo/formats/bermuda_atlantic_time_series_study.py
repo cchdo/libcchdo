@@ -1,7 +1,11 @@
 import os.path
 from datetime import datetime, timedelta
+from logging import getLogger
 
-from libcchdo import LOG
+
+log = getLogger(__name__)
+
+
 from libcchdo.fns import Decimal, equal_with_epsilon
 
 
@@ -14,7 +18,7 @@ def dpr_idparts(filename):
         filename = os.path.basename(filename)
         idpart, ext = os.path.splitext(filename)
     except ValueError:
-        LOG.warn('BATS CTD filename {0!r} should end in .dpr'.format(filename))
+        log.warn('BATS CTD filename {0!r} should end in .dpr'.format(filename))
         return {'type': None, 'cruise': None, 'cast': None}
     type_id = idpart[0]
     cruise_id = idpart[1:5]
@@ -67,11 +71,11 @@ def collapse_globals(df, parameters):
                 df.globals[p] = df[p][0]
                 del df[p]
             else:
-                LOG.info(
+                log.info(
                     u'Cannot collapse {0} to global. More than one unique '
                     'value exists: {1}'.format(p, df[p].values))
         except KeyError:
-            LOG.debug(u'No such key to check globality: {0}'.format(p))
+            log.debug(u'No such key to check globality: {0}'.format(p))
 
 
 def combine(bats_file, event_sum_file):
@@ -94,7 +98,7 @@ def combine(bats_file, event_sum_file):
             break
 
     if sum_file_i is None:
-        LOG.error('Event for BATS data at %f %f not found' % (lat, lng))
+        log.error('Event for BATS data at %f %f not found' % (lat, lng))
         return
     headers = event_sum_file.column_headers()
     row = event_sum_file.row(i)

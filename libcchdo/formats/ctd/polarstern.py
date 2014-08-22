@@ -10,8 +10,12 @@ dictionaries.
 from datetime import datetime
 from copy import copy
 import re
+from logging import getLogger
 
-from libcchdo import LOG
+
+log = getLogger(__name__)
+
+
 from libcchdo.model.datafile import DataFileCollection
 
 
@@ -192,7 +196,7 @@ def _parse_data_description(lines):
         try:
             value_unicode = unicode(tokens[1], 'raw_unicode_escape')
         except IndexError, err:
-            LOG.error(u'Not enough tokens: {0!r}'.format(tokens))
+            log.error(u'Not enough tokens: {0!r}'.format(tokens))
             raise err
         except TypeError, err:
             value_unicode = unicode(tokens[1])
@@ -499,7 +503,7 @@ def split(dfile, expocode):
             try:
                 event_meta = event_metas[event]
             except KeyError:
-                LOG.error(
+                log.error(
                     u'Unable to get event metadata for event {0}'.format(event))
 
             sect, stncast = event.split('/')
@@ -538,7 +542,7 @@ def split(dfile, expocode):
             try:
                 source_col = dfile[key]
             except KeyError:
-                LOG.error(u'Missing column {0}'.format(key))
+                log.error(u'Missing column {0}'.format(key))
                 continue
             try:
                 flag_woce = source_col.flags_woce[rowi]

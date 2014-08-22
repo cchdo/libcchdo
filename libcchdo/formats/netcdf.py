@@ -4,6 +4,11 @@
 import tempfile
 from contextlib import contextmanager, closing
 import datetime
+from logging import getLogger
+
+
+log = getLogger(__name__)
+
 
 try:
     from netCDF4 import Dataset
@@ -11,7 +16,7 @@ except ImportError, e:
     raise ImportError('%s\n%s' % (e,
         ("Please install netCDF4. (pip install netCDF4)")))
 
-from libcchdo import LOG, fns
+from libcchdo import fns
 from libcchdo.fns import Decimal
 from libcchdo.formats import woce
 from libcchdo.formats.exchange import parse_type_and_stamp_line
@@ -99,7 +104,7 @@ def nc_dataset_to_stream(stream, *args, **kwargs):
 
 def get_filename(expocode, station, cast, extension):
     if extension not in ['hy1', 'ctd']:
-        LOG.warn(u'File extension is not recognized.')
+        log.warn(u'File extension is not recognized.')
     station = _pad_station_cast(station)
     cast = _pad_station_cast(cast)
     return '%s.%s' % ('_'.join((expocode, station, cast, extension)),
@@ -136,10 +141,10 @@ def check_variable_ranges(nc_file):
                 continue
             x = Decimal(str(y))
             if x < min:
-                LOG.warn('%s too small for %s range (%s, %s)' % \
+                log.warn('%s too small for %s range (%s, %s)' % \
                          (str(x), name, str(min), str(max)))
             if x > max:
-                LOG.warn('%s too large for %s range (%s, %s)' % \
+                log.warn('%s too large for %s range (%s, %s)' % \
                          (str(x), name, str(min), str(max)))
 
 
@@ -252,7 +257,7 @@ def create_and_fill_data_variables(df, nc_file):
 
         pname = parameter.name_netcdf
         if not pname:
-            LOG.warn(
+            log.warn(
                 u'No netcdf name for {0}. Using mnemonic {1}.'.format(
                     parameter, parameter.name))
             pname = parameter.name
@@ -288,11 +293,11 @@ def create_and_fill_data_variables(df, nc_file):
             var.C_format = ascii(parameter.format)
         else:
             # TODO TEST this
-            LOG.warn(u"Parameter {0} has no format. defaulting to '%f'".format(
+            log.warn(u"Parameter {0} has no format. defaulting to '%f'".format(
                 parameter.name))
             var.C_format = '%f'
         if var.C_format.endswith('s'):
-            LOG.warn(
+            log.warn(
                 u'Parameter {0} does not have a format string acceptable for '
                 "numeric data. Defaulting to '%f' to prevent ncdump "
                 'segfault.'.format(parameter.name))

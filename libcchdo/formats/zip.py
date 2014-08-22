@@ -5,8 +5,12 @@ import zipfile
 from datetime import datetime
 from tempfile import SpooledTemporaryFile, NamedTemporaryFile
 from traceback import format_exc
+from logging import getLogger
 
-from libcchdo.log import LOG
+
+log = getLogger(__name__)
+
+
 from libcchdo import StringIO
 from libcchdo.model.datafile import DataFile, DataFileCollection
 from libcchdo.model.convert.datafile_to_datafilecollection import split_on_cast
@@ -114,7 +118,7 @@ def create(handle):
     try:
         return MemZipFile(handle, 'w', zipfile.ZIP_DEFLATED)
     except RuntimeError:
-        LOG.info(
+        log.info(
             u'Unable to write deflated zip file. Using store algorithm '
             'instead.')
         return MemZipFile(handle, 'w')
@@ -152,7 +156,7 @@ def generate_files(fileobj, is_fname_ok=None):
                 tempfile.seek(0)
                 yield tempfile
     except Exception, err:
-        LOG.error(u'Unable to read {0} in {1}:\n{2}'.format(
+        log.error(u'Unable to read {0} in {1}:\n{2}'.format(
             fname, fileobj, format_exc(err)))
     finally:
         zfile.close()
@@ -171,7 +175,7 @@ def write(self, handle, writer, get_filename, **kwargs):
     fnames = set()
     zfile = create(handle)
     if type(self) != DataFileCollection:
-        LOG.warn(u'Should not write a single DataFile to a zip collection. '
+        log.warn(u'Should not write a single DataFile to a zip collection. '
                  'Splitting the data into a collection by cast.')
         self = split_on_cast(self)
     for dfile in self:
@@ -192,12 +196,12 @@ def write(self, handle, writer, get_filename, **kwargs):
 
             filename = get_filename(dfile)
             if filename in fnames:
-                LOG.warn(
+                log.warn(
                     u'{0!r} is already present in zip file'.format(filename))
             else:
                 fnames.add(filename)
             try:
                 zfile.writestr(createZipInfo(filename), tempfile.read())
             except Exception, err:
-                LOG.error(u'Unable to write {0}: {1!r}'.format(filename, err))
+                log.error(u'Unable to write {0}: {1!r}'.format(filename, err))
     zfile.close()

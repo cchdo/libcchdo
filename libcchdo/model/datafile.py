@@ -1,12 +1,16 @@
 from operator import itemgetter
 from datetime import timedelta
 from collections import OrderedDict
+from logging import getLogger
+
+
+log = getLogger(__name__)
+
 
 from libcchdo.fns import (
     InvalidOperation,
     decimal_to_str, _decimal, set_list, uniquify, equal_with_epsilon,
     is_list_global, is_list_globally_equal, is_list_globally)
-from libcchdo.log import LOG
 from libcchdo.ui import TERMCOLOR
 from libcchdo.util import memoize
 from libcchdo.db.model import std
@@ -77,7 +81,7 @@ class Column(object):
 
         """
         if value and not self.parameter.is_in_range(value):
-            LOG.warn(
+            log.warn(
                 u'{0!r} is not in range {1} ({2!r}, {3!r})'.format(
                     value, self.parameter, self.parameter.bound_lower,
                     self.parameter.bound_upper))
@@ -155,8 +159,8 @@ class Column(object):
             try:
                 return dec.as_tuple().exponent
             except AttributeError:
-                LOG.critical(u'{0} contains non-Decimal values.'.format(self))
-                LOG.info(u'Ensure the reader wraps values with _decimal')
+                log.critical(u'{0} contains non-Decimal values.'.format(self))
+                log.info(u'Ensure the reader wraps values with _decimal')
                 raise ValueError(
                     u'Values in columns are required to be Decimal objects, '
                     'not {0}: {1}'.format(type(dec), dec))
@@ -189,7 +193,7 @@ class Column(object):
         if parameter.name.startswith('_'):
             if '_FLAG_' in parameter.name:
                 return
-            LOG.info(
+            log.info(
                 u'Parameter {0!r} will not be checked against known '
                 'parameters.'.format(parameter.name))
             return
@@ -203,7 +207,7 @@ class Column(object):
             del file[parameter.name]
 
         if not std_parameter:
-            LOG.warn("Unknown parameter '%s'" % parameter.name)
+            log.warn("Unknown parameter '%s'" % parameter.name)
             return
 
         given_units = parameter.units.mnemonic if parameter.units else None
@@ -227,7 +231,7 @@ class Column(object):
 
         if given_units and expected_units and \
            given_units != expected_units:
-            LOG.warn(("Mismatched units for '%s'. Found '%s' but "
+            log.warn(("Mismatched units for '%s'. Found '%s' but "
                       "expected '%s'") % ((parameter.name,) + from_to))
             # TODO IPTS-68 and ITS-90 need to be recognized and checked for as
             # valid aliases for DEG C. However, DEG C is less descriptive than
@@ -236,10 +240,10 @@ class Column(object):
             try:
                 unit_converter = file.unit_converters[from_to]
             except KeyError:
-                LOG.info(("No unit converter registered with file for "
+                log.info(("No unit converter registered with file for "
                           "'%s' -> '%s'. Skipping conversion.") % from_to)
                 return
-            LOG.info(("Converting from '%s' -> '%s' for %s.") % \
+            log.info(("Converting from '%s' -> '%s' for %s.") % \
                      (from_to + (self.parameter.name,)))
             self = unit_converter(file, self)
             file.changes_to_report.append((
@@ -626,12 +630,12 @@ class DataFile(File):
             if isinstance(parameter, basestring):
                 if (parameter.endswith('FLAG_W') or 
                     parameter.endswith('FLAG_I')):
-                    #LOG.debug(
+                    #log.debug(
                     #    u'Skipped creating column for flag {0}'.format(
                     #    parameter))
                     continue
                 elif parameter in self.columns:
-                    LOG.debug(
+                    log.debug(
                         u'Skipped creating already present column {0}'.format(
                         parameter))
                     continue
@@ -655,7 +659,7 @@ class DataFile(File):
             if units and expected_units:
                 given_unit = units[i]
                 if expected_units != given_unit:
-                    LOG.warn(
+                    log.warn(
                         u"Mismatched units for {0}. Expected {1!r} and "
                         "received {2!r}".format(
                         parameter, expected_units, given_unit))
@@ -785,7 +789,7 @@ class DataFile(File):
         try:
             localgrav = depth.grav_ocean_surface_wrt_latitude(lat)
         except OverflowError, err:
-            LOG.error(u'Unable to calculate gravity for latitude {0}. Sin '
+            log.error(u'Unable to calculate gravity for latitude {0}. Sin '
                       'algorithm probably oscillates.'.format(lat))
             raise err
         try: 
@@ -799,7 +803,7 @@ class DataFile(File):
         except (AttributeError, IndexError, ValueError):
             pass
         try:
-            LOG.info(u'Falling back from depth integration to Unesco method.')
+            log.info(u'Falling back from depth integration to Unesco method.')
             depths = [depth.depth_unesco(pres, lat) for pres in pres.values]
             return ('unesco1983', depths)
         except AttributeError:

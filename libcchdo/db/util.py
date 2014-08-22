@@ -1,8 +1,12 @@
 import re
 from datetime import datetime
 from contextlib import closing
+from logging import getLogger
 
-from libcchdo import LOG
+
+log = getLogger(__name__)
+
+
 from libcchdo.db.model import legacy
 from libcchdo.db.model.legacy import TrackLine, Cruise
 
@@ -76,7 +80,7 @@ def _grouped_cruises_with_data_modifications(
     documents = query.all()
 
     # Group all the modifications for each cruise first
-    LOG.info(u'Grouping modification times for each cruise')
+    log.info(u'Grouping modification times for each cruise')
     cruise_modifications = {}
     for expocode, lastmod, modified in documents:
         if modified:
@@ -108,7 +112,7 @@ def _grouped_cruises_with_data_modifications(
         if not expocode or expocode == 'NULL':
             continue
 
-        LOG.info(u'{0} {1} {2}'.format(expocode, lastmod, date_added))
+        log.info(u'{0} {1} {2}'.format(expocode, lastmod, date_added))
 
         if date_added < around_year:
             if lastmod < around_year:
@@ -155,7 +159,7 @@ def tracks(output, dt_from=None, dt_to=None, around=None):
     if around:
         around = int(around)
         def bin_end():
-            LOG.info('bin end')
+            log.info('bin end')
             output.write('\n')
         dstore.binned_tracks_callbacks(
             bin_end, track_points, around_year=datetime(around, 1, 1))

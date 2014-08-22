@@ -1,4 +1,9 @@
-from libcchdo import LOG
+from logging import getLogger
+
+
+log = getLogger(__name__)
+
+
 from libcchdo.fns import _decimal, equal_with_epsilon
 from libcchdo.formats.exchange import FILL_VALUE
 from libcchdo.datadir import create_expocode

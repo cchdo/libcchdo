@@ -35,6 +35,7 @@ A good use of this feature is to have a development environment.
     $ unset LIBCCHDO_ENV
 
 """
+from logging import getLogger
 from ConfigParser import (
     SafeConfigParser, Error as ConfigError, NoSectionError,
     DuplicateSectionError, NoOptionError)
@@ -43,8 +44,10 @@ from sys import stdout, stderr
 import os
 from getpass import getpass
 
-from libcchdo.log import LOG
 from libcchdo.util import memoize
+
+
+log = getLogger(__name__)
 
 
 _CONFIG_DIR = '.%s' % __package__
@@ -70,7 +73,7 @@ def get_libenv():
     """
     env = os.environ.get(ENVIRONMENT_ENV_VARIABLE, PRODUCTION_ENVIRONMENT)
     if env != PRODUCTION_ENVIRONMENT:
-        LOG.info('Running in {0} environment.'.format(env))
+        log.info('Running in {0} environment.'.format(env))
     return env
 
 
@@ -129,7 +132,7 @@ def _save_config():
         try:
             os.makedirs(os.path.dirname(config_path))
         except os.error:
-            LOG.error('Unable to write configuration file: %s' % config_path)
+            log.error('Unable to write configuration file: %s' % config_path)
             return
 
     with open(config_path, 'wb') as config_file:
@@ -198,7 +201,7 @@ def get_input(prompt=None):
 
 def get_db_credentials_cchdo():
     def input_cchdo_db_host():
-        LOG.info(_storage_notice())
+        log.info(_storage_notice())
         return get_input(u'Which host is the legacy CCHDO database on? ')
 
     cfg_db = 'db_cred'
@@ -206,7 +209,7 @@ def get_db_credentials_cchdo():
     db_host = get_option(cfg_db, cfg_host, input_cchdo_db_host)
 
     def input_cchdo_db_name():
-        LOG.info(_storage_notice())
+        log.info(_storage_notice())
         return get_input(u'What is the name of the legacy CCHDO database? ')
 
     cfg_db = 'db_cred'
@@ -214,7 +217,7 @@ def get_db_credentials_cchdo():
     db_name = get_option(cfg_db, cfg_name, input_cchdo_db_name)
 
     def input_cchdo_username():
-        LOG.info(_storage_notice())
+        log.info(_storage_notice())
         return get_input(
             u'What is your username for the database {}/{}? '.format(
                 db_host, db_name))
@@ -228,7 +231,7 @@ def get_db_credentials_cchdo():
     try:
         password = get_option(cfg_db, cfg_password)
     except ConfigError:
-        LOG.info(
+        log.info(
             u'To avoid this question, put your password in plain text as '
             '[{0}] {1} in {2}'.format(cfg_db, cfg_password, get_config_path()))
         try:

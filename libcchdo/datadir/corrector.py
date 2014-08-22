@@ -5,10 +5,14 @@ from shutil import copy2, rmtree
 from zipfile import ZipFile
 from json import load as jload, dump as jdump
 from contextlib import closing
+from logging import getLogger
+
+
+log = getLogger(__name__)
+
 
 from sqlalchemy.exc import ProgrammingError
 
-from libcchdo import LOG
 from libcchdo.config import get_merger_initials, get_merger_name
 from libcchdo.datadir.processing import (
     mkdir_working, DirName, FetchCommitter)
@@ -95,18 +99,18 @@ class ExpoCodeAliasCorrector(dict):
             return cruisedir
 
         cruise_dir_name_new = self.replace_expocode(cruise_dir_name)
-        LOG.info(
+        log.info(
             u'Renaming cruise directory to {0}'.format(cruise_dir_name_new))
 
         path_new = os.path.join(cruise_dir_base, cruise_dir_name_new)
         if os.path.exists(path_new):
             msg = u'Path {0!r} already exists'.format(path_new)
             if dryrun:
-                LOG.critical(u'DRYRUN {0}'.format(msg))
+                log.critical(u'DRYRUN {0}'.format(msg))
             else:
                 raise OSError(msg)
         if dryrun:
-            LOG.info(u'DRYRUN would rename {0} to {1}'.format(
+            log.info(u'DRYRUN would rename {0} to {1}'.format(
                 cruise_dir_name, cruise_dir_name_new))
             return cruisedir
         else:
@@ -147,18 +151,18 @@ class ExpoCodeAliasCorrector(dict):
                 items = session.query(model).\
                     filter(col == self.expocode_old).all()
             except ProgrammingError, err:
-                LOG.error(err)
+                log.error(err)
                 continue
             for item in items:
                 try:
-                    LOG.info(u'Change {0} {1} expocode'.format(
+                    log.info(u'Change {0} {1} expocode'.format(
                         model.__name__, item.id))
                 except AttributeError:
                     try:
-                        LOG.info(u'Change {0} {1} expocode'.format(
+                        log.info(u'Change {0} {1} expocode'.format(
                             model.__name__, item.ID))
                     except AttributeError:
-                        LOG.info(u'Change {0} expocode'.format(model.__name__))
+                        log.info(u'Change {0} expocode'.format(model.__name__))
                 item.ExpoCode = self.expocode_new
 
         # Replace expocode in a list of cruises.
@@ -166,7 +170,7 @@ class ExpoCodeAliasCorrector(dict):
             filter(CruiseGroup.cruises.like(
                 '%{0}%'.format(self.expocode_old))).all()
         for cgrp in cgrps:
-            LOG.info(u'Change {0} {1} expocode'.format('CruiseGroup', cgrp.id))
+            log.info(u'Change {0} {1} expocode'.format('CruiseGroup', cgrp.id))
             cgrp.cruises = self.replace_expocode(cgrp.cruises)
 
     def fix_expocode(self, cruisedir, dryrun=True):
@@ -177,15 +181,15 @@ class ExpoCodeAliasCorrector(dict):
                 if not self.is_expocode_present(text):
                     return
                 if dryrun:
-                    LOG.info(u'DRYRUN would update ExpoCode')
+                    log.info(u'DRYRUN would update ExpoCode')
                 else:
                     text = self.replace_expocode(text)
                     fff.seek(0)
                     fff.write(text)
                     fff.truncate()
-                    LOG.info(u'Updated ExpoCode')
+                    log.info(u'Updated ExpoCode')
         except IOError, e:
-            LOG.error(u'Cruise directory is missing ExpoCode file')
+            log.error(u'Cruise directory is missing ExpoCode file')
             raise e
 
     def fix_cruise_json(self, cruisedir, dryrun=True):
@@ -198,11 +202,11 @@ class ExpoCodeAliasCorrector(dict):
                 data['expocode'] = self.replace_expocode(data['expocode'])
                 with open(json_path, 'w') as fff:
                     jdump(data, fff)
-                LOG.info(u'Updated cruise json')
+                log.info(u'Updated cruise json')
             except KeyError:
                 pass
         except (OSError, IOError), err:
-            LOG.error(u'Could not fix cruise.json file')
+            log.error(u'Could not fix cruise.json file')
 
     def fix_nc(self, path, dryrun=True, rjust=False):
         # TODO WARNING: Corrupt netcdf files may cause SIGABRT in netCDF library
@@ -215,7 +219,7 @@ class ExpoCodeAliasCorrector(dict):
 
         setattr(rg, 'EXPOCODE', expocode)
         setattr(rg, 'WOCE_ID', woce_line)
-        #LOG.info(u'Updated {0}'.format(path))
+        #log.info(u'Updated {0}'.format(path))
 
     encodings = ['ascii', 'utf8', 'utf16']
 
@@ -236,13 +240,13 @@ class ExpoCodeAliasCorrector(dict):
             text = fff.read()
             text, encoding = self._determine_encoding(text)
             if encoding is None:
-                LOG.warn('Could not decode file {0}.'.format(path))
+                log.warn('Could not decode file {0}.'.format(path))
                 return
             text = self.replace_all(text, rjust)
             fff.seek(0)
             fff.write(text.encode(encoding))
             fff.truncate()
-            #LOG.info(u'Updated {0}'.format(path))
+            #log.info(u'Updated {0}'.format(path))
 
     def fix_flat(self, path, dryrun=True, rjust=False):
         if path.endswith('.nc'):
@@ -318,7 +322,7 @@ class ExpoCodeAliasCorrector(dict):
         assert os.path.exists(cruisedir), \
            'Cruise directory {0} does not exist'.format(cruisedir)
         cruisedir = os.path.abspath(cruisedir)
-        LOG.info(
+        log.info(
             u'Changing ExpoCode for cruise directory {dir} from {old!r} to '
             '{new!r}'.format(
                 dir=cruisedir, old=self.expocode_old, new=self.expocode_new))
@@ -336,7 +340,7 @@ class ExpoCodeAliasCorrector(dict):
             EXPOCODE_FILENAME, 'Queue', 'original',
         ]
         if dryrun:
-            LOG.info(u'DRYRUN would create working directory')
+            log.info(u'DRYRUN would create working directory')
             if debug:
                 origdir = mkdtemp(dir='/tmp')
             else:
@@ -351,12 +355,12 @@ class ExpoCodeAliasCorrector(dict):
         expo_new_len = len(self.expocode_new)
         expo_len_diff = expo_new_len - expo_old_len
         if expo_old_len > expo_new_len:
-            LOG.info(u'New expocode is {0} characters shorter than old '
+            log.info(u'New expocode is {0} characters shorter than old '
                      'expocode. The new expocode has been right justified '
                      'with spaces. This should not cause problems.'.format(
                 -expo_len_diff))
         elif expo_old_len < expo_new_len:
-            LOG.warn(u'New expocode is {0} characters longer than old '
+            log.warn(u'New expocode is {0} characters longer than old '
                      'expocode. This may cause issues with ASCII format '
                      "files' alignment. Please check manually.".format(
                 expo_len_diff))
@@ -373,7 +377,7 @@ class ExpoCodeAliasCorrector(dict):
 
                 fname_new = self.replace_all(fname)
                 if fname != fname_new:
-                    LOG.info('Renamed {0}\t-> {1}'.format(fname, fname_new))
+                    log.info('Renamed {0}\t-> {1}'.format(fname, fname_new))
                     renamed_files[fname] = fname_new
                 filepath = os.path.join(tgodir, fname_new)
 
@@ -384,12 +388,12 @@ class ExpoCodeAliasCorrector(dict):
                 if fname_new.endswith('.zip'):
                     self.fix_zip(filepath, rjust=True)
                 elif fname_new.endswith('.gif') or fname_new.endswith('.jpg'):
-                    LOG.warn(
+                    log.warn(
                         u'Please regenerate {0} manually.'.format(fname_new))
                 else:
                     if fname_new[-6:-4] == 'do':
                         if fname_new.endswith('.pdf'):
-                            LOG.warn(
+                            log.warn(
                                 u'Cannot yet fix PDFs. Please get Publications '
                                 'to fix {0}.'.format(filepath))
                         else:
@@ -449,7 +453,7 @@ class ExpoCodeAliasCorrector(dict):
             try:
                 session.commit()
             except Exception, err:
-                LOG.critical(u'Unable to commit! {0!r}'.format(err))
+                log.critical(u'Unable to commit! {0!r}'.format(err))
 
             # Send expocode change email
             try:
@@ -461,15 +465,15 @@ class ExpoCodeAliasCorrector(dict):
                     self.expocode_new, get_merger_name(), summary, note_id))
                 ecemail.attach_readme(readme_text)
                 ecemail.send(email_path)
-                LOG.info(u'Please check documents table for {0} to ensure no '
+                log.info(u'Please check documents table for {0} to ensure no '
                          'duplicate Filename entries'.format(self.expocode_new))
             except Exception, err:
-                LOG.error(u'Could not send email: {0!r}'.format(err))
+                log.error(u'Could not send email: {0!r}'.format(err))
         finally:
             if dryrun:
                 if debug:
-                    LOG.info(u'working directory: {0}'.format(workdir))
+                    log.info(u'working directory: {0}'.format(workdir))
                     raw_input('press enter to cleanup')
                 rmtree(origdir)
-                LOG.info(u'rolled back history note')
+                log.info(u'rolled back history note')
                 session.rollback()

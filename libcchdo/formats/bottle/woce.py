@@ -1,6 +1,10 @@
 from re import compile as re_compile
+from logging import getLogger
 
-from libcchdo.log import LOG
+
+log = getLogger(__name__)
+
+
 from libcchdo.fns import strip_all, uniquify
 from libcchdo.model.datafile import Column
 from libcchdo.formats import woce
@@ -108,7 +112,7 @@ def write(self, handle):
         self.globals['SECT_ID'] = self['SECT_ID'].values[0]
     else:
         sect_ids_uniq = uniquify(self['SECT_ID'].values)
-        LOG.warn(u'Multiple section ids found: {0}'.format(sect_ids_uniq))
+        log.warn(u'Multiple section ids found: {0}'.format(sect_ids_uniq))
         self.globals['SECT_ID'] = '/'.join(sect_ids_uniq)
 
     columns, base_format = woce.columns_and_base_format(self)

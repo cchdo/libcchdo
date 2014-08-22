@@ -1,4 +1,9 @@
 import sys
+from logging import getLogger
+
+
+log = getLogger(__name__)
+
 
 import sqlalchemy as S
 from sqlalchemy import func
@@ -11,7 +16,6 @@ from sqlalchemy.orm import relationship, relation, column_property, backref
 from sqlalchemy.types import BINARY
 import sqlalchemy.ext.declarative
 
-from libcchdo.log import LOG
 from libcchdo.db import connect, Enum
 
 
@@ -691,7 +695,7 @@ def find_parameter(session, name):
         Parameter.name == name).first()
     if not legacy_parameter:
         # Try aliases
-        LOG.warn(
+        log.warn(
             "No legacy parameter found for '%s'. Falling back to aliases." % \
             name)
         legacy_parameter = session.query(Parameter).filter(
@@ -699,7 +703,7 @@ def find_parameter(session, name):
         
         if not legacy_parameter:
             # Try known overrides
-            LOG.warn(
+            log.warn(
                 ("No legacy parameter found for '%s'. Falling back on known "
                  "override parameters.") % name)
             try:

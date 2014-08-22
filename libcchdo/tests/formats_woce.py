@@ -2,7 +2,6 @@ from contextlib import closing
 
 from libcchdo.util import StringIO
 from libcchdo.tests import BaseTestCase, sample_file
-from libcchdo.log import LOG
 from libcchdo.formats import exchange
 from libcchdo.model.datafile import DataFile, Column
 

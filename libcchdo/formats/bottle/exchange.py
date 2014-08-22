@@ -1,5 +1,10 @@
+from logging import getLogger
+
+
+log = getLogger(__name__)
+
+
 from libcchdo.fns import _decimal
-from libcchdo.log import LOG
 from libcchdo.model.datafile import Column
 from libcchdo.formats import woce
 from libcchdo.formats.exchange import (
@@ -131,9 +136,9 @@ def write(self, handle):
             column.values = [if_float_then_int(vvv) for vvv in column.values]
         except KeyError:
             if required:
-                LOG.warn(u'Missing {0} column'.format(param))
+                log.warn(u'Missing {0} column'.format(param))
             else:
-                LOG.warn(u'Missing optional {0} column'.format(param))
+                log.warn(u'Missing optional {0} column'.format(param))
 
     convert_column_floats_to_ints(self, 'STNNBR')
     convert_column_floats_to_ints(self, 'CASTNO')

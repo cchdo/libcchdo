@@ -3,13 +3,17 @@ import os
 import re
 from datetime import datetime
 from contextlib import closing
+from logging import getLogger
+
+
+log = getLogger(__name__)
+
 
 import transaction
 from sqlalchemy.orm.exc import NoResultFound
 from sqlalchemy.orm.exc import MultipleResultsFound
 from sqlalchemy import or_
 
-from libcchdo import LOG
 from libcchdo.db.model.legacy import Document, Cruise, session
 from libcchdo.config import get_datadir_hostname
 from libcchdo.datadir.util import full_datadir_path
@@ -66,7 +70,7 @@ def is_expo_in_cruises(sesh, expo):
             ).one()
         return True
     except NoResultFound:
-        LOG.info( "Given expocode or directory path is not an expocode in the"\
+        log.info( "Given expocode or directory path is not an expocode in the"\
         " cruises table, assuming cruise directory path")
         return False
 
@@ -136,17 +140,17 @@ def identify_files(files):
         if len(files) is not len(identified_files):
             # There are unidentified files
             f = [x for x in files if x not in identified_files]
-            LOG.warn("The following files could not be identified"\
+            log.warn("The following files could not be identified"\
                     " based on file extention: {0}".format(f))
         dups = set([x for x in identified_files.values() if
             identified_files.values().count(x) > 1])
         if len(dups) > 0:
-            LOG.warn("There are multiple files of the following types:")
+            log.warn("There are multiple files of the following types:")
             for dup in dups:
                 f = [x for x in identified_files if
                         identified_files[x] == dup]
-                LOG.warn( "{0}: {1}".format(dup, f))
-            LOG.warn("The update can continue, only one of each file type will"\
+                log.warn( "{0}: {1}".format(dup, f))
+            log.warn("The update can continue, only one of each file type will"\
             " be displayed on the website")
     return identified_files
 
@@ -205,7 +209,7 @@ def update(expo_or_ddir):
             if not os.path.exists(os.path.join(base_dir, file)):
                 deleted_files.append(file)
         if len(deleted_files) > 0:
-            LOG.info("The following have been deleted: {0}".format(deleted_files))
+            log.info("The following have been deleted: {0}".format(deleted_files))
         for file in files:
             full_path = os.path.join(base_dir, file)
             if file not in old_files:
@@ -270,13 +274,13 @@ def update(expo_or_ddir):
 
         transaction.commit()
         if len(unchanged_files) > 0:
-            LOG.info("The following files are unchanged: {0}".format(unchanged_files))
+            log.info("The following files are unchanged: {0}".format(unchanged_files))
         if len(new_files) > 0:
-            LOG.info("The following files are new: {0}".format(new_files))
+            log.info("The following files are new: {0}".format(new_files))
         if len(updated_files) > 0:
-            LOG.info("The following files are updated: {0}".format([x[0] for x in updated_files]))
+            log.info("The following files are updated: {0}".format([x[0] for x in updated_files]))
 
-        LOG.info('Update done')
+        log.info('Update done')
     except:
         transaction.abort()
         raise

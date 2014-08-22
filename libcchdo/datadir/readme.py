@@ -4,8 +4,13 @@
 
 import os
 from datetime import date
+from logging import getLogger
 
-from libcchdo.log import LOG, log_above
+
+log = getLogger(__name__)
+
+
+from libcchdo.log import log_above
 from libcchdo.datadir.filenames import (
     UOW_CFG_FILENAME, README_TEMPLATE_FILENAME)
 from libcchdo.config import get_merger_name_first, get_merger_name_last
@@ -198,7 +203,7 @@ class Readme(object):
             elif ftype in ['btl.nc', 'ctd.nc', 'btl.zip.nc', 'ctd.zip.nc']:
                 type_stamp_reader = nc_read_type_and_stamp
             else:
-                LOG.info(
+                log.info(
                     u'Unrecognized file type {0} for filename {1}. Stamp will '
                     'not be included in manifest.'.format(ftype, fname))
                 rows.append([fname, ''])
@@ -277,7 +282,7 @@ class ProcessingReadme(Readme):
 
         """
         with open(path) as fff:
-            with log_above():
+            with log_above(log=log):
                 dfile = read_arbitrary(fff)
 
         IGNORED_PARAMETERS = [
@@ -326,7 +331,7 @@ class ProcessingReadme(Readme):
                         path, qf_footnote_id, fill_footnote_id,
                         not_in_woce_id)))
             except Exception, err:
-                LOG.error(
+                log.error(
                     u'Unable to read parameters for {0}:\n{1!r}'.format(
                     path, err))
                 file_summaries.append(
@@ -395,7 +400,7 @@ class ProcessingReadme(Readme):
                 raise ValueError(u'File formats were not checked with '
                                  'secondary program such as JOA.')
         except (KeyError, ValueError), err:
-            LOG.error(u'Please check converted file formats and set '
+            log.error(u'Please check converted file formats and set '
                       '"conversions_checked" to true in {0}'.format(
                       UOW_CFG_FILENAME))
             raise err
@@ -406,13 +411,13 @@ class ProcessingReadme(Readme):
                 assert type(fnames) == list
                 rows.append([fname, u', '.join(fnames), sware])
         except ValueError, err:
-            LOG.error(
+            log.error(
                 u'Conversions list in {0} must be a list of lists.'.format(
                 UOW_CFG_FILENAME))
             raise ValueError(u'Conversions list in {0} is malformed.'.format(
                              UOW_CFG_FILENAME))
         except AssertionError:
-            LOG.error(
+            log.error(
                 u'Second element of Conversion list in {0} must be a list of '
                 'files that were the source for conversion.'.format(
                 UOW_CFG_FILENAME))

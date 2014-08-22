@@ -1,8 +1,12 @@
 from datetime import datetime
 from re import compile
 from copy import copy
+from logging import getLogger
 
-from libcchdo import LOG
+
+log = getLogger(__name__)
+
+
 from libcchdo.util import memoize
 from libcchdo.fns import Decimal, equal_with_epsilon
 from libcchdo.model.datafile import DataFile, DataFileCollection
@@ -116,19 +120,19 @@ def _parse_bats_id(id):
         # Short for BATS Bloom b
         type = 'BATSBLMB'
     else:
-        LOG.error(u'Invalid BATS cruise type {0} for id {1}'.format(type, id))
+        log.error(u'Invalid BATS cruise type {0} for id {1}'.format(type, id))
         return None
     try:
         num = int(cruise_id)
     except TypeError:
-        LOG.error(u'Invalid BATS cruise number {0} for id {1}'.format(num, id))
+        log.error(u'Invalid BATS cruise number {0} for id {1}'.format(num, id))
         return None
 
     cast_type = None
     try:
         cast = int(cast)
     except TypeError:
-        LOG.error(u'Invalid BATS cast number {0} for id {1}'.format(cast, id))
+        log.error(u'Invalid BATS cast number {0} for id {1}'.format(cast, id))
         return None
     if 1 <= cast and cast <= 80:
         cast_type = 'CTD'
@@ -140,7 +144,7 @@ def _parse_bats_id(id):
     try:
         nisk = int(nisk)
     except TypeError:
-        LOG.error(u'Invalid Niskin number {0} for id {1}'.format(nisk, id))
+        log.error(u'Invalid Niskin number {0} for id {1}'.format(nisk, id))
         return None
 
     return type, type_id, num, cruise_id, cast_type, cast_num, nisk
@@ -170,7 +174,7 @@ def _ship_from_cruise_num(cruise_num):
     elif cruise_num == 242:
         return 'R/V Oceanus'
     else:
-        LOG.error(u'Ship is unknown for cruise id {0}'.format(cruise_num))
+        log.error(u'Ship is unknown for cruise id {0}'.format(cruise_num))
         return None
 
 
@@ -313,7 +317,7 @@ def read(self, handle, metadata=None):
                 df.globals['CASTNO'] != cast_id):
             if df is not None:
                 # Done reading one cast. Finalize it.
-                LOG.info(u'finalizing cast {0} {1} {2}'.format(
+                log.info(u'finalizing cast {0} {1} {2}'.format(
                     df.globals['_OS_ID'], df.globals['STNNBR'],
                     df.globals['CASTNO']))
                 try:
@@ -325,7 +329,7 @@ def read(self, handle, metadata=None):
                     port_date = min(df['_DATETIME'])
                 df.globals['EXPOCODE'] = create_expocode(
                     ship_code(ship, raise_on_unknown=False), port_date)
-                LOG.info(df.globals['EXPOCODE'])
+                log.info(df.globals['EXPOCODE'])
                 df.globals['DEPTH'] = max(df['_ACTUAL_DEPTH'])
                 collapse_globals(df, ['_DATETIME', 'LATITUDE', 'LONGITUDE'])
                 # Normalize all the parameter column lengths. There may be
@@ -354,7 +358,7 @@ def read(self, handle, metadata=None):
         dt_ascii = datetime.strptime(parts[1] + parts[3], '%Y%m%d%H%M')
         dt_deci = bats_time_to_dt(parts[2])
         #if dt_ascii != dt_deci:
-        #    LOG.warn(
+        #    log.warn(
         #        u'Dates differ on data row {0}: {5} {1!r}={2} '
         #        '{3!r}={4}'.format(i, parts[1] + parts[3], dt_ascii, parts[2],
         #                           dt_deci, dt_deci - dt_ascii))
@@ -381,10 +385,10 @@ def read(self, handle, metadata=None):
                 df[param].set_check_range(dfi, None)
             # TODO determine whether -10 is just bad formatting for -9.9
             elif equal_with_epsilon(v, -10):
-                #LOG.warn(u'Possible missing data value {0}'.format(v))
+                #log.warn(u'Possible missing data value {0}'.format(v))
                 df[param].set_check_range(dfi, None)
             elif v == 0:
-                LOG.warn(
+                log.warn(
                     u'Data under detection limit, set flag to '
                     'WOCE water sample questionable measurement')
                 df[param].set_check_range(dfi, None, flag=3)
@@ -396,4 +400,4 @@ def read(self, handle, metadata=None):
         # casts, as the file is processed it is split apart into a list of
         # DataFileCollection(s) containing DataFile objects for each casts
         if i % 100 == 0:
-            LOG.info(u'processed {0} lines'.format(i))
+            log.info(u'processed {0} lines'.format(i))

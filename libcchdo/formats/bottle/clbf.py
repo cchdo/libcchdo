@@ -1,5 +1,10 @@
+from logging import getLogger
+
+
+log = getLogger(__name__)
+
+
 from libcchdo.fns import _decimal
-from libcchdo.log import LOG
 from libcchdo.model.datafile import Column
 from libcchdo.formats import woce
 from libcchdo.formats.exchange import (

@@ -1,7 +1,11 @@
 import sys
 import re
+from logging import getLogger
 
-from libcchdo.log import LOG
+
+log = getLogger(__name__)
+
+
 from libcchdo.db.model import legacy, std
 
 
@@ -76,10 +80,10 @@ def convert_unit(session, name, mnemonic):
         if units.mnemonic != units_mnemonic:
             if not units.mnemonic:
                 units.mnemonic = units_mnemonic
-                LOG.info(u'Set mnemonic for existing unit {0} to {1}'.format(
+                log.info(u'Set mnemonic for existing unit {0} to {1}'.format(
                     units_name, units_mnemonic))
             else:
-                LOG.error(
+                log.error(
                     u'unit {0} exists with mnemonic {1} which != {2}'.format(
                         units_name, units_mnemonic, units.mnemonic))
                 raise ValueError()
@@ -125,7 +129,7 @@ def convert_parameter(session, legacy_param):
             parameter.units = convert_unit(
                 session, legacy_param.units, legacy_param.unit_mnemonic)
         except ValueError:
-            LOG.warn(u'Unable to convert unit for {0}'.format(parameter))
+            log.warn(u'Unable to convert unit for {0}'.format(parameter))
     else:
         parameter.units = None
 
@@ -191,7 +195,7 @@ def all_parameters(lsession, session):
                 best_name = p.name
             netcdf_name = _name_to_netcdf_name(best_name)
             if netcdf_name == 'none':
-                LOG.debug('{0!r} {1!r} {2}'.format(p.full_name, p.name, p))
+                log.debug('{0!r} {1!r} {2}'.format(p.full_name, p.name, p))
         while netcdf_name in used_netcdf_names:
             netcdf_name += '1'
         p.name_netcdf = netcdf_name

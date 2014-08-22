@@ -7,6 +7,11 @@ from math import floor, fsum, atan2, sin, cos
 from urllib2 import urlopen, URLError
 from tempfile import SpooledTemporaryFile
 from copy import copy
+from logging import getLogger
+
+
+log = getLogger(__name__)
+
 
 import numpy as np
 from numpy import ma, arange
@@ -33,7 +38,7 @@ from mpl_toolkits.basemap import (
     Basemap, shiftgrid, _pseudocyl, _cylproj, 
     )
 
-from libcchdo import config, LOG
+from libcchdo import config
 from libcchdo.plot.interpolation import BicubicConvolution
 
 
@@ -72,12 +77,12 @@ def get_nx_ny(basemap, lons, cut_ratio=1):
     if basemap.projection != 'cyl':
         # 4 makes superfast and still good quality
         dx = 2. * np.pi * basemap.rmajor / float(nlons) * cut_ratio
-        LOG.debug('not cyl\t%f' % dx)
+        log.debug('not cyl\t%f' % dx)
         nx = int((basemap.xmax - basemap.xmin) / dx) + 1
         ny = int((basemap.ymax - basemap.ymin) / dx) + 1
     else:
         dx = 360. / float(nlons) * cut_ratio
-        LOG.debug('cyl\t%f' % dx)
+        log.debug('cyl\t%f' % dx)
         nx = int((basemap.urcrnrlon - basemap.llcrnrlon) / dx) + 1
         ny = int((basemap.urcrnrlat - basemap.llcrnrlat) / dx) + 1
     return nx, ny
@@ -159,7 +164,7 @@ def downsample(scale, xs, ys, zs):
             0.1        | ETOPO5
 
     """
-    LOG.info('Downsampling to %f' % scale)
+    log.info('Downsampling to %f' % scale)
     newxs = np.linspace(xs[0], xs[-1], xs.size * scale)
     newys = np.linspace(ys[0], ys[-1], ys.size * scale)
 
@@ -222,7 +227,7 @@ def etopo1_url(version='ice', registration='grid', binformat='netcdf',
 
 def download_etopo1(etopo_path, version='ice'):
     url = etopo1_url(version)
-    LOG.info(
+    log.info(
         '%s was not found. Attempting to download from %s.' % (etopo_path, url))
     try:
         response = urlopen(url)
@@ -239,9 +244,9 @@ def download_etopo1(etopo_path, version='ice'):
             content_length = content_lengths[0]
             content_length = int(content_length.strip().split()[1])
 
-        LOG.info('Downloading %d bytes at %d byte chunks' % (content_length,
+        log.info('Downloading %d bytes at %d byte chunks' % (content_length,
                                                              blocksize))
-        LOG.info('This will take a while. Go enjoy some fresh air.')
+        log.info('This will take a while. Go enjoy some fresh air.')
 
         with SpooledTemporaryFile(2 ** 30) as s:
             bytes = 0
@@ -254,13 +259,13 @@ def download_etopo1(etopo_path, version='ice'):
 
                 percent = float(bytes) / content_length
                 if percent > last_percent + 0.05:
-                    LOG.debug('%d / %d = %f' % (bytes, content_length, percent))
+                    log.debug('%d / %d = %f' % (bytes, content_length, percent))
                     last_percent = percent
             response.close()
             s.flush()
             s.seek(0)
 
-            LOG.debug('Gunzipping file to %s' % etopo_path)
+            log.debug('Gunzipping file to %s' % etopo_path)
             g = GzipFile(fileobj=s)
             bytes = 0
             with open(etopo_path, 'wb') as f:
@@ -269,15 +274,15 @@ def download_etopo1(etopo_path, version='ice'):
                     f.write(data)
                     data = g.read(blocksize_disk)
                     bytes += len(data)
-                    LOG.debug('%d written' % bytes)
+                    log.debug('%d written' % bytes)
 
     except URLError, e:
-        LOG.critical('Download from %s failed.' % url)
+        log.critical('Download from %s failed.' % url)
         raise e
 
 
 def write_etopo_cache(arcmins, version, lons, lats, topo):
-    LOG.debug('writing etopo cache %d %s %s %s' % (arcmins, lons, lats, topo))
+    log.debug('writing etopo cache %d %s %s %s' % (arcmins, lons, lats, topo))
 
     etopo_path = os.path.join(etopo_dir, etopo_filename(arcmins, version))
     toponc = Dataset(etopo_path, 'w')
@@ -305,7 +310,7 @@ def write_etopo_cache(arcmins, version, lons, lats, topo):
     toponc.node_offset = 0
 
     try:
-        LOG.info('Writing %s' % etopo_path)
+        log.info('Writing %s' % etopo_path)
         var_lons[:] = lons
         var_lats[:] = lats
         var_topo[:] = topo
@@ -316,7 +321,7 @@ def write_etopo_cache(arcmins, version, lons, lats, topo):
 def read_etopo(etopo_path):
     toponc = Dataset(etopo_path, 'r')
     try:
-        LOG.info('Reading %s' % etopo_path)
+        log.info('Reading %s' % etopo_path)
         lons = toponc.variables['x'][:]
         lats = toponc.variables['y'][:]
         # Topo is indexed by y then x
@@ -345,8 +350,8 @@ def etopo(arcmins=1, version='ice', force_resample=False, cache_allowed=True):
     """
     etopo_path = os.path.join(etopo_dir, etopo_filename(arcmins, version))
 
-    LOG.debug('reading {0}'.format(etopo_path))
-    LOG.debug('exists? {0}'.format(os.path.isfile(etopo_path)))
+    log.debug('reading {0}'.format(etopo_path))
+    log.debug('exists? {0}'.format(os.path.isfile(etopo_path)))
     if force_resample or not os.path.isfile(etopo_path):
         if arcmins is 1:
             download_etopo1(etopo_path, version)
@@ -363,9 +368,9 @@ def etopo(arcmins=1, version='ice', force_resample=False, cache_allowed=True):
     else:
         data = read_etopo(etopo_path)
     lons, lats, topo = data
-    LOG.info('lons: %s' % (lons.shape))
-    LOG.info('lats: %s' % (lats.shape))
-    LOG.info('topo: %s %s' % (topo.shape, topo))
+    log.info('lons: %s' % (lons.shape))
+    log.info('lats: %s' % (lats.shape))
+    log.info('topo: %s %s' % (topo.shape, topo))
 
     # offset bumps the level just above sea level to below so as to err on
     # the side of less land shown
@@ -385,8 +390,8 @@ def etopo_ground_point(topo, etopo_offset=0):
     # 0 = x%
     # 10k / (8k + 10k) = x%
     groundpt = shift / (maxt + shift)
-    LOG.debug('topo range [%d, %d]' % (mint, maxt))
-    LOG.debug(
+    log.debug('topo range [%d, %d]' % (mint, maxt))
+    log.debug(
         'offset: %f = shift: %f = ground: %f' % (etopo_offset, shift, groundpt))
     return groundpt
 
@@ -395,7 +400,7 @@ def colormap_grayscale(topo, etopo_offset=0):
     """Return a colormap based on the topo range and offset that grayscale.
 
     """
-    LOG.info(u'Generating grayscale colormap for ETOPO')
+    log.info(u'Generating grayscale colormap for ETOPO')
     locolor = (0.55, 0.55, 0.55)
     hicolor = (0.945, 0.945, 0.945)
     ground_color = (0, 0, 0)
@@ -422,7 +427,7 @@ def colormap_cberys(topo, etopo_offset=0):
         an original color scheme created by Carolina Berys.
 
     """
-    LOG.info(u'Generating cberys colormap for ETOPO')
+    log.info(u'Generating cberys colormap for ETOPO')
     locolor = (0.173, 0.263, 0.898)
     locolor = (0.130, 0.220, 0.855)
     hicolor = (0.549019607843137, 0.627450980392157, 1)
@@ -450,7 +455,7 @@ def colormap_ushydro(topo, etopo_offset=0):
     """Return a colormap based on the USHYDRO cruise map
 
     """
-    LOG.info(u'Generating USHYDRO colormap for ETOPO')
+    log.info(u'Generating USHYDRO colormap for ETOPO')
     locolor = (0.51, 0.64, 0.72)
     hicolor = (0.85, 0.95, 0.96)
     ground_color = (0, 0, 0)
@@ -476,7 +481,7 @@ def colormap_goship(topo, etopo_offset=0):
     """Return a colormap based on the GO-SHIP map.
 
     """
-    LOG.info(u'Generating GOSHIP colormap for ETOPO')
+    log.info(u'Generating GOSHIP colormap for ETOPO')
     locolor = (0.803, 0.952, 0.976)
     hicolor = (0.921, 0.98, 0.988)
     ground_color = (0.384, 0.384, 0.384)
@@ -596,7 +601,7 @@ class ETOPOBasemap(Basemap):
                 lat_0=54.7,
                 **kwargs)
         else:
-            LOG.error(u'Unhandled projection {0}'.format(args.projection))
+            log.error(u'Unhandled projection {0}'.format(args.projection))
             newcls = None
         return newcls
 
@@ -624,7 +629,7 @@ class ETOPOBasemap(Basemap):
         if sys.stdin.encoding == "UTF-8":
             text = text.decode('utf-8')
         else:
-            LOG.debug("Terminal excoding not UTF-8, only ASCII titles supported")
+            log.debug("Terminal excoding not UTF-8, only ASCII titles supported")
 
         self.axes.set_title(
             text, size=size, position=(0.5, 1.03), fontweight='bold')
@@ -696,20 +701,20 @@ class ETOPOBasemap(Basemap):
             else:
                 cut = 4
 
-        LOG.debug('Cut ratio %d' % cut)
+        log.debug('Cut ratio %d' % cut)
         nx, ny = get_nx_ny(self, lons, cut_ratio=cut)
-        LOG.debug('nx: %d, ny: %d' % (nx, ny))
+        log.debug('nx: %d, ny: %d' % (nx, ny))
 
         if lons.min() < self.llcrnrlon and self.is_proj_cylindrical:
-            LOG.info('Shifting grid')
+            log.info('Shifting grid')
             topo, lons = shiftgrid(self.llcrnrlon, topo, lons)
 
-        LOG.info('Transforming grid')
-        #LOG.debug('lons: %s lats: %s nx: %d ny: %d' % (lons, lats, nx, ny))
+        log.info('Transforming grid')
+        #log.debug('lons: %s lats: %s nx: %d ny: %d' % (lons, lats, nx, ny))
         topo, tx, ty = self.transform_scalar(
             topo, lons, lats, nx, ny, returnxy=True)
 
-        LOG.info('Masking projection bounds')
+        log.info('Masking projection bounds')
         topo = mask_proj_bounds(self, topo, lons, lats, nx, ny, tx, ty)
 
         self.imshow(topo, cmap=cmtopo(topo, etopo_offset))
@@ -719,7 +724,7 @@ class ETOPOBasemap(Basemap):
         try:
             cmtopofn = colormaps[args.cmap]
         except KeyError:
-            LOG.warn(
+            log.warn(
                 u'Unknown colormap {0!r}. Defaulted to cberys'.format(
                 args.cmap))
             cmtopofn = colormap_cberys
@@ -752,12 +757,12 @@ class ETOPOBasemap(Basemap):
         elif self.is_proj_polar:
             margins = (0.03, 0.03)
         else:
-            LOG.warn(
+            log.warn(
                 u'Cannot set margins for unhandled projection {0}'.format(
                     self.projection))
             return 
 
-        LOG.debug(
+        log.debug(
             u'Set axis margins for projection {0} to {1}'.format(
                 self.projection, margins))
         # Let the plot axes settle around the plot first before adding
@@ -769,7 +774,7 @@ class ETOPOBasemap(Basemap):
                             meridian_spacing=None,
                             parallel_spacing=None):
         """Return tick marks for graticules within the current bounds."""
-        LOG.info(u'Determining graticule ticks')
+        log.info(u'Determining graticule ticks')
         if self.is_proj_cylindrical:
             parallels = np.linspace(self.urcrnrlat, self.llcrnrlat, label_ny)
             meridians = np.linspace(self.urcrnrlon, self.llcrnrlon, label_nx)
@@ -1116,7 +1121,7 @@ class ETOPOBasemap(Basemap):
                         verticalalignment='center', rotation=rotation,
                         fontsize=label_font_size, zorder=200)
         else:
-            LOG.error(u'Fancy borders and graticule editing is not yet '
+            log.error(u'Fancy borders and graticule editing is not yet '
                 'implemented for the {0} projection.'.format(self.projection))
         return fancyborder
 
@@ -1159,7 +1164,7 @@ class ETOPOBasemap(Basemap):
 
     def savefig(self, filename):
         """Save the figure to a file."""
-        LOG.info('Rasterizing...')
+        log.info('Rasterizing...')
         try:
             extent = 'tight'
             plt.savefig(
@@ -1169,7 +1174,7 @@ class ETOPOBasemap(Basemap):
                 format='png',
                 bbox_inches=extent)
         except AssertionError:
-            LOG.info(
+            log.info(
                 u'Matplotlib has a problem with plotting Basemaps that have '
                 'nothing on them.')
 
@@ -1236,7 +1241,7 @@ def plot_line_dots(lons, lats, bm):
 
 
 def main(argv):
-    LOG.info('Creating basemap')
+    log.info('Creating basemap')
 
     proj = 'robin'
     if proj == 'mercator':

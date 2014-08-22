@@ -85,12 +85,16 @@ ans =
     2
     2
 '''
+from logging import getLogger
+
+
+log = getLogger(__name__)
+
 
 import numpy
 import scipy.io
 
 from libcchdo.formats.matlab.util import convert_value
-from libcchdo.log import LOG
 
 
 def write(self, handle, ):

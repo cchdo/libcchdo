@@ -1,7 +1,6 @@
 import re
 from tempfile import NamedTemporaryFile
 
-from libcchdo.log import LOG
 from libcchdo.model.datafile import DataFile
 from libcchdo.formats import zip as Zip
 from libcchdo.formats.zip import read as zip_read

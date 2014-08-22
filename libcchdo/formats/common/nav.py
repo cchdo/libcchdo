@@ -1,5 +1,10 @@
+from logging import getLogger
+
+
+log = getLogger(__name__)
+
+
 from libcchdo.fns import _decimal
-from libcchdo.log import LOG
 from libcchdo.model.navcoord import TabbedNavCoords, iter_coords
 from libcchdo.formats.formats import (
     get_filename_fnameexts, is_filename_recognized_fnameexts,
@@ -52,15 +57,15 @@ def read(self, handle):
         if split_on == 'space':
             coords = l.split()
             if len(coords) < 2:
-                LOG.warn(u'Coordinates could not be split on whitespace.')
+                log.warn(u'Coordinates could not be split on whitespace.')
                 split_on = 'comma'
         elif split_on == 'comma':
             coords = l.split(',')
             if len(coords) < 2:
-                LOG.warn(u'Coordinates could not be split on comma.')
+                log.warn(u'Coordinates could not be split on comma.')
                 split_on = None
     if split_on is None:
-        LOG.error(u'Coordinates could not be split using known schemes.')
+        log.error(u'Coordinates could not be split using known schemes.')
         return
 
     if split_on == 'space':

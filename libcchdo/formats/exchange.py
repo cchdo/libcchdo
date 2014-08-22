@@ -2,9 +2,13 @@
 
 """
 from re import compile as re_compile, match as re_match
+from logging import getLogger
+
+
+log = getLogger(__name__)
+
 
 from libcchdo.config import stamp as user_stamp
-from libcchdo.log import LOG
 from libcchdo.fns import Decimal, decimal_to_str, _decimal, out_of_band
 from libcchdo.db.model.std import session
 from libcchdo.db.model.convert import find_parameter
@@ -77,7 +81,7 @@ def read_identifier_line(dfile, fileobj, ftype):
 
     dfile.globals['stamp'] = stamp
     if not r_stamp.match(stamp):
-        LOG.warn(u'{0!r} does not match stamp format YYYYMMDDdivINSwho.'.format(
+        log.warn(u'{0!r} does not match stamp format YYYYMMDDdivINSwho.'.format(
             stamp))
 
 
@@ -131,7 +135,7 @@ def _prepare_to_read_exchange_data(dfile, columns):
             col = dfile[colname]
         except KeyError, err:
             if flag_info:
-                LOG.error(u'Flag column {0} exists without parameter '
+                log.error(u'Flag column {0} exists without parameter '
                     'column {1}'.format(column, colname))
             col = dfile[colname] = Column(colname)
 
@@ -151,7 +155,7 @@ def _read_data_row(dfile, row_i, info, raw):
         try:
             value = int(raw_value)
         except (ValueError, TypeError):
-            LOG.warn(
+            log.warn(
                 u'Bad {0} flag {1!r} for {2} on data row {3}'.format(
                 param[0], raw_value, param[2], row_i))
             value = None
@@ -250,7 +254,7 @@ def write_flagged_format_parameter_values(dfile, fileobj,
             try:
                 value = col[i]
             except IndexError, err:
-                LOG.error(u'Could not get value of {0} at row {1}'.format(
+                log.error(u'Could not get value of {0} at row {1}'.format(
                     param, i))
                 value = None
             if value is None:
@@ -258,7 +262,7 @@ def write_flagged_format_parameter_values(dfile, fileobj,
             try:
                 values.append(decimal_to_str(value).rjust(limit))
             except Exception, err:
-                LOG.warn(
+                log.warn(
                     u'Could not format {0} (column {1} row {2:d}): {3}'.format(
                     value, param, i, err))
                 values.append(value)

@@ -1,7 +1,11 @@
 from datetime import datetime
 import re
+from logging import getLogger
 
-from libcchdo.log import LOG
+
+log = getLogger(__name__)
+
+
 from libcchdo.fns import ddm_to_dd
 
 
@@ -54,19 +58,19 @@ def read(self, handle, salt='first', temp='first'):
 
         if l.startswith('** CAST'):
             self.globals['CASTNO'] = l.split(':')[1].strip()
-            LOG.info("CASTNO: " + self.globals['CASTNO'])
+            log.info("CASTNO: " + self.globals['CASTNO'])
             l = handle.readline()
             continue
 
         if l.startswith('** STATION'):
             self.globals['STNNBR'] = l.split(':')[1].strip()
-            LOG.info('STNNBR: ' + self.globals['STNNBR'])
+            log.info('STNNBR: ' + self.globals['STNNBR'])
             l = handle.readline()
             continue
 
         if l.startswith('** CRUISE'):
             self.globals['EXPOCODE'] = l.split(':')[1].strip()
-            LOG.info('EXPOCODE: ' + self.globals['EXPOCODE'])
+            log.info('EXPOCODE: ' + self.globals['EXPOCODE'])
             l = handle.readline()
             continue
             
@@ -96,7 +100,7 @@ def read(self, handle, salt='first', temp='first'):
         if '# bad_flag' in l:
             s = l.split('=')
             bad_flag = s[1].strip()
-            LOG.info('BAD_FLAG: ' + bad_flag)
+            log.info('BAD_FLAG: ' + bad_flag)
             l = handle.readline()
             continue
 
@@ -141,18 +145,18 @@ def read(self, handle, salt='first', temp='first'):
     if 'STNNBR' not in self.globals:
         # not sure if critical is approprate here, but this causes a ton of
         # problems for the exchange writer, and ODV
-        LOG.critical('Station number not found, this is bad')
-        LOG.warn('Station Number will be determined from file name, this may '
+        log.critical('Station number not found, this is bad')
+        log.warn('Station Number will be determined from file name, this may '
                 'not work')
         self.globals['STNNBR'] = ''.join(re.findall("\d+", handle.name))
 
     if 'CASTNO' not in self.globals:
         self.globals['CASTNO'] = ''
-        LOG.warn('Cast Number not found, this can cause problems')
+        log.warn('Cast Number not found, this can cause problems')
 
     if 'EXPOCODE' not in self.globals:
         self.globals['EXPOCODE'] = ''
-        LOG.warn('ExpoCode not found, this can cause problems')
+        log.warn('ExpoCode not found, this can cause problems')
 
     if len(temps) == 1:
         index.append(temps[0][0])
@@ -164,16 +168,16 @@ def read(self, handle, salt='first', temp='first'):
             index.append(temps[0][0])
             columns.append("CTDTMP")
             units.append("ITS-90")
-            LOG.warn("%i Temperatures found, using first", len(temps))
+            log.warn("%i Temperatures found, using first", len(temps))
             s = ''
             for i, temp in enumerate(temps):
                 s += str(i) + ':' + temp[1] + ' '
-            LOG.info('The temp may be chosen by specifying the index, %s', s)
+            log.info('The temp may be chosen by specifying the index, %s', s)
         else:
             index.append(temps[temp][0])
             columns.append("CTDTMP")
             units.append("ITS-90")
-            LOG.info('User specified temperature, channel: %d, name: %s',
+            log.info('User specified temperature, channel: %d, name: %s',
                     temps[temp][0][0], temps[temp][1])
             
     if len(salts) == 1:
@@ -186,17 +190,17 @@ def read(self, handle, salt='first', temp='first'):
             index.append(salts[0][0])
             columns.append("CTDSAL")
             units.append("PSS-78")
-            LOG.warn("%i Salinites found, using first", len(salts))
+            log.warn("%i Salinites found, using first", len(salts))
             s = ''
             for i, salt in enumerate(salts):
                 s += str(i) + ':' + salt[1] + ' '
-            LOG.info('The salinity may be chosen by specifying the index, %s', s)
+            log.info('The salinity may be chosen by specifying the index, %s', s)
         else:
             #assuming the salinity index is given... will blow up if not
             index.append(salts[salt][0])
             columns.append("CTDSAL")
             units.append("PSS-78")
-            LOG.info('User specified salinity, channel: %d, name: %s',
+            log.info('User specified salinity, channel: %d, name: %s',
                     salts[salt][0][0], salts[salt][1])
 
     

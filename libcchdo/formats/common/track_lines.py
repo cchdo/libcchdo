@@ -1,6 +1,10 @@
 from contextlib import closing
+from logging import getLogger
 
-from libcchdo import LOG
+
+log = getLogger(__name__)
+
+
 from libcchdo.model.navcoord import iter_coords, LinestringNavCoords
 
 from libcchdo.datadir.store import get_datastore
@@ -21,6 +25,6 @@ def write(self):
         """
         dstore = get_datastore()
         dstore.write_cruise_coords(expocode, coords)
-        LOG.info(u'Persisted track for {0}\n{1}'.format(expocode, coords))
+        log.info(u'Persisted track for {0}\n{1}'.format(expocode, coords))
 
     iter_coords(self, LinestringNavCoords, write_cruise_coords)

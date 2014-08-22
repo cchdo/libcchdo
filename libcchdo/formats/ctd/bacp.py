@@ -6,9 +6,13 @@ actual format type.
 
 """
 from datetime import datetime
+from logging import getLogger
+
+
+log = getLogger(__name__)
+
 
 from libcchdo.fns import _decimal
-from libcchdo.log import LOG
 
 
 # TODO provide something like an OSVar to map format variables to our variables
@@ -41,7 +45,7 @@ def read(self, handle):
         try:
             params.append(VARIABLE_MAP[param])
         except KeyError:
-            LOG.warn(u'Unable to map parameter {0}'.format(param))
+            log.warn(u'Unable to map parameter {0}'.format(param))
             params.append(None)
 
     sect_id = ' '.join(handle.readline().strip().split()[1:])
