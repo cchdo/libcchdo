@@ -127,6 +127,12 @@ def do_for_cruise_directories(operation):
   Traverses the cwd as the CCHDO data directory and calls
   operation(fullpath_to_dir, dirs, files) for each cruise directory.
   """
+  # TODO deprecated
+  from libcchdo.datadir.store import check_is_legacy
+  if not check_is_legacy():
+      raise NotImplementedError(
+          u'Directory traversal not available for pycchdo.')
+
   cd_to_data_directory()
 
   # Traverse the data directory to find real data directories to operate on

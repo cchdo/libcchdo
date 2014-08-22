@@ -120,46 +120,16 @@ def _grouped_cruises_with_data_modifications(
     return [pre, during, post]
 
 
-def _tracks(bin_callback, track_callback,
-            dt_from=None, dt_to=None, around_year=None):
-    with closing(legacy.session()) as lsesh:
-        if around_year is None:
-            bins = [[]]
-        else:
-            bins = _grouped_cruises_with_data_modifications(
-                lsesh, around_year=around_year)
-        for range_bin in bins:
-            query = lsesh.query(TrackLine.Track, Cruise.ExpoCode,
-                                Cruise.Begin_Date).\
-                join(Cruise, Cruise.ExpoCode == TrackLine.ExpoCode)
-            if range_bin:
-                query = query.filter(TrackLine.ExpoCode.in_(range_bin))
-
-            if dt_from:
-                query = query.filter(Cruise.Begin_Date >= dt_from)
-            if dt_to:
-                query = query.filter(Cruise.Begin_Date <= dt_to)
-                
-            tracks = query.all()
-            for track, expocode, date_start in tracks:
-                LOG.info(expocode)
-                track = wkt_to_track(lsesh, track)
-                track_callback(track, expocode, date_start)
-            bin_callback()
-
-
-def wkt_to_track(lsesh, track):
+def wkt_to_track(track):
     """Convert WKT to a list of points."""
     return from_wkt(track)['coordinates']
 
 
 def tracks_for_cruises(*expocodes):
-    with closing(legacy.session()) as lsesh:
-        query = lsesh.query(TrackLine.Track, TrackLine.ExpoCode).\
-            filter(TrackLine.ExpoCode.in_(expocodes))
-        for track, expocode in query.all():
-            track = wkt_to_track(lsesh, track)
-            yield track, expocode
+    from libcchdo.datadir.store import get_datastore
+    dstore = get_datastore()
+    for xxx in dstore.tracks_for_cruises(*expocodes):
+        yield xxx
 
 
 def tracks(output, dt_from=None, dt_to=None, around=None):
@@ -180,17 +150,21 @@ def tracks(output, dt_from=None, dt_to=None, around=None):
             output.write(
                 ','.join(map(str, [coord[0], coord[1], date_start])) + '\n')
 
+    from libcchdo.datadir.store import get_datastore
+    dstore = get_datastore()
     if around:
         around = int(around)
         def bin_end():
             LOG.info('bin end')
             output.write('\n')
-        _tracks(bin_end, track_points, around_year=datetime(around, 1, 1))
+        dstore.binned_tracks_callbacks(
+            bin_end, track_points, around_year=datetime(around, 1, 1))
     elif dt_from:
         def bin_end():
             pass
-        _tracks(bin_end, track_points, dt_from=dt_from, dt_to=dt_to)
+        dstore.binned_tracks_callbacks(
+            bin_end, track_points, dt_from=dt_from, dt_to=dt_to)
     else:
         def bin_end():
             pass
-        _tracks(bin_end, track_points)
+        dstore.binned_tracks_callbacks(bin_end, track_points)

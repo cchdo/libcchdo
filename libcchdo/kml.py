@@ -18,6 +18,7 @@ from libcchdo.db.model.legacy import session, Cruise
 from libcchdo.fns import uniquify
 from libcchdo.db import connect
 from libcchdo.model.datafile import DataFile, SummaryFile, DataFileCollection
+from libcchdo.datadir.store import get_datastore
 
 
 def _lon_lats(self):
@@ -408,22 +409,10 @@ def db_to_kml(output, expocode=None, full=False):
         kmldoc += GenericCCHDOKML.styles(starticon="ship")
     folders = []
 
-    connection = connect.cchdo().connect()
-    cursor = connection.connection.cursor()
-    if full:
-        sql = """SELECT track_lines.ExpoCode,
-ASTEXT(track_lines.track),
-cruises.Begin_Date,cruises.EndDate
-FROM track_lines, cruises WHERE cruises.ExpoCode = track_lines.ExpoCode"""
-    else:
-        sql = 'SELECT ExpoCode,ASTEXT(track) FROM track_lines'
-        if expocode:
-            sql += ' WHERE ExpoCode = {0!r}'.format(expocode)
-    cursor.execute(sql)
-    rows = cursor.fetchall()
+    dstore = get_datastore()
     counter = 2
     extra = ''
-    for i, row in enumerate(rows):
+    for i, row in enumerate(dstore.tracks(expocode, full)):
         if full:
             expocode, coordstr, begin, end = row
             extra = '<TimeSpan><begin>%s</begin><end>%s</end></TimeSpan>' % (begin, end)
@@ -435,8 +424,6 @@ FROM track_lines, cruises WHERE cruises.ExpoCode = track_lines.ExpoCode"""
         balloon = etree.tostring(ballooning(info))
         extra = etree.tostring(extend(infos, expocode))
         folders.append(GenericCCHDOKML.folder_for_cruise(expocode, counter, coords, extra, balloon))
-    cursor.close()
-    connection.close()
 
     kmldoc += ''.join(folders)
     output.write(GenericCCHDOKML.wrap(kmldoc))

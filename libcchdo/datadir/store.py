@@ -26,12 +26,14 @@ from requests.exceptions import ConnectionError
 from libcchdo import LOG, __version__
 from libcchdo.formats.formats import guess_file_type
 from libcchdo.db import connect
+from libcchdo.db.util import wkt_to_track
 from libcchdo.db.model import legacy
-from libcchdo.db.model.legacy import QueueFile
+from libcchdo.db.model.legacy import QueueFile, TrackLine, Cruise
 from libcchdo.config import (
     get_config_dir, get_legacy_datadir_host,
     get_merger_name_first, get_merger_name_last, get_option)
 from libcchdo.util import get_library_abspath
+from libcchdo.datadir.update import update as datadir_update
 from libcchdo.datadir.util import (
     working_dir_name, dryrun_log_info, mkdir_ensure, checksum_dir, DirName,
     UOWDirName, uow_copy, tempdir, read_file_manifest, regenerate_file_manifest,
@@ -230,12 +232,16 @@ class Datastore(object):
 
 
 def get_datastore(dstore_id=None):
+    if check_is_legacy(dstore_id):
+        return LegacyDatastore()
+    else:
+        return PycchdoDatastore()
+
+
+def check_is_legacy(dstore_id=None):
     if dstore_id is None:
         dstore_id = get_option('db', 'dstore', lambda: '')
-    if dstore_id == 'pycchdo':
-        return PycchdoDatastore()
-    else:
-        return LegacyDatastore()
+    return dstore_id != 'pycchdo'
 
 
 class LegacyDatastore(Datastore):
@@ -621,6 +627,83 @@ class LegacyDatastore(Datastore):
         self.mark_merged(q_ids)
         return note_id
 
+    def write_cruise_coords(self, expocode, coords):
+        sql = ('SET @g = LineStringFromText("{linestring}");\n'
+               'INSERT IGNORE INTO track_lines '
+               'VALUES(DEFAULT,"{expocode}",@g,"Default") '
+               'ON DUPLICATE KEY UPDATE Track = @g').format(
+            linestring=coords, expocode=expocode)
+        conn = self.Lsesh.connection()
+        with conn.begin() as trans:
+            conn.execute(sql)
+
+    @contextmanager
+    def tracks(self, expocode=None, full=False):
+        """Generate the tracks for each."""
+        conn = self.Lsesh.connection()
+        cursor = conn.cursor()
+        if full:
+            sql = """SELECT track_lines.ExpoCode,
+ASTEXT(track_lines.track),
+cruises.Begin_Date,cruises.EndDate
+FROM track_lines, cruises WHERE cruises.ExpoCode = track_lines.ExpoCode"""
+        else:
+            sql = 'SELECT ExpoCode,ASTEXT(track) FROM track_lines'
+            if expocode:
+                sql += ' WHERE ExpoCode = {0!r}'.format(expocode)
+        cursor.execute(sql)
+        rows = cursor.fetchall()
+        try:
+            yield rows
+        finally:
+            cursor.close()
+            conn.close()
+
+    def binned_tracks_callbacks(self, bin_callback, track_callback,
+                                dt_from=None, dt_to=None, around_year=None):
+        if around_year is None:
+            bins = [[]]
+        else:
+            bins = _grouped_cruises_with_data_modifications(
+                self.Lsesh, around_year=around_year)
+        for range_bin in bins:
+            query = self.Lsesh.query(TrackLine.Track, Cruise.ExpoCode,
+                                Cruise.Begin_Date).\
+                join(Cruise, Cruise.ExpoCode == TrackLine.ExpoCode)
+            if range_bin:
+                query = query.filter(TrackLine.ExpoCode.in_(range_bin))
+
+            if dt_from:
+                query = query.filter(Cruise.Begin_Date >= dt_from)
+            if dt_to:
+                query = query.filter(Cruise.Begin_Date <= dt_to)
+                
+            tracks = query.all()
+            for track, expocode, date_start in tracks:
+                LOG.info(expocode)
+                track = wkt_to_track(track)
+                track_callback(track, expocode, date_start)
+            bin_callback()
+
+    def tracks_for_cruises(self, *expocodes):
+        query = self.Lsesh.query(TrackLine.Track, TrackLine.ExpoCode).\
+            filter(TrackLine.ExpoCode.in_(expocodes))
+        for track, expocode in query.all():
+            track = wkt_to_track(track)
+            yield track, expocode
+
+    def update(self, expo_or_path):
+        datadir_update(expo_or_path)
+
+    def correct_expocode(self, args):
+        from libcchdo.datadir.corrector import ExpoCodeAliasCorrector
+        corrector = ExpoCodeAliasCorrector(
+            [args.old_expocode, args.new_expocode],
+            alias_map
+        )
+        corrector.correct(args.cruise_dir, args.email_path,
+                          dryrun=args.dry_run, debug=args.debug)
+
 
 class PycchdoCallbackHTTPServer(SimpleHTTPRequestHandler):
     def do_POST(self):
@@ -817,6 +900,10 @@ class PycchdoDatastore(Datastore):
         # files that have been accepted.
         # 2a. group them into directories by date?
 
+    def add_history_note(self, readme, expocode, title, summary, action=''):
+        raise NotImplementedError(
+            u'Please use the pycchdo interface to add notes.')
+
     def check_cruise_exists(self, expocode, dir_perms, dryrun):
         """Ensure remote cruise original directory exists."""
         self._cruise(expocode)
@@ -929,3 +1016,29 @@ class PycchdoDatastore(Datastore):
                     LOG.error(resp.json()['error'])
                 finally:
                     raise ValueError('Commit failed.')
+
+    def write_cruise_coords(self, expocode, coords):
+        # TODO
+        raise NotImplementedError(u'Currently unable to write linestring to pycchdo')
+
+    @contextmanager
+    def tracks(self, expocode=None, full=False):
+        """Generate the tracks for each."""
+        # TODO
+        raise NotImplementedError(u'Currently unable to fetch tracks from pycchdo')
+
+    def binned_tracks_callbacks(self, bin_callback, track_callback,
+                                dt_from=None, dt_to=None, around_year=None):
+        # TODO
+        raise NotImplementedError(u'Currently unable to fetch tracks from pycchdo')
+
+    def tracks_for_cruises(self, *expocodes):
+        # TODO
+        raise NotImplementedError(u'Currently unable to fetch tracks from pycchdo')
+
+    def update(self, expo_or_path):
+        raise NotImplementedError(u'pycchdo does not use a data directory.')
+
+    def correct_expocode(self, args):
+        # TODO
+        raise NotImplementedError(u'Currently unable to correct expocodes')

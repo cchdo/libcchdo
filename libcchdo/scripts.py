@@ -322,20 +322,17 @@ with subcommand(any_converter_parsers, 'kml', any_to_kml) as p:
 def any_to_db_track_lines(args):
     """Take any readable file and put the tracks in the database."""
     from libcchdo.formats.common import track_lines
-    from libcchdo.db.connect import cchdo
 
-    dbcchdo = cchdo()
-    with closing(dbcchdo.connect()) as conn:
-        with closing(args.input_file) as in_file:
-            data = read_arbitrary(in_file, args.input_type)
-        if args.expocode:
-            data.globals['EXPOCODE'] = args.expocode
-        try:
-            data.expocodes()
-        except KeyError:
-            LOG.error(u'Please supply an ExpoCode using the --expocode flag.')
-            return
-        track_lines.write(data, conn)
+    with closing(args.input_file) as in_file:
+        data = read_arbitrary(in_file, args.input_type)
+    if args.expocode:
+        data.globals['EXPOCODE'] = args.expocode
+    try:
+        data.expocodes()
+    except KeyError:
+        LOG.error(u'Please supply an ExpoCode using the --expocode flag.')
+        return
+    track_lines.write(data)
 
 
 with subcommand(any_converter_parsers, 'db_track_lines',
@@ -390,26 +387,6 @@ with subcommand(bot_converter_parsers, 'bats_to_ncos',
     p.add_argument(
         'botzipncos', type=FileType('w'), nargs='?', default=sys.stdout,
         help='output BOT netCDF OceanSITES ZIP file')
-
-
-def bottle_exchange_to_db(args):
-    from libcchdo.model.datafile import DataFile
-    import libcchdo.formats.bottle.exchange as botex
-    import libcchdo.formats.bottle.database as botdb
-
-    df = DataFile()
-    
-    with closing(args.input_botex) as in_file:
-        botex.read(df, in_file)
-
-    botdb.write(df)
-
-
-with subcommand(bot_converter_parsers, 'exchange_to_db',
-                bottle_exchange_to_db) as p:
-    p.add_argument(
-        'input_botex', type=FileType('r'),
-        help='input Bottle Exchange file')
 
 
 def bottle_exchange_to_kml(args):
@@ -944,7 +921,6 @@ to_kml_converter_parsers = to_kml_converter_parser.add_subparsers(
 def db_to_kml(args):
     """Dump CCHDO holdings tracks to KML ."""
     from libcchdo.kml import db_to_kml
-
     with closing(args.output) as out_file:
         db_to_kml(out_file, args.expocode, args.full)
 
@@ -1437,8 +1413,9 @@ with subcommand(datadir_parsers, 'get_cruise_dir',
 
 def cchdo_update(args):
     """Python implementation of cchdo_update.rb"""
-    from libcchdo.datadir.update import update
-    update(args.expo_or_path)
+    from libcchdo.datadir.store import get_datastore
+    dstore = get_datastore()
+    dstore.update(args.expo_or_path)
 
 with subcommand(datadir_parsers, 'update', cchdo_update) as p:
     p.add_argument(
@@ -1693,13 +1670,12 @@ with subcommand(datadir_parsers, 'processing_note',
 
 def datadir_history_note(args):
     """Record history note."""
-    from libcchdo.db.model import legacy
-    from libcchdo.datadir.processing import DSTORE
-    with closing(legacy.session()) as session:
-        DSTORE.add_history_note(
-            session, args.body.read(), args.expocode, args.title, args.summary,
-            args.action)
-        session.commit()
+    from libcchdo.datadir.store import get_datastore
+    import transaction
+    dstore = get_datastore()
+    dstore.add_history_note(
+        args.body.read(), args.expocode, args.title, args.summary, args.action)
+    transaction.commit()
 
 
 with subcommand(datadir_parsers, 'history_note',
@@ -1721,6 +1697,7 @@ def datadir_mkdir_working(args):
     """Create a working directory for data work.
 
     """
+    # TODO deprecated
     from libcchdo.datadir.processing import mkdir_working
     date = datetime.strptime(args.date, '%Y-%m-%d').date()
     dirpath = mkdir_working(
@@ -1736,6 +1713,7 @@ def datadir_copy_replaced(args):
     """Move a replaced file to its special name.
 
     """
+    # TODO deprecated
     from libcchdo.datadir.processing import copy_replaced
     date = datetime.strptime(args.date, '%Y-%m-%d').date()
     copy_replaced(args.filename, date, args.separator)
@@ -1758,7 +1736,7 @@ def datadir_correct_expocode_alias(args):
 
     """
     from json import load as json_load
-    from libcchdo.datadir.corrector import ExpoCodeAliasCorrector
+    from libcchdo.datadir.store import get_datastore
     try:
         with open(args.alias_map) as fff:
             alias_map = json_load(fff)
@@ -1768,14 +1746,9 @@ def datadir_correct_expocode_alias(args):
             alias_map = {}
         else:
             raise err
+    dstore = get_datastore()
+    dstore.correct_expocode(args)
     
-    corrector = ExpoCodeAliasCorrector(
-        [args.old_expocode, args.new_expocode],
-        alias_map
-    )
-    corrector.correct(
-        args.cruise_dir, args.email_path, dryrun=args.dry_run, debug=args.debug)
-
 
 with subcommand(datadir_parsers, 'correct_expocode',
                 datadir_correct_expocode_alias) as p:
@@ -2285,7 +2258,6 @@ with subcommand(misc_parsers, "get_bounds", get_bounds) as p:
             help='any recognized CCHDO file')
 
 
-
 def regen_db_cache(args):
     """Regenerate database cache"""
     from libcchdo.db.model import std
@@ -2332,6 +2304,11 @@ with subcommand(misc_parsers, 'db_dump_tracks', db_dump_tracks) as p:
 def any_to_legacy_parameter_statuses(args):
     """Show legacy parameter ids for the parameters in a data file."""
     from libcchdo.tools import df_to_legacy_parameter_statuses
+    from libcchdo.datadir.store import check_is_legacy
+    # TODO deprecated
+    if not check_is_legacy():
+        raise NotImplementedError(
+            u'Unable to get legacy parameter ids for pycchdo.')
 
     with closing(args.input_file) as in_file:
         data = read_arbitrary(in_file, args.input_type)
