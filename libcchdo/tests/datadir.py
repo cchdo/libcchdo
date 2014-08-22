@@ -18,7 +18,7 @@ from libcchdo.datadir.util import (
     ReadmeEmail, find_data_directory, is_cruise_dir, is_working_dir,
     is_data_dir)
 from libcchdo.datadir.readme import Readme, ProcessingReadme
-from libcchdo.db.model.legacy import Event, Cruise, Session as lsesh
+from libcchdo.db.model.legacy import Event, Cruise, session as lsesh
 from libcchdo.datadir.store import LegacyDatastore
 
 
@@ -149,7 +149,7 @@ class TestReadme(TestCase):
     "q_infos": []
 }
 """)
-            readme = ProcessingReadme(tempdir)
+            readme = unicode(ProcessingReadme(tempdir))
             note_id = dstore.add_processing_note(
                 readme, 'EXPO', 'title', 'summary', [123], dryrun=True)
             event = lsesh().query(Event).get(note_id)
