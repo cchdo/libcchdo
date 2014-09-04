@@ -91,7 +91,7 @@ from libcchdo.formats import netcdf as nc
 from libcchdo.formats import woce
 from libcchdo.formats.matlab import loadmat, NOT_PARAMS, dimes, awaterhouse
 from libcchdo.formats.netcdf_oceansites import (
-    write_columns, OSVar, ParamToOS, OS_TEXT)
+    get_param_to_os, write_columns, OSVar, OS_TEXT)
 
 
 DEFAULT_CFG = {
@@ -225,7 +225,7 @@ def standard_osvar(short_name, standard_name, units, uncertainty=''):
 
 @memoize
 def converter(cfg):
-    param_to_os = ParamToOS()
+    param_to_os = get_param_to_os()
     param_to_os.register_osvars(
         standard_osvar('PRESSURE', 'sea_water_pressure', 'dbar'),
         standard_osvar('TEMPERATURE',
@@ -329,6 +329,10 @@ def _write_dfile(dfile, fileobj, cfg=DEFAULT_CFG, cvt=None):
         nc_file.geospatial_vertical_max = int(dfile.globals['DEPTH'])
         nc_file.geospatial_vertical_positive = 'down'
         nc_file.author = cfg['pi']
+        # non-OceanSITES standard
+        nc_file.pi = cfg['pi']
+        # non-OceanSITES standard
+        nc_file.data_originator = cfg['originator']
         nc_file.data_assembly_center = 'CCHDO'
         # TODO
         nc_file.distribution_statement = (

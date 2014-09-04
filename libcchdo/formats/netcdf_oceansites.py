@@ -567,6 +567,13 @@ def _calculate_depth(self, nc_file):
         pass
 
 
+def _pad_data_for_ncvar(data, targetlen, fill_value):
+    short = targetlen - len(data)
+    if short:
+        return data + [fill_value] * short
+    return data
+
+
 def write_columns(self, nc_file, converter=None):
     if converter is None:
         converter = get_param_to_os()
@@ -627,10 +634,7 @@ def write_columns(self, nc_file, converter=None):
         var.cell_methods = OS_TEXT['CELL_METHODS']
         var.DM_indicator = 'D'
         data = [variable.fill_value if x is None else x for x in column.values]
-        short = len(self) - len(data)
-        if short:
-            data += [variable.fill_value] * short
-        var[:] = data
+        var[:] = _pad_data_for_ncvar(data, len(self), variable.fill_value)
         # Write QC variable
         if column.is_flagged_woce():
             qc_var_name = name + nc.QC_SUFFIX
@@ -644,7 +648,9 @@ def write_columns(self, nc_file, converter=None):
             flag.flag_values = list(range(10))
             flag.flag_meanings = OS_TEXT['FLAG_MEANINGS']
             try:
-                flag[:] = [WOCE_to_OceanSITES_flag[f] for f in column.flags_woce]
+                flag[:] = _pad_data_for_ncvar(
+                    [WOCE_to_OceanSITES_flag[f] for f in column.flags_woce],
+                    len(self), -128)
             except IndexError, err:
                 log.error(u'Not enough flags in {0}'.format(column))
                 raise

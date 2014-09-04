@@ -79,14 +79,6 @@ def read(dfc, fileobj, cfg):
     del data['lat']
     del data['lon']
 
-    for coord in coords:
-        dfile = DataFile()
-        dfc.append(dfile)
-        dfile.globals['LONGITUDE'] = _decimal(coord[0])
-        dfile.globals['LATITUDE'] = _decimal(coord[1])
-
-        dfile.create_columns(data.keys())
-
     for key in data.keys():
         log.info(u'parameter shape: {0} {1}'.format(key, data[key].shape))
 
@@ -96,10 +88,18 @@ def read(dfc, fileobj, cfg):
             del data[param]
         else:
             new_key = param_map[param]
-            old_key = data[param]
-            if new_key != old_key:
-                data[new_key] = data[old_key]
-                del data[old_key]
+            if new_key != param:
+                data[new_key] = data[param]
+                del data[param]
+
+    for coord in coords:
+        dfile = DataFile()
+        dfc.append(dfile)
+        dfile.globals['LONGITUDE'] = _decimal(coord[0])
+        dfile.globals['LATITUDE'] = _decimal(coord[1])
+
+        # create the columns after extraneous keys have been deleted
+        dfile.create_columns(data.keys())
 
     for dep, dfile in enumerate(dfc):
         dfile.globals['STNNBR'] = dep + 1
