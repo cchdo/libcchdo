@@ -328,9 +328,8 @@ def _write_dfile(dfile, fileobj, cfg=DEFAULT_CFG, cvt=None):
         nc_file.geospatial_vertical_min = 0
         nc_file.geospatial_vertical_max = int(dfile.globals['DEPTH'])
         nc_file.geospatial_vertical_positive = 'down'
-        nc_file.author = cfg['pi']
-        # non-OceanSITES standard
-        nc_file.pi = cfg['pi']
+        nc_file.author = cfg['originator']
+        nc_file.pi_name = cfg['pi']
         # non-OceanSITES standard
         nc_file.data_originator = cfg['originator']
         nc_file.data_assembly_center = 'CCHDO'
