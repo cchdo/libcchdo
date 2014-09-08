@@ -4,12 +4,28 @@ from logging import StreamHandler
 from tempfile import TemporaryFile
 from logging import getLogger
 
+from libcchdo.db import connect
+from libcchdo.log import LIBLOG_HANDLER
+
 
 log = getLogger(__name__)
 
 
+def setUpModule():
+    getLogger('libcchdo').removeHandler(LIBLOG_HANDLER)
+
+
+def tearDownModule():
+    getLogger('libcchdo').addHandler(LIBLOG_HANDLER)
+
+
 def sample_file(*args):
     return os.path.join(os.path.dirname(__file__), 'samples', *args)
+
+
+# use in-memory database for testing
+engine_std = connect._connect('sqlite://')
+engine_legacy = connect._connect('sqlite://')
 
 
 class BaseTestCase(TestCase):

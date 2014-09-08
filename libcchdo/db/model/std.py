@@ -30,13 +30,15 @@ _cache_checking = Lock()
 _global_session = None
 
 
-def session(no_global=False):
+def session(no_global=False, engine=None):
     global _global_session
     if check_cache:
         _ensure_database_cache()
     if _global_session and not no_global:
         return _global_session
-    session = connect.session(connect.cchdo_data())
+    if engine is None:
+        engine = connect.cchdo_data()
+    session = connect.session(engine)
     if not session:
         raise ValueError("Unable to connect to local cache db cchdo_data")
     if not _global_session:

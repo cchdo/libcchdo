@@ -251,12 +251,14 @@ def check_is_legacy(dstore_id=None):
 
 class LegacyDatastore(Datastore):
     """Implementation of /data datafile storage model."""
-    def __init__(self):
+    def __init__(self, session=None):
         self.sftp_host = get_legacy_datadir_host()
         self.sftp = SFTP()
         self._aftp = None
         self.cruise_original_dir = None
-        self.Lsesh = legacy.session()
+        if session is None:
+            session = legacy.session()
+        self.Lsesh = session
 
     @property
     def aftp(self):
@@ -338,13 +340,9 @@ class LegacyDatastore(Datastore):
             filter(legacy.Document.FileType == 'Directory')
         num_docs = q_docs.count()
         if num_docs < 1:
-            log.error(
-                u'{0} does not have a directory entry.'.format(expocode))
-            raise ValueError()
+            raise BaseException(u'{0} does not have a directory entry.'.format(expocode))
         elif num_docs > 1:
-            log.error(
-                u'{0} has more than one directory entry.'.format(expocode))
-            raise ValueError()
+            raise BaseException(u'{0} has more than one directory entry.'.format(expocode))
         yield q_docs.first()
 
     def _cruise_dir(self, expocode):
@@ -431,7 +429,7 @@ class LegacyDatastore(Datastore):
         if not cruise:
             log.error(
                 u'{0} does not refer to a cruise that exists.'.format(expocode))
-            return
+            return None
 
         event = legacy.Event()
         event.ExpoCode = cruise.ExpoCode
@@ -479,10 +477,8 @@ class LegacyDatastore(Datastore):
                     '{0}'.format(self.cruise_original_dir))
                 self.aftp.mkdir(self.cruise_original_dir, dir_perms)
             except (IOError, OSError), err:
-                log.error(
-                    u'Could not ensure original directory {0} exists: '
-                    '{1!r}'.format(self.cruise_original_dir, err))
-                raise ValueError()
+                raise BaseException(u'Could not ensure original directory '
+                    '{0} exists: {1!r}'.format(self.cruise_original_dir, err))
 
     def commit(self, readme, person, dir_perms, send_email, dryrun):
         """Perform actions needed to put files in work dir and online.

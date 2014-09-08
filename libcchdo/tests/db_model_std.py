@@ -6,12 +6,14 @@ from sqlalchemy import create_engine
 
 from libcchdo.db.connect import Sessionmaker
 from libcchdo.db.model import std
+from libcchdo.tests import engine_std, log
 
 
 class TestDbModelStd(unittest.TestCase):
 
     def test_populate_library_database_parameters(self):
-        with std.closing(std.session()) as sesh:
+        with std.closing(std.session(no_global=True, engine=engine_std)) as sesh:
+            std._regenerate_database_cache(sesh)
             std._populate_library_database_parameters(sesh)
             sesh.flush()
             sesh.rollback()

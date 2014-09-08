@@ -1,18 +1,23 @@
 from unittest import TestCase
+import os
 import os.path
 from contextlib import closing
 from json import dumps as json_dumps
 
 from libcchdo.scripts import datadir_commit
+from libcchdo.db import connect
+from libcchdo.db.model.legacy import Base, Document, Cruise, QueueFile
 from libcchdo.datadir.util import tempdir, UOWDirName, write_file_manifest
 from libcchdo.datadir.filenames import README_FILENAME, UOW_CFG_FILENAME
 from libcchdo.datadir.processing import FetchCommitter
+from libcchdo.tests import engine_legacy
 
 
 class TestFetchCommit(TestCase):
 
     def test_commit(self):
         with tempdir(dir='/tmp') as temp_dir:
+            os.chdir(temp_dir)
             with open(os.path.join(temp_dir, README_FILENAME), 'w') as fff:
                 fff.write('README\n')
             with open(os.path.join(temp_dir, UOW_CFG_FILENAME), 'w') as fff:
@@ -27,7 +32,7 @@ class TestFetchCommit(TestCase):
                           "submitted_by": "H.M. van Aken", 
                           "submission_id": 814, 
                           "data_type": "BTL/SUM/CTD files", 
-                          "q_id": 11, 
+                          "q_id": 1, 
                           "filename": "64PE342.zip", 
                           "date": "2012-05-10", 
                           "id": 814, 
@@ -70,11 +75,31 @@ class TestFetchCommit(TestCase):
             with open(os.path.join(tgo_path, 'tgo_hy1.csv'), 'w') as fff:
                 fff.write('tgo_hy1')
 
-            online_files = ['testhy.txt', 'testsu.txt']
-            tgo_files = ['tgohy.txt', 'tgosu.txt', 'tgo_hy1.csv']
+            online_files = ['testhy.txt', 'testsu.txt', 'original']
+            tgo_files = ['tgohy.txt', 'tgosu.txt', 'tgo_hy1.csv', 'something.txt']
             write_file_manifest(temp_dir, online_files, tgo_files)
 
             fc = FetchCommitter()
+
+            doc = Document()
+            doc.ExpoCode = 'testexpo'
+            doc.FileType = 'Directory'
+            doc.FileName = on_path
+
+            cruise = Cruise()
+            cruise.ExpoCode = 'testexpo'
+
+            qfile = QueueFile()
+            qfile.id = 1
+            qfile.ExpoCode = 'testexpo'
+
+            fc.dstore.Lsesh = connect.scoped(engine_legacy)
+            Base.metadata.create_all(engine_legacy)
+
+            fc.dstore.Lsesh.add(cruise)
+            fc.dstore.Lsesh.add(doc)
+            fc.dstore.Lsesh.add(qfile)
+
             fc.uow_commit(temp_dir, None, confirm_html=False, send_email=False,
                           dryrun=True)
 
