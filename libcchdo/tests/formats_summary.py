@@ -74,7 +74,6 @@ EXPOCODE     SECT   STNNBR CASTNO TYPE DATE   TIME  CODE LATITUDE   LONGITUDE   
         self.assertEqual(['1', '2', '2'], cs['STNNBR'].values)
         self.assertEqual([1, 1, 15], cs['CASTNO'].values)
         self.assertEqual(['ROS'] * 3, cs['_CAST_TYPE'].values)
-        print cs['_DATETIME'].values
         self.assertEqual([
             datetime(2002, 1, 14, 23, 34), datetime(2002, 1, 15, 12, 59),
             datetime(2002, 1, 17, 8, 56)], cs['_DATETIME'].values)

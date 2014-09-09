@@ -34,6 +34,13 @@ EXPOCODE,SECT_ID,STNNBR,CASTNO,SAMPNO,BTLNBR,BTLNBR_FLAG_W,DATE,TIME,LATITUDE,LO
   33RR20070204,   I8S,     1,  1,      9,     09,2,20070215,1442,-65.8108,  84.5502,  450,  203.0,    203.0,  -1.8199,  34.3554,2,  34.3580,2,    320.6,2, -1.8241,    322.4,2,    63.80,2,    29.95,2,     0.03,2,     2.06,2,    5.683,2,    2.987,2, -999.000,5,   2213.5,2,   -999.0,9,   2321.5,2, -999.00
 END_DATA
 '''
+    sample_basic = u'''\
+BOTTLE,20010203WHPSIODBK
+EXPOCODE,SECT_ID,STNNBR,CASTNO,SAMPNO,BTLNBR,BTLNBR_FLAG_W,DATE,TIME,LATITUDE,LONGITUDE,DEPTH,CTDPRS,CTDTMP,CTDSAL,CTDSAL_FLAG_W
+,,,,,,,,,,,,DBAR,ITS-90,PSS-78,
+  33RR20070204,   I8S,     1,  1,     15,     15,2,20070215,1442,-65.8108,  84.5502,  450,      3.0,  -1.1066,  33.4536,2
+END_DATA
+'''
 
     def setUp(self):
         self.file = DataFile()
@@ -54,16 +61,22 @@ END_DATA
         self.buff.close()
   
     def test_write(self):
-        self.buff = StringIO(TestBottleExchange.sample)
+        self.buff = StringIO(self.sample_basic)
         btlex.read(self.file, self.buff)
         self.buff.close()
 
         self.buff = StringIO()
         btlex.write(self.file, self.buff)
-        # TODO
-        print self.buff.getvalue()
-        #self.assertEqual(self.buff.getvalue(), self.output)
+        output = self.buff.getvalue()
         self.buff.close()
+
+        for aaa, bbb in zip(self.sample_basic.split('\n'), output.split('\n')):
+            aas = [x.strip() for x in aaa.split(',')]
+            bbs = [x.strip() for x in bbb.split(',')]
+            # Check that DBARS units has been updated from blank to METERS
+            if len(aas) > 11 and aas[2] == u'':
+                aas[11] = u'METERS'
+            self.assertEqual(aas, bbs)
 
     def test_no_stamp_uses_users(self):
         """If the writer is not given a stamp, it will use the config stamp."""

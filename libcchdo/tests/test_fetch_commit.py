@@ -88,18 +88,24 @@ class TestFetchCommit(TestCase):
 
             cruise = Cruise()
             cruise.ExpoCode = 'testexpo'
+            cruise.Line = 'testline'
 
             qfile = QueueFile()
             qfile.id = 1
             qfile.ExpoCode = 'testexpo'
 
-            fc.dstore.Lsesh = connect.scoped(engine_legacy)
-            Base.metadata.create_all(engine_legacy)
+            with closing(connect.session(engine_legacy)) as sesh:
+                fc.dstore.Lsesh = sesh
 
-            fc.dstore.Lsesh.add(cruise)
-            fc.dstore.Lsesh.add(doc)
-            fc.dstore.Lsesh.add(qfile)
+                Base.metadata.drop_all(sesh.get_bind())
+                Base.metadata.create_all(sesh.get_bind())
 
-            fc.uow_commit(temp_dir, None, confirm_html=False, send_email=False,
-                          dryrun=True)
+                sesh.flush()
+                sesh.add(cruise)
+                sesh.add(doc)
+                sesh.add(qfile)
+                sesh.flush()
+
+                fc.uow_commit(temp_dir, None, confirm_html=False,
+                              send_email=False, dryrun=True)
 
