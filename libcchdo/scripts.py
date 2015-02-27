@@ -1330,7 +1330,7 @@ def merge_ctdex_and_ctdex(args):
 
 with subcommand(merge_parsers, 'ctdex_and_ctdex', merge_ctdex_and_ctdex) as p:
     p.add_argument(
-        '--output', type=FileType('w'), nargs='+', default=sys.stdout,
+        '--output', type=FileType('w'), nargs='?', default=sys.stdout,
         help='output CTD Exchange file')
     _add_merge_arguments(p)
 
