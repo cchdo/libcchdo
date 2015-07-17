@@ -189,6 +189,16 @@ def check_any(args):
                 log.info(u'column {0} is empty (only has fill values)'.format(
                     c.parameter.name))
 
+    def check_blank_values(dfile):
+        for c in dfile.columns.values():
+            blanks = [(i, True) for i,v in enumerate(c) if v == ""]
+            if any(blanks):
+                rows = ",".join([str(b[0]) for b in blanks])
+                log.error((u'column {0} is has blank values on row(s) {1}'
+                        u', conversions may fail').format(
+                    c.parameter.name, rows))
+
+
     def check_flag_0(dfile):
         """Data should not have flag 0."""
         for col in dfile.columns.values():
@@ -205,6 +215,7 @@ def check_any(args):
         check_fill_value_has_flag_w_9(df)
         check_empty_columns(df)
         check_flag_0(df)
+        check_blank_values(df)
         if args.verify_unique:
             check_cols = []
             for col in args.verify_unique:
