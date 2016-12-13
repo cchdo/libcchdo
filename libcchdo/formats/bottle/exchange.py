@@ -58,7 +58,7 @@ def read(self, handle):
     units = [x.strip() for x in handle.readline().strip().split(',')]
     
     # Check columns and units to match length
-    if len(columns) is not len(units):
+    if len(columns) != len(units):
         raise ValueError(("Expected as many columns as units in file. "
                           "Found %d columns and %d units.") % (len(columns),
                                                                len(units)))
