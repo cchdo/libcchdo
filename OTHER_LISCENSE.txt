@@ -1,0 +1,51 @@
+BSD
+===========
+lxml
+docutils (most is public domain, everything not is BSD for docutils)
+cdecimal
+pykml
+coverage
+numpy
+scipy
+matplotlib
+mpmath
+
+MIT
+===========
+oauth2
+httplib2
+pydap
+SQLalchemy
+
+
+LGPL (BSD Compatible)
+=====================
+paramiko
+psycopg (pypi says GPL, actual website says LGPL)
+
+Apache 2.0 (allows linking from software different liscense)
+==========
+requests
+argcomplete
+
+Zope Public License 2.0 (Basically the BSD unless we modify files, we don't)
+=======================
+zope.sqlalchemy
+
+
+Other?
+===========
+MySQL-python
+  the sourceforce page lists:
+    GPLv2 (Not compatible with BSD, is what is listed on pypi)
+    Python License (???)
+    Zope Public License (Compatible with BSD)
+
+pillow (looks like the MIT license)
+netCDF4 (looks like the MIT license)
+
+
+basemap
+  Has all kine crazy in it, only the "data" might be GPL
+    Did some digging, recent versions of GMT are LGPL, to use basemap, would need to
+    update it to use only the LGPL versions... maybe
