@@ -347,3 +347,49 @@ def ddm_to_dd(ctoks, precision=None):
             raise ValueError(('Expect E, W, N, or S in ctoks[2]'
                              'instead got:%s'), ctoks[2])
         return cord.quantize(Decimal(10) ** -precision)
+
+def create_expocode(nodc_ship_code, port_departure_date):
+    """Generate an ExpoCode from an NODC ship code and port departure date.
+
+    """
+    return '{ship_code}{date}'.format(
+        ship_code=nodc_ship_code, date=port_departure_date.strftime('%Y%m%d'))
+
+known_file_types = {
+    'hy.txt'   : 'Woce Bottle',
+    'su.txt'   : 'Woce Sum',
+    'ct.zip'   : 'Woce CTD (Zipped)',
+    'sum'      : 'Sum File',
+    'ctd$'     : 'CTD File',
+    'ct1.zip'  : 'Exchange CTD (Zipped)',
+    'ct1.csv'  : 'Exchange CTD',
+    'hy1.zip'  : 'Exchange Bottle (Zipped)',
+    'hy1.csv$' : 'Exchange Bottle',
+    'ctd.zip$'  : 'NetCDF CTD',
+    'hyd.zip'  : 'NetCDF Bottle',
+    'do.txt'   : 'Documentation',
+    'do.pdf'   : 'PDF Documentation',
+    'xml'      : 'Directory Description',
+    'na.txt'   : 'Coord info',
+    'sea'      : 'SEA file',
+    'detail.htm'    : 'Data History HTML',
+    'person.htm'    : 'Person HTML',
+    'type.htm'      : 'Type HTML',
+    'datahist.htm'  : 'Data History HTML',
+    'trk.jpg'       : 'Small Plot',
+    'trk.gif'       : 'Large Plot',
+    '.gof'          : 'JGOFS File',
+    '.wct'          : 'WCT CTD File',
+    'index.htm'     : 'Index HTML File',
+    'index_OLD.htm' : 'Old Index HTML File',
+    '.gmt'          : 'GMT info File',
+    '[^(inv_)]hyd.txt'   : 'Exchange Bottle',
+    '.ecp'   : 'French data file',
+    '.nav'   : 'Coordinates?',
+    '.asc'   : 'Encrypted file',
+    '.ps'    : 'Postscript file',
+    '.mat'   : 'Matlab file',
+    '.lv'    : 'Large Volume file',
+    '.lvs'   : 'Large Volume file',
+    '$00_README.*/.txt' : 'Citation file',
+}

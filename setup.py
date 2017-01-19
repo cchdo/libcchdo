@@ -23,9 +23,6 @@ if __name__ == "__main__":
     # pip install -e .[db,speed,netcdf]
     extras_require = {
         'csv_view': ['lxml', ],
-        'db': ['MySQL-python', ],
-        'datadir': ['oauth2', 'paramiko', 'docutils', 'requests'],
-        'speed': ['cdecimal', ],
         'kml': ['pykml', ],
         'coverage': ['coverage', ],
         'netcdf': ['numpy', 'netCDF4', ],

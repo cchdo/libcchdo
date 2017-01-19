@@ -6,7 +6,7 @@ log = getLogger(__name__)
 
 from libcchdo.fns import _decimal, equal_with_epsilon
 from libcchdo.formats.exchange import FILL_VALUE
-from libcchdo.datadir import create_expocode
+from libcchdo.fns import create_expocode
 from libcchdo.formats.bermuda_atlantic_time_series_study import (
     dpr_idparts, bats_time_to_dt, BATS_SECT_ID, correct_longitude,
     collapse_globals,

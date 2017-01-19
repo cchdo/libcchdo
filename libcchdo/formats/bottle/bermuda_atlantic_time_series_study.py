@@ -11,7 +11,7 @@ from libcchdo.util import memoize
 from libcchdo.fns import Decimal, equal_with_epsilon
 from libcchdo.model.datafile import DataFile, DataFileCollection
 from libcchdo.db.model.nodc_ship import ship_code
-from libcchdo.datadir import create_expocode
+from libcchdo.fns import create_expocode
 from libcchdo.formats.netcdf_oceansites import get_param_to_os, OSVar
 from libcchdo.formats.bermuda_atlantic_time_series_study import (
     bats_time_to_dt, BATS_SECT_ID, correct_longitude, collapse_globals)

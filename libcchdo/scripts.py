@@ -26,8 +26,6 @@ import libcchdo
 from libcchdo.log import setup as setup_logging
 setup_logging()
 from libcchdo.formats.formats import all_formats, read_arbitrary
-from libcchdo.datadir.filenames import (
-    README_FILENAME, PROCESSING_EMAIL_FILENAME, UOW_CFG_FILENAME)
 known_formats = all_formats.keys()
 
 
@@ -334,39 +332,6 @@ with subcommand(any_converter_parsers, 'kml', any_to_kml) as p:
     p.add_argument(
         'output', type=FileType('w'), nargs='?', default=sys.stdout,
         help='output file (default: stdout)')
-
-
-def any_to_db_track_lines(args):
-    """Take any readable file and put the tracks in the database."""
-    from libcchdo.formats.common import track_lines
-
-    with closing(args.input_file) as in_file:
-        data = read_arbitrary(in_file, args.input_type)
-    if args.expocode:
-        data.globals['EXPOCODE'] = args.expocode
-    try:
-        data.expocodes()
-    except KeyError:
-        log.error(u'Please supply an ExpoCode using the --expocode flag.')
-        return
-    track_lines.write(data)
-
-
-with subcommand(any_converter_parsers, 'db_track_lines',
-                any_to_db_track_lines) as p:
-    p.add_argument('-i', '--input-type',
-        choices=known_formats,
-        help='force the input file to be read as the specified type')
-    p.add_argument(
-        '--expocode', 
-        help='ExpoCode to attach the track to.')
-    p.add_argument(
-        'input_file', type=FileType('r'),
-        help='any recognized CCHDO file')
-    p.add_argument(
-        'output_track_lines', type=FileType('w'), nargs='?',
-        default=sys.stdout,
-        help='output track lines file (default: stdout)')
 
 
 bot_converter_parser = converter_parsers.add_parser(
@@ -1894,34 +1859,6 @@ with subcommand(misc_parsers, 'db_dump_tracks', db_dump_tracks) as p:
         help='output file (default: stdout)')
 
 
-def any_to_legacy_parameter_statuses(args):
-    """Show legacy parameter ids for the parameters in a data file."""
-    from libcchdo.tools import df_to_legacy_parameter_statuses
-    from libcchdo.datadir.store import check_is_legacy
-    # TODO deprecated
-    if not check_is_legacy():
-        raise NotImplementedError(
-            u'Unable to get legacy parameter ids for pycchdo.')
-
-    with closing(args.input_file) as in_file:
-        data = read_arbitrary(in_file, args.input_type)
-    
-    with closing(args.output_file) as out_file:
-        df_to_legacy_parameter_statuses(data, out_file)
-
-
-with subcommand(misc_parsers, 'any_to_legacy_parameter_statuses',
-                any_to_legacy_parameter_statuses) as p:
-    p.add_argument('-i', '--input-type',
-        choices=known_formats,
-        help='force the input file to be read as the specified type')
-    p.add_argument(
-        'input_file', type=FileType('r'),
-        help='any recognized CCHDO file')
-    p.add_argument(
-        'output_file', type=FileType('w'), nargs='?',
-        default=sys.stdout,
-        help='output file (default: stdout)')
 
 
 def canon(args):
@@ -2054,21 +1991,6 @@ with subcommand(misc_parsers, 'flatten_zip', flatten_zip) as p:
         'output', type=FileType('w'), nargs='?', default=sys.stdout,
         help='output Zip file (default: stdout)')
 
-
-def rebuild_hot_bats_oceansites(args):
-    from libcchdo.datadir.util import do_for_cruise_directories
-    from libcchdo.tools import rebuild_hot_bats_oceansites as rebuilder
-    from libcchdo.log import RebuildOceanSITESFilter
-
-    log.addFilter(RebuildOceanSITESFilter())
-    do_for_cruise_directories(rebuilder)
-
-
-rebuild_hot_bats_oceansites_parser = misc_parsers.add_parser(
-    'rebuild_hot_bats_oceansites',
-    help=rebuild_hot_bats_oceansites.__doc__)
-rebuild_hot_bats_oceansites_parser.set_defaults(
-    main=rebuild_hot_bats_oceansites)
 
 
 def reorder_surface_to_bottom(args):
