@@ -167,6 +167,12 @@ def get_option(section, option, default_function=None):
 
     """
     try:
+        env_section = section.upper().replace("/", "_")
+        env_option = option.upper().replace("/", "_")
+        return os.environ["LIBCCHDO_" + env_section + "_" + env_option]
+    except KeyError:
+        pass
+    try:
         return _CONFIG.get(section, option)
     except NoOptionError, e:
         if not default_function:

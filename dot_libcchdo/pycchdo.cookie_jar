@@ -1,0 +1,10 @@
+#LWP-Cookies-2.0
+Set-Cookie3: auth_tkt="\"c0960e95f678b9a99737aee2aaac061c54a2f98fNjMwNQ%3D%3D!userid_type:b64str\""; path="/"; domain=".cchdo.ucsd.edu"; path_spec; domain_dot; discard; version=0
+Set-Cookie3: auth_tkt="\"ee13fbc70a53a27ac61dbae02e4393b4545aa9e5NjE5Mw%3D%3D!userid_type:b64str\""; path="/"; domain=".seahunt.ucsd.edu"; path_spec; domain_dot; discard; version=0
+Set-Cookie3: auth_tkt="\"1e7b4e1130c45e12f44f249a0b3e47be53bef91eNjExMw%3D%3D!userid_type:b64str\""; path="/"; domain=".sui.ucsd.edu"; path_spec; domain_dot; discard; version=0
+Set-Cookie3: auth_tkt="\"c0960e95f678b9a99737aee2aaac061c54a2f98fNjMwNQ%3D%3D!userid_type:b64str\""; path="/"; domain="cchdo.ucsd.edu"; path_spec; discard; version=0
+Set-Cookie3: session="c8f10f8556f1d1a0714a94fdaa98cb32015edfd2gAJKj/miVEdB1Si+XNPC/H1xAShVCGRhdGFjYXJ0cQJjcHljY2hkby5tb2RlbHMuZGF0YWNhcnQKRGF0YWNhcnQKcQMpgXEEfXEFKFUDbWFwcQZ9VQNlbmRxB11xCChOaAhoCGV1YlUbc2tpcF9zYXZlX3NpZ25pbl9yZXR1cm5fdXJpcQmIdYdxCi4="; path="/"; domain="cchdo.ucsd.edu"; path_spec; discard; version=0
+Set-Cookie3: auth_tkt="\"ee13fbc70a53a27ac61dbae02e4393b4545aa9e5NjE5Mw%3D%3D!userid_type:b64str\""; path="/"; domain="seahunt.ucsd.edu"; path_spec; discard; version=0
+Set-Cookie3: session="0207b925af88bc387fa898c69029ce607a5dfb19gAJK5alaVEdB1RaqdwTfHn1xAShVCGRhdGFjYXJ0cQJjcHljY2hkby5tb2RlbHMuZGF0YWNhcnQKRGF0YWNhcnQKcQMpgXEEfXEFKFUDbWFwcQZ9VQNlbmRxB11xCChOaAhoCGV1YlUbc2tpcF9zYXZlX3NpZ25pbl9yZXR1cm5fdXJpcQmIdYdxCi4="; path="/"; domain="seahunt.ucsd.edu"; path_spec; discard; version=0
+Set-Cookie3: auth_tkt="\"1e7b4e1130c45e12f44f249a0b3e47be53bef91eNjExMw%3D%3D!userid_type:b64str\""; path="/"; domain="sui.ucsd.edu"; path_spec; discard; version=0
+Set-Cookie3: session="eec0ac049bda4725f5a8ba8835d49aa0b39bc050gAJKHvm+U0dB1O++QzFnNH1xAShVCGRhdGFjYXJ0cQJjcHljY2hkby5tb2RlbHMuZGF0YWNhcnQKRGF0YWNhcnQKcQMpgXEEfXEFKFUDbWFwcQZ9VQNlbmRxB11xCChOaAhoCGV1YlUbc2tpcF9zYXZlX3NpZ25pbl9yZXR1cm5fdXJpcQmIdYdxCi4="; path="/"; domain="sui.ucsd.edu"; path_spec; discard; version=0

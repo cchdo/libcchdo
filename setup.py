@@ -28,7 +28,7 @@ if __name__ == "__main__":
         'netcdf': ['numpy', 'netCDF4', ],
         'autocomplete': ['argcomplete'],
         'merge': ['numpy>=1.6'],
-        'plot': ['numpy>=1.4', 'scipy', 'pillow', 'matplotlib', 'basemap', ],
+        #'plot': ['numpy>=1.4', 'scipy', 'pillow', 'matplotlib', 'basemap', ],
         'dap_thredds': ['lxml', 'httplib2', 'pydap'],
     }
     extras_require['all'] = extras_require.values()

@@ -1,0 +1,218 @@
+dfile
+dfile.columns
+dfile["LATITUDE"]
+dfile["LATITUDE"].__dict__
+dfile["LATITUDE"].values
+len(dfile["LATITUDE"].values)
+len(dfile["LATITUDE"].values), len(dfile["LONGITUDE"].values)
+zip((dfile["LATITUDE"].values), len(dfile["LONGITUDE"].values))
+zip(dfile["LATITUDE"].values, dfile["LONGITUDE"].values)
+pwd
+dfile
+dfile.columns
+dfile.LONGETUDE
+dfile["LONGETUDE"]
+dfile["LATITUDE"]
+dfile["LATITUDE"].data
+dfile["LATITUDE"].__dict__
+dfile["LATITUDE"].values
+from libcchdo.model.navcoord import iter_coords, NavCords
+from libcchdo.model.navcoord import iter_coords, NavCoords
+def p(expo, coords):
+ pass
+iter_coords(dfile, NavCoords, p)
+def p(expo, coords):
+ print coords
+iter_coords(dfile, NavCoords, p)
+dfile
+def p(expo, coords):
+ print coords.navcoords
+iter_coords(dfile, NavCoords, p)
+ print coords.navcoords.lon
+def p(expo, coords):
+ print coords.navcoords.lon
+iter_coords(dfile, NavCoords, p)
+def p(expo, coords):
+ print coords.navcoords.lon
+iter_coords(dfile, NavCoords, p)
+dfile.columns
+dfile.columns[1]
+dfile.columns.values()
+dfile.columns.values()[1]
+dfile.columns.values()[1].flag_woce
+dfile.columns.values()[2].flag_woce
+dfile.columns.values()[4].flag_woce
+dfile.columns.values()[6].flag_woce
+dfile.columns.values()[0]]
+dfile.columns.values()[0]
+dfile.columns.values()[0][0]
+dfile
+dfile.columns
+dfile.columns["OXYGEN"]
+dfile.columns["OXYGEN"].flags
+dfile.columns["OXYGEN"].flags_woce
+dfile.columns["OXYGEN"].values
+dfile.columns.values()
+dfile.columns.values()[6]
+dfile.columns.values()[7]
+dfile.columns.values()[8]
+dfile.columns.values()[9]
+dfile.columns.values()[0]
+dfile.columns.values()[10]
+dfile.columns.values()[11]
+dfile.columns.values()[12]
+dfile.columns.values()[13]
+dfile.columns.values()[14]
+dfile.columns.values()[15]
+dfile.columns.values()[16]
+dfile.columns.values()[17]
+dfile.columns.values()[18]
+dfile.columns.values()[19]
+dfile.columns.values()[10]
+dfile.columns.values()[20]
+dfile.columns.values()[20].flags_woce
+dfile.columns.values()
+dfile.columns.values()[0]
+dfile.columns.values()[20]
+dfile.columns.values()[20].value
+dfile.columns.values()[20].values
+len(dfile.columns.values()[20].values)
+len(dfile.columns.values()[20].flags_woce)
+len(dfile.columns.values()[20]
+dfile.columns.values()[20].values
+dfile.columns.values()[20]
+dfile.columns.values()[20][1]
+dfile.columns.values()[20].flags_woce[1]
+dfile
+dfile.columns
+dfile.columns["OXYGEN"]
+len(dfile.columns["OXYGEN"].values)
+len(dfile.columns["OXYGEN"].flags_woce)
+import de_snip
+import sys
+sys.path.insert(0, "Users/abarna/work/_current/index_error/
+sys.path.insert(0, "Users/abarna/work/_current/index_error/")
+import de_snip as d
+sys.path.insert(0, "/Users/abarna/work/_current/index_error/")
+import de_snip as d
+d.change_fill_flag_to_9(dfile)
+import sys, sys.path.insert(0, '/Users/abarna/work/_current/index_error'); import de_snip as d
+import sys; sys.path.insert(0, '/Users/abarna/work/_current/index_error'); import de_snip as d
+d.change_fill_flag_to_9(dfile)
+import sys; sys.path.insert(0, '/Users/abarna/work/_current/index_error'); import de_snip as d; d.change_fill_flag_to_9(dfile)
+import sys; sys.path.insert(0, '/Users/abarna/work/_current/index_error'); import de_snip as d; d.change_fill_flag_to_9(dfile, "OXYGEN")
+dfile.columns["OXYGEN"]
+dfile.columns["OXYGEN"].values
+dfile.columns["OXYGEN"][0]
+import sys; sys.path.insert(0, '/Users/abarna/work/_current/index_error'); import de_snip as d; d.change_fill_flag_to_9(dfile, "OXYGEN")
+dfile.columns["OXYGEN"]
+for i in dfile.columns["OXYGEN"]:
+ print i
+import sys; sys.path.insert(0, '/Users/abarna/work/_current/index_error'); import de_snip as d; d.change_fill_flag_to_9(dfile, "OXYGEN")
+import libcchdo.formats.bottle.exchange
+from libcchdo.formats.bottle.exchange import write
+f = open("filenameYouWantToWriteTo.csv", 'wb')
+write(dfile, f)
+dfile.columns
+for dfile.columns:
+for c in dfile.columns:
+ print len(c)
+for c in dfile.columns:
+ print c
+for c in dfile.columns.values:
+ print c
+for c in dfile.columns:
+ for v in dfile.columns[c]:
+ss
+for c in dfile.columns:
+ print len(dfile.columns[c])
+write
+sys
+sys.stdout
+write(dfile, sys.stdout)
+import sys; sys.path.insert(0, '/Users/abarna/work/_current/index_error'); import de_snip as d; d.change_fill_flag_to_9(dfile, "OXYGEN")
+from libcchdo.formats.bottle.exchange import write
+f = open("filenameYouWantToWriteTo.csv", 'wb')
+write(dfile, f)
+f = open("filenameYouWantToWriteTo.csv", 'wb')
+write(dfile, f)
+for c in dfile.columns:
+ print len(dfile.columns[c])
+write(dfile, f)
+f = open("filenameYouWantToWriteTo.csv", 'wb')
+write(dfile, f)
+f = open("filenameYouWantToWriteTo.csv", 'wb')
+write(dfile, f)
+from libcchdo.formats.bottle.exchange write
+from libcchdo.formats.bottle.exchange import write
+f = open("something.csv", "wb")
+write(dfile, f)
+from libcchdo.formats.bottle.exchange import write
+f = open("something.csv", "wb")
+write(dfile, f)
+from libcchdo.formats.bottle.exchnage import write
+from libcchdo.formats.bottle.exchange import write
+f = open("/Users/abarna/Desktop/test.csv", 'wb')
+write(dfile, f)
+from libcchdo.formats.bottle.exchange import write
+f = open("/Users/abarna/Desktop/test.csv", 'wb')
+write(dfile, f)
+from libcchdo.formats.bottle.exchange import write
+f = open("somefilepath.csv", "wb")
+write(dfile, f)
+from libcchdo.formats.bottle.exchange import write
+f = open("somefilepath.csv", "wb")
+write(dfile, f)
+from libcchdo.formats.bottle.exchange import write
+f = open("somefilepath.csv", "wb")
+write(dfile, f)
+from libcchdo.formats.bottle.exchange import write
+f = open("somefilepath.csv", "wb")
+write(dfile, f)
+from libcchdo.formats.bottle.exchange import write
+f = open("somefilepath.csv", "wb")
+write(dfile, f)
+from libcchdo.formats.bottle.exchange import write
+f = open("somefilepath.csv", "wb")
+write(dfile, f)
+f.close()
+dfile
+dfile.columns
+dfile.columns['EXPOCODE']
+dfile.columns['EXPOCODE'].values
+import cPickle
+import cPickle as pickle
+f = open("/Users/abarna/test.pkl")
+f = open("/Users/abarna/test.pkl", 'wb')
+pickle.dump(dfile, f)
+f.close()
+f = open("/Users/abarna/test.pkl", 'rb')
+d2 = pickle.load(f)
+d2
+dfile
+d2.columns
+d2.columns["EXPOCODE"]
+d2.columns["EXPOCODE"].values
+f = open("/Users/abarna/test.pkl", 'wb')
+pickle.dump(dfile, f, pickle.HIGHEST_PROTOCOL)
+f.close()
+dfile.__dict__
+dfile.__getstate__()
+dfile.__getstate__
+dfile.__getstate__()
+dfile.columns
+dfile.columns['LATITUDE']
+dfile.columns['LATITUDE'].values
+dfile.columns["LATITUDE"]
+dfile.columns["LATITUDE"].values
+dfile.__dict))
+dfile.__dict__
+dfile.globals
+dfile
+dfile.columns
+dfile[0]
+dfile[0].columns
+dfile
+dfile.columns
+dfile.globals
+dfile.globals["DATE"]
