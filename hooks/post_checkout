@@ -1,0 +1,3 @@
+#!/bin/bash
+echo "=> Unshallowing and tagging"
+git fetch --unshallow --tags origin
