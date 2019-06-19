@@ -51,7 +51,7 @@ can be chained), so now the entire thing looks like this:
 `docker run -it --rm -e LIBCCHDO_MERGER_DIVISION=CCH -e LIBCCHDO_MERGER_INITIALS=AMB -e LIBCCHDO_MERGER_INSTITUTION=SIO -v $(pwd):/context cchdo/libcchdo`
 
 I'd highly recommend aliasing that entire thing (with the correct
-initials) to `hydro<` in your shell. Then
+initials) to `hydro` in your shell. Then
 check to make sure everything looks as it should with a
 `hydro env` which should output
 `prod` followed by an email address and the
