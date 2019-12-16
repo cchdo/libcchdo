@@ -1,0 +1,199 @@
+id,name,full_name,name_netcdf,description,format,unit_id,bound_lower,bound_upper,display_order
+1,14C-DOC,"Dissolved Organic Carbon 14",dissolved_organic_carbon_14,"14C activity of Dissolved Organic Carbon",%8.1f,1,-1000,100,9223372036854775807
+2,17DELTA,"",17delta,"Triple oxygen isotope",%11s,2,,,9223372036854775807
+3,ALKALI,"Total alkalinity",alkalinity,"",%8.1f,3,100,2800,28
+4,ALUMIN,"Dissolved Aluminum",dissolved_aluminum,Aluminum,%8.1f,4,0.3,25,59
+5,AOU,"Apparent Oxygen Utilization",apparent_oxygen_utilization,"",%11s,,,,9223372036854775807
+6,AR-39,"Argon 39",argon_39,"",%8.1f,5,0,100,70
+7,ARABI,Arabinose,arabinose,"Concentration of Arabanose after hydrolysis",%11s,6,,,9223372036854775807
+8,ARGON,Argon,argon,"",%8.2f,3,5,25,103
+9,AZOTE,Nitrogen,nitrogen,"Nitrogen     (French)",%11s,,,,101
+10,BACT,"Bacterial Cell Count",bacterial_cell_count,"Cell count of non pigmented heterotrophic bacterioplankton through FCM",%8.2f,7,,,9223372036854775807
+11,BARIUM,Barium,barium1,"",%8.1f,6,,,60
+12,BARIUML,Barium,barium,Barium,%11s,4,,,9223372036854775807
+13,BEDFORT,"",bedfort,"",%8.4f,,,,9223372036854775807
+14,BIONBR,"",bionbr,"",%11s,,,,5
+15,BLACKC,"Black Carbon",black_carbon,"",%11s,,,,9223372036854775807
+16,BNLID,"Bottle Number I.D.",bottle_number_i_d_,"Sequentially increasing number assigned to each tripped bottle throughout the cruise.",%11s,,,,9223372036854775807
+17,BRDU,Bromodeoxyuridine,bromodeoxyuridine,"Bacterial Production via BRDU Method",%8.2f,8,,,9223372036854775807
+18,BTLNBR,"Bottle Number",bottle_number,"",%11s,,,,6
+19,BTL_DATE,"Bottle Date",bottle_date,"",%9.4f,,,,106
+20,BTL_LAT,"Bottle Latitude",bottle_latitude,"",%9.4f,,,,108
+21,BTL_LON,"Bottle Longitude",bottle_longitude,"",%9.4f,,,,109
+22,BTL_TIME,"Bottle Time",bottle_time,"",%9.4f,,,,107
+23,C13ERR,"DELC13 Error",delc13_error,"",%8.1f,1,,,44
+24,C14ERR,"DELC14 Error",delc14_error,"",%8.1f,1,,,46
+25,CALCIUM,Calcium,calcium,"",%11s,,,,102
+26,CASTNO,"Cast Number",cast_number,"",%11s,,,,3
+27,CCL4,"Carbon tetrachloride",carbon_tetrachloride1,"",%8.3f,9,-0.1,20,56
+28,CCL4ER,"",ccl4er,"",%11s,,,,57
+29,CCL4L,"Carbon Tetrachloride",carbon_tetrachloride,"",%11s,10,,,9223372036854775807
+30,CDOM,"Chromophoric Dissolved Organic Matter",chromophoric_dissolved_organic_matter,"",%9.4f,,,,9223372036854775807
+31,CDOM2C,"",cdom2c,"",%11s,,,,9223372036854775807
+32,CDOM325,"",cdom325,"Absorption coefficient of CDOM at 325 nm",%9.4f,11,0.02,1,9223372036854775807
+33,CDOM340,"",cdom340,"Absorption coefficient of CDOM at 340 nm",%9.4f,11,0.02,0.8,9223372036854775807
+34,CDOM380,"",cdom380,"Absorption coefficient of CDOM at 380 nm",%9.4f,11,0.01,0.5,9223372036854775807
+35,CDOM3C,"",cdom3c,"",%11s,,,,9223372036854775807
+36,CDOM412,"",cdom412,"Absorption coefficient of CDOM at 412 nm",%9.4f,11,0.01,0.3,9223372036854775807
+37,CDOM443,"",cdom443,"Absorption coefficient of CDOM at 443 nm",%9.4f,11,0,0.1,9223372036854775807
+38,CDOM490,"",cdom490,"Absorption coefficient of CDOM at 490 nm",%9.4f,11,0,0.1,9223372036854775807
+39,CDOM555,"",cdom555,"Absorption coefficient of CDOM at 555 nm",%9.4f,11,0,0.1,9223372036854775807
+40,CDOMSL,"",cdomsl,"Log spectral slope of absorption spectrum (320-400 nm) computed by linear regression of log-transformed data",%9.4f,12,0.01,0.04,9223372036854775807
+41,CDOMSN,"",cdomsn,"Log spectral slope if absorption spectrum (320-400 nm) computed by non-linear curve fit",%9.4f,12,0.01,0.04,9223372036854775807
+42,CF113ER,"CFC-113 Error",cfc_113_error,"",%11s,9,,,9223372036854775807
+43,CF11ER,"CFC-11 Error",cfc_11_error,"",%11s,,,,9223372036854775807
+44,CF12ER,"CFC-12 Error",cfc_12_error,"",%11s,,,,9223372036854775807
+45,CFC-11,Freon-11TM,freon_11,Chlorofluorocarbon,%8.3f,9,-0.1,15,23
+46,CFC-11L,"Freon 11",freon_11l,"Freon 11",%11s,10,,,9223372036854775807
+47,CFC-12,Freon-12TM,freon_12,Chlorofluorocarbon,%8.3f,9,-0.1,15,24
+48,CFC-12L,"Freon 12",freon_12l,"",%11s,10,,,9223372036854775807
+49,CFC113,Freon-113TM,freon_113,Chlorofluorocarbon,%8.3f,9,-0.1,1.5,25
+50,CH3Br,"Methyl Bromide, Monobromomethane",methyl_bromide_monobromomethane,haloalkane,%8.3f,9,,,9223372036854775807
+51,CH3CL,"Methyl Chloride, Chloromethane",methyl_chloride_chloromethane,haloalkane,%8.3f,9,,,98
+52,CH3I,"Methyl Iodide, iodomethane",methyl_iodide_iodomethane,"haloalkane ",%8.3f,9,,,9223372036854775807
+53,CH4,Methane,methane,"",%11s,6,1,20,99
+54,CHLORA,"Chlorophyll a",chlorophyll_a,"Concentration of Chlorophyll a via fluorometric method",%8.2f,13,0,9,95
+55,COMON,"Carbon monoxide",carbon_monoxide,"",%11s,3,,,9223372036854775807
+56,CS-137,"Cesium 137",cesium_137,"",%8.2f,14,0,100,71
+57,CS137ER,"CS-137 Error",cs_137_error,"",%11s,15,,,9223372036854775807
+58,CTDNO,"",ctdno,"",%11s,,,,9223372036854775807
+59,CTDOXY,Oxygen_CTD,oxygen1,"",%9.4f,3,0,500,16
+60,CTDPRS,Pressure,pressure,"",%8.1f,16,0,11000,12
+61,CTDRAW,"",ctd_raw,"",%8.2f,16,0,11000,88
+62,CTDSAL,Salinity,salinity,"",%8.4f,17,0,42,14
+63,CTDTMP,Temperature,temperature,"",%8.4f,18,-2,35,13
+64,CU,Copper,copper,"",%11s,,,,62
+65,D15N_NO3,"Isotopic Composision of Nitrate",isotopic_composision_of_nitrate,"",%8.1f,19,-5,30,105
+66,DATE,"",date,"",%8s,,,,7
+67,DCNS,"Dissolved Combined Neutral Sugars",dissolved_combined_neutral_sugars,"",%11s,6,,,9223372036854775807
+68,DELC13,"Carbon 13",carbon_13,"",%8.2f,1,-5,5,43
+69,DELC14,"Carbon 14",carbon_14,"",%8.1f,1,-300,250,45
+70,DELHE3,"Delta Helium",delta_helium_3,"",%8.2f,20,-10,100,39
+71,DELHE4,"Helium 4",helium_4,"",%11s,,,,9223372036854775807
+72,DELHER,"DELHE3 Error",delhe3_error,"",%8.2f,20,,,9223372036854775807
+73,DELO17,"",delo17,"",%11s,2,,,9223372036854775807
+74,DELO18,"18O/16O ratio",18o_16o_ratio,"ratio of stable isotopes 18O:16O",%8.2f,1,-6,5,61
+75,DELSI30,"",delsi30,"",%11s,,,,9223372036854775807
+76,DEPTH,"",depth,"Bottom depth",%11s,21,,,11
+77,DMS,Dimethylsulfide,dimethylsulfide,"Biogenic Sulfur Compounds",%11s,,,,100
+78,DNA,"Deoxyribonucleic acid",deoxyribonucleic_acid,"",%11s,22,,,9223372036854775807
+79,DOC,"Dissolved Organic Carbon",dissolved_organic_carbon,"",%8.2f,3,30,80,75
+80,DON,"Dissolved Organic Nitrogen",dissolved_organic_nitrogen,"",%8.2f,3,200,900,78
+81,DWNOXY,"",dwnoxy,"Down-cast CTD oxygen at pressure of DWNPRS",%11s,23,,,9223372036854775807
+82,DWNPRS,"",dwnprs,"Down-cast pressure at the same density of the up-cast CTD data",%11s,16,,,9223372036854775807
+83,FCO2,Fugacity,fugacity,"Fugacity of CO2",%9.1f,24,,,29
+84,FCO220C,"",fco220c,"",%11s,,,,9223372036854775807
+85,FCO2IN,"",fco2in,"",%11s,,,,9223372036854775807
+86,FCO2TMP,"FCO2 Temperature",fco2_temperature,"",%9.2f,25,,,30
+87,FE,Iron,iron,"Dissolved Iron",%8.1f,4,0.02,2,63
+88,FLUOR,Fluorescence,fluorescence,"total chlorophyll & phaeopigments,",%8.4f,26,0,50,65
+89,FUCO,Fucose,fucose,"Concentration of Fucose after hydrolyses ",%11s,6,,,9223372036854775807
+90,GALA,Galactose,galactose,"Concetration of Galactose after hydrolysis ",%11s,6,,,9223372036854775807
+91,GLUC,Glucose,glucose,"Concentration of Glucose after hydrolysis ",%11s,6,,,9223372036854775807
+92,HAARDT,HAARDT,haardt,"Haardt Backscattering Fluorometer Reading (CDOM, CHLORA, PPHTYN)",%11s,27,,,9223372036854775807
+93,HCFC-141b,Dichlorofluoroethane,dichlorofluoroethane,Hydrochlorofluorocarbon,%11s,9,,,9223372036854775807
+94,HCFC-142b,Chlorodifluoroethane,chlorodifluoroethane,Hydrochlorofluorocarbon,%11s,9,,,9223372036854775807
+95,HCFC-22,Chlorodifluoromethane,chlorodifluoromethane,Hydrochlorofluorocarbon,%11s,9,,,9223372036854775807
+96,HELIER,"Helium Error",helium_error,"",%8.4f,6,,,9223372036854775807
+97,HELIUM,Helium,helium,"",%8.4f,6,1,3,38
+98,HGT,"Total Mercury",total_mercury,"Total  Mercury",%11s,9,1,5,9223372036854775807
+99,Hydrocarbons,"",hydrocarbons,"",%11s,,,,9223372036854775807
+100,I-129,"Iodine 129",iodine_129,"",%11s,28,,,66
+101,I129ER,"Iodine 129 Error",iodine_129_error,"",%11s,,,,89
+102,IMAGE_COUNT,"Image count from FlowCytobot",image_count_from_flowcytobot,"Image count from FlowCytobot - automated fow cytometer ",%11s,,,,9223372036854775807
+103,IODATE,Iodate,iodate,"",%11s,6,200,600,93
+104,IODIDE,Iodide,iodide,"",%11s,6,0,300,94
+105,KR-85,"Krypton 85",krypton_85,"",%8.2f,29,0,5,72
+106,LAB_DEN,"",lab_den,"",%11s,,,,9223372036854775807
+107,LATITUDE,"",latitude,"",%11s,,,,9
+108,LINE,Line,line,"Sequentially numbered segment of cruise track",%11s,,,,9223372036854775807
+109,LONGITUDE,"",longitude,"",%11s,,,,10
+110,MAN,Mannose,mannose,"Concentration of Mannose after hydrolysis",%11s,6,,,9223372036854775807
+111,MCHFRM,"methyl chloroform",methyl_chloroform,"",%8.3f,9,,,92
+112,MEHG,"Methylated Mercury",methylated_mercury,"Methylated Mercury",%11s,30,0,500,9223372036854775807
+113,MN,Manganese,manganese,"Dissolved Manganese",%8.1f,4,0,5,64
+114,N15-N2,"",n15_n2,"",%11s,,,,9223372036854775807
+115,N2,"",n2,"",%11s,,,,9223372036854775807
+116,N2O,"Nitrous oxide",nitrous_oxide,"",%11s,6,1,200,91
+117,NEON,Neon,neon,"",%8.3f,6,0,10,53
+118,NEONER,"Neon Error",neon_error,"",%8.3f,6,,,54
+119,NH4,Ammonium,ammonium1,"",%8.2f,3,,,19
+120,NH4L,ammonium,ammonium,"",%11s,31,,,9223372036854775807
+121,NI,Nickel,nickel,"",%11s,,,,58
+122,NITRAT,Nitrate,nitrate,"",%8.2f,3,-0.1,47,20
+123,NITRATL,Nitrate,nitratel,Nitrate,%11s,31,,,9223372036854775807
+124,NITRIT,Nitrite,nitrite,"",%8.2f,3,-0.1,15,21
+125,NITRITL,Nitrite,nitritel,"",%11s,31,,,9223372036854775807
+126,NO2+NO3,Nitrite+Nitrate,nitrite_nitrate,"",%8.2f,3,-0.1,47,9223372036854775807
+127,NRAUNC,"Nitrate Uncertainty",nitrate_uncertainty,"Percent Coefficient of Variation for NITRAT",%11s,3,,,9223372036854775807
+128,NRIUNC,"Nitrite Uncertainty",nitrite_uncertainty,"Percent Coefficient of Variation for NITRIT",%11s,3,,,9223372036854775807
+129,NTRAER,"NITRATE Error",nitrate_error,"",%11s,,,,9223372036854775807
+130,NTRIER,"NITRITE Error",nitrite_error,"",%11s,,,,9223372036854775807
+131,O18-O2,"",o18_o2,"",%11s,,,,9223372036854775807
+132,O2-AR,O2/Ar,o2_ar,"",%11s,,,,9223372036854775807
+133,OSNUM,"C-14 Log Number",c_14_log_number,"",%11s,,,,9223372036854775807
+134,OXYGEN,Oxygen,bottle_oxygen,"",%8.1f,3,0,500,17
+135,"OXYGENL ",Oxygen,oxygen,"",%11s,32,,,9223372036854775807
+136,PAR,PAR,par,"Photosynthetically Avaialble Radiation",%11s,27,,,9223372036854775807
+137,PCO2,"Partial Pressure of Carbon Dioxide",partial_pressure_of_co2,"",%8.1f,33,50,2000,31
+138,PCO2TMP,"p(CO2) Equilibration Temperature",partial_co2_temperature,"Partial Pressure of Carbon Dioxide Equilibration Temperature",%8.2f,34,,,32
+139,PCO2_20,"pCO2 at 20 °C",pco2_at_20_c,"Parital Pressure of Carbon Dioxide Measured at 20 °C",%11s,,,,9223372036854775807
+140,PCO2_T,"pCO2 at Temp",pco2_at_temp,"Partial Pressure of Carbon Dioxide Measured at Equilibration Temp",%11s,,,,9223372036854775807
+141,PEUK,"Pigmented Picoeukaryotes",pigmented_picoeukaryotes,"Picoeukaryote Cell Counts",%8.2f,35,,,9223372036854775807
+142,PH,"",ph11,"pH: ?log10{[H+]/(mol/kg)}",%8.4f,,,,9223372036854775807
+143,PHOTOLYS,Photolysis,photolysis,"",%11s,11,,,9223372036854775807
+144,PHPUNC,"Phosphate Uncertainty",phosphate_uncertainty,"Percent Coefficient of Variation for PHSPHT",%11s,3,,,9223372036854775807
+145,PHSPER,"PHSPHT Error",phspht_error,"",%11s,,,,9223372036854775807
+146,PHSPHT,Phosphate,phosphate,"",%8.2f,3,0,5,22
+147,PHSPHTL,Phosphate,phosphate1,Phosphate,%11s,31,,,9223372036854775807
+148,PH_SWS,pH,ph,"pH, referred to seawater scale",%9.4f,,,,34
+149,PH_TMP,"PH Temperature",ph_temperature,"Temperature to be reported if pH is reported",%9.2f,34,,,35
+150,PH_TOT,pH,ph1,"pH, referred to total scale",%9.4f,,,,33
+151,PIGMENTS,"Phytoplankton Pigments",phytoplankton_pigments,"",%11s,,,,9223372036854775807
+152,PLUTO,Plutonium,plutonium,"",%11s,36,,,9223372036854775807
+153,PLUTOER,"Plutonium Error",plutonium_error,"",%11s,36,,,9223372036854775807
+154,POC,"Particulate organic Carbon",particulate_organic_carbon,"Particulate organic carbon",%8.3f,13,,,74
+155,PON,"Particulate organic nitrogen",particulate_organic_nitrogen,"Particulate organic nitrogen",%8.3f,13,,,80
+156,PPHYTN,Phaeophytin,phaeophytin,"",%8.2f,13,,,96
+157,PROC,Prochlorophytes,prochlorophytes,"Prochlorophyte Cell Count",%8.2f,37,,,9223372036854775807
+158,QUALT1,"Quality word one",quality_word_one,"",%11s,,,,87
+159,QUALT2,"Quality word two",quality_word_two,"",%11s,,,,86
+160,R226ER,"Radium 226 Error",radium_226_error,"",%8.2f,14,,,9223372036854775807
+161,R228ER,"Radium 228 Error",radium_228_error,"",%8.2f,14,,,9223372036854775807
+162,RA-226,"Radium 226",radium_226,"",%8.2f,14,3,80,67
+163,RA-228,"Radium 228",radium_228,"",%8.2f,14,-1,10,68
+164,RA-8/6,"RA 228/226",ra_228_226,"RA 228/226 Ratio",%11s,14,,,82
+165,RA-8/6E,"RA 228/226 Error",ra_228_226_error,"RA 228/226 Ratio Error",%11s,14,,,83
+166,REFTMP,"Reference Temperature",reference_temperature,"SBE-35 reference temperature",%8.4f,34,-3,35,40
+167,REVPRS,"",revprs,"",%8.1f,16,0,11000,41
+168,REVTMP,"",revtmp,"",%8.3f,18,-2,35,42
+169,RHAM,Rhamnose,rhamnose,"Concetration of Rhamnose after hydrolysis ",%11s,6,,,9223372036854775807
+170,SALNTY,"Bottle Salinity",bottle_salinity,"",%8.4f,17,0,42,15
+171,SALTREF,"Reference Salinity",reference_salinity,"",%11s,38,,,9223372036854775807
+172,SAMPNO,"Sample Number",sample_number,"",%11s,39,,,4
+173,SBE35,"",sbe35,"Temperature from Deep Ocean Standards Thermometer",%8.4f,18,,,9223372036854775807
+174,SF5CF3,"Trifluoromethyl Sulfur Pentafluoride",trifluoromethyl_sulfur_pentafluoride,"",%11s,30,,,9223372036854775807
+175,SF6,"Sulfur Hexifluoride",sulfur_hexifluoride,"",%8.4f,30,,,26
+176,SIG0,"Sigma Theta",sigma_theta,"Potential Density",%11s,40,,,9223372036854775807
+177,SILCAT,Silicate,silicate,"",%8.2f,3,0,250,18
+178,SILCATL,Silicate,silicate1,"",%11s,31,,,9223372036854775807
+179,SILCER,"SILCAT Error",silcat_error,"",%11s,,,,9223372036854775807
+180,SILUNC,"Silicate Uncertainty",silicate_uncertainty,"Percent Coefficient of Variation for SILCAT",%11s,3,,,9223372036854775807
+181,SIP,"Stable Isotope Probing",stable_isotope_probing,"Stable Isotope Probing",%11s,,,,9223372036854775807
+182,SOMSAL,"",somsal,"",%11s,17,,,9223372036854775807
+183,SPAR,SPAR,spar,"Surface Photosynthetically Available Radiation",%11s,27,,,9223372036854775807
+184,SR-90,"Strontium 90",strontium_90,"",%8.2f,14,0,100,73
+185,STNNBR,"Station Number",station_number,"",%8s,39,,,2
+186,SYN,Synechococcus,synechococcus,"Synechococcus Cell Count",%8.2f,35,,,9223372036854775807
+187,TCARBN,"Total Carbon CT",total_carbon,"",%8.1f,3,1100,2600,27
+188,TDN,"Total Dissolved Nitrogen",total_dissolved_nitrogen,"",%8.2f,3,3,20,76
+189,THETA,"Potential Temperature",theta,"",%8.4f,34,-2,35,9223372036854775807
+190,TIME,"",time,"",%11s,,,,8
+191,TOC,"Total Organic Carbon",total_organic_carbon,"",%11s,,,,81
+192,TON,"Total Organic Nitrogen",total_organic_nitrogen,"",%11s,,,,77
+193,TRITER,"Tritium Error",tritium_error,"",%8.3f,41,,,9223372036854775807
+194,TRITUM,Tritium,tritium,"",%8.3f,41,-1,100,37
+195,UREA,UREA,urea,Urea,%11s,23,,,9223372036854775807
+196,XMISS,Transmissometer,transmissometer,"",%8.2f,42,0,100,69
+197,EXPOCODE,ExpoCode,expocode,,%11s,,,,0
+198,SECT_ID,"Section ID",section_id,,%11s,,,,1
