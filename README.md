@@ -30,7 +30,7 @@ is mapping entire directories, done with the `-v` flag. The
 containerization was tested during development using `-v
 $(cwd):/context` and this is what I recommend.
 
-`docker run -it --rm -v $(cwd):/context cchdo/libcchdo`
+`docker run -it --rm -v $(pwd):/context cchdo/libcchdo`
 
 will run but just output the same message as before (basically, nothing
 to do). The `-v` flag is basically `map source:destination`, `/context`
