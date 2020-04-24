@@ -1,4 +1,5 @@
 # `hydro` command and docker
+![Docker Build Status](https://img.shields.io/docker/build/cchdo/libcchdo)
 
 This library has been "dockerized" to help with the complex task of
 getting all the dependencies installed, including what amounts to a copy
@@ -17,12 +18,10 @@ appear and when it's all done that's it\!
 
 ## To run
 
-To start try `docker run -it --rm cchdo/libcchdo`, you should see the
+To start try `docker run --rm cchdo/libcchdo`, you should see the
 help text print and the final words "hydro: error: too few arguments".
 This means things are working. The `--rm` flag in this context means
-"clean up the container after it has run". The `-it` flags mean
-"interactive" and "tty", these are needed for keyboard interaction if
-needed.
+"clean up the container after it has run". 
 
 Next a mapping of the file system needs to occur so that libcchdo has
 access to the data you want to work on. The "docker" way of doing this
@@ -30,7 +29,7 @@ is mapping entire directories, done with the `-v` flag. The
 containerization was tested during development using `-v
 $(cwd):/context` and this is what I recommend.
 
-`docker run -it --rm -v $(pwd):/context cchdo/libcchdo`
+`docker run --rm -v $(pwd):/context cchdo/libcchdo`
 
 will run but just output the same message as before (basically, nothing
 to do). The `-v` flag is basically `map source:destination`, `/context`
@@ -48,7 +47,7 @@ is done with the following envvars:
 These are passed into the docker run command using the `-e` flag (which
 can be chained), so now the entire thing looks like this:
 
-`docker run -it --rm -e LIBCCHDO_MERGER_DIVISION=CCH -e LIBCCHDO_MERGER_INITIALS=AMB -e LIBCCHDO_MERGER_INSTITUTION=SIO -v $(pwd):/context cchdo/libcchdo`
+`docker run --rm -e LIBCCHDO_MERGER_DIVISION=CCH -e LIBCCHDO_MERGER_INITIALS=AMB -e LIBCCHDO_MERGER_INSTITUTION=SIO -v $(pwd):/context cchdo/libcchdo`
 
 I'd highly recommend aliasing that entire thing (with the correct
 initials) to `hydro` in your shell. Then
@@ -58,6 +57,13 @@ check to make sure everything looks as it should with a
 stamp it will write to exchange files.
 
 ## Limitations
+
+* Using the `-it` docker flags will cause the ZIP/binary output to not be valid.
+  As a mitigation, the command above were modified to not recommend `-it` by default.
+  This mode not allow interacting with a REPR (e.g. `hydro shell` or `hydro convert misc explore_any`).
+  To use the REPR modes of hydro, add `-it` to the commands above after the "run", for example:
+
+  `docker run -it --rm -v $(pwd):/context cchdo/libcchdo`
 
 *  File paths are must be relative and deeper than whatever directory
    was mapped to `/context` inside the container. Docker usually doesn't
