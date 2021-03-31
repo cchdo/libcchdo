@@ -7,7 +7,7 @@ Cython==0.28.3
 docopt==0.6.2
 httplib2==0.18.0
 Jinja2==2.10
-lxml==4.2.3
+lxml==4.6.3
 MarkupSafe==1.0
 mpmath==1.0.0
 netCDF4==1.4.0
